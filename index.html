@@ -142,19 +142,26 @@
     .overview-grid { grid-template-columns: 1fr; }
   }
 
-  .scale-note {
-    font-size: 11.5px; color: #8a8f98; padding: 8px 26px; background: var(--panel);
-    border-bottom: 1px solid var(--line);
-  }
-
   .canvas-wrap {
     flex: 1; padding: 26px; overflow: auto;
     display: flex; align-items: flex-start; justify-content: center;
   }
+  .zoom-bar {
+    display: flex; align-items: center; gap: 8px; padding: 7px 26px;
+    background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12.5px; color: #4b5563;
+  }
+  .zoom-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); background: #fff;
+    cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; color: #374151;
+  }
+  .zoom-btn:hover { background: #f3f4f6; }
+  .zoom-fit { width: auto; padding: 0 10px; font-size: 11.5px; font-weight: 600; }
+  .zoom-pct { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; color: #1f2937; }
+  .zoom-hint { color: #9ca3af; font-size: 11px; margin-left: 4px; }
   .plan {
-    position: relative; width: 100%; max-width: 1423px; user-select: none;
+    position: relative; width: 100%; user-select: none;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.05);
-    border-radius: 4px; background: white;
+    border-radius: 4px; background: white; flex-shrink: 0;
   }
   .plan img { display: block; width: 100%; height: auto; pointer-events: none; border-radius: 4px; }
   .booth {
@@ -169,43 +176,64 @@
   .booth-label { outline: none; padding: 0 2px; white-space: nowrap; pointer-events: none; }
   .booth.editing .booth-label { pointer-events: auto; white-space: normal; word-break: break-word; }
   .booth .del {
-    position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; border-radius: 50%;
-    background: #c0392b; color: white; font-size: 10px; line-height: 16px; text-align: center;
-    display: none; cursor: pointer; z-index: 2;
+    position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; border-radius: 50%;
+    background: #c0392b; color: white; font-size: 11px; line-height: 18px; text-align: center;
+    display: none; cursor: pointer; z-index: 12;
   }
   .booth .rotate {
-    position: absolute; top: -8px; left: -8px; width: 16px; height: 16px; border-radius: 50%;
-    background: #2c3e50; color: white; font-size: 11px; line-height: 16px; text-align: center;
-    display: none; cursor: pointer; z-index: 2;
+    position: absolute; top: -9px; left: -9px; width: 18px; height: 18px; border-radius: 50%;
+    background: #2c3e50; color: white; font-size: 12px; line-height: 18px; text-align: center;
+    display: none; cursor: pointer; z-index: 12;
   }
   .booth .rotate-stalk {
-    position: absolute; top: -18px; left: 50%; width: 1px; height: 18px; background: #2c3e50; display: none; z-index: 2;
+    position: absolute; top: -14px; left: 50%; width: 1px; height: 14px; background: #2c3e50; display: none; z-index: 12;
   }
   .booth .rotate-handle {
-    position: absolute; top: -26px; left: 50%; width: 11px; height: 11px; margin-left: -5.5px;
-    border-radius: 50%; background: #2c3e50; border: 2px solid white; display: none; cursor: grab; z-index: 3;
+    position: absolute; top: -20px; left: 50%; width: 20px; height: 20px; margin-left: -10px;
+    border-radius: 50%; background: #2c3e50; border: 2px solid white; display: none; cursor: grab; z-index: 13;
+  }
+  .booth .rotate-handle::after {
+    content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
   }
   .booth .rotate-handle:active { cursor: grabbing; }
   .booth:hover .del, .booth:hover .rotate,
   .booth:hover .rotate-stalk, .booth:hover .rotate-handle,
+  .booth.selected .del, .booth.selected .rotate,
+  .booth.selected .rotate-stalk, .booth.selected .rotate-handle,
   .booth.rotating .rotate-stalk, .booth.rotating .rotate-handle { display: block; }
+  .booth.selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(41,98,255,0.6), 0 1px 2px rgba(0,0,0,0.25); }
 
   .plan-label {
-    position: absolute; padding: 3px 8px; border-radius: 4px; cursor: grab; touch-action: none;
+    position: absolute; padding: 2px 4px; border-radius: 4px; cursor: grab; touch-action: none;
     background: rgba(255,255,255,0.94); border: 1.5px solid #2c3e50; color: #1c2733;
-    font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    font-size: 12px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
     user-select: none; z-index: 20;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
   }
   .plan-label:active { cursor: grabbing; }
   .plan-label.dragging { opacity: 0.85; z-index: 51; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
   .plan-label.editing { cursor: text; box-shadow: 0 0 0 2px var(--accent, #2962FF); }
-  .plan-label .label-text { outline: none; }
+  .plan-label .label-text {
+    outline: none; width: 100%; text-align: center; line-height: 1.15;
+    white-space: normal; word-break: break-word; overflow-wrap: break-word;
+  }
   .plan-label .del {
     position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; border-radius: 50%;
     background: #c0392b; color: white; font-size: 10px; line-height: 16px; text-align: center;
-    display: none; cursor: pointer; z-index: 2;
+    display: none; cursor: pointer; z-index: 4;
   }
-  .plan-label:hover .del { display: block; }
+  .plan-label .resize-handle {
+    position: absolute; right: -6px; bottom: -6px; width: 14px; height: 14px; border-radius: 3px;
+    background: #2c3e50; border: 2px solid white; cursor: nwse-resize; display: none; z-index: 3;
+  }
+  .plan-label:hover .del, .plan-label.selected .del,
+  .plan-label:hover .resize-handle, .plan-label.selected .resize-handle { display: block; }
+  .plan-label.selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(41,98,255,0.6); }
+  .dim-readout {
+    position: absolute; background: rgba(20,20,20,0.88); color: #fff; font-size: 11px;
+    padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; z-index: 60;
+    font-variant-numeric: tabular-nums;
+  }
 
   .type-A { background: rgba(41,98,255,0.75); border-color: var(--color-a-dark); }
   .type-B { background: rgba(46,139,87,0.75); border-color: var(--color-b-dark); }
@@ -284,14 +312,14 @@
       <b id="total-count">0</b>
     </div>
 
-    <div class="hint">Drag a box to move it, or double-click it to type a name (a vendor, a sponsor, anything) right on the box \u2014 it replaces the package letter and saves with the layout. Hover it to reveal handles: the top knob drags to rotate freely (snaps to 15&deg; steps, hold Shift for exact free angles); the dark &#8635; badge jumps a quick 90&deg;; the red &times; removes it. Each package's counter shows how many you've placed so far, added up across every map.</div>
+    <div class="hint">Click a box to select it \u2014 its handles stay visible and clickable until you select something else or click empty space, so you don't have to keep the mouse hovering just right. Drag to move it, or double-click to type a name (a vendor, a sponsor, anything) right on the box \u2014 it replaces the package letter and saves with the layout. The top knob drags to rotate freely (snaps to 15&deg; steps, hold Shift for exact free angles); the dark &#8635; badge jumps a quick 90&deg;; the red &times; removes it. Each package's counter shows how many you've placed so far, added up across every map.</div>
 
     <div>
       <div class="section-label">Ad-hoc labels</div>
       <div style="margin-top:8px;">
         <button class="btn" onclick="addLabel()">+ Add label</button>
       </div>
-      <div class="hint">Drops a text tag on the current map. Double-click it to type anything &mdash; a room name, a note, an arrow callout. Drag to reposition; hover for the &times; to remove.</div>
+      <div class="hint">Drops a text tag on the current map. Double-click it to type anything &mdash; a room name, a note, an arrow callout. Drag to reposition; drag the bottom-right corner to resize (shows the size in feet as you drag); hover for the &times; to remove.</div>
     </div>
 
     <div class="actions">
@@ -320,7 +348,13 @@
       </div>
     </div>
     <div class="map-tabs" id="map-tabs"></div>
-    <div class="scale-note" id="scale-note"></div>
+    <div class="zoom-bar">
+      <button class="zoom-btn" onclick="zoomOut()" title="Zoom out">\u2212</button>
+      <span class="zoom-pct" id="zoom-pct">100%</span>
+      <button class="zoom-btn" onclick="zoomIn()" title="Zoom in">+</button>
+      <button class="zoom-btn zoom-fit" onclick="zoomFit()" title="Fit to window">Fit</button>
+      <span class="zoom-hint">Ctrl/Cmd + scroll also zooms</span>
+    </div>
     <div class="canvas-wrap" id="edit-view">
       <div class="plan" id="plan">
         <img id="plan-img" src="" alt="floor plan">
@@ -340,11 +374,11 @@ const MAPS = {"s100": {"label": "S100 \u2014 ROC Level", "w": 1423, "h": 792, "f
 const MAP_ORDER = ['s100','atrium','e200','w200','s200'];
 const MAP_COLORS = { s100: '#2962FF', atrium: '#FF8C00', e200: '#2E8B57', w200: '#9B59B6', s200: '#D81B60' };
 const MAP_IMGS = {
-  s100: 's100.png',
-  atrium: 'atrium.png',
-  e200: 'e200.png',
-  w200: 'w200.png',
-  s200: 's200.png'
+  s100:   's100.png',
+  atrium:   'atrium.png',
+  e200:   'e200.png',
+  w200:   'w200.png',
+  s200:   's200.png'
 };
 
 let currentMapId = 's100';
@@ -385,7 +419,6 @@ function switchViewMode(mode) {
   document.getElementById('mode-edit-btn').classList.toggle('active', mode === 'edit');
   document.getElementById('mode-overview-btn').classList.toggle('active', mode === 'overview');
   document.getElementById('map-tabs').style.display = mode === 'edit' ? 'flex' : 'none';
-  document.getElementById('scale-note').style.display = mode === 'edit' ? 'block' : 'none';
   document.getElementById('edit-view').style.display = mode === 'edit' ? 'flex' : 'none';
   document.getElementById('overview-view').style.display = mode === 'overview' ? 'block' : 'none';
   setAddControlsEnabled(mode === 'edit');
@@ -447,17 +480,63 @@ function buildTabs() {
   });
 }
 
-function updateScaleNote() {
-  document.getElementById('scale-note').textContent = MAPS[currentMapId].note;
-}
-
 function switchMap(id) {
   currentMapId = id;
   planImg.src = MAP_IMGS[id];
   buildTabs();
-  updateScaleNote();
   renderAll();
 }
+
+// ---- Zoom ----
+let zoomLevel = 1;
+const ZOOM_MIN = 0.3, ZOOM_MAX = 4;
+
+function computeFitWidth() {
+  const wrap = document.getElementById('edit-view');
+  return Math.max(200, wrap.clientWidth - 52); // minus canvas-wrap's horizontal padding
+}
+
+function applyZoom() {
+  const fitWidth = computeFitWidth();
+  const px = Math.round(fitWidth * zoomLevel);
+  plan.style.width = px + 'px';
+  document.getElementById('zoom-pct').textContent = Math.round(zoomLevel * 100) + '%';
+}
+
+function zoomIn() {
+  zoomLevel = Math.min(ZOOM_MAX, zoomLevel * 1.2);
+  applyZoom();
+}
+
+function zoomOut() {
+  zoomLevel = Math.max(ZOOM_MIN, zoomLevel / 1.2);
+  applyZoom();
+}
+
+function zoomFit() {
+  zoomLevel = 1;
+  applyZoom();
+}
+
+document.getElementById('edit-view').addEventListener('wheel', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  const wrap = e.currentTarget;
+  const rectBefore = plan.getBoundingClientRect();
+  const cursorRatioX = (e.clientX - rectBefore.left) / rectBefore.width;
+  const scrollBefore = wrap.scrollLeft;
+  const oldWidth = rectBefore.width;
+
+  zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomLevel * (e.deltaY < 0 ? 1.1 : 1/1.1)));
+  applyZoom();
+
+  // keep the point under the cursor roughly stationary while zooming
+  const newWidth = plan.getBoundingClientRect().width;
+  wrap.scrollLeft = scrollBefore + (newWidth - oldWidth) * cursorRatioX;
+}, { passive: false });
+
+window.addEventListener('resize', () => { if (zoomLevel) applyZoom(); });
+
 
 function renderCounts() {
   const counts = { A: 0, AA: 0, B: 0, C: 0, D: 0 };
@@ -627,7 +706,7 @@ function removeBooth(id) {
 }
 
 function addLabel() {
-  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, text: 'Label' };
+  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, wFt: 5, hFt: 2, text: 'Label' };
   labels.push(lb);
   const el = createLabelEl(lb);
   startEditLabel(el, lb);
@@ -635,10 +714,15 @@ function addLabel() {
 }
 
 function createLabelEl(lb) {
+  if (lb.wFt === undefined) lb.wFt = 5;
+  if (lb.hFt === undefined) lb.hFt = 2;
+  const { wPct, hPct } = pctSize(lb.mapId, lb.wFt, lb.hFt);
   const el = document.createElement('div');
   el.className = 'plan-label';
   el.style.left = lb.xPct + '%';
   el.style.top = lb.yPct + '%';
+  el.style.width = wPct + '%';
+  el.style.height = hPct + '%';
   el.dataset.id = lb.id;
   el.dataset.kind = 'label';
 
@@ -655,11 +739,67 @@ function createLabelEl(lb) {
   del.addEventListener('click', (e) => { e.stopPropagation(); removeLabel(lb.id); });
   el.appendChild(del);
 
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'resize-handle';
+  resizeHandle.title = 'Drag to resize';
+  attachLabelResize(resizeHandle, el, lb);
+  el.appendChild(resizeHandle);
+
   el.addEventListener('pointerdown', onPointerDown);
   el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditLabel(el, lb); });
 
   plan.appendChild(el);
   return el;
+}
+
+function attachLabelResize(handle, labelEl, lb) {
+  let dimTag = null;
+  let startX, startY, startWFt, startHFt;
+
+  function onDown(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    selectEl(labelEl);
+    planRect = plan.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    startWFt = lb.wFt;
+    startHFt = lb.hFt;
+    dimTag = document.createElement('div');
+    dimTag.className = 'dim-readout';
+    plan.appendChild(dimTag);
+    handle.setPointerCapture(e.pointerId);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
+
+  function onMove(e) {
+    const m = MAPS[lb.mapId];
+    const dxFt = ((e.clientX - startX) / planRect.width) * m.w / m.ftpx;
+    const dyFt = ((e.clientY - startY) / planRect.height) * m.h / m.ftpx;
+    const newW = Math.max(1, startWFt + dxFt);
+    const newH = Math.max(0.5, startHFt + dyFt);
+    lb.wFt = newW;
+    lb.hFt = newH;
+    const { wPct, hPct } = pctSize(lb.mapId, newW, newH);
+    labelEl.style.width = wPct + '%';
+    labelEl.style.height = hPct + '%';
+    if (dimTag) {
+      dimTag.textContent = newW.toFixed(1) + ' ft \u00d7 ' + newH.toFixed(1) + ' ft';
+      const rect = labelEl.getBoundingClientRect();
+      dimTag.style.left = (rect.right - planRect.left + 8) + 'px';
+      dimTag.style.top = (rect.top - planRect.top) + 'px';
+    }
+  }
+
+  function onUp() {
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    if (dimTag) { dimTag.remove(); dimTag = null; }
+    persist();
+  }
+
+  handle.addEventListener('pointerdown', onDown);
 }
 
 function startEditLabel(el, lb) {
@@ -822,7 +962,8 @@ function applyRemoteState(data) {
     wFt: b.wFt || 10, hFt: b.hFt || DEPTH_FT[b.type] || 6, angle: b.angle || 0, name: b.name || ''
   }));
   labels = (data.labels || []).filter(l => MAPS[l.mapId]).map(l => ({
-    id: l.id || makeId(), mapId: l.mapId, xPct: l.xPct, yPct: l.yPct, text: l.text || 'Label'
+    id: l.id || makeId(), mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
+    wFt: l.wFt || 5, hFt: l.hFt || 2, text: l.text || 'Label'
   }));
   refreshView();
 }
@@ -839,7 +980,8 @@ function pushRemoteState(isSeed) {
           wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
         })),
         labels: labels.map(l => ({
-          id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct, text: l.text
+          id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
+          wFt: l.wFt, hFt: l.hFt, text: l.text
         }))
       },
       updated_at: new Date().toISOString()
@@ -882,7 +1024,8 @@ async function saveVersion() {
         wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
       })),
       labels: labels.map(l => ({
-        id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct, text: l.text
+        id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
+        wFt: l.wFt, hFt: l.hFt, text: l.text
       }))
     },
     booth_count: booths.length,
@@ -963,10 +1106,18 @@ function clearAllMaps() {
 
 let dragEl = null, dragOffsetX = 0, dragOffsetY = 0, planRect = null;
 
+function selectEl(el) {
+  plan.querySelectorAll('.booth.selected, .plan-label.selected').forEach(x => {
+    if (x !== el) x.classList.remove('selected');
+  });
+  if (el) el.classList.add('selected');
+}
+
 function onPointerDown(e) {
   if (e.currentTarget.classList.contains('editing')) return;
   dragEl = e.currentTarget;
   dragEl.classList.add('dragging');
+  selectEl(dragEl);
   planRect = plan.getBoundingClientRect();
   const elRect = dragEl.getBoundingClientRect();
   dragOffsetX = e.clientX - elRect.left;
@@ -975,6 +1126,10 @@ function onPointerDown(e) {
   dragEl.addEventListener('pointermove', onPointerMove);
   dragEl.addEventListener('pointerup', onPointerUp);
 }
+
+plan.addEventListener('pointerdown', (e) => {
+  if (e.target === plan || e.target.id === 'plan-img') selectEl(null);
+});
 
 function onPointerMove(e) {
   if (!dragEl) return;
@@ -1005,11 +1160,15 @@ function onPointerUp(e) {
   persist();
 }
 
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') selectEl(null);
+});
+
 // init
 buildTabs();
-updateScaleNote();
 planImg.src = MAP_IMGS[currentMapId];
 renderAll();
+applyZoom();
 initSupabase();
 </script>
 </body>
