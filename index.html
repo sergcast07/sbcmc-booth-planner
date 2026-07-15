@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SBCMC Booth Layout Planner</title>
+<style>
+  :root {
+    --color-a: #2962FF;
+    --color-a-dark: #1740b8;
+    --color-b: #2E8B57;
+    --color-b-dark: #1f5f3b;
+    --color-c: #FF8C00;
+    --color-c-dark: #b56200;
+    --color-d: #9B59B6;
+    --color-d-dark: #6e3c81;
+    --color-aa: #E53935;
+    --color-aa-dark: #a52620;
+    --ink: #1c2024;
+    --paper: #f7f7f5;
+    --panel: #ffffff;
+    --line: #dcdde0;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+  .brand { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+  .brand .sub {
+    display: block; font-weight: 400; font-size: 12px;
+    color: #6b7280; margin-top: 3px; line-height: 1.4;
+  }
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #8a8f98; margin-bottom: 2px;
+  }
+  .pkg-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .swatch { width: 30px; height: 30px; border-radius: 6px; flex-shrink: 0; }
+  .pkg-info { flex: 1; min-width: 0; }
+  .pkg-name { font-size: 13px; font-weight: 700; }
+  .pkg-size { font-size: 11px; color: #6b7280; }
+  .pkg-count { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .add-btn {
+    width: 30px; height: 30px; border-radius: 8px; border: none; color: white;
+    font-size: 18px; line-height: 1; cursor: pointer; flex-shrink: 0; transition: filter 0.15s;
+  }
+  .add-btn:hover { filter: brightness(1.1); }
+  .add-btn:active { filter: brightness(0.92); }
+
+  .totals {
+    font-size: 13px; padding: 12px 14px; background: #f0f1f4; border-radius: 10px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .totals b { font-size: 20px; }
+
+  .actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 8px; }
+  .sync-status { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6b7280; padding: 6px 2px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; flex-shrink: 0; }
+  .sync-dot.connected { background: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.2); }
+  .sync-dot.connecting { background: #f39c12; animation: pulse 1.2s infinite; }
+  .sync-dot.error { background: #e74c3c; }
+  .sync-dot.offline { background: #9ca3af; }
+  .sync-dot.not-configured { background: #e74c3c; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .version-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .version-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; background: #f3f4f6; border-radius: 6px; font-size: 11.5px; }
+  .version-item .vinfo { flex: 1; line-height: 1.4; }
+  .version-item .vtime { color: #1f2937; font-weight: 600; }
+  .version-item .vcount { color: #6b7280; }
+  .version-item button { font-size: 11px; padding: 4px 9px; border-radius: 5px; border: 1px solid #d1d5db; background: white; cursor: pointer; color: #374151; }
+  .version-item button:hover { background: #e5e7eb; }
+  .btn {
+    border: 1px solid var(--line); background: white; padding: 9px 12px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink);
+  }
+  .btn:hover { background: #f2f2f2; }
+  .btn.danger { color: #c0392b; }
+  .btn.primary { background: var(--ink); color: white; border-color: var(--ink); }
+  .btn.primary:hover { filter: brightness(1.15); }
+  .hint { font-size: 11.5px; color: #8a8f98; line-height: 1.5; }
+
+  .canvas-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .map-tabs {
+    display: flex; gap: 6px; padding: 14px 26px 0 26px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .map-tab {
+    padding: 9px 14px; font-size: 13px; font-weight: 600; border: 1px solid var(--line);
+    border-bottom: none; border-radius: 8px 8px 0 0; background: #f0f1f4; color: #6b7280;
+    cursor: pointer; margin-bottom: -1px;
+  }
+  .map-tab.active { background: var(--paper); color: var(--ink); border-bottom: 1px solid var(--paper); }
+  .map-tab .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+
+  .mode-row { padding: 14px 26px 0 26px; background: var(--panel); }
+  .mode-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .mode-btn {
+    border: none; background: white; color: #6b7280; font-size: 12.5px; font-weight: 600;
+    padding: 7px 13px; cursor: pointer;
+  }
+  .mode-btn + .mode-btn { border-left: 1px solid var(--line); }
+  .mode-btn.active { background: var(--ink); color: white; }
+
+  .overview-wrap { flex: 1; padding: 26px; overflow: auto; background: var(--paper); }
+  .overview-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start;
+  }
+  .overview-cell {
+    background: white; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.05);
+  }
+  .overview-cell .cell-label {
+    font-size: 12.5px; font-weight: 700; padding: 9px 12px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 6px; justify-content: space-between;
+  }
+  .overview-cell .cell-label .cell-count { font-weight: 400; color: #8a8f98; font-size: 11px; }
+  .overview-cell .cell-plan { position: relative; }
+  .overview-cell .cell-plan img { display: block; width: 100%; height: auto; }
+  .overview-booth {
+    position: absolute; border-width: 1px; border-style: solid; border-radius: 1px;
+    transform-origin: 50% 50%;
+  }
+  @media (max-width: 1000px) {
+    .overview-grid { grid-template-columns: 1fr; }
+  }
+
+  .scale-note {
+    font-size: 11.5px; color: #8a8f98; padding: 8px 26px; background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .canvas-wrap {
+    flex: 1; padding: 26px; overflow: auto;
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+  .plan {
+    position: relative; width: 100%; max-width: 1423px; user-select: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.05);
+    border-radius: 4px; background: white;
+  }
+  .plan img { display: block; width: 100%; height: auto; pointer-events: none; border-radius: 4px; }
+  .booth {
+    position: absolute; border-radius: 2px; border-width: 1.5px; border-style: solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: white; cursor: grab; touch-action: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25); transform-origin: 50% 50%;
+  }
+  .booth:active { cursor: grabbing; }
+  .booth.dragging { opacity: 0.85; z-index: 50; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+  .booth.editing { cursor: text; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--color-a-dark, #1740b8); z-index: 52; }
+  .booth-label { outline: none; padding: 0 2px; white-space: nowrap; pointer-events: none; }
+  .booth.editing .booth-label { pointer-events: auto; white-space: normal; word-break: break-word; }
+  .booth .del {
+    position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; border-radius: 50%;
+    background: #c0392b; color: white; font-size: 10px; line-height: 16px; text-align: center;
+    display: none; cursor: pointer; z-index: 2;
+  }
+  .booth .rotate {
+    position: absolute; top: -8px; left: -8px; width: 16px; height: 16px; border-radius: 50%;
+    background: #2c3e50; color: white; font-size: 11px; line-height: 16px; text-align: center;
+    display: none; cursor: pointer; z-index: 2;
+  }
+  .booth .rotate-stalk {
+    position: absolute; top: -18px; left: 50%; width: 1px; height: 18px; background: #2c3e50; display: none; z-index: 2;
+  }
+  .booth .rotate-handle {
+    position: absolute; top: -26px; left: 50%; width: 11px; height: 11px; margin-left: -5.5px;
+    border-radius: 50%; background: #2c3e50; border: 2px solid white; display: none; cursor: grab; z-index: 3;
+  }
+  .booth .rotate-handle:active { cursor: grabbing; }
+  .booth:hover .del, .booth:hover .rotate,
+  .booth:hover .rotate-stalk, .booth:hover .rotate-handle,
+  .booth.rotating .rotate-stalk, .booth.rotating .rotate-handle { display: block; }
+
+  .plan-label {
+    position: absolute; padding: 3px 8px; border-radius: 4px; cursor: grab; touch-action: none;
+    background: rgba(255,255,255,0.94); border: 1.5px solid #2c3e50; color: #1c2733;
+    font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    user-select: none; z-index: 20;
+  }
+  .plan-label:active { cursor: grabbing; }
+  .plan-label.dragging { opacity: 0.85; z-index: 51; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+  .plan-label.editing { cursor: text; box-shadow: 0 0 0 2px var(--accent, #2962FF); }
+  .plan-label .label-text { outline: none; }
+  .plan-label .del {
+    position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; border-radius: 50%;
+    background: #c0392b; color: white; font-size: 10px; line-height: 16px; text-align: center;
+    display: none; cursor: pointer; z-index: 2;
+  }
+  .plan-label:hover .del { display: block; }
+
+  .type-A { background: rgba(41,98,255,0.75); border-color: var(--color-a-dark); }
+  .type-B { background: rgba(46,139,87,0.75); border-color: var(--color-b-dark); }
+  .type-C { background: rgba(255,140,0,0.75); border-color: var(--color-c-dark); }
+  .type-D { background: rgba(155,89,182,0.75); border-color: var(--color-d-dark); }
+  .type-AA { background: rgba(229,57,53,0.75); border-color: var(--color-aa-dark); }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="brand">SBCMC Booth Layout Planner
+      <span class="sub">Hunter Street campus &mdash; five levels. Drag boxes to plan booth placement; sizes are proportional to each map's own confirmed scale (see note under the map).</span>
+    </div>
+
+    <div>
+      <div class="section-label">Add booths</div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+        <div class="pkg-card">
+          <div class="swatch" style="background:var(--color-aa)"></div>
+          <div class="pkg-info">
+            <div class="pkg-name">Package Double A</div>
+            <div class="pkg-size">20 &times; 10 ft</div>
+            <div class="pkg-count" id="count-AA">0 placed</div>
+          </div>
+          <button class="add-btn" style="background:var(--color-aa)" onclick="addBooth('AA')">+</button>
+        </div>
+        <div class="pkg-card">
+          <div class="swatch" style="background:var(--color-a)"></div>
+          <div class="pkg-info">
+            <div class="pkg-name">Package A</div>
+            <div class="pkg-size">10 &times; 10 ft</div>
+            <div class="pkg-count" id="count-A">0 placed</div>
+          </div>
+          <button class="add-btn" style="background:var(--color-a)" onclick="addBooth('A')">+</button>
+        </div>
+        <div class="pkg-card">
+          <div class="swatch" style="background:var(--color-b)"></div>
+          <div class="pkg-info">
+            <div class="pkg-name">Package B</div>
+            <div class="pkg-size">10 &times; 6 ft</div>
+            <div class="pkg-count" id="count-B">0 placed</div>
+          </div>
+          <button class="add-btn" style="background:var(--color-b)" onclick="addBooth('B')">+</button>
+        </div>
+        <div class="pkg-card">
+          <div class="swatch" style="background:var(--color-c)"></div>
+          <div class="pkg-info">
+            <div class="pkg-name">Package C</div>
+            <div class="pkg-size">10 &times; 4 ft</div>
+            <div class="pkg-count" id="count-C">0 placed</div>
+          </div>
+          <button class="add-btn" style="background:var(--color-c)" onclick="addBooth('C')">+</button>
+        </div>
+        <div class="pkg-card">
+          <div class="swatch" style="background:var(--color-d)"></div>
+          <div class="pkg-info">
+            <div class="pkg-name">Package D</div>
+            <div class="pkg-size">10 &times; 4 ft</div>
+            <div class="pkg-count" id="count-D">0 placed</div>
+          </div>
+          <button class="add-btn" style="background:var(--color-d)" onclick="addBooth('D')">+</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="totals">
+      <span>Total booths placed<br><span style="font-size:10.5px;">(across all 5 maps)</span></span>
+      <b id="total-count">0</b>
+    </div>
+
+    <div class="hint">Drag a box to move it, or double-click it to type a name (a vendor, a sponsor, anything) right on the box \u2014 it replaces the package letter and saves with the layout. Hover it to reveal handles: the top knob drags to rotate freely (snaps to 15&deg; steps, hold Shift for exact free angles); the dark &#8635; badge jumps a quick 90&deg;; the red &times; removes it. Each package's counter shows how many you've placed so far, added up across every map.</div>
+
+    <div>
+      <div class="section-label">Ad-hoc labels</div>
+      <div style="margin-top:8px;">
+        <button class="btn" onclick="addLabel()">+ Add label</button>
+      </div>
+      <div class="hint">Drops a text tag on the current map. Double-click it to type anything &mdash; a room name, a note, an arrow callout. Drag to reposition; hover for the &times; to remove.</div>
+    </div>
+
+    <div class="actions">
+      <div class="sync-status" id="sync-status">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-text">Checking shared sync\u2026</span>
+      </div>
+
+      <button class="btn primary" onclick="saveVersion()">Save Version</button>
+      <div class="hint" id="version-status"></div>
+      <div class="section-label" style="margin-top:2px;">Version History</div>
+      <div class="version-list" id="version-list"><div class="hint">No versions saved yet \u2014 click "Save Version" to create one.</div></div>
+
+      <div class="hint" id="save-status"></div>
+      <div class="hint" style="opacity:0.7;">Everything autosaves live to the shared database as you go \u2014 that's what everyone sees, always current. "Save Version" freezes a snapshot in that same database you can always come back to, even if something gets deleted later.</div>
+      <button class="btn" id="clear-current-btn" onclick="clearCurrentMap()">Clear this map</button>
+      <button class="btn danger" onclick="clearAllMaps()">Clear all maps</button>
+    </div>
+  </div>
+
+  <div class="canvas-col">
+    <div class="mode-row">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-edit-btn" onclick="switchViewMode('edit')">Edit one map</button>
+        <button class="mode-btn" id="mode-overview-btn" onclick="switchViewMode('overview')">See all maps</button>
+      </div>
+    </div>
+    <div class="map-tabs" id="map-tabs"></div>
+    <div class="scale-note" id="scale-note"></div>
+    <div class="canvas-wrap" id="edit-view">
+      <div class="plan" id="plan">
+        <img id="plan-img" src="" alt="floor plan">
+      </div>
+    </div>
+    <div class="overview-wrap" id="overview-view" style="display:none;">
+      <div class="overview-grid" id="overview-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const WIDTH_FT = { A: 10, AA: 20, B: 10, C: 10, D: 10 };
+const DEPTH_FT = { A: 10, AA: 10, B: 6, C: 4, D: 4 };
+
+const MAPS = {"s100": {"label": "S100 \u2014 ROC Level", "w": 1423, "h": 792, "ftpx": 4.78, "note": "Scale calibrated using the interactive scale tool: 22ft and 17ft reference lines measured directly on this plan (5.09 and 4.47 px/ft, averaged to 4.78). Confirmed by you."}, "atrium": {"label": "Atrium / Connectors", "w": 1283, "h": 2005, "ftpx": 6.98, "note": "Scale calibrated using the interactive scale tool: 26ft reference line measured directly on this plan. Confirmed by you, though based on a single reference \u2014 a second line here would firm this up further."}, "e200": {"label": "E200 \u2014 Chapel / East Wing", "w": 1655, "h": 1855, "ftpx": 4.35, "note": "Scale calibrated using the interactive scale tool: four reference lines measured directly on this plan (28.9ft, 16.8ft, 25.4ft, 24.3ft \u2192 5.39, 3.57, 4.12, 4.32 px/ft, averaged to 4.35). Confirmed by you."}, "w200": {"label": "W200 \u2014 Worship / West Wing", "w": 1210, "h": 1145, "ftpx": 6.15, "note": "Scale calibrated using the interactive scale tool: 14.2ft reference line measured directly on this plan. Confirmed by you."}, "s200": {"label": "S200 \u2014 Gym / Recreation Level", "w": 1404, "h": 881, "ftpx": 4.96, "note": "Scale calibrated using the interactive scale tool: 69.9ft hallway reference line measured directly on this plan. Confirmed by you."}};
+const MAP_ORDER = ['s100','atrium','e200','w200','s200'];
+const MAP_COLORS = { s100: '#2962FF', atrium: '#FF8C00', e200: '#2E8B57', w200: '#9B59B6', s200: '#D81B60' };
+const MAP_IMGS = {
+  s100: 'images/s100.png',
+  atrium: 'images/atrium.png',
+  e200: 'images/e200.png',
+  w200: 'images/w200.png',
+  s200: 'images/s200.png'
+};
+
+let currentMapId = 's100';
+let viewMode = 'edit'; // 'edit' | 'overview'
+let booths = []; // {id, mapId, type, xPct, yPct, wFt, hFt, angle}
+let labels = []; // {id, mapId, xPct, yPct, text}
+let idCounter = 0;
+const plan = document.getElementById('plan');
+const planImg = document.getElementById('plan-img');
+
+function makeId() { idCounter += 1; return 'b_' + Date.now() + '_' + idCounter; }
+
+function pctSize(mapId, wFt, hFt) {
+  const m = MAPS[mapId];
+  return { wPct: wFt * m.ftpx / m.w * 100, hPct: hFt * m.ftpx / m.h * 100 };
+}
+
+function refreshView() {
+  if (viewMode === 'overview') renderOverview();
+  else renderAll();
+}
+
+function setAddControlsEnabled(enabled) {
+  document.querySelectorAll('.add-btn').forEach(btn => {
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.35';
+    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  });
+  const clearBtn = document.getElementById('clear-current-btn');
+  if (clearBtn) {
+    clearBtn.disabled = !enabled;
+    clearBtn.style.opacity = enabled ? '1' : '0.5';
+  }
+}
+
+function switchViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('mode-edit-btn').classList.toggle('active', mode === 'edit');
+  document.getElementById('mode-overview-btn').classList.toggle('active', mode === 'overview');
+  document.getElementById('map-tabs').style.display = mode === 'edit' ? 'flex' : 'none';
+  document.getElementById('scale-note').style.display = mode === 'edit' ? 'block' : 'none';
+  document.getElementById('edit-view').style.display = mode === 'edit' ? 'flex' : 'none';
+  document.getElementById('overview-view').style.display = mode === 'overview' ? 'block' : 'none';
+  setAddControlsEnabled(mode === 'edit');
+  refreshView();
+}
+
+function renderOverview() {
+  const grid = document.getElementById('overview-grid');
+  grid.innerHTML = '';
+  MAP_ORDER.forEach(mapId => {
+    const m = MAPS[mapId];
+    const mapBooths = booths.filter(b => b.mapId === mapId);
+
+    const cell = document.createElement('div');
+    cell.className = 'overview-cell';
+
+    const label = document.createElement('div');
+    label.className = 'cell-label';
+    label.innerHTML =
+      '<span><span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:' + MAP_COLORS[mapId] + '"></span>' + m.label + '</span>' +
+      '<span class="cell-count">' + mapBooths.length + ' booth' + (mapBooths.length === 1 ? '' : 's') + '</span>';
+    cell.appendChild(label);
+
+    const planDiv = document.createElement('div');
+    planDiv.className = 'cell-plan';
+    const img = document.createElement('img');
+    img.src = MAP_IMGS[mapId];
+    img.alt = m.label;
+    planDiv.appendChild(img);
+
+    mapBooths.forEach(b => {
+      const { wPct, hPct } = pctSize(mapId, b.wFt, b.hFt);
+      const div = document.createElement('div');
+      div.className = 'overview-booth type-' + b.type;
+      div.style.left = b.xPct + '%';
+      div.style.top = b.yPct + '%';
+      div.style.width = wPct + '%';
+      div.style.height = hPct + '%';
+      div.style.transform = 'rotate(' + (b.angle || 0) + 'deg)';
+      div.title = b.type + ' \u2014 ' + Math.round(b.angle || 0) + '\u00b0';
+      planDiv.appendChild(div);
+    });
+
+    cell.appendChild(planDiv);
+    grid.appendChild(cell);
+  });
+}
+
+function buildTabs() {
+  const wrap = document.getElementById('map-tabs');
+  wrap.innerHTML = '';
+  MAP_ORDER.forEach(id => {
+    const m = MAPS[id];
+    const tab = document.createElement('div');
+    tab.className = 'map-tab' + (id === currentMapId ? ' active' : '');
+    tab.innerHTML = '<span class="dot" style="background:' + MAP_COLORS[id] + '"></span>' + m.label;
+    tab.onclick = () => switchMap(id);
+    wrap.appendChild(tab);
+  });
+}
+
+function updateScaleNote() {
+  document.getElementById('scale-note').textContent = MAPS[currentMapId].note;
+}
+
+function switchMap(id) {
+  currentMapId = id;
+  planImg.src = MAP_IMGS[id];
+  buildTabs();
+  updateScaleNote();
+  renderAll();
+}
+
+function renderCounts() {
+  const counts = { A: 0, AA: 0, B: 0, C: 0, D: 0 };
+  booths.forEach(b => { if (counts[b.type] === undefined) counts[b.type] = 0; counts[b.type]++; });
+  let total = 0;
+  ['A','AA','B','C','D'].forEach(t => {
+    total += counts[t];
+    const el = document.getElementById('count-' + t);
+    if (el) el.textContent = counts[t] + ' placed';
+  });
+  document.getElementById('total-count').textContent = total;
+}
+
+function boothTitle(b) {
+  return 'Package ' + b.type + (b.name ? ' \u2014 ' + b.name : '') + ' \u2014 ' + Math.round(b.angle) + '\u00b0';
+}
+
+function createBoothEl(b) {
+  if (b.angle === undefined) b.angle = 0;
+  if (b.name === undefined) b.name = '';
+  const { wPct, hPct } = pctSize(b.mapId, b.wFt, b.hFt);
+  const el = document.createElement('div');
+  el.className = 'booth type-' + b.type;
+  el.style.left = b.xPct + '%';
+  el.style.top = b.yPct + '%';
+  el.style.width = wPct + '%';
+  el.style.height = hPct + '%';
+  el.style.transform = 'rotate(' + b.angle + 'deg)';
+  el.dataset.id = b.id;
+  el.dataset.kind = 'booth';
+  el.title = boothTitle(b);
+
+  const label = document.createElement('span');
+  label.className = 'booth-label';
+  label.textContent = b.name ? b.name : b.type;
+  el.appendChild(label);
+
+  const stalk = document.createElement('div');
+  stalk.className = 'rotate-stalk';
+  el.appendChild(stalk);
+
+  const handle = document.createElement('div');
+  handle.className = 'rotate-handle';
+  handle.title = 'Drag to rotate freely (Shift = no snap)';
+  attachFreeRotate(handle, el, b);
+  el.appendChild(handle);
+
+  const rot = document.createElement('div');
+  rot.className = 'rotate';
+  rot.textContent = '\u21bb';
+  rot.title = 'Rotate 90\u00b0';
+  rot.addEventListener('pointerdown', (e) => e.stopPropagation());
+  rot.addEventListener('click', (e) => { e.stopPropagation(); rotateBooth90(b.id); });
+  el.appendChild(rot);
+
+  const del = document.createElement('div');
+  del.className = 'del';
+  del.textContent = '\u00d7';
+  del.title = 'Remove';
+  del.addEventListener('pointerdown', (e) => e.stopPropagation());
+  del.addEventListener('click', (e) => { e.stopPropagation(); removeBooth(b.id); });
+  el.appendChild(del);
+
+  el.addEventListener('pointerdown', onPointerDown);
+  el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditBoothName(el, b, label); });
+  plan.appendChild(el);
+  return el;
+}
+
+function startEditBoothName(el, b, labelSpan) {
+  el.classList.add('editing');
+  labelSpan.contentEditable = 'true';
+  if (!b.name) labelSpan.textContent = '';
+  labelSpan.focus();
+  const range = document.createRange();
+  range.selectNodeContents(labelSpan);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function commit() {
+    labelSpan.contentEditable = 'false';
+    el.classList.remove('editing');
+    const text = labelSpan.textContent.trim();
+    b.name = text;
+    labelSpan.textContent = text ? text : b.type;
+    el.title = boothTitle(b);
+    labelSpan.removeEventListener('blur', commit);
+    labelSpan.removeEventListener('keydown', onKey);
+    persist();
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); labelSpan.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); labelSpan.textContent = b.name || b.type; labelSpan.blur(); }
+  }
+  labelSpan.addEventListener('blur', commit);
+  labelSpan.addEventListener('keydown', onKey);
+}
+
+
+function attachFreeRotate(handle, boothEl, b) {
+  function onDown(e) {
+    e.stopPropagation();
+    boothEl.classList.add('rotating');
+    planRect = plan.getBoundingClientRect();
+    handle.setPointerCapture(e.pointerId);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
+  function onMove(e) {
+    const { wPct, hPct } = pctSize(b.mapId, b.wFt, b.hFt);
+    const centerXpx = (b.xPct + wPct / 2) / 100 * planRect.width;
+    const centerYpx = (b.yPct + hPct / 2) / 100 * planRect.height;
+    const px = e.clientX - planRect.left;
+    const py = e.clientY - planRect.top;
+    let angle = Math.atan2(py - centerYpx, px - centerXpx) * 180 / Math.PI + 90;
+    angle = ((angle % 360) + 360) % 360;
+    if (!e.shiftKey) angle = Math.round(angle / 15) * 15 % 360;
+    b.angle = angle;
+    boothEl.style.transform = 'rotate(' + angle + 'deg)';
+    boothEl.title = b.type + ' \u2014 ' + Math.round(angle) + '\u00b0';
+  }
+  function onUp(e) {
+    boothEl.classList.remove('rotating');
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    persist();
+  }
+  handle.addEventListener('pointerdown', onDown);
+}
+
+function rotateBooth90(id) {
+  const b = booths.find(bb => bb.id === id);
+  if (!b) return;
+  b.angle = (((b.angle || 0) + 90) % 360 + 360) % 360;
+  const el = plan.querySelector('.booth[data-id="' + id + '"]');
+  if (el) {
+    el.style.transform = 'rotate(' + b.angle + 'deg)';
+    el.title = boothTitle(b);
+  }
+  persist();
+}
+
+function renderAll() {
+  plan.querySelectorAll('.booth, .plan-label').forEach(e => e.remove());
+  booths.filter(b => b.mapId === currentMapId).forEach(b => createBoothEl(b));
+  labels.filter(l => l.mapId === currentMapId).forEach(l => createLabelEl(l));
+  renderCounts();
+}
+
+function addBooth(type) {
+  const b = {
+    id: makeId(), mapId: currentMapId, type: type,
+    xPct: 46, yPct: 46,
+    wFt: WIDTH_FT[type] || 10, hFt: DEPTH_FT[type], angle: 0, name: ''
+  };
+  booths.push(b);
+  createBoothEl(b);
+  renderCounts();
+  persist();
+}
+
+function removeBooth(id) {
+  booths = booths.filter(b => b.id !== id);
+  renderAll();
+  persist();
+}
+
+function addLabel() {
+  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, text: 'Label' };
+  labels.push(lb);
+  const el = createLabelEl(lb);
+  startEditLabel(el, lb);
+  persist();
+}
+
+function createLabelEl(lb) {
+  const el = document.createElement('div');
+  el.className = 'plan-label';
+  el.style.left = lb.xPct + '%';
+  el.style.top = lb.yPct + '%';
+  el.dataset.id = lb.id;
+  el.dataset.kind = 'label';
+
+  const span = document.createElement('span');
+  span.className = 'label-text';
+  span.textContent = lb.text;
+  el.appendChild(span);
+
+  const del = document.createElement('div');
+  del.className = 'del';
+  del.textContent = '\u00d7';
+  del.title = 'Remove label';
+  del.addEventListener('pointerdown', (e) => e.stopPropagation());
+  del.addEventListener('click', (e) => { e.stopPropagation(); removeLabel(lb.id); });
+  el.appendChild(del);
+
+  el.addEventListener('pointerdown', onPointerDown);
+  el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditLabel(el, lb); });
+
+  plan.appendChild(el);
+  return el;
+}
+
+function startEditLabel(el, lb) {
+  const span = el.querySelector('.label-text');
+  el.classList.add('editing');
+  span.contentEditable = 'true';
+  span.focus();
+  const range = document.createRange();
+  range.selectNodeContents(span);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function commit() {
+    span.contentEditable = 'false';
+    el.classList.remove('editing');
+    const text = span.textContent.trim() || 'Label';
+    lb.text = text;
+    span.textContent = text;
+    span.removeEventListener('blur', commit);
+    span.removeEventListener('keydown', onKey);
+    persist();
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); span.textContent = lb.text; span.blur(); }
+  }
+  span.addEventListener('blur', commit);
+  span.addEventListener('keydown', onKey);
+}
+
+function removeLabel(id) {
+  labels = labels.filter(l => l.id !== id);
+  renderAll();
+  persist();
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+// ---- Shared sync (Supabase) ----
+// To enable live shared editing across everyone who opens this page:
+//   1. In your Supabase project's SQL editor, run:
+//        create table if not exists booth_layouts (
+//          id text primary key,
+//          data jsonb not null default '{}'::jsonb,
+//          updated_at timestamptz default now()
+//        );
+//        alter table booth_layouts enable row level security;
+//        create policy "public read" on booth_layouts for select using (true);
+//        create policy "public write" on booth_layouts for insert with check (true);
+//        create policy "public update" on booth_layouts for update using (true);
+//      (This makes the row open to anyone with your anon key \u2014 fine for an internal
+//      planning tool behind an unlisted link; tighten with auth if that's not enough.)
+//   2. Database \u2192 Replication \u2192 turn on realtime for the booth_layouts table
+//      (or run: alter publication supabase_realtime add table booth_layouts;)
+//   3. Also in the SQL editor, create the version-history table used by the "Save Version" button:
+//        create table if not exists booth_layout_versions (
+//          id uuid primary key default gen_random_uuid(),
+//          data jsonb not null,
+//          booth_count int,
+//          label_count int,
+//          created_at timestamptz default now()
+//        );
+//        alter table booth_layout_versions enable row level security;
+//        create policy "public read versions" on booth_layout_versions for select using (true);
+//        create policy "public insert versions" on booth_layout_versions for insert with check (true);
+//      (Realtime is not needed for this table \u2014 it's only read when you open the Version History list.)
+//   4. Project Settings \u2192 API \u2192 copy the Project URL and the anon/public key
+//   5. Paste them into SUPABASE_CONFIG below
+//   6. Re-publish this file. Everyone who opens the page now reads/writes the same shared layout live.
+// Leave SUPABASE_CONFIG empty (as shipped) and the tool works exactly as before \u2014 autosave to
+// this browser only, no sharing. Nothing breaks either way.
+const SUPABASE_CONFIG = {
+  url: "https://lflcemdvryrkgvlvbsnc.supabase.co",
+  anonKey: "sb_publishable_ctBJO82JTI5sNF1ZQGF4FA_Dr3zwyBd"
+};
+const SHARED_TABLE = 'booth_layouts';
+const SHARED_ROW_ID = 'shared-layout';
+
+let sbClient = null, sbReady = false, sbChannel = null;
+let suppressNextRealtime = false;
+let pushDebounceTimer = null;
+
+function isSupabaseConfigured() {
+  return !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
+}
+
+function updateSyncStatus(state, detail) {
+  const dot = document.getElementById('sync-dot');
+  const text = document.getElementById('sync-text');
+  if (!dot || !text) return;
+  dot.className = 'sync-dot ' + state;
+  const labels = {
+    'not-configured': 'Not connected \u2014 nothing will be saved until Supabase is configured',
+    'connecting': 'Connecting to shared layout\u2026',
+    'connected': 'Live \u2014 shared with everyone on this link',
+    'error': 'Shared sync error \u2014 changes are not being saved',
+    'offline': 'Offline \u2014 changes are not being saved'
+  };
+  text.textContent = detail || labels[state] || state;
+}
+
+async function initSupabase() {
+  if (!isSupabaseConfigured()) {
+    updateSyncStatus('not-configured');
+    return;
+  }
+  try {
+    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    updateSyncStatus('connecting');
+
+    const { data, error } = await sbClient
+      .from(SHARED_TABLE)
+      .select('data')
+      .eq('id', SHARED_ROW_ID)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Supabase initial fetch failed:', error);
+      updateSyncStatus('error');
+      return;
+    }
+
+    if (data && data.data) {
+      applyRemoteState(data.data);
+    } else {
+      // no shared row yet \u2014 seed it from whatever's local right now
+      await pushRemoteState(true);
+    }
+
+    sbReady = true;
+    updateSyncStatus('connected');
+    loadVersionHistory();
+
+    sbChannel = sbClient
+      .channel('booth-layout-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: SHARED_TABLE, filter: 'id=eq.' + SHARED_ROW_ID },
+        (payload) => {
+          if (suppressNextRealtime) { suppressNextRealtime = false; return; }
+          if (payload.new && payload.new.data) applyRemoteState(payload.new.data);
+        })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') updateSyncStatus('connected');
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') updateSyncStatus('error');
+      });
+  } catch (err) {
+    console.error('Supabase init failed:', err);
+    updateSyncStatus('error');
+  }
+}
+
+function applyRemoteState(data) {
+  booths = (data.booths || []).filter(b => MAPS[b.mapId]).map(b => ({
+    id: b.id || makeId(), mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
+    wFt: b.wFt || 10, hFt: b.hFt || DEPTH_FT[b.type] || 6, angle: b.angle || 0, name: b.name || ''
+  }));
+  labels = (data.labels || []).filter(l => MAPS[l.mapId]).map(l => ({
+    id: l.id || makeId(), mapId: l.mapId, xPct: l.xPct, yPct: l.yPct, text: l.text || 'Label'
+  }));
+  refreshView();
+}
+
+function pushRemoteState(isSeed) {
+  if (!sbClient) return Promise.resolve();
+  const doPush = async () => {
+    suppressNextRealtime = true;
+    const payload = {
+      id: SHARED_ROW_ID,
+      data: {
+        booths: booths.map(b => ({
+          id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
+          wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
+        })),
+        labels: labels.map(l => ({
+          id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct, text: l.text
+        }))
+      },
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sbClient.from(SHARED_TABLE).upsert(payload);
+    if (error) {
+      console.error('Supabase write failed:', error);
+      updateSyncStatus('error');
+    }
+  };
+  if (isSeed) return doPush();
+  clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = setTimeout(doPush, 250);
+  return Promise.resolve();
+}
+
+function persist() {
+  pushRemoteState();
+}
+
+// ---- Version history (explicit snapshots, separate from live autosave) ----
+const VERSIONS_TABLE = 'booth_layout_versions';
+
+function showVersionStatus(msg) {
+  const el = document.getElementById('version-status');
+  if (!el) return;
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+async function saveVersion() {
+  if (!sbClient) {
+    showVersionStatus('Shared sync isn\u2019t connected \u2014 set up Supabase first (see SUPABASE_CONFIG).');
+    return;
+  }
+  const payload = {
+    data: {
+      booths: booths.map(b => ({
+        id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
+        wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
+      })),
+      labels: labels.map(l => ({
+        id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct, text: l.text
+      }))
+    },
+    booth_count: booths.length,
+    label_count: labels.length
+  };
+  const { error } = await sbClient.from(VERSIONS_TABLE).insert(payload);
+  if (error) {
+    console.error('Save version failed:', error);
+    showVersionStatus('Could not save version \u2014 has the booth_layout_versions table been created? See setup notes.');
+    return;
+  }
+  showVersionStatus('Version saved (' + booths.length + ' booths, ' + labels.length + ' labels).');
+  loadVersionHistory();
+}
+
+async function loadVersionHistory() {
+  const list = document.getElementById('version-list');
+  if (!sbClient || !list) return;
+  const { data, error } = await sbClient
+    .from(VERSIONS_TABLE)
+    .select('id, created_at, booth_count, label_count')
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) {
+    console.error('Load version history failed:', error);
+    list.innerHTML = '<div class="hint">Couldn\u2019t load version history \u2014 has the booth_layout_versions table been created?</div>';
+    return;
+  }
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="hint">No versions saved yet \u2014 click "Save Version" to create one.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  data.forEach(v => {
+    const item = document.createElement('div');
+    item.className = 'version-item';
+    const dt = new Date(v.created_at);
+    const info = document.createElement('div');
+    info.className = 'vinfo';
+    info.innerHTML = '<div class="vtime">' + dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + '</div>' +
+      '<div class="vcount">' + (v.booth_count ?? '?') + ' booths, ' + (v.label_count ?? '?') + ' labels</div>';
+    item.appendChild(info);
+    const btn = document.createElement('button');
+    btn.textContent = 'Restore';
+    btn.onclick = () => restoreVersion(v.id, dt);
+    item.appendChild(btn);
+    list.appendChild(item);
+  });
+}
+
+async function restoreVersion(id, dt) {
+  const when = dt ? (dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})) : 'this version';
+  if (!confirm('Restore the layout to ' + when + '? This replaces the current shared layout for everyone.')) return;
+  const { data, error } = await sbClient.from(VERSIONS_TABLE).select('data').eq('id', id).maybeSingle();
+  if (error || !data) {
+    console.error('Restore failed:', error);
+    showVersionStatus('Could not load that version.');
+    return;
+  }
+  applyRemoteState(data.data);
+  pushRemoteState(true);
+  showVersionStatus('Restored to ' + when + '.');
+}
+
+function clearCurrentMap() {
+  booths = booths.filter(b => b.mapId !== currentMapId);
+  labels = labels.filter(l => l.mapId !== currentMapId);
+  refreshView();
+  persist();
+}
+
+function clearAllMaps() {
+  booths = [];
+  labels = [];
+  refreshView();
+  persist();
+}
+
+let dragEl = null, dragOffsetX = 0, dragOffsetY = 0, planRect = null;
+
+function onPointerDown(e) {
+  if (e.currentTarget.classList.contains('editing')) return;
+  dragEl = e.currentTarget;
+  dragEl.classList.add('dragging');
+  planRect = plan.getBoundingClientRect();
+  const elRect = dragEl.getBoundingClientRect();
+  dragOffsetX = e.clientX - elRect.left;
+  dragOffsetY = e.clientY - elRect.top;
+  dragEl.setPointerCapture(e.pointerId);
+  dragEl.addEventListener('pointermove', onPointerMove);
+  dragEl.addEventListener('pointerup', onPointerUp);
+}
+
+function onPointerMove(e) {
+  if (!dragEl) return;
+  const elW = dragEl.offsetWidth, elH = dragEl.offsetHeight;
+  let left = e.clientX - planRect.left - dragOffsetX;
+  let top = e.clientY - planRect.top - dragOffsetY;
+  left = Math.max(0, Math.min(left, planRect.width - elW));
+  top = Math.max(0, Math.min(top, planRect.height - elH));
+  const xPct = left / planRect.width * 100;
+  const yPct = top / planRect.height * 100;
+  dragEl.style.left = xPct + '%';
+  dragEl.style.top = yPct + '%';
+  if (dragEl.dataset.kind === 'label') {
+    const l = labels.find(ll => ll.id === dragEl.dataset.id);
+    if (l) { l.xPct = xPct; l.yPct = yPct; }
+  } else {
+    const b = booths.find(bb => bb.id === dragEl.dataset.id);
+    if (b) { b.xPct = xPct; b.yPct = yPct; }
+  }
+}
+
+function onPointerUp(e) {
+  if (!dragEl) return;
+  dragEl.classList.remove('dragging');
+  dragEl.removeEventListener('pointermove', onPointerMove);
+  dragEl.removeEventListener('pointerup', onPointerUp);
+  dragEl = null;
+  persist();
+}
+
+// init
+buildTabs();
+updateScaleNote();
+planImg.src = MAP_IMGS[currentMapId];
+renderAll();
+initSupabase();
+</script>
+</body>
+</html>
