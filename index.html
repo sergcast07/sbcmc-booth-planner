@@ -85,6 +85,15 @@
   .version-item .vinfo { flex: 1; line-height: 1.4; }
   .version-item .vtime { color: #1f2937; font-weight: 600; }
   .version-item .vcount { color: #6b7280; }
+  .version-item .vname { color: #1d4ed8; font-weight: 700; font-size: 12px; margin-bottom: 1px; cursor: pointer; }
+  .version-item .vname:hover { text-decoration: underline; }
+  .version-item .vname-add { color: #9aa3b2; font-size: 11px; margin-bottom: 1px; cursor: pointer; }
+  .version-item .vname-add:hover { color: #1d4ed8; text-decoration: underline; }
+  .version-item .vname-input { width: 100%; box-sizing: border-box; padding: 3px 6px; margin-bottom: 2px;
+    border: 1px solid #1d4ed8; border-radius: 5px; font-size: 12px; font-weight: 700; color: #1c2733; }
+  #version-name { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 6px;
+    border: 1px solid #cfd6e0; border-radius: 6px; font-size: 12.5px; color: #1c2733; }
+  #version-name::placeholder { color: #9aa3b2; }
   .version-item button { font-size: 11px; padding: 4px 9px; border-radius: 5px; border: 1px solid #d1d5db; background: white; cursor: pointer; color: #374151; }
   .version-item button:hover { background: #e5e7eb; }
   .btn {
@@ -329,6 +338,9 @@
         <span id="sync-text">Checking shared sync&hellip;</span>
       </div>
 
+      <input type="text" id="version-name" maxlength="60"
+             placeholder="Name this version (optional)"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();saveVersion();}">
       <button class="btn primary" onclick="saveVersion()">Save Version</button>
       <div class="hint" id="version-status"></div>
       <div class="section-label" style="margin-top:2px;">Version History</div>
@@ -502,6 +514,28 @@ function applyZoom() {
   const px = Math.round(fitWidth * zoomLevel);
   plan.style.width = px + 'px';
   document.getElementById('zoom-pct').textContent = Math.round(zoomLevel * 100) + '%';
+  updateLabelZoom();
+}
+
+// Labels are annotations, not footprints: when zoomed OUT (below 100%) we counter-scale
+// each label so it holds its normal on-screen size and stays readable, while remaining
+// pinned to its spot on the map. Booths are left to scale with the map, as they should.
+const LABEL_BASE_FONT = 12; // matches .plan-label font-size in CSS
+function applyLabelZoom(el) {
+  if (zoomLevel < 1) {
+    const s = 1 / zoomLevel;
+    el.style.transformOrigin = '0 0';
+    el.style.transform = 'scale(' + s + ')';
+    // shrink the pre-transform font so it lands back at ~LABEL_BASE_FONT px on screen
+    el.style.fontSize = (LABEL_BASE_FONT * zoomLevel) + 'px';
+  } else {
+    el.style.transform = '';
+    el.style.transformOrigin = '';
+    el.style.fontSize = '';
+  }
+}
+function updateLabelZoom() {
+  plan.querySelectorAll('.plan-label').forEach(applyLabelZoom);
 }
 
 function zoomIn() {
@@ -756,6 +790,7 @@ function createLabelEl(lb) {
   el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditLabel(el, lb); });
 
   plan.appendChild(el);
+  applyLabelZoom(el); // keep readable if we're currently zoomed out
   return el;
 }
 
@@ -1024,8 +1059,11 @@ async function saveVersion() {
     showVersionStatus('Shared sync isn\u2019t connected \u2014 set up Supabase first (see SUPABASE_CONFIG).');
     return;
   }
+  const nameInput = document.getElementById('version-name');
+  const versionName = nameInput ? nameInput.value.trim() : '';
   const payload = {
     data: {
+      name: versionName,
       booths: booths.map(b => ({
         id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
         wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
@@ -1044,18 +1082,30 @@ async function saveVersion() {
     showVersionStatus('Could not save version \u2014 has the booth_layout_versions table been created? See setup notes.');
     return;
   }
-  showVersionStatus('Version saved (' + booths.length + ' booths, ' + labels.length + ' labels).');
+  if (nameInput) nameInput.value = '';
+  showVersionStatus('Version saved' + (versionName ? ' \u201c' + versionName + '\u201d' : '') + ' (' + booths.length + ' booths, ' + labels.length + ' labels).');
   loadVersionHistory();
 }
 
 async function loadVersionHistory() {
   const list = document.getElementById('version-list');
   if (!sbClient || !list) return;
-  const { data, error } = await sbClient
+  // Pull the name out of the JSON blob so the list stays lightweight (no full data).
+  let { data, error } = await sbClient
     .from(VERSIONS_TABLE)
-    .select('id, created_at, booth_count, label_count')
+    .select('id, created_at, booth_count, label_count, name:data->>name')
     .order('created_at', { ascending: false })
     .limit(30);
+  if (error) {
+    // Fallback: some Postgres/PostgREST setups reject the nested JSON select.
+    // Retry without it so the version list still works (just unnamed).
+    const retry = await sbClient
+      .from(VERSIONS_TABLE)
+      .select('id, created_at, booth_count, label_count')
+      .order('created_at', { ascending: false })
+      .limit(30);
+    data = retry.data; error = retry.error;
+  }
   if (error) {
     console.error('Load version history failed:', error);
     list.innerHTML = '<div class="hint">Couldn\u2019t load version history \u2014 has the booth_layout_versions table been created?</div>';
@@ -1072,8 +1122,31 @@ async function loadVersionHistory() {
     const dt = new Date(v.created_at);
     const info = document.createElement('div');
     info.className = 'vinfo';
-    info.innerHTML = '<div class="vtime">' + dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + '</div>' +
-      '<div class="vcount">' + (v.booth_count ?? '?') + ' booths, ' + (v.label_count ?? '?') + ' labels</div>';
+
+    if (v.name) {
+      const nm = document.createElement('div');
+      nm.className = 'vname';
+      nm.textContent = v.name; // textContent = safe against injected HTML
+      nm.title = 'Click to rename';
+      nm.onclick = () => beginVersionRename(nm, v.id, v.name);
+      info.appendChild(nm);
+    } else {
+      const add = document.createElement('div');
+      add.className = 'vname-add';
+      add.textContent = '+ Add name';
+      add.title = 'Name this version';
+      add.onclick = () => beginVersionRename(add, v.id, '');
+      info.appendChild(add);
+    }
+    const time = document.createElement('div');
+    time.className = 'vtime';
+    time.textContent = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    info.appendChild(time);
+    const count = document.createElement('div');
+    count.className = 'vcount';
+    count.textContent = (v.booth_count ?? '?') + ' booths, ' + (v.label_count ?? '?') + ' labels';
+    info.appendChild(count);
+
     item.appendChild(info);
     const btn = document.createElement('button');
     btn.textContent = 'Restore';
@@ -1081,6 +1154,62 @@ async function loadVersionHistory() {
     item.appendChild(btn);
     list.appendChild(item);
   });
+}
+
+function beginVersionRename(nameEl, id, currentName) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 60;
+  input.value = currentName || '';
+  input.className = 'vname-input';
+  input.placeholder = 'Version name';
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  function finish(save) {
+    if (done) return;
+    done = true;
+    input.removeEventListener('keydown', onKey);
+    input.removeEventListener('blur', onBlur);
+    if (save) {
+      updateVersionName(id, input.value.trim()); // reloads the list on success
+    } else {
+      loadVersionHistory(); // discard edit, restore the list as-is
+    }
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  }
+  function onBlur() { finish(true); }
+  input.addEventListener('keydown', onKey);
+  input.addEventListener('blur', onBlur);
+}
+
+async function updateVersionName(id, name) {
+  if (!sbClient) return;
+  // Fetch the snapshot's JSON, set the name, write it back untouched otherwise.
+  const { data: row, error } = await sbClient
+    .from(VERSIONS_TABLE).select('data').eq('id', id).single();
+  if (error || !row) {
+    console.error('Rename: fetch failed', error);
+    showVersionStatus('Could not rename version \u2014 fetch failed.');
+    loadVersionHistory();
+    return;
+  }
+  const newData = Object.assign({}, row.data || {}, { name });
+  const { error: upErr } = await sbClient
+    .from(VERSIONS_TABLE).update({ data: newData }).eq('id', id);
+  if (upErr) {
+    console.error('Rename: update failed', upErr);
+    showVersionStatus('Could not rename version.');
+    loadVersionHistory();
+    return;
+  }
+  showVersionStatus(name ? 'Renamed to \u201c' + name + '\u201d.' : 'Version name cleared.');
+  loadVersionHistory();
 }
 
 async function restoreVersion(id, dt) {
