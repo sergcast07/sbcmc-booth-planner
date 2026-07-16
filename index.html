@@ -1160,8 +1160,72 @@ function onPointerUp(e) {
   persist();
 }
 
+let clipboard = null; // deep-cloned booth or label awaiting paste
+
+function isTypingContext() {
+  const a = document.activeElement;
+  if (!a) return false;
+  const tag = a.tagName;
+  return a.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || a.classList.contains('editing');
+}
+
+function copySelection() {
+  const el = plan.querySelector('.booth.selected, .plan-label.selected');
+  if (!el) return false;
+  const id = el.dataset.id;
+  if (el.dataset.kind === 'label') {
+    const l = labels.find(ll => ll.id === id);
+    if (!l) return false;
+    clipboard = { kind: 'label', data: JSON.parse(JSON.stringify(l)) };
+  } else {
+    const b = booths.find(bb => bb.id === id);
+    if (!b) return false;
+    clipboard = { kind: 'booth', data: JSON.parse(JSON.stringify(b)) };
+  }
+  return true;
+}
+
+function pasteClipboard() {
+  if (!clipboard) return false;
+  const OFFSET = 3; // % nudge so the copy doesn't sit exactly on top
+  const clampPct = v => Math.max(0, Math.min(92, v));
+  const src = clipboard.data;
+  const xPct = clampPct((src.xPct ?? 46) + OFFSET);
+  const yPct = clampPct((src.yPct ?? 46) + OFFSET);
+
+  if (clipboard.kind === 'label') {
+    const lb = { ...src, id: makeId(), mapId: currentMapId, xPct, yPct };
+    labels.push(lb);
+    const el = createLabelEl(lb);
+    selectEl(el);
+  } else {
+    const b = { ...src, id: makeId(), mapId: currentMapId, xPct, yPct };
+    booths.push(b);
+    const el = createBoothEl(b);
+    selectEl(el);
+    renderCounts();
+  }
+  // cascade: next paste offsets from this one, so repeated pastes fan out
+  clipboard.data = { ...src, xPct, yPct };
+  persist();
+  return true;
+}
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') selectEl(null);
+  if (e.key === 'Escape') { selectEl(null); return; }
+
+  // Don't hijack copy/paste while the user is editing text
+  if (isTypingContext()) return;
+
+  const mod = e.metaKey || e.ctrlKey;
+  if (!mod) return;
+  const key = e.key.toLowerCase();
+
+  if (key === 'c') {
+    if (copySelection()) e.preventDefault();
+  } else if (key === 'v') {
+    if (pasteClipboard()) e.preventDefault();
+  }
 });
 
 // init
