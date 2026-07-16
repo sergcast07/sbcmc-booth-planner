@@ -218,7 +218,7 @@
     font-size: 12px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
     user-select: none; z-index: 20; box-sizing: border-box;
     min-width: 56px; min-height: 24px;
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; overflow: visible;
   }
   .plan-label:active { cursor: grabbing; }
   .plan-label.dragging { opacity: 0.85; z-index: 51; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
@@ -236,8 +236,25 @@
     position: absolute; right: -6px; bottom: -6px; width: 14px; height: 14px; border-radius: 3px;
     background: #2c3e50; border: 2px solid white; cursor: nwse-resize; display: none; z-index: 3;
   }
+  .plan-label .rotate {
+    position: absolute; top: -8px; left: -8px; width: 16px; height: 16px; border-radius: 50%;
+    background: #2c3e50; color: white; font-size: 10px; line-height: 16px; text-align: center;
+    display: none; cursor: pointer; z-index: 4;
+  }
+  .plan-label .rotate-stalk {
+    position: absolute; top: -13px; left: 50%; width: 1px; height: 13px; background: #2c3e50; display: none; z-index: 4;
+  }
+  .plan-label .rotate-handle {
+    position: absolute; top: -19px; left: 50%; width: 18px; height: 18px; margin-left: -9px;
+    border-radius: 50%; background: #2c3e50; border: 2px solid white; display: none; cursor: grab; z-index: 5;
+  }
+  .plan-label .rotate-handle:active { cursor: grabbing; }
   .plan-label:hover .del, .plan-label.selected .del,
-  .plan-label:hover .resize-handle, .plan-label.selected .resize-handle { display: block; }
+  .plan-label:hover .resize-handle, .plan-label.selected .resize-handle,
+  .plan-label:hover .rotate, .plan-label.selected .rotate,
+  .plan-label:hover .rotate-stalk, .plan-label.selected .rotate-stalk,
+  .plan-label:hover .rotate-handle, .plan-label.selected .rotate-handle,
+  .plan-label.rotating .rotate-stalk, .plan-label.rotating .rotate-handle { display: block; }
   .plan-label.selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(41,98,255,0.6); }
   .dim-readout {
     position: absolute; background: rgba(20,20,20,0.88); color: #fff; font-size: 11px;
@@ -383,8 +400,8 @@
 const WIDTH_FT = { A: 10, AA: 20, B: 10, C: 10, D: 10 };
 const DEPTH_FT = { A: 10, AA: 10, B: 6, C: 4, D: 4 };
 
-const MAPS = {"s100": {"label": "S100 \u2014 ROC Level", "w": 1423, "h": 792, "ftpx": 4.78, "note": "Scale calibrated using the interactive scale tool: 22ft and 17ft reference lines measured directly on this plan (5.09 and 4.47 px/ft, averaged to 4.78). Confirmed by you."}, "atrium": {"label": "Atrium / Connectors", "w": 1283, "h": 2005, "ftpx": 6.98, "note": "Scale calibrated using the interactive scale tool: 26ft reference line measured directly on this plan. Confirmed by you, though based on a single reference \u2014 a second line here would firm this up further."}, "e200": {"label": "E200 \u2014 Chapel / East Wing", "w": 1655, "h": 1855, "ftpx": 4.35, "note": "Scale calibrated using the interactive scale tool: four reference lines measured directly on this plan (28.9ft, 16.8ft, 25.4ft, 24.3ft \u2192 5.39, 3.57, 4.12, 4.32 px/ft, averaged to 4.35). Confirmed by you."}, "w200": {"label": "W200 \u2014 Worship / West Wing", "w": 1210, "h": 1145, "ftpx": 2.78, "note": "Scale recalibrated using the interactive scale tool: 14.2ft reference line re-measured directly on this plan (39.5px \u2192 2.78 px/ft). Confirmed by you. Note: this replaced a prior value of 6.15; booths sized before this recalibration were rendered ~2.2x too large on W200."}, "s200": {"label": "S200 \u2014 Gym / Recreation Level", "w": 1404, "h": 881, "ftpx": 4.96, "note": "Scale calibrated using the interactive scale tool: 69.9ft hallway reference line measured directly on this plan. Confirmed by you."}};
-const MAP_ORDER = ['s100','atrium','e200','w200','s200'];
+const MAPS = {"s100": {"label": "S100 \u2014 Classrooms", "w": 1423, "h": 792, "ftpx": 4.78, "note": "Scale calibrated using the interactive scale tool: 22ft and 17ft reference lines measured directly on this plan (5.09 and 4.47 px/ft, averaged to 4.78). Confirmed by you."}, "atrium": {"label": "Atrium / Connectors", "w": 1283, "h": 2005, "ftpx": 6.98, "note": "Scale calibrated using the interactive scale tool: 26ft reference line measured directly on this plan. Confirmed by you, though based on a single reference \u2014 a second line here would firm this up further."}, "e200": {"label": "E200 \u2014 Chapel / East Wing", "w": 1655, "h": 1855, "ftpx": 4.35, "note": "Scale calibrated using the interactive scale tool: four reference lines measured directly on this plan (28.9ft, 16.8ft, 25.4ft, 24.3ft \u2192 5.39, 3.57, 4.12, 4.32 px/ft, averaged to 4.35). Confirmed by you."}, "w200": {"label": "W200 \u2014 Worship / West Wing", "w": 1210, "h": 1145, "ftpx": 2.78, "note": "Scale recalibrated using the interactive scale tool: 14.2ft reference line re-measured directly on this plan (39.5px \u2192 2.78 px/ft). Confirmed by you. Note: this replaced a prior value of 6.15; booths sized before this recalibration were rendered ~2.2x too large on W200."}, "s200": {"label": "S200 \u2014 Gym / Recreation Level", "w": 1404, "h": 881, "ftpx": 4.96, "note": "Scale calibrated using the interactive scale tool: 69.9ft hallway reference line measured directly on this plan. Confirmed by you."}};
+const MAP_ORDER = ['w200','e200','s200','atrium','s100'];
 const MAP_COLORS = { s100: '#2962FF', atrium: '#FF8C00', e200: '#2E8B57', w200: '#9B59B6', s200: '#D81B60' };
 const MAP_IMGS = {
   s100:   's100.png',
@@ -394,7 +411,7 @@ const MAP_IMGS = {
   s200:   's200.png'
 };
 
-let currentMapId = 's100';
+let currentMapId = 'w200';
 let viewMode = 'edit'; // 'edit' | 'overview'
 let booths = []; // {id, mapId, type, xPct, yPct, wFt, hFt, angle}
 let labels = []; // {id, mapId, xPct, yPct, text}
@@ -521,18 +538,19 @@ function applyZoom() {
 // each label so it holds its normal on-screen size and stays readable, while remaining
 // pinned to its spot on the map. Booths are left to scale with the map, as they should.
 const LABEL_BASE_FONT = 12; // matches .plan-label font-size in CSS
+// Single source of truth for a label's transform: rotation (its angle) composed
+// with the zoom counter-scale, so neither one clobbers the other.
+function setLabelTransform(el, lb) {
+  const s = zoomLevel < 1 ? 1 / zoomLevel : 1;
+  const a = (lb && lb.angle) || 0;
+  el.style.transformOrigin = 'center center';
+  el.style.transform = 'rotate(' + a + 'deg) scale(' + s + ')';
+  // when scaled up (zoomed out), shrink the pre-transform font so it lands ~12px on screen
+  el.style.fontSize = s > 1 ? (LABEL_BASE_FONT * zoomLevel) + 'px' : '';
+}
 function applyLabelZoom(el) {
-  if (zoomLevel < 1) {
-    const s = 1 / zoomLevel;
-    el.style.transformOrigin = '0 0';
-    el.style.transform = 'scale(' + s + ')';
-    // shrink the pre-transform font so it lands back at ~LABEL_BASE_FONT px on screen
-    el.style.fontSize = (LABEL_BASE_FONT * zoomLevel) + 'px';
-  } else {
-    el.style.transform = '';
-    el.style.transformOrigin = '';
-    el.style.fontSize = '';
-  }
+  const lb = labels.find(l => l.id === el.dataset.id);
+  setLabelTransform(el, lb);
 }
 function updateLabelZoom() {
   plan.querySelectorAll('.plan-label').forEach(applyLabelZoom);
@@ -747,7 +765,7 @@ function addLabel() {
   const TARGET_W_PCT = 12, TARGET_H_PCT = 4;
   const wFt = TARGET_W_PCT / 100 * m.w / m.ftpx;
   const hFt = TARGET_H_PCT / 100 * m.h / m.ftpx;
-  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, wFt, hFt, text: 'Label' };
+  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, wFt, hFt, angle: 0, text: 'Label' };
   labels.push(lb);
   const el = createLabelEl(lb);
   startEditLabel(el, lb);
@@ -757,6 +775,7 @@ function addLabel() {
 function createLabelEl(lb) {
   if (lb.wFt === undefined) lb.wFt = 5;
   if (lb.hFt === undefined) lb.hFt = 2;
+  if (lb.angle === undefined) lb.angle = 0;
   const { wPct, hPct } = pctSize(lb.mapId, lb.wFt, lb.hFt);
   const el = document.createElement('div');
   el.className = 'plan-label';
@@ -780,6 +799,24 @@ function createLabelEl(lb) {
   del.addEventListener('click', (e) => { e.stopPropagation(); removeLabel(lb.id); });
   el.appendChild(del);
 
+  const rot = document.createElement('div');
+  rot.className = 'rotate';
+  rot.textContent = '\u21bb';
+  rot.title = 'Rotate 90\u00b0';
+  rot.addEventListener('pointerdown', (e) => e.stopPropagation());
+  rot.addEventListener('click', (e) => { e.stopPropagation(); rotateLabel90(lb.id); });
+  el.appendChild(rot);
+
+  const stalk = document.createElement('div');
+  stalk.className = 'rotate-stalk';
+  el.appendChild(stalk);
+
+  const rotHandle = document.createElement('div');
+  rotHandle.className = 'rotate-handle';
+  rotHandle.title = 'Drag to rotate freely (Shift = no snap)';
+  attachLabelRotate(rotHandle, el, lb);
+  el.appendChild(rotHandle);
+
   const resizeHandle = document.createElement('div');
   resizeHandle.className = 'resize-handle';
   resizeHandle.title = 'Drag to resize';
@@ -790,8 +827,47 @@ function createLabelEl(lb) {
   el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditLabel(el, lb); });
 
   plan.appendChild(el);
-  applyLabelZoom(el); // keep readable if we're currently zoomed out
+  applyLabelZoom(el); // keep readable/rotated correctly if we're currently zoomed out
   return el;
+}
+
+function rotateLabel90(id) {
+  const lb = labels.find(l => l.id === id);
+  if (!lb) return;
+  lb.angle = (((lb.angle || 0) + 90) % 360 + 360) % 360;
+  const el = plan.querySelector('.plan-label[data-id="' + id + '"]');
+  if (el) setLabelTransform(el, lb);
+  persist();
+}
+
+function attachLabelRotate(handle, labelEl, lb) {
+  function onDown(e) {
+    e.stopPropagation();
+    labelEl.classList.add('rotating');
+    planRect = plan.getBoundingClientRect();
+    handle.setPointerCapture(e.pointerId);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
+  function onMove(e) {
+    const { wPct, hPct } = pctSize(lb.mapId, lb.wFt, lb.hFt);
+    const centerXpx = (lb.xPct + wPct / 2) / 100 * planRect.width;
+    const centerYpx = (lb.yPct + hPct / 2) / 100 * planRect.height;
+    const px = e.clientX - planRect.left;
+    const py = e.clientY - planRect.top;
+    let angle = Math.atan2(py - centerYpx, px - centerXpx) * 180 / Math.PI + 90;
+    angle = ((angle % 360) + 360) % 360;
+    if (!e.shiftKey) angle = Math.round(angle / 15) * 15 % 360;
+    lb.angle = angle;
+    setLabelTransform(labelEl, lb);
+  }
+  function onUp(e) {
+    labelEl.classList.remove('rotating');
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    persist();
+  }
+  handle.addEventListener('pointerdown', onDown);
 }
 
 function attachLabelResize(handle, labelEl, lb) {
@@ -1005,7 +1081,7 @@ function applyRemoteState(data) {
   }));
   labels = (data.labels || []).filter(l => MAPS[l.mapId]).map(l => ({
     id: l.id || makeId(), mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
-    wFt: l.wFt || 5, hFt: l.hFt || 2, text: l.text || 'Label'
+    wFt: l.wFt || 5, hFt: l.hFt || 2, angle: l.angle || 0, text: l.text || 'Label'
   }));
   refreshView();
 }
@@ -1023,7 +1099,7 @@ function pushRemoteState(isSeed) {
         })),
         labels: labels.map(l => ({
           id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
-          wFt: l.wFt, hFt: l.hFt, text: l.text
+          wFt: l.wFt, hFt: l.hFt, angle: l.angle || 0, text: l.text
         }))
       },
       updated_at: new Date().toISOString()
@@ -1070,7 +1146,7 @@ async function saveVersion() {
       })),
       labels: labels.map(l => ({
         id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
-        wFt: l.wFt, hFt: l.hFt, text: l.text
+        wFt: l.wFt, hFt: l.hFt, angle: l.angle || 0, text: l.text
       }))
     },
     booth_count: booths.length,
