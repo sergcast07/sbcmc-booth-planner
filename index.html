@@ -207,7 +207,8 @@
     position: absolute; padding: 2px 4px; border-radius: 4px; cursor: grab; touch-action: none;
     background: rgba(255,255,255,0.94); border: 1.5px solid #2c3e50; color: #1c2733;
     font-size: 12px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-    user-select: none; z-index: 20;
+    user-select: none; z-index: 20; box-sizing: border-box;
+    min-width: 56px; min-height: 24px;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
   }
   .plan-label:active { cursor: grabbing; }
@@ -312,7 +313,7 @@
       <b id="total-count">0</b>
     </div>
 
-    <div class="hint">Click a box to select it \u2014 its handles stay visible and clickable until you select something else or click empty space, so you don't have to keep the mouse hovering just right. Drag to move it, or double-click to type a name (a vendor, a sponsor, anything) right on the box \u2014 it replaces the package letter and saves with the layout. The top knob drags to rotate freely (snaps to 15&deg; steps, hold Shift for exact free angles); the dark &#8635; badge jumps a quick 90&deg;; the red &times; removes it. Each package's counter shows how many you've placed so far, added up across every map.</div>
+    <div class="hint">Click a box to select it &mdash; its handles stay visible and clickable until you select something else or click empty space, so you don't have to keep the mouse hovering just right. Drag to move it, or double-click to type a name (a vendor, a sponsor, anything) right on the box &mdash; it replaces the package letter and saves with the layout. The top knob drags to rotate freely (snaps to 15&deg; steps, hold Shift for exact free angles); the dark &#8635; badge jumps a quick 90&deg;; the red &times; removes it. Each package's counter shows how many you've placed so far, added up across every map.</div>
 
     <div>
       <div class="section-label">Ad-hoc labels</div>
@@ -325,16 +326,16 @@
     <div class="actions">
       <div class="sync-status" id="sync-status">
         <span class="sync-dot" id="sync-dot"></span>
-        <span id="sync-text">Checking shared sync\u2026</span>
+        <span id="sync-text">Checking shared sync&hellip;</span>
       </div>
 
       <button class="btn primary" onclick="saveVersion()">Save Version</button>
       <div class="hint" id="version-status"></div>
       <div class="section-label" style="margin-top:2px;">Version History</div>
-      <div class="version-list" id="version-list"><div class="hint">No versions saved yet \u2014 click "Save Version" to create one.</div></div>
+      <div class="version-list" id="version-list"><div class="hint">No versions saved yet &mdash; click "Save Version" to create one.</div></div>
 
       <div class="hint" id="save-status"></div>
-      <div class="hint" style="opacity:0.7;">Everything autosaves live to the shared database as you go \u2014 that's what everyone sees, always current. "Save Version" freezes a snapshot in that same database you can always come back to, even if something gets deleted later.</div>
+      <div class="hint" style="opacity:0.7;">Everything autosaves live to the shared database as you go &mdash; that's what everyone sees, always current. "Save Version" freezes a snapshot in that same database you can always come back to, even if something gets deleted later.</div>
       <button class="btn" id="clear-current-btn" onclick="clearCurrentMap()">Clear this map</button>
       <button class="btn danger" onclick="clearAllMaps()">Clear all maps</button>
     </div>
@@ -349,7 +350,7 @@
     </div>
     <div class="map-tabs" id="map-tabs"></div>
     <div class="zoom-bar">
-      <button class="zoom-btn" onclick="zoomOut()" title="Zoom out">\u2212</button>
+      <button class="zoom-btn" onclick="zoomOut()" title="Zoom out">&minus;</button>
       <span class="zoom-pct" id="zoom-pct">100%</span>
       <button class="zoom-btn" onclick="zoomIn()" title="Zoom in">+</button>
       <button class="zoom-btn zoom-fit" onclick="zoomFit()" title="Fit to window">Fit</button>
@@ -706,7 +707,13 @@ function removeBooth(id) {
 }
 
 function addLabel() {
-  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, wFt: 5, hFt: 2, text: 'Label' };
+  // Size the default label as a share of the current map so it's always
+  // comfortably visible/editable regardless of that map's px/ft scale.
+  const m = MAPS[currentMapId];
+  const TARGET_W_PCT = 12, TARGET_H_PCT = 4;
+  const wFt = TARGET_W_PCT / 100 * m.w / m.ftpx;
+  const hFt = TARGET_H_PCT / 100 * m.h / m.ftpx;
+  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, wFt, hFt, text: 'Label' };
   labels.push(lb);
   const el = createLabelEl(lb);
   startEditLabel(el, lb);
@@ -1110,7 +1117,12 @@ function selectEl(el) {
   plan.querySelectorAll('.booth.selected, .plan-label.selected').forEach(x => {
     if (x !== el) x.classList.remove('selected');
   });
-  if (el) el.classList.add('selected');
+  if (el) {
+    el.classList.add('selected');
+    if (typeof lastSelected !== 'undefined' && el.dataset && el.dataset.id) {
+      lastSelected = { id: el.dataset.id, kind: el.dataset.kind || 'booth' };
+    }
+  }
 }
 
 function onPointerDown(e) {
@@ -1160,7 +1172,26 @@ function onPointerUp(e) {
   persist();
 }
 
-let clipboard = null; // deep-cloned booth or label awaiting paste
+let clipboard = null;      // deep-cloned booth or label awaiting paste
+let lastSelected = null;   // { id, kind } of the most recently selected item (fallback for copy)
+
+// --- tiny on-screen toast so actions are visible ---
+function toast(msg) {
+  let t = document.getElementById('kb-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'kb-toast';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
+      + 'background:#1f2a44;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;'
+      + 'font-family:system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9999;'
+      + 'pointer-events:none;opacity:0;transition:opacity .15s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 1400);
+}
 
 function isTypingContext() {
   const a = document.activeElement;
@@ -1169,24 +1200,32 @@ function isTypingContext() {
   return a.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || a.classList.contains('editing');
 }
 
-function copySelection() {
+// Resolve what to copy: prefer the live-highlighted element, else the last thing clicked
+function resolveTarget() {
   const el = plan.querySelector('.booth.selected, .plan-label.selected');
-  if (!el) return false;
-  const id = el.dataset.id;
-  if (el.dataset.kind === 'label') {
-    const l = labels.find(ll => ll.id === id);
-    if (!l) return false;
+  if (el) return { id: el.dataset.id, kind: el.dataset.kind };
+  return lastSelected;
+}
+
+function copySelection() {
+  const target = resolveTarget();
+  if (!target) { toast('Click a booth first, then \u2318/Ctrl+C'); return true; }
+  if (target.kind === 'label') {
+    const l = labels.find(ll => ll.id === target.id);
+    if (!l) { toast('Nothing to copy'); return true; }
     clipboard = { kind: 'label', data: JSON.parse(JSON.stringify(l)) };
+    toast('Copied label \u2014 \u2318/Ctrl+V to paste');
   } else {
-    const b = booths.find(bb => bb.id === id);
-    if (!b) return false;
+    const b = booths.find(bb => bb.id === target.id);
+    if (!b) { toast('Nothing to copy'); return true; }
     clipboard = { kind: 'booth', data: JSON.parse(JSON.stringify(b)) };
+    toast('Copied ' + (b.name || b.type) + ' \u2014 \u2318/Ctrl+V to paste');
   }
   return true;
 }
 
 function pasteClipboard() {
-  if (!clipboard) return false;
+  if (!clipboard) { toast('Nothing copied yet'); return true; }
   const OFFSET = 3; // % nudge so the copy doesn't sit exactly on top
   const clampPct = v => Math.max(0, Math.min(92, v));
   const src = clipboard.data;
@@ -1198,12 +1237,16 @@ function pasteClipboard() {
     labels.push(lb);
     const el = createLabelEl(lb);
     selectEl(el);
+    lastSelected = { id: lb.id, kind: 'label' };
+    toast('Pasted label');
   } else {
     const b = { ...src, id: makeId(), mapId: currentMapId, xPct, yPct };
     booths.push(b);
     const el = createBoothEl(b);
     selectEl(el);
     renderCounts();
+    lastSelected = { id: b.id, kind: 'booth' };
+    toast('Pasted ' + (b.name || b.type));
   }
   // cascade: next paste offsets from this one, so repeated pastes fan out
   clipboard.data = { ...src, xPct, yPct };
@@ -1219,12 +1262,14 @@ document.addEventListener('keydown', (e) => {
 
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
-  const key = e.key.toLowerCase();
+  const key = (e.key || '').toLowerCase();
 
   if (key === 'c') {
-    if (copySelection()) e.preventDefault();
+    e.preventDefault();
+    copySelection();
   } else if (key === 'v') {
-    if (pasteClipboard()) e.preventDefault();
+    e.preventDefault();
+    pasteClipboard();
   }
 });
 
