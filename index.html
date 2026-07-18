@@ -268,6 +268,2587 @@
   .type-D { background: rgba(155,89,182,0.75); border-color: var(--color-d-dark); }
   .type-AA { background: rgba(229,57,53,0.75); border-color: var(--color-aa-dark); }
 
+  .admin-link {
+    font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.08);
+    color: inherit; cursor: pointer; white-space: nowrap;
+  }
+  .admin-link:hover { background: rgba(255,255,255,0.18); }
+
+  .admin-overlay {
+    position: fixed; inset: 0; background: rgba(20,24,33,0.55);
+    display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 24px;
+  }
+  .admin-modal {
+    background: white; border-radius: 12px; width: 100%; max-width: 560px; max-height: 86vh;
+    display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.35); overflow: hidden;
+  }
+  .admin-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 15px;
+  }
+  .admin-close {
+    background: none; border: none; font-size: 20px; line-height: 1; cursor: pointer; color: #6b7280; padding: 2px 6px;
+  }
+  .admin-close:hover { color: #1c2733; }
+  .admin-modal-body { padding: 16px 18px; overflow-y: auto; }
+
+  .admin-gate-input {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 15px; letter-spacing: 1px;
+    border: 1px solid #cfd6e0; border-radius: 8px; margin-bottom: 10px; text-align: center;
+  }
+  .admin-error { color: #c0392b; font-size: 12.5px; margin-bottom: 8px; min-height: 16px; }
+
+  .admin-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+  .admin-tab { padding: 7px 14px; font-size: 12.5px; font-weight: 600; background: white; border: none; cursor: pointer; color: #4b5563; }
+  .admin-tab + .admin-tab { border-left: 1px solid var(--line); }
+  .admin-tab.active { background: var(--ink); color: white; }
+
+  .admin-section-label { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #6b7280; margin: 14px 0 8px; }
+  .admin-section-label:first-child { margin-top: 0; }
+
+  .admin-list-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; background: #f3f4f6;
+    border-radius: 8px; font-size: 12.5px; margin-bottom: 7px;
+  }
+  .admin-list-item .aitem-info { flex: 1; min-width: 0; }
+  .admin-list-item .aitem-title { font-weight: 700; color: #1c2733; }
+  .admin-list-item .aitem-sub { color: #6b7280; font-size: 11px; margin-top: 1px; }
+  .admin-list-item .aitem-swatch { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15); }
+  .admin-list-item img.aitem-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; border: 1px solid var(--line); flex-shrink: 0; }
+  .admin-list-item button {
+    font-size: 11px; padding: 5px 9px; border-radius: 5px; border: 1px solid #d1d5db; background: white; cursor: pointer; color: #374151;
+  }
+  .admin-list-item button:hover { background: #e5e7eb; }
+  .admin-list-item button.danger { color: #c0392b; border-color: #e5b4ac; }
+  .admin-list-item button.danger:hover { background: #fdecea; }
+
+  .admin-form { background: #f9fafb; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+  .admin-form label { display: block; font-size: 11px; font-weight: 700; color: #4b5563; margin: 8px 0 3px; }
+  .admin-form label:first-child { margin-top: 0; }
+  .admin-form input[type="text"], .admin-form input[type="number"], .admin-form input[type="file"] {
+    width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #cfd6e0; border-radius: 6px; font-size: 12.5px;
+  }
+  .admin-form input[type="color"] { width: 44px; height: 30px; border: 1px solid #cfd6e0; border-radius: 6px; padding: 2px; cursor: pointer; }
+  .admin-form .row2 { display: flex; gap: 10px; }
+  .admin-form .row2 > div { flex: 1; }
+  .admin-form-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .admin-form-actions .btn { flex: none; }
+
+  .calib-img-wrap { position: relative; width: 100%; max-width: 480px; margin: 0 auto; cursor: crosshair; user-select: none; }
+  .calib-img-wrap img { display: block; width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--line); }
+  .calib-img-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .calib-marker { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: #c0392b; border: 1.5px solid white; box-shadow: 0 0 0 1px #c0392b; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="brand">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;">
+        <span>SBCMC Booth Layout Planner</span>
+        <button class="admin-link" onclick="openAdminPanel()" title="Admin: manage floor plans and packages">Admin</button>
+      </div>
+      <span class="sub">Hunter Street campus &mdash; five levels. Drag boxes to plan booth placement; sizes are proportional to each map's own confirmed scale (see note under the map).</span>
+    </div>
+
+    <div>
+      <div class="section-label">Add booths</div>
+      <div id="package-sidebar" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;"></div>
+    </div>
+
+
+    <div class="totals">
+      <span>Total booths placed<br><span style="font-size:10.5px;" id="total-count-sub">(across all 5 maps)</span></span>
+      <b id="total-count">0</b>
+    </div>
+
+    <div class="hint">Click a box to select it &mdash; its handles stay visible and clickable until you select something else or click empty space, so you don't have to keep the mouse hovering just right. Drag to move it, or double-click to type a name (a vendor, a sponsor, anything) right on the box &mdash; it replaces the package letter and saves with the layout. The top knob drags to rotate freely (snaps to 15&deg; steps, hold Shift for exact free angles); the dark &#8635; badge jumps a quick 90&deg;; the red &times; removes it. Each package's counter shows how many you've placed so far, added up across every map.</div>
+
+    <div>
+      <div class="section-label">Ad-hoc labels</div>
+      <div style="margin-top:8px;">
+        <button class="btn" onclick="addLabel()">+ Add label</button>
+      </div>
+      <div class="hint">Drops a text tag on the current map. Double-click it to type anything &mdash; a room name, a note, an arrow callout. Drag to reposition; drag the bottom-right corner to resize (shows the size in feet as you drag); hover for the &times; to remove.</div>
+    </div>
+
+    <div class="actions">
+      <div class="sync-status" id="sync-status">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-text">Checking shared sync&hellip;</span>
+      </div>
+
+      <input type="text" id="version-name" maxlength="60"
+             placeholder="Name this version (optional)"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();saveVersion();}">
+      <button class="btn primary" onclick="saveVersion()">Save Version</button>
+      <div class="hint" id="version-status"></div>
+      <div class="section-label" style="margin-top:2px;">Version History</div>
+      <div class="version-list" id="version-list"><div class="hint">No versions saved yet &mdash; click "Save Version" to create one.</div></div>
+
+      <div class="hint" id="save-status"></div>
+      <div class="hint" style="opacity:0.7;">Everything autosaves live to the shared database as you go &mdash; that's what everyone sees, always current. "Save Version" freezes a snapshot in that same database you can always come back to, even if something gets deleted later.</div>
+      <button class="btn" id="clear-current-btn" onclick="clearCurrentMap()">Clear this map</button>
+      <button class="btn danger" onclick="clearAllMaps()">Clear all maps</button>
+    </div>
+  </div>
+
+  <div class="canvas-col">
+    <div class="mode-row">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-edit-btn" onclick="switchViewMode('edit')">Edit one map</button>
+        <button class="mode-btn" id="mode-overview-btn" onclick="switchViewMode('overview')">See all maps</button>
+      </div>
+      <button class="mode-btn" id="export-pdf-btn" style="margin-left:10px; border-radius:8px; border:1px solid var(--line);" onclick="exportPDF()">Print / Export PDF</button>
+    </div>
+    <div class="map-tabs" id="map-tabs"></div>
+    <div class="zoom-bar">
+      <button class="zoom-btn" onclick="zoomOut()" title="Zoom out">&minus;</button>
+      <span class="zoom-pct" id="zoom-pct">100%</span>
+      <button class="zoom-btn" onclick="zoomIn()" title="Zoom in">+</button>
+      <button class="zoom-btn zoom-fit" onclick="zoomFit()" title="Fit to window">Fit</button>
+      <span class="zoom-hint">Ctrl/Cmd + scroll also zooms</span>
+    </div>
+    <div class="canvas-wrap" id="edit-view">
+      <div class="plan" id="plan">
+        <img id="plan-img" src="" alt="floor plan">
+      </div>
+    </div>
+    <div class="overview-wrap" id="overview-view" style="display:none;">
+      <div class="overview-grid" id="overview-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="admin-overlay" id="admin-overlay" style="display:none;">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <span id="admin-modal-title">Admin</span>
+      <button class="admin-close" onclick="closeAdminPanel()" title="Close">&times;</button>
+    </div>
+    <div class="admin-modal-body" id="admin-modal-body"></div>
+  </div>
+</div>
+
+<script>
+// Package (booth type) definitions now live in state so admins can add/edit/remove them.
+// DEFAULT_PACKAGES is the seed used the first time (and the fallback if Supabase isn't configured).
+const DEFAULT_PACKAGES = [
+  { key: 'AA', label: 'Package Double A', widthFt: 20, depthFt: 10, color: '#E53935', sortOrder: 0 },
+  { key: 'A',  label: 'Package A',        widthFt: 10, depthFt: 10, color: '#2962FF', sortOrder: 1 },
+  { key: 'B',  label: 'Package B',        widthFt: 10, depthFt: 6,  color: '#2E8B57', sortOrder: 2 },
+  { key: 'C',  label: 'Package C',        widthFt: 10, depthFt: 4,  color: '#FF8C00', sortOrder: 3 },
+  { key: 'D',  label: 'Package D',        widthFt: 10, depthFt: 4,  color: '#9B59B6', sortOrder: 4 }
+];
+let packages = DEFAULT_PACKAGES.map(p => ({ ...p }));
+
+function getPkg(key) {
+  return packages.find(p => p.key === key) || { key: key, label: 'Package ' + key, widthFt: 10, depthFt: 6, color: '#6b7280' };
+}
+function hexToRgba(hex, alpha) {
+  hex = (hex || '#888888').replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha === undefined ? 1 : alpha) + ')';
+}
+function darkenHex(hex, factor) {
+  hex = (hex || '#888888').replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  const r = Math.round((parseInt(hex.substring(0, 2), 16) || 0) * factor);
+  const g = Math.round((parseInt(hex.substring(2, 4), 16) || 0) * factor);
+  const b = Math.round((parseInt(hex.substring(4, 6), 16) || 0) * factor);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+function renderPackageSidebar() {
+  const wrap = document.getElementById('package-sidebar');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  packages.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'pkg-card';
+    card.innerHTML =
+      '<div class="swatch" style="background:' + p.color + '"></div>' +
+      '<div class="pkg-info">' +
+        '<div class="pkg-name">' + escapeHtml(p.label) + '</div>' +
+        '<div class="pkg-size">' + p.widthFt + ' \u00d7 ' + p.depthFt + ' ft</div>' +
+        '<div class="pkg-count" id="count-' + p.key + '">0 placed</div>' +
+      '</div>';
+    const btn = document.createElement('button');
+    btn.className = 'add-btn';
+    btn.style.background = p.color;
+    btn.textContent = '+';
+    btn.onclick = () => addBooth(p.key);
+    card.appendChild(btn);
+    wrap.appendChild(card);
+  });
+  renderCounts();
+}
+
+const BUILTIN_MAPS = {"s100": {"label": "S100 \u2014 Classrooms", "w": 1423, "h": 792, "ftpx": 4.78, "note": "Scale calibrated using the interactive scale tool: 22ft and 17ft reference lines measured directly on this plan (5.09 and 4.47 px/ft, averaged to 4.78). Confirmed by you."}, "atrium": {"label": "Atrium / Connectors", "w": 1283, "h": 2005, "ftpx": 6.98, "note": "Scale calibrated using the interactive scale tool: 26ft reference line measured directly on this plan. Confirmed by you, though based on a single reference \u2014 a second line here would firm this up further."}, "e200": {"label": "E200 \u2014 Chapel / East Wing", "w": 1655, "h": 1855, "ftpx": 4.35, "note": "Scale calibrated using the interactive scale tool: four reference lines measured directly on this plan (28.9ft, 16.8ft, 25.4ft, 24.3ft \u2192 5.39, 3.57, 4.12, 4.32 px/ft, averaged to 4.35). Confirmed by you."}, "w200": {"label": "W200 \u2014 Worship / West Wing", "w": 1210, "h": 1145, "ftpx": 2.78, "note": "Scale recalibrated using the interactive scale tool: 14.2ft reference line re-measured directly on this plan (39.5px \u2192 2.78 px/ft). Confirmed by you. Note: this replaced a prior value of 6.15; booths sized before this recalibration were rendered ~2.2x too large on W200."}, "s200": {"label": "S200 \u2014 Gym / Recreation Level", "w": 1404, "h": 881, "ftpx": 4.96, "note": "Scale calibrated using the interactive scale tool: 69.9ft hallway reference line measured directly on this plan. Confirmed by you."}};
+const BUILTIN_MAP_ORDER = ['w200','e200','s200','atrium','s100'];
+const BUILTIN_MAP_COLORS = { s100: '#2962FF', atrium: '#FF8C00', e200: '#2E8B57', w200: '#9B59B6', s200: '#D81B60' };
+const BUILTIN_MAP_IMGS = {
+  s100:   's100.png',
+  atrium:   'atrium.png',
+  e200:   'e200.png',
+  w200:   'w200.png',
+  s200:   's200.png'
+};
+// Rotating palette for tab-dot colors auto-assigned to uploaded (custom) maps.
+const CUSTOM_MAP_PALETTE = ['#00897B', '#6D4C41', '#3949AB', '#C0CA33', '#00ACC1', '#8D6E63', '#5E35B1', '#43A047'];
+
+// customMaps holds rows uploaded through the admin panel: {id, label, imageData, width, height, ftpx, note, sortOrder}.
+// MAPS/MAP_ORDER/MAP_IMGS/MAP_COLORS are rebuilt from BUILTIN_* + customMaps whenever maps are uploaded or deleted,
+// so the rest of the app (tabs, rendering, PDF export) just reads these as before and doesn't need to know the difference.
+let customMaps = [];
+let MAPS = {};
+let MAP_ORDER = [];
+let MAP_IMGS = {};
+let MAP_COLORS = {};
+
+function rebuildMapRegistry() {
+  MAPS = { ...BUILTIN_MAPS };
+  MAP_IMGS = { ...BUILTIN_MAP_IMGS };
+  MAP_COLORS = { ...BUILTIN_MAP_COLORS };
+  const order = [...BUILTIN_MAP_ORDER];
+  const sorted = [...customMaps].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  sorted.forEach((m, i) => {
+    // Note: custom rows can "adopt" one of the five built-in ids (that's what happens once
+    // the admin panel seeds the database with the original floor plans) \u2014 in that case this
+    // overrides the image/scale/note but must NOT add a second tab for the same id.
+    MAPS[m.id] = { label: m.label, w: m.width, h: m.height, ftpx: m.ftpx, note: m.note || 'Uploaded floor plan.', custom: true };
+    MAP_IMGS[m.id] = m.imageData; // a data: URL from the upload; works directly as an <img src>
+    MAP_COLORS[m.id] = m.color || CUSTOM_MAP_PALETTE[i % CUSTOM_MAP_PALETTE.length];
+    if (!order.includes(m.id)) order.push(m.id);
+  });
+  MAP_ORDER = order;
+}
+rebuildMapRegistry(); // initial build from built-ins only; customMaps fills in once Supabase loads
+
+let currentMapId = 'w200';
+let viewMode = 'edit'; // 'edit' | 'overview'
+let booths = []; // {id, mapId, type, xPct, yPct, wFt, hFt, angle}
+let labels = []; // {id, mapId, xPct, yPct, text}
+let idCounter = 0;
+const plan = document.getElementById('plan');
+const planImg = document.getElementById('plan-img');
+
+function makeId() { idCounter += 1; return 'b_' + Date.now() + '_' + idCounter; }
+
+function pctSize(mapId, wFt, hFt) {
+  const m = MAPS[mapId];
+  return { wPct: wFt * m.ftpx / m.w * 100, hPct: hFt * m.ftpx / m.h * 100 };
+}
+
+function refreshView() {
+  if (viewMode === 'overview') renderOverview();
+  else renderAll();
+}
+
+function setAddControlsEnabled(enabled) {
+  document.querySelectorAll('.add-btn').forEach(btn => {
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.35';
+    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  });
+  const clearBtn = document.getElementById('clear-current-btn');
+  if (clearBtn) {
+    clearBtn.disabled = !enabled;
+    clearBtn.style.opacity = enabled ? '1' : '0.5';
+  }
+}
+
+function switchViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('mode-edit-btn').classList.toggle('active', mode === 'edit');
+  document.getElementById('mode-overview-btn').classList.toggle('active', mode === 'overview');
+  document.getElementById('map-tabs').style.display = mode === 'edit' ? 'flex' : 'none';
+  document.getElementById('edit-view').style.display = mode === 'edit' ? 'flex' : 'none';
+  document.getElementById('overview-view').style.display = mode === 'overview' ? 'block' : 'none';
+  setAddControlsEnabled(mode === 'edit');
+  refreshView();
+}
+
+function renderOverview() {
+  const grid = document.getElementById('overview-grid');
+  grid.innerHTML = '';
+  MAP_ORDER.forEach(mapId => {
+    const m = MAPS[mapId];
+    const mapBooths = booths.filter(b => b.mapId === mapId);
+
+    const cell = document.createElement('div');
+    cell.className = 'overview-cell';
+
+    const label = document.createElement('div');
+    label.className = 'cell-label';
+    label.innerHTML =
+      '<span><span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:' + MAP_COLORS[mapId] + '"></span>' + m.label + '</span>' +
+      '<span class="cell-count">' + mapBooths.length + ' booth' + (mapBooths.length === 1 ? '' : 's') + '</span>';
+    cell.appendChild(label);
+
+    const planDiv = document.createElement('div');
+    planDiv.className = 'cell-plan';
+    const img = document.createElement('img');
+    img.src = MAP_IMGS[mapId];
+    img.alt = m.label;
+    planDiv.appendChild(img);
+
+    mapBooths.forEach(b => {
+      const { wPct, hPct } = pctSize(mapId, b.wFt, b.hFt);
+      const p = getPkg(b.type);
+      const div = document.createElement('div');
+      div.className = 'overview-booth';
+      div.style.background = hexToRgba(p.color, 0.75);
+      div.style.borderColor = darkenHex(p.color, 0.68);
+      div.style.left = b.xPct + '%';
+      div.style.top = b.yPct + '%';
+      div.style.width = wPct + '%';
+      div.style.height = hPct + '%';
+      div.style.transform = 'rotate(' + (b.angle || 0) + 'deg)';
+      div.title = p.label + ' \u2014 ' + Math.round(b.angle || 0) + '\u00b0';
+      planDiv.appendChild(div);
+    });
+
+    cell.appendChild(planDiv);
+    grid.appendChild(cell);
+  });
+}
+
+// --- Print / Export PDF -----------------------------------------------
+// Renders each map (booths + ad-hoc labels) offscreen at high resolution,
+// captures it as an image, and assembles a PDF: one page per map plus a
+// text summary of what's placed in each area. Runs independently of
+// whatever is currently on screen, so it doesn't disturb the user's view.
+
+async function buildPrintMapCanvas(mapId) {
+  const m = MAPS[mapId];
+  const mapBooths = booths.filter(b => b.mapId === mapId);
+  const mapLabels = labels.filter(l => l.mapId === mapId);
+
+  const CAPTURE_W = 1600; // offscreen render width, for a crisp PDF image
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:' + CAPTURE_W + 'px; background:#ffffff;';
+  const rel = document.createElement('div');
+  rel.style.cssText = 'position:relative; width:100%; line-height:0;';
+
+  const img = document.createElement('img');
+  img.src = MAP_IMGS[mapId];
+  img.style.cssText = 'display:block; width:100%; height:auto;';
+  rel.appendChild(img);
+
+  mapBooths.forEach(b => {
+    const { wPct, hPct } = pctSize(mapId, b.wFt, b.hFt);
+    const p = getPkg(b.type);
+    const div = document.createElement('div');
+    div.className = 'overview-booth';
+    div.style.background = hexToRgba(p.color, 0.75);
+    div.style.borderColor = darkenHex(p.color, 0.68);
+    div.style.left = b.xPct + '%';
+    div.style.top = b.yPct + '%';
+    div.style.width = wPct + '%';
+    div.style.height = hPct + '%';
+    div.style.transform = 'rotate(' + (b.angle || 0) + 'deg)';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.justifyContent = 'center';
+    div.style.overflow = 'hidden';
+    div.style.fontSize = '9px';
+    div.style.fontWeight = '700';
+    div.style.lineHeight = '1.1';
+    div.style.color = '#fff';
+    div.style.textAlign = 'center';
+    div.style.padding = '1px';
+    div.textContent = b.type + (b.name ? (' \u2014 ' + b.name) : '');
+    rel.appendChild(div);
+  });
+
+  mapLabels.forEach(lb => {
+    const { wPct, hPct } = pctSize(mapId, lb.wFt || 5, lb.hFt || 2);
+    const div = document.createElement('div');
+    div.style.cssText = 'position:absolute; display:flex; align-items:center; justify-content:center; '
+      + 'background:rgba(255,255,255,0.94); border:1.2px solid #2c3e50; border-radius:4px; '
+      + 'font-size:10px; font-weight:600; color:#1c2733; text-align:center; padding:1px 3px; overflow:hidden;';
+    div.style.left = lb.xPct + '%';
+    div.style.top = lb.yPct + '%';
+    div.style.width = wPct + '%';
+    div.style.height = hPct + '%';
+    div.style.transform = 'rotate(' + (lb.angle || 0) + 'deg)';
+    div.textContent = lb.text || '';
+    rel.appendChild(div);
+  });
+
+  wrap.appendChild(rel);
+  document.body.appendChild(wrap);
+
+  try {
+    await new Promise((resolve, reject) => {
+      if (img.complete && img.naturalWidth > 0) resolve();
+      else {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error('Could not load image for ' + m.label));
+      }
+    });
+    await new Promise(r => setTimeout(r, 30)); // let layout settle before capture
+    const canvas = await html2canvas(rel, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    return canvas;
+  } finally {
+    document.body.removeChild(wrap);
+  }
+}
+
+async function exportPDF() {
+  const btn = document.getElementById('export-pdf-btn');
+  if (typeof html2canvas === 'undefined' || !window.jspdf) {
+    toast('PDF tools didn\u2019t load \u2014 check your internet connection and try again.');
+    return;
+  }
+  const origLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating PDF\u2026'; }
+  toast('Generating PDF \u2014 this can take a few seconds\u2026');
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const MARGIN = 36;
+    let doc = null;
+
+    // Page 1..N: one map per page, image sized to fit with a title
+    for (let i = 0; i < MAP_ORDER.length; i++) {
+      const mapId = MAP_ORDER[i];
+      const m = MAPS[mapId];
+      const canvas = await buildPrintMapCanvas(mapId);
+      const landscape = canvas.width >= canvas.height;
+      const orientation = landscape ? 'landscape' : 'portrait';
+
+      if (i === 0) {
+        doc = new jsPDF({ unit: 'pt', format: 'letter', orientation });
+      } else {
+        doc.addPage('letter', orientation);
+      }
+
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const titleH = 26;
+      const maxW = pageW - MARGIN * 2;
+      const maxH = pageH - MARGIN * 2 - titleH;
+      const scale = Math.min(maxW / canvas.width, maxH / canvas.height);
+      const drawW = canvas.width * scale;
+      const drawH = canvas.height * scale;
+      const x = (pageW - drawW) / 2;
+      const y = MARGIN + titleH;
+
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(14);
+      doc.text(m.label, MARGIN, MARGIN + 10);
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, drawW, drawH);
+    }
+
+    // Summary pages: what's placed in each area, in plain text (selectable, no images)
+    doc.addPage('letter', 'portrait');
+    let py = MARGIN;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const usableW = pageW - MARGIN * 2;
+
+    function ensureSpace(lines) {
+      if (py + lines * 14 > pageH - MARGIN) {
+        doc.addPage('letter', 'portrait');
+        py = MARGIN;
+      }
+    }
+
+    doc.setFont(undefined, 'bold'); doc.setFontSize(18);
+    doc.text('Exhibit Area Summary', MARGIN, py); py += 22;
+    doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+    doc.text('Generated ' + new Date().toLocaleDateString(), MARGIN, py); py += 22;
+
+    MAP_ORDER.forEach(mapId => {
+      const m = MAPS[mapId];
+      const mapBooths = booths.filter(b => b.mapId === mapId);
+      const mapLabels = labels.filter(l => l.mapId === mapId);
+
+      ensureSpace(2);
+      doc.setFont(undefined, 'bold'); doc.setFontSize(13);
+      doc.text(m.label, MARGIN, py); py += 18;
+
+      if (mapBooths.length === 0 && mapLabels.length === 0) {
+        doc.setFont(undefined, 'italic'); doc.setFontSize(10.5);
+        doc.text('No booths or labels placed yet.', MARGIN + 10, py); py += 18;
+        return;
+      }
+
+      const counts = {};
+      mapBooths.forEach(b => { counts[b.type] = (counts[b.type] || 0) + 1; });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(10.5);
+      packages.forEach(pk => {
+        if (counts[pk.key]) {
+          ensureSpace(1);
+          doc.text('\u2022 ' + counts[pk.key] + ' \u00d7 ' + pk.label + ' (' + pk.widthFt + '\u00d7' + pk.depthFt + ' ft)', MARGIN + 10, py);
+          py += 14;
+        }
+      });
+      ensureSpace(1);
+      doc.setFont(undefined, 'bold');
+      doc.text('Total booths: ' + mapBooths.length, MARGIN + 10, py); py += 18;
+      doc.setFont(undefined, 'normal');
+
+      const named = mapBooths.filter(b => b.name && b.name.trim());
+      if (named.length) {
+        ensureSpace(1);
+        doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
+        doc.text('Exhibitors placed:', MARGIN + 10, py); py += 14;
+        doc.setFont(undefined, 'normal');
+        named.forEach(b => {
+          const wrapped = doc.splitTextToSize('\u2013 ' + b.name.trim() + ' (' + b.type + ')', usableW - 20);
+          ensureSpace(wrapped.length);
+          wrapped.forEach(line => { doc.text(line, MARGIN + 20, py); py += 13; });
+        });
+        py += 4;
+      }
+
+      const namedLabels = mapLabels.filter(l => l.text && l.text.trim());
+      if (namedLabels.length) {
+        ensureSpace(1);
+        doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
+        doc.text('Area labels:', MARGIN + 10, py); py += 14;
+        doc.setFont(undefined, 'normal');
+        namedLabels.forEach(lb => {
+          const wrapped = doc.splitTextToSize('\u2013 ' + lb.text.trim(), usableW - 20);
+          ensureSpace(wrapped.length);
+          wrapped.forEach(line => { doc.text(line, MARGIN + 20, py); py += 13; });
+        });
+      }
+
+      py += 14; // gap before next map's section
+    });
+
+    doc.save('SBCMC-Booth-Layout-' + new Date().toISOString().slice(0, 10) + '.pdf');
+    toast('PDF downloaded \u2014 check your downloads folder.');
+  } catch (err) {
+    console.error('Export PDF failed:', err);
+    toast('Could not generate the PDF \u2014 see console for details.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+  }
+}
+
+function buildTabs() {
+  const wrap = document.getElementById('map-tabs');
+  wrap.innerHTML = '';
+  MAP_ORDER.forEach(id => {
+    const m = MAPS[id];
+    const tab = document.createElement('div');
+    tab.className = 'map-tab' + (id === currentMapId ? ' active' : '');
+    tab.innerHTML = '<span class="dot" style="background:' + MAP_COLORS[id] + '"></span>' + m.label;
+    tab.onclick = () => switchMap(id);
+    wrap.appendChild(tab);
+  });
+}
+
+function switchMap(id) {
+  currentMapId = id;
+  planImg.src = MAP_IMGS[id];
+  buildTabs();
+  renderAll();
+}
+
+// ---- Zoom ----
+let zoomLevel = 1;
+const ZOOM_MIN = 0.3, ZOOM_MAX = 4;
+
+function computeFitWidth() {
+  const wrap = document.getElementById('edit-view');
+  return Math.max(200, wrap.clientWidth - 52); // minus canvas-wrap's horizontal padding
+}
+
+function applyZoom() {
+  const fitWidth = computeFitWidth();
+  const px = Math.round(fitWidth * zoomLevel);
+  plan.style.width = px + 'px';
+  document.getElementById('zoom-pct').textContent = Math.round(zoomLevel * 100) + '%';
+  updateLabelZoom();
+}
+
+// Labels are annotations, not footprints: when zoomed OUT (below 100%) we counter-scale
+// each label so it holds its normal on-screen size and stays readable, while remaining
+// pinned to its spot on the map. Booths are left to scale with the map, as they should.
+const LABEL_BASE_FONT = 12; // matches .plan-label font-size in CSS
+// Single source of truth for a label's transform: rotation (its angle) composed
+// with the zoom counter-scale, so neither one clobbers the other.
+function setLabelTransform(el, lb) {
+  const s = zoomLevel < 1 ? 1 / zoomLevel : 1;
+  const a = (lb && lb.angle) || 0;
+  el.style.transformOrigin = 'center center';
+  el.style.transform = 'rotate(' + a + 'deg) scale(' + s + ')';
+  // when scaled up (zoomed out), shrink the pre-transform font so it lands ~12px on screen
+  el.style.fontSize = s > 1 ? (LABEL_BASE_FONT * zoomLevel) + 'px' : '';
+}
+function applyLabelZoom(el) {
+  const lb = labels.find(l => l.id === el.dataset.id);
+  setLabelTransform(el, lb);
+}
+function updateLabelZoom() {
+  plan.querySelectorAll('.plan-label').forEach(applyLabelZoom);
+}
+
+function zoomIn() {
+  zoomLevel = Math.min(ZOOM_MAX, zoomLevel * 1.2);
+  applyZoom();
+}
+
+function zoomOut() {
+  zoomLevel = Math.max(ZOOM_MIN, zoomLevel / 1.2);
+  applyZoom();
+}
+
+function zoomFit() {
+  zoomLevel = 1;
+  applyZoom();
+}
+
+document.getElementById('edit-view').addEventListener('wheel', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  const wrap = e.currentTarget;
+  const rectBefore = plan.getBoundingClientRect();
+  const cursorRatioX = (e.clientX - rectBefore.left) / rectBefore.width;
+  const scrollBefore = wrap.scrollLeft;
+  const oldWidth = rectBefore.width;
+
+  zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomLevel * (e.deltaY < 0 ? 1.1 : 1/1.1)));
+  applyZoom();
+
+  // keep the point under the cursor roughly stationary while zooming
+  const newWidth = plan.getBoundingClientRect().width;
+  wrap.scrollLeft = scrollBefore + (newWidth - oldWidth) * cursorRatioX;
+}, { passive: false });
+
+window.addEventListener('resize', () => { if (zoomLevel) applyZoom(); });
+
+
+function renderCounts() {
+  const counts = {};
+  booths.forEach(b => { counts[b.type] = (counts[b.type] || 0) + 1; });
+  let total = 0;
+  packages.forEach(p => {
+    total += counts[p.key] || 0;
+    const el = document.getElementById('count-' + p.key);
+    if (el) el.textContent = (counts[p.key] || 0) + ' placed';
+  });
+  const totalEl = document.getElementById('total-count');
+  if (totalEl) totalEl.textContent = total;
+  const subEl = document.getElementById('total-count-sub');
+  if (subEl) subEl.textContent = '(across all ' + MAP_ORDER.length + ' map' + (MAP_ORDER.length === 1 ? '' : 's') + ')';
+}
+
+function boothTitle(b) {
+  const p = getPkg(b.type);
+  return p.label + (b.name ? ' \u2014 ' + b.name : '') + ' \u2014 ' + Math.round(b.angle) + '\u00b0';
+}
+
+function createBoothEl(b) {
+  if (b.angle === undefined) b.angle = 0;
+  if (b.name === undefined) b.name = '';
+  const { wPct, hPct } = pctSize(b.mapId, b.wFt, b.hFt);
+  const p = getPkg(b.type);
+  const el = document.createElement('div');
+  el.className = 'booth';
+  el.style.background = hexToRgba(p.color, 0.75);
+  el.style.borderColor = darkenHex(p.color, 0.68);
+  el.style.left = b.xPct + '%';
+  el.style.top = b.yPct + '%';
+  el.style.width = wPct + '%';
+  el.style.height = hPct + '%';
+  el.style.transform = 'rotate(' + b.angle + 'deg)';
+  el.dataset.id = b.id;
+  el.dataset.kind = 'booth';
+  el.title = boothTitle(b);
+
+  const label = document.createElement('span');
+  label.className = 'booth-label';
+  label.textContent = b.name ? b.name : b.type;
+  el.appendChild(label);
+
+  const stalk = document.createElement('div');
+  stalk.className = 'rotate-stalk';
+  el.appendChild(stalk);
+
+  const handle = document.createElement('div');
+  handle.className = 'rotate-handle';
+  handle.title = 'Drag to rotate freely (Shift = no snap)';
+  attachFreeRotate(handle, el, b);
+  el.appendChild(handle);
+
+  const rot = document.createElement('div');
+  rot.className = 'rotate';
+  rot.textContent = '\u21bb';
+  rot.title = 'Rotate 90\u00b0';
+  rot.addEventListener('pointerdown', (e) => e.stopPropagation());
+  rot.addEventListener('click', (e) => { e.stopPropagation(); rotateBooth90(b.id); });
+  el.appendChild(rot);
+
+  const del = document.createElement('div');
+  del.className = 'del';
+  del.textContent = '\u00d7';
+  del.title = 'Remove';
+  del.addEventListener('pointerdown', (e) => e.stopPropagation());
+  del.addEventListener('click', (e) => { e.stopPropagation(); removeBooth(b.id); });
+  el.appendChild(del);
+
+  el.addEventListener('pointerdown', onPointerDown);
+  el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditBoothName(el, b, label); });
+  plan.appendChild(el);
+  return el;
+}
+
+function startEditBoothName(el, b, labelSpan) {
+  el.classList.add('editing');
+  labelSpan.contentEditable = 'true';
+  if (!b.name) labelSpan.textContent = '';
+  labelSpan.focus();
+  const range = document.createRange();
+  range.selectNodeContents(labelSpan);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function commit() {
+    labelSpan.contentEditable = 'false';
+    el.classList.remove('editing');
+    const text = labelSpan.textContent.trim();
+    b.name = text;
+    labelSpan.textContent = text ? text : b.type;
+    el.title = boothTitle(b);
+    labelSpan.removeEventListener('blur', commit);
+    labelSpan.removeEventListener('keydown', onKey);
+    persist();
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); labelSpan.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); labelSpan.textContent = b.name || b.type; labelSpan.blur(); }
+  }
+  labelSpan.addEventListener('blur', commit);
+  labelSpan.addEventListener('keydown', onKey);
+}
+
+
+function attachFreeRotate(handle, boothEl, b) {
+  function onDown(e) {
+    e.stopPropagation();
+    boothEl.classList.add('rotating');
+    planRect = plan.getBoundingClientRect();
+    handle.setPointerCapture(e.pointerId);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
+  function onMove(e) {
+    const { wPct, hPct } = pctSize(b.mapId, b.wFt, b.hFt);
+    const centerXpx = (b.xPct + wPct / 2) / 100 * planRect.width;
+    const centerYpx = (b.yPct + hPct / 2) / 100 * planRect.height;
+    const px = e.clientX - planRect.left;
+    const py = e.clientY - planRect.top;
+    let angle = Math.atan2(py - centerYpx, px - centerXpx) * 180 / Math.PI + 90;
+    angle = ((angle % 360) + 360) % 360;
+    if (!e.shiftKey) angle = Math.round(angle / 15) * 15 % 360;
+    b.angle = angle;
+    boothEl.style.transform = 'rotate(' + angle + 'deg)';
+    boothEl.title = b.type + ' \u2014 ' + Math.round(angle) + '\u00b0';
+  }
+  function onUp(e) {
+    boothEl.classList.remove('rotating');
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    persist();
+  }
+  handle.addEventListener('pointerdown', onDown);
+}
+
+function rotateBooth90(id) {
+  const b = booths.find(bb => bb.id === id);
+  if (!b) return;
+  b.angle = (((b.angle || 0) + 90) % 360 + 360) % 360;
+  const el = plan.querySelector('.booth[data-id="' + id + '"]');
+  if (el) {
+    el.style.transform = 'rotate(' + b.angle + 'deg)';
+    el.title = boothTitle(b);
+  }
+  persist();
+}
+
+function renderAll() {
+  plan.querySelectorAll('.booth, .plan-label').forEach(e => e.remove());
+  booths.filter(b => b.mapId === currentMapId).forEach(b => createBoothEl(b));
+  labels.filter(l => l.mapId === currentMapId).forEach(l => createLabelEl(l));
+  renderCounts();
+}
+
+function addBooth(type) {
+  const p = getPkg(type);
+  const b = {
+    id: makeId(), mapId: currentMapId, type: type,
+    xPct: 46, yPct: 46,
+    wFt: p.widthFt, hFt: p.depthFt, angle: 0, name: ''
+  };
+  booths.push(b);
+  createBoothEl(b);
+  renderCounts();
+  persist();
+}
+
+function removeBooth(id) {
+  booths = booths.filter(b => b.id !== id);
+  renderAll();
+  persist();
+}
+
+function addLabel() {
+  // Size the default label as a share of the current map so it's always
+  // comfortably visible/editable regardless of that map's px/ft scale.
+  const m = MAPS[currentMapId];
+  const TARGET_W_PCT = 12, TARGET_H_PCT = 4;
+  const wFt = TARGET_W_PCT / 100 * m.w / m.ftpx;
+  const hFt = TARGET_H_PCT / 100 * m.h / m.ftpx;
+  const lb = { id: makeId(), mapId: currentMapId, xPct: 44, yPct: 44, wFt, hFt, angle: 0, text: 'Label' };
+  labels.push(lb);
+  const el = createLabelEl(lb);
+  startEditLabel(el, lb);
+  persist();
+}
+
+function createLabelEl(lb) {
+  if (lb.wFt === undefined) lb.wFt = 5;
+  if (lb.hFt === undefined) lb.hFt = 2;
+  if (lb.angle === undefined) lb.angle = 0;
+  const { wPct, hPct } = pctSize(lb.mapId, lb.wFt, lb.hFt);
+  const el = document.createElement('div');
+  el.className = 'plan-label';
+  el.style.left = lb.xPct + '%';
+  el.style.top = lb.yPct + '%';
+  el.style.width = wPct + '%';
+  el.style.height = hPct + '%';
+  el.dataset.id = lb.id;
+  el.dataset.kind = 'label';
+
+  const span = document.createElement('span');
+  span.className = 'label-text';
+  span.textContent = lb.text;
+  el.appendChild(span);
+
+  const del = document.createElement('div');
+  del.className = 'del';
+  del.textContent = '\u00d7';
+  del.title = 'Remove label';
+  del.addEventListener('pointerdown', (e) => e.stopPropagation());
+  del.addEventListener('click', (e) => { e.stopPropagation(); removeLabel(lb.id); });
+  el.appendChild(del);
+
+  const rot = document.createElement('div');
+  rot.className = 'rotate';
+  rot.textContent = '\u21bb';
+  rot.title = 'Rotate 90\u00b0';
+  rot.addEventListener('pointerdown', (e) => e.stopPropagation());
+  rot.addEventListener('click', (e) => { e.stopPropagation(); rotateLabel90(lb.id); });
+  el.appendChild(rot);
+
+  const stalk = document.createElement('div');
+  stalk.className = 'rotate-stalk';
+  el.appendChild(stalk);
+
+  const rotHandle = document.createElement('div');
+  rotHandle.className = 'rotate-handle';
+  rotHandle.title = 'Drag to rotate freely (Shift = no snap)';
+  attachLabelRotate(rotHandle, el, lb);
+  el.appendChild(rotHandle);
+
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'resize-handle';
+  resizeHandle.title = 'Drag to resize';
+  attachLabelResize(resizeHandle, el, lb);
+  el.appendChild(resizeHandle);
+
+  el.addEventListener('pointerdown', onPointerDown);
+  el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditLabel(el, lb); });
+
+  plan.appendChild(el);
+  applyLabelZoom(el); // keep readable/rotated correctly if we're currently zoomed out
+  return el;
+}
+
+function rotateLabel90(id) {
+  const lb = labels.find(l => l.id === id);
+  if (!lb) return;
+  lb.angle = (((lb.angle || 0) + 90) % 360 + 360) % 360;
+  const el = plan.querySelector('.plan-label[data-id="' + id + '"]');
+  if (el) setLabelTransform(el, lb);
+  persist();
+}
+
+function attachLabelRotate(handle, labelEl, lb) {
+  function onDown(e) {
+    e.stopPropagation();
+    labelEl.classList.add('rotating');
+    planRect = plan.getBoundingClientRect();
+    handle.setPointerCapture(e.pointerId);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
+  function onMove(e) {
+    const { wPct, hPct } = pctSize(lb.mapId, lb.wFt, lb.hFt);
+    const centerXpx = (lb.xPct + wPct / 2) / 100 * planRect.width;
+    const centerYpx = (lb.yPct + hPct / 2) / 100 * planRect.height;
+    const px = e.clientX - planRect.left;
+    const py = e.clientY - planRect.top;
+    let angle = Math.atan2(py - centerYpx, px - centerXpx) * 180 / Math.PI + 90;
+    angle = ((angle % 360) + 360) % 360;
+    if (!e.shiftKey) angle = Math.round(angle / 15) * 15 % 360;
+    lb.angle = angle;
+    setLabelTransform(labelEl, lb);
+  }
+  function onUp(e) {
+    labelEl.classList.remove('rotating');
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    persist();
+  }
+  handle.addEventListener('pointerdown', onDown);
+}
+
+function attachLabelResize(handle, labelEl, lb) {
+  let dimTag = null;
+  let startX, startY, startWFt, startHFt;
+
+  function onDown(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    selectEl(labelEl);
+    planRect = plan.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    startWFt = lb.wFt;
+    startHFt = lb.hFt;
+    dimTag = document.createElement('div');
+    dimTag.className = 'dim-readout';
+    plan.appendChild(dimTag);
+    handle.setPointerCapture(e.pointerId);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
+
+  function onMove(e) {
+    const m = MAPS[lb.mapId];
+    const dxFt = ((e.clientX - startX) / planRect.width) * m.w / m.ftpx;
+    const dyFt = ((e.clientY - startY) / planRect.height) * m.h / m.ftpx;
+    const newW = Math.max(1, startWFt + dxFt);
+    const newH = Math.max(0.5, startHFt + dyFt);
+    lb.wFt = newW;
+    lb.hFt = newH;
+    const { wPct, hPct } = pctSize(lb.mapId, newW, newH);
+    labelEl.style.width = wPct + '%';
+    labelEl.style.height = hPct + '%';
+    if (dimTag) {
+      dimTag.textContent = newW.toFixed(1) + ' ft \u00d7 ' + newH.toFixed(1) + ' ft';
+      const rect = labelEl.getBoundingClientRect();
+      dimTag.style.left = (rect.right - planRect.left + 8) + 'px';
+      dimTag.style.top = (rect.top - planRect.top) + 'px';
+    }
+  }
+
+  function onUp() {
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    if (dimTag) { dimTag.remove(); dimTag = null; }
+    persist();
+  }
+
+  handle.addEventListener('pointerdown', onDown);
+}
+
+function startEditLabel(el, lb) {
+  const span = el.querySelector('.label-text');
+  el.classList.add('editing');
+  span.contentEditable = 'true';
+  span.focus();
+  const range = document.createRange();
+  range.selectNodeContents(span);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function commit() {
+    span.contentEditable = 'false';
+    el.classList.remove('editing');
+    const text = span.textContent.trim() || 'Label';
+    lb.text = text;
+    span.textContent = text;
+    span.removeEventListener('blur', commit);
+    span.removeEventListener('keydown', onKey);
+    persist();
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); span.textContent = lb.text; span.blur(); }
+  }
+  span.addEventListener('blur', commit);
+  span.addEventListener('keydown', onKey);
+}
+
+function removeLabel(id) {
+  labels = labels.filter(l => l.id !== id);
+  renderAll();
+  persist();
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+// ---- Shared sync (Supabase) ----
+// To enable live shared editing across everyone who opens this page:
+//   1. In your Supabase project's SQL editor, run:
+//        create table if not exists booth_layouts (
+//          id text primary key,
+//          data jsonb not null default '{}'::jsonb,
+//          updated_at timestamptz default now()
+//        );
+//        alter table booth_layouts enable row level security;
+//        create policy "public read" on booth_layouts for select using (true);
+//        create policy "public write" on booth_layouts for insert with check (true);
+//        create policy "public update" on booth_layouts for update using (true);
+//      (This makes the row open to anyone with your anon key \u2014 fine for an internal
+//      planning tool behind an unlisted link; tighten with auth if that's not enough.)
+//   2. Database \u2192 Replication \u2192 turn on realtime for the booth_layouts table
+//      (or run: alter publication supabase_realtime add table booth_layouts;)
+//   3. Also in the SQL editor, create the version-history table used by the "Save Version" button:
+//        create table if not exists booth_layout_versions (
+//          id uuid primary key default gen_random_uuid(),
+//          data jsonb not null,
+//          booth_count int,
+//          label_count int,
+//          created_at timestamptz default now()
+//        );
+//        alter table booth_layout_versions enable row level security;
+//        create policy "public read versions" on booth_layout_versions for select using (true);
+//        create policy "public insert versions" on booth_layout_versions for insert with check (true);
+//      (Realtime is not needed for this table \u2014 it's only read when you open the Version History list.)
+//   4. For the Admin panel's "upload floor plans" and "manage packages" features, also run:
+//        create table if not exists booth_layout_maps (
+//          id text primary key,
+//          label text not null,
+//          image_data text not null,
+//          width int not null,
+//          height int not null,
+//          ftpx numeric not null default 5,
+//          note text default '',
+//          color text default '',
+//          sort_order int not null default 0,
+//          created_at timestamptz default now()
+//        );
+//        alter table booth_layout_maps enable row level security;
+//        create policy "public read maps" on booth_layout_maps for select using (true);
+//        create policy "public write maps" on booth_layout_maps for insert with check (true);
+//        create policy "public update maps" on booth_layout_maps for update using (true);
+//        create policy "public delete maps" on booth_layout_maps for delete using (true);
+//
+//        create table if not exists booth_layout_packages (
+//          key text primary key,
+//          label text not null,
+//          width_ft numeric not null,
+//          depth_ft numeric not null,
+//          color text not null,
+//          sort_order int not null default 0,
+//          created_at timestamptz default now()
+//        );
+//        alter table booth_layout_packages enable row level security;
+//        create policy "public read packages" on booth_layout_packages for select using (true);
+//        create policy "public write packages" on booth_layout_packages for insert with check (true);
+//        create policy "public update packages" on booth_layout_packages for update using (true);
+//        create policy "public delete packages" on booth_layout_packages for delete using (true);
+//      (Realtime is not enabled for these two \u2014 admin changes like a new floor plan or an edited
+//      package appear for other people the next time they load the page, not instantly like booths do.
+//      The Admin panel is behind a code (see ADMIN_CODE below) but that's a UI deterrent, not real
+//      security \u2014 anyone with your anon key and a little effort could still write to these tables
+//      directly. Don't put anything truly sensitive behind it.)
+//   5. Project Settings \u2192 API \u2192 copy the Project URL and the anon/public key
+//   6. Paste them into SUPABASE_CONFIG below
+//   7. Re-publish this file. Everyone who opens the page now reads/writes the same shared layout live.
+// Leave SUPABASE_CONFIG empty (as shipped) and the tool works exactly as before \u2014 autosave to
+// this browser only, no sharing. Nothing breaks either way.
+const SUPABASE_CONFIG = {
+  url: "https://lflcemdvryrkgvlvbsnc.supabase.co",
+  anonKey: "sb_publishable_ctBJO82JTI5sNF1ZQGF4FA_Dr3zwyBd"
+};
+const SHARED_TABLE = 'booth_layouts';
+const SHARED_ROW_ID = 'shared-layout';
+const MAPS_TABLE = 'booth_layout_maps';
+const PACKAGES_TABLE = 'booth_layout_packages';
+
+let sbClient = null, sbReady = false, sbChannel = null;
+let suppressNextRealtime = false;
+let pushDebounceTimer = null;
+
+function isSupabaseConfigured() {
+  return !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
+}
+
+function updateSyncStatus(state, detail) {
+  const dot = document.getElementById('sync-dot');
+  const text = document.getElementById('sync-text');
+  if (!dot || !text) return;
+  dot.className = 'sync-dot ' + state;
+  const labels = {
+    'not-configured': 'Not connected \u2014 nothing will be saved until Supabase is configured',
+    'connecting': 'Connecting to shared layout\u2026',
+    'connected': 'Live \u2014 shared with everyone on this link',
+    'error': 'Shared sync error \u2014 changes are not being saved',
+    'offline': 'Offline \u2014 changes are not being saved'
+  };
+  text.textContent = detail || labels[state] || state;
+}
+
+async function initSupabase() {
+  if (!isSupabaseConfigured()) {
+    updateSyncStatus('not-configured');
+    return;
+  }
+  try {
+    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    updateSyncStatus('connecting');
+
+    // Load packages and any admin-uploaded floor plans first, so MAPS is fully
+    // populated (built-ins + custom) before booths/labels are fetched and filtered by it.
+    await loadPackagesFromDb();
+    await loadCustomMapsFromDb();
+    rebuildMapRegistry();
+    renderPackageSidebar();
+    buildTabs();
+    if (viewMode === 'edit') { planImg.src = MAP_IMGS[currentMapId]; }
+
+    const { data, error } = await sbClient
+      .from(SHARED_TABLE)
+      .select('data')
+      .eq('id', SHARED_ROW_ID)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Supabase initial fetch failed:', error);
+      updateSyncStatus('error');
+      return;
+    }
+
+    if (data && data.data) {
+      applyRemoteState(data.data);
+    } else {
+      // no shared row yet \u2014 seed it from whatever's local right now
+      await pushRemoteState(true);
+    }
+
+    sbReady = true;
+    updateSyncStatus('connected');
+    loadVersionHistory();
+
+    sbChannel = sbClient
+      .channel('booth-layout-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: SHARED_TABLE, filter: 'id=eq.' + SHARED_ROW_ID },
+        (payload) => {
+          if (suppressNextRealtime) { suppressNextRealtime = false; return; }
+          if (payload.new && payload.new.data) applyRemoteState(payload.new.data);
+        })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') updateSyncStatus('connected');
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') updateSyncStatus('error');
+      });
+  } catch (err) {
+    console.error('Supabase init failed:', err);
+    updateSyncStatus('error');
+  }
+}
+
+// Loads booth type/tier definitions from Supabase. If the table doesn't exist yet
+// (not created in SQL) it silently falls back to the built-in defaults, matching
+// how the rest of this tool behaves when a table is missing. If the table exists
+// but is empty, it seeds it once from the same defaults so it becomes the source
+// of truth going forward \u2014 admin edits after that persist for everyone.
+async function loadPackagesFromDb() {
+  try {
+    const { data, error } = await sbClient.from(PACKAGES_TABLE).select('*').order('sort_order', { ascending: true });
+    if (error) { console.warn('Packages table not available, using defaults:', error.message); return; }
+    if (!data || data.length === 0) {
+      const seed = DEFAULT_PACKAGES.map(p => ({
+        key: p.key, label: p.label, width_ft: p.widthFt, depth_ft: p.depthFt, color: p.color, sort_order: p.sortOrder
+      }));
+      const { error: seedErr } = await sbClient.from(PACKAGES_TABLE).insert(seed);
+      if (seedErr) { console.warn('Could not seed packages table:', seedErr.message); return; }
+      return; // packages stays as DEFAULT_PACKAGES, which now matches the DB
+    }
+    packages = data.map(p => ({
+      key: p.key, label: p.label, widthFt: Number(p.width_ft), depthFt: Number(p.depth_ft),
+      color: p.color || '#6b7280', sortOrder: p.sort_order || 0
+    }));
+  } catch (err) {
+    console.warn('Packages load failed, using defaults:', err);
+  }
+}
+
+// Loads admin-uploaded floor plans. Silently no-ops if the table doesn't exist yet.
+// The first time it finds the table empty, it seeds it with the five original floor
+// plans (fetched from their existing static files) so they become fully manageable
+// through the admin panel too, instead of staying hardcoded-only.
+async function loadCustomMapsFromDb() {
+  try {
+    const { data, error } = await sbClient.from(MAPS_TABLE).select('*').order('sort_order', { ascending: true });
+    if (error) { console.warn('Custom maps table not available:', error.message); return; }
+
+    if (!data || data.length === 0) {
+      await seedBuiltinMapsIfEmpty();
+      const retry = await sbClient.from(MAPS_TABLE).select('*').order('sort_order', { ascending: true });
+      if (retry.error) { console.warn('Custom maps reload after seed failed:', retry.error.message); return; }
+      customMaps = (retry.data || []).map(m => ({
+        id: m.id, label: m.label, imageData: m.image_data, width: m.width, height: m.height,
+        ftpx: Number(m.ftpx), note: m.note || '', color: m.color || '', sortOrder: m.sort_order || 0
+      }));
+      return;
+    }
+
+    customMaps = data.map(m => ({
+      id: m.id, label: m.label, imageData: m.image_data, width: m.width, height: m.height,
+      ftpx: Number(m.ftpx), note: m.note || '', color: m.color || '', sortOrder: m.sort_order || 0
+    }));
+  } catch (err) {
+    console.warn('Custom maps load failed:', err);
+  }
+}
+
+async function seedBuiltinMapsIfEmpty() {
+  const rows = [];
+  for (let i = 0; i < BUILTIN_MAP_ORDER.length; i++) {
+    const id = BUILTIN_MAP_ORDER[i];
+    const m = BUILTIN_MAPS[id];
+    try {
+      const res = await fetch(BUILTIN_MAP_IMGS[id]);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error('Could not read ' + id + ' as a data URL.'));
+        r.readAsDataURL(blob);
+      });
+      rows.push({
+        id, label: m.label, image_data: dataUrl, width: m.w, height: m.h,
+        ftpx: m.ftpx, note: m.note, color: BUILTIN_MAP_COLORS[id] || '', sort_order: i
+      });
+    } catch (err) {
+      console.warn('Could not seed built-in map "' + id + '":', err);
+    }
+  }
+  if (rows.length === 0) return;
+  const { error } = await sbClient.from(MAPS_TABLE).insert(rows);
+  if (error) console.warn('Seeding built-in floor plans failed:', error.message);
+}
+
+function applyRemoteState(data) {
+  booths = (data.booths || []).filter(b => MAPS[b.mapId]).map(b => ({
+    id: b.id || makeId(), mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
+    wFt: b.wFt || 10, hFt: b.hFt || getPkg(b.type).depthFt || 6, angle: b.angle || 0, name: b.name || ''
+  }));
+  labels = (data.labels || []).filter(l => MAPS[l.mapId]).map(l => ({
+    id: l.id || makeId(), mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
+    wFt: l.wFt || 5, hFt: l.hFt || 2, angle: l.angle || 0, text: l.text || 'Label'
+  }));
+  refreshView();
+}
+
+function pushRemoteState(isSeed) {
+  if (!sbClient) return Promise.resolve();
+  const doPush = async () => {
+    suppressNextRealtime = true;
+    const payload = {
+      id: SHARED_ROW_ID,
+      data: {
+        booths: booths.map(b => ({
+          id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
+          wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
+        })),
+        labels: labels.map(l => ({
+          id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
+          wFt: l.wFt, hFt: l.hFt, angle: l.angle || 0, text: l.text
+        }))
+      },
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sbClient.from(SHARED_TABLE).upsert(payload);
+    if (error) {
+      console.error('Supabase write failed:', error);
+      updateSyncStatus('error');
+    }
+  };
+  if (isSeed) return doPush();
+  clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = setTimeout(doPush, 250);
+  return Promise.resolve();
+}
+
+function persist() {
+  pushRemoteState();
+}
+
+// ---- Version history (explicit snapshots, separate from live autosave) ----
+const VERSIONS_TABLE = 'booth_layout_versions';
+
+function showVersionStatus(msg) {
+  const el = document.getElementById('version-status');
+  if (!el) return;
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+async function saveVersion() {
+  if (!sbClient) {
+    showVersionStatus('Shared sync isn\u2019t connected \u2014 set up Supabase first (see SUPABASE_CONFIG).');
+    return;
+  }
+  const nameInput = document.getElementById('version-name');
+  const versionName = nameInput ? nameInput.value.trim() : '';
+  const payload = {
+    data: {
+      name: versionName,
+      booths: booths.map(b => ({
+        id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
+        wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
+      })),
+      labels: labels.map(l => ({
+        id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
+        wFt: l.wFt, hFt: l.hFt, angle: l.angle || 0, text: l.text
+      }))
+    },
+    booth_count: booths.length,
+    label_count: labels.length
+  };
+  const { error } = await sbClient.from(VERSIONS_TABLE).insert(payload);
+  if (error) {
+    console.error('Save version failed:', error);
+    showVersionStatus('Could not save version \u2014 has the booth_layout_versions table been created? See setup notes.');
+    return;
+  }
+  if (nameInput) nameInput.value = '';
+  showVersionStatus('Version saved' + (versionName ? ' \u201c' + versionName + '\u201d' : '') + ' (' + booths.length + ' booths, ' + labels.length + ' labels).');
+  loadVersionHistory();
+}
+
+async function loadVersionHistory() {
+  const list = document.getElementById('version-list');
+  if (!sbClient || !list) return;
+  // Pull the name out of the JSON blob so the list stays lightweight (no full data).
+  let { data, error } = await sbClient
+    .from(VERSIONS_TABLE)
+    .select('id, created_at, booth_count, label_count, name:data->>name')
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) {
+    // Fallback: some Postgres/PostgREST setups reject the nested JSON select.
+    // Retry without it so the version list still works (just unnamed).
+    const retry = await sbClient
+      .from(VERSIONS_TABLE)
+      .select('id, created_at, booth_count, label_count')
+      .order('created_at', { ascending: false })
+      .limit(30);
+    data = retry.data; error = retry.error;
+  }
+  if (error) {
+    console.error('Load version history failed:', error);
+    list.innerHTML = '<div class="hint">Couldn\u2019t load version history \u2014 has the booth_layout_versions table been created?</div>';
+    return;
+  }
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="hint">No versions saved yet \u2014 click "Save Version" to create one.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  data.forEach(v => {
+    const item = document.createElement('div');
+    item.className = 'version-item';
+    const dt = new Date(v.created_at);
+    const info = document.createElement('div');
+    info.className = 'vinfo';
+
+    if (v.name) {
+      const nm = document.createElement('div');
+      nm.className = 'vname';
+      nm.textContent = v.name; // textContent = safe against injected HTML
+      nm.title = 'Click to rename';
+      nm.onclick = () => beginVersionRename(nm, v.id, v.name);
+      info.appendChild(nm);
+    } else {
+      const add = document.createElement('div');
+      add.className = 'vname-add';
+      add.textContent = '+ Add name';
+      add.title = 'Name this version';
+      add.onclick = () => beginVersionRename(add, v.id, '');
+      info.appendChild(add);
+    }
+    const time = document.createElement('div');
+    time.className = 'vtime';
+    time.textContent = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    info.appendChild(time);
+    const count = document.createElement('div');
+    count.className = 'vcount';
+    count.textContent = (v.booth_count ?? '?') + ' booths, ' + (v.label_count ?? '?') + ' labels';
+    info.appendChild(count);
+
+    item.appendChild(info);
+    const btn = document.createElement('button');
+    btn.textContent = 'Restore';
+    btn.onclick = () => restoreVersion(v.id, dt);
+    item.appendChild(btn);
+    list.appendChild(item);
+  });
+}
+
+function beginVersionRename(nameEl, id, currentName) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 60;
+  input.value = currentName || '';
+  input.className = 'vname-input';
+  input.placeholder = 'Version name';
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  function finish(save) {
+    if (done) return;
+    done = true;
+    input.removeEventListener('keydown', onKey);
+    input.removeEventListener('blur', onBlur);
+    if (save) {
+      updateVersionName(id, input.value.trim()); // reloads the list on success
+    } else {
+      loadVersionHistory(); // discard edit, restore the list as-is
+    }
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  }
+  function onBlur() { finish(true); }
+  input.addEventListener('keydown', onKey);
+  input.addEventListener('blur', onBlur);
+}
+
+async function updateVersionName(id, name) {
+  if (!sbClient) return;
+  // Fetch the snapshot's JSON, set the name, write it back untouched otherwise.
+  const { data: row, error } = await sbClient
+    .from(VERSIONS_TABLE).select('data').eq('id', id).single();
+  if (error || !row) {
+    console.error('Rename: fetch failed', error);
+    showVersionStatus('Could not rename version \u2014 fetch failed.');
+    loadVersionHistory();
+    return;
+  }
+  const newData = Object.assign({}, row.data || {}, { name });
+  const { error: upErr } = await sbClient
+    .from(VERSIONS_TABLE).update({ data: newData }).eq('id', id);
+  if (upErr) {
+    console.error('Rename: update failed', upErr);
+    showVersionStatus('Could not rename version.');
+    loadVersionHistory();
+    return;
+  }
+  showVersionStatus(name ? 'Renamed to \u201c' + name + '\u201d.' : 'Version name cleared.');
+  loadVersionHistory();
+}
+
+async function restoreVersion(id, dt) {
+  const when = dt ? (dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})) : 'this version';
+  if (!confirm('Restore the layout to ' + when + '? This replaces the current shared layout for everyone.')) return;
+  const { data, error } = await sbClient.from(VERSIONS_TABLE).select('data').eq('id', id).maybeSingle();
+  if (error || !data) {
+    console.error('Restore failed:', error);
+    showVersionStatus('Could not load that version.');
+    return;
+  }
+  applyRemoteState(data.data);
+  pushRemoteState(true);
+  showVersionStatus('Restored to ' + when + '.');
+}
+
+function clearCurrentMap() {
+  booths = booths.filter(b => b.mapId !== currentMapId);
+  labels = labels.filter(l => l.mapId !== currentMapId);
+  refreshView();
+  persist();
+}
+
+function clearAllMaps() {
+  booths = [];
+  labels = [];
+  refreshView();
+  persist();
+}
+
+let dragEl = null, dragOffsetX = 0, dragOffsetY = 0, planRect = null;
+
+function selectEl(el) {
+  plan.querySelectorAll('.booth.selected, .plan-label.selected').forEach(x => {
+    if (x !== el) x.classList.remove('selected');
+  });
+  if (el) {
+    el.classList.add('selected');
+    if (typeof lastSelected !== 'undefined' && el.dataset && el.dataset.id) {
+      lastSelected = { id: el.dataset.id, kind: el.dataset.kind || 'booth' };
+    }
+  }
+}
+
+function onPointerDown(e) {
+  if (e.currentTarget.classList.contains('editing')) return;
+  dragEl = e.currentTarget;
+  dragEl.classList.add('dragging');
+  selectEl(dragEl);
+  planRect = plan.getBoundingClientRect();
+  const elRect = dragEl.getBoundingClientRect();
+  dragOffsetX = e.clientX - elRect.left;
+  dragOffsetY = e.clientY - elRect.top;
+  dragEl.setPointerCapture(e.pointerId);
+  dragEl.addEventListener('pointermove', onPointerMove);
+  dragEl.addEventListener('pointerup', onPointerUp);
+}
+
+plan.addEventListener('pointerdown', (e) => {
+  if (e.target === plan || e.target.id === 'plan-img') selectEl(null);
+});
+
+function onPointerMove(e) {
+  if (!dragEl) return;
+  const elW = dragEl.offsetWidth, elH = dragEl.offsetHeight;
+  let left = e.clientX - planRect.left - dragOffsetX;
+  let top = e.clientY - planRect.top - dragOffsetY;
+  left = Math.max(0, Math.min(left, planRect.width - elW));
+  top = Math.max(0, Math.min(top, planRect.height - elH));
+  const xPct = left / planRect.width * 100;
+  const yPct = top / planRect.height * 100;
+  dragEl.style.left = xPct + '%';
+  dragEl.style.top = yPct + '%';
+  if (dragEl.dataset.kind === 'label') {
+    const l = labels.find(ll => ll.id === dragEl.dataset.id);
+    if (l) { l.xPct = xPct; l.yPct = yPct; }
+  } else {
+    const b = booths.find(bb => bb.id === dragEl.dataset.id);
+    if (b) { b.xPct = xPct; b.yPct = yPct; }
+  }
+}
+
+function onPointerUp(e) {
+  if (!dragEl) return;
+  dragEl.classList.remove('dragging');
+  dragEl.removeEventListener('pointermove', onPointerMove);
+  dragEl.removeEventListener('pointerup', onPointerUp);
+  dragEl = null;
+  persist();
+}
+
+let clipboard = null;      // deep-cloned booth or label awaiting paste
+let lastSelected = null;   // { id, kind } of the most recently selected item (fallback for copy)
+
+// --- tiny on-screen toast so actions are visible ---
+function toast(msg) {
+  let t = document.getElementById('kb-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'kb-toast';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
+      + 'background:#1f2a44;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;'
+      + 'font-family:system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9999;'
+      + 'pointer-events:none;opacity:0;transition:opacity .15s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 1400);
+}
+
+function isTypingContext() {
+  const a = document.activeElement;
+  if (!a) return false;
+  const tag = a.tagName;
+  return a.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || a.classList.contains('editing');
+}
+
+// Resolve what to copy: prefer the live-highlighted element, else the last thing clicked
+function resolveTarget() {
+  const el = plan.querySelector('.booth.selected, .plan-label.selected');
+  if (el) return { id: el.dataset.id, kind: el.dataset.kind };
+  return lastSelected;
+}
+
+function copySelection() {
+  const target = resolveTarget();
+  if (!target) { toast('Click a booth first, then \u2318/Ctrl+C'); return true; }
+  if (target.kind === 'label') {
+    const l = labels.find(ll => ll.id === target.id);
+    if (!l) { toast('Nothing to copy'); return true; }
+    clipboard = { kind: 'label', data: JSON.parse(JSON.stringify(l)) };
+    toast('Copied label \u2014 \u2318/Ctrl+V to paste');
+  } else {
+    const b = booths.find(bb => bb.id === target.id);
+    if (!b) { toast('Nothing to copy'); return true; }
+    clipboard = { kind: 'booth', data: JSON.parse(JSON.stringify(b)) };
+    toast('Copied ' + (b.name || b.type) + ' \u2014 \u2318/Ctrl+V to paste');
+  }
+  return true;
+}
+
+function pasteClipboard() {
+  if (!clipboard) { toast('Nothing copied yet'); return true; }
+  const OFFSET = 3; // % nudge so the copy doesn't sit exactly on top
+  const clampPct = v => Math.max(0, Math.min(92, v));
+  const src = clipboard.data;
+  const xPct = clampPct((src.xPct ?? 46) + OFFSET);
+  const yPct = clampPct((src.yPct ?? 46) + OFFSET);
+
+  if (clipboard.kind === 'label') {
+    const lb = { ...src, id: makeId(), mapId: currentMapId, xPct, yPct };
+    labels.push(lb);
+    const el = createLabelEl(lb);
+    selectEl(el);
+    lastSelected = { id: lb.id, kind: 'label' };
+    toast('Pasted label');
+  } else {
+    const b = { ...src, id: makeId(), mapId: currentMapId, xPct, yPct };
+    booths.push(b);
+    const el = createBoothEl(b);
+    selectEl(el);
+    renderCounts();
+    lastSelected = { id: b.id, kind: 'booth' };
+    toast('Pasted ' + (b.name || b.type));
+  }
+  // cascade: next paste offsets from this one, so repeated pastes fan out
+  clipboard.data = { ...src, xPct, yPct };
+  persist();
+  return true;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { selectEl(null); return; }
+
+  // Don't hijack copy/paste while the user is editing text
+  if (isTypingContext()) return;
+
+  const mod = e.metaKey || e.ctrlKey;
+  if (!mod) return;
+  const key = (e.key || '').toLowerCase();
+
+  if (key === 'c') {
+    e.preventDefault();
+    copySelection();
+  } else if (key === 'v') {
+    e.preventDefault();
+    pasteClipboard();
+  }
+});
+
+// ---- Admin panel -------------------------------------------------------
+// Lightweight, client-side gate only \u2014 good enough to keep casual visitors
+// out of destructive controls, but not real security (anyone who views the
+// page source can see the code check). Don't rely on this to protect
+// anything sensitive; it's a deterrent for an internal planning tool.
+const ADMIN_CODE = 'SBCMC';
+let isAdmin = false;
+let adminView = 'gate'; // 'gate' | 'home' | 'maps' | 'packages' | 'calibrate'
+let calibratingMapId = null;
+let calibMeasurements = [];
+let calibPendingPoint = null;
+let editingPackageKey = null;
+
+try { isAdmin = sessionStorage.getItem('sbcmcAdmin') === '1'; } catch (e) { /* sessionStorage unavailable */ }
+
+function openAdminPanel() {
+  document.getElementById('admin-overlay').style.display = 'flex';
+  adminView = isAdmin ? 'home' : 'gate';
+  renderAdminModal();
+}
+function closeAdminPanel() {
+  document.getElementById('admin-overlay').style.display = 'none';
+}
+function lockAdmin() {
+  isAdmin = false;
+  try { sessionStorage.removeItem('sbcmcAdmin'); } catch (e) {}
+  adminView = 'gate';
+  renderAdminModal();
+}
+function submitAdminCode() {
+  const input = document.getElementById('admin-code-input');
+  const err = document.getElementById('admin-code-error');
+  const code = input ? input.value.trim() : '';
+  if (code === ADMIN_CODE) {
+    isAdmin = true;
+    try { sessionStorage.setItem('sbcmcAdmin', '1'); } catch (e) {}
+    adminView = 'home';
+    renderAdminModal();
+  } else if (err) {
+    err.textContent = 'Incorrect code.';
+  }
+}
+
+function renderAdminModal() {
+  const title = document.getElementById('admin-modal-title');
+  const body = document.getElementById('admin-modal-body');
+  if (!title || !body) return;
+  body.innerHTML = '';
+
+  if (!isAdmin) {
+    title.textContent = 'Admin access';
+    body.appendChild(buildAdminGate());
+    return;
+  }
+
+  if (adminView === 'calibrate') {
+    title.textContent = 'Calibrate scale';
+    body.appendChild(buildCalibratorView(calibratingMapId));
+    return;
+  }
+
+  title.textContent = 'Admin';
+  const tabs = document.createElement('div');
+  tabs.className = 'admin-tabs';
+  const mapsTab = document.createElement('button');
+  mapsTab.className = 'admin-tab' + (adminView !== 'packages' ? ' active' : '');
+  mapsTab.textContent = 'Floor plans';
+  mapsTab.onclick = () => { adminView = 'maps'; renderAdminModal(); };
+  const pkgTab = document.createElement('button');
+  pkgTab.className = 'admin-tab' + (adminView === 'packages' ? ' active' : '');
+  pkgTab.textContent = 'Packages';
+  pkgTab.onclick = () => { adminView = 'packages'; editingPackageKey = null; renderAdminModal(); };
+  tabs.appendChild(mapsTab); tabs.appendChild(pkgTab);
+  body.appendChild(tabs);
+
+  body.appendChild(adminView === 'packages' ? buildPackagesAdminView() : buildMapsAdminView());
+
+  const lockRow = document.createElement('div');
+  lockRow.style.cssText = 'margin-top:16px; text-align:right;';
+  const lockBtn = document.createElement('button');
+  lockBtn.style.cssText = 'font-size:11px; padding:5px 10px; border-radius:6px; border:1px solid var(--line); background:white; cursor:pointer; color:#6b7280;';
+  lockBtn.textContent = 'Lock admin';
+  lockBtn.onclick = lockAdmin;
+  lockRow.appendChild(lockBtn);
+  body.appendChild(lockRow);
+}
+
+function buildAdminGate() {
+  const wrap = document.createElement('div');
+  const p = document.createElement('p');
+  p.style.cssText = 'font-size:12.5px; color:#4b5563; margin:0 0 10px;';
+  p.textContent = 'Enter the admin code to manage floor plans and booth packages.';
+  wrap.appendChild(p);
+
+  const input = document.createElement('input');
+  input.type = 'password';
+  input.id = 'admin-code-input';
+  input.className = 'admin-gate-input';
+  input.placeholder = 'Admin code';
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitAdminCode(); } });
+  wrap.appendChild(input);
+
+  const err = document.createElement('div');
+  err.className = 'admin-error';
+  err.id = 'admin-code-error';
+  wrap.appendChild(err);
+
+  const btn = document.createElement('button');
+  btn.className = 'btn primary';
+  btn.style.width = '100%';
+  btn.textContent = 'Unlock';
+  btn.onclick = submitAdminCode;
+  wrap.appendChild(btn);
+
+  setTimeout(() => input.focus(), 30);
+  return wrap;
+}
+
+// ---- Floor plans (maps) admin ----
+function openCalibratorFor(mapId) {
+  calibratingMapId = mapId;
+  calibMeasurements = [];
+  calibPendingPoint = null;
+  adminView = 'calibrate';
+  renderAdminModal();
+}
+
+function buildMapsAdminView() {
+  const wrap = document.createElement('div');
+
+  const label = document.createElement('div');
+  label.className = 'admin-section-label';
+  label.textContent = 'Current floor plans';
+  wrap.appendChild(label);
+
+  MAP_ORDER.forEach(id => {
+    const m = MAPS[id];
+    const isBuiltinId = BUILTIN_MAP_ORDER.includes(id);
+    const dbRow = customMaps.find(mm => mm.id === id); // present once seeded/uploaded into Supabase
+    const boothCount = booths.filter(b => b.mapId === id).length;
+
+    const item = document.createElement('div');
+    item.className = 'admin-list-item';
+    const img = document.createElement('img');
+    img.className = 'aitem-thumb';
+    img.src = MAP_IMGS[id];
+    item.appendChild(img);
+
+    const info = document.createElement('div');
+    info.className = 'aitem-info';
+    const sourceLabel = dbRow ? (isBuiltinId ? 'Original floor plan' : 'Uploaded') : 'Built-in \u2014 not yet in the shared database';
+    info.innerHTML = '<div class="aitem-title">' + escapeHtml(m.label) + '</div>' +
+      '<div class="aitem-sub">' + sourceLabel + ' \u2014 ' + m.ftpx.toFixed(2) + ' px/ft' +
+      (boothCount ? ' \u2014 ' + boothCount + ' booth' + (boothCount === 1 ? '' : 's') : '') + '</div>';
+    item.appendChild(info);
+
+    if (dbRow) {
+      const calBtn = document.createElement('button');
+      calBtn.textContent = 'Calibrate';
+      calBtn.onclick = () => openCalibratorFor(id);
+      item.appendChild(calBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger';
+      if (isBuiltinId) {
+        delBtn.textContent = 'Reset to default';
+        delBtn.onclick = () => resetBuiltinMap(id);
+      } else {
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = () => deleteCustomMap(id);
+      }
+      item.appendChild(delBtn);
+    }
+
+    wrap.appendChild(item);
+  });
+
+  const uploadLabel = document.createElement('div');
+  uploadLabel.className = 'admin-section-label';
+  uploadLabel.textContent = 'Upload a new floor plan';
+  wrap.appendChild(uploadLabel);
+
+  const form = document.createElement('div');
+  form.className = 'admin-form';
+  form.innerHTML =
+    '<label>Name (shown on its tab)</label>' +
+    '<input type="text" id="new-map-label" placeholder="e.g. N100 \u2014 Annex">' +
+    '<label>Floor plan image</label>' +
+    '<input type="file" id="new-map-file" accept="image/*">' +
+    '<div class="hint" style="margin-top:6px;">After upload, you\u2019ll calibrate its scale (pixels per foot) right here \u2014 just like the existing maps.</div>';
+  wrap.appendChild(form);
+
+  const actions = document.createElement('div');
+  actions.className = 'admin-form-actions';
+  const uploadBtn = document.createElement('button');
+  uploadBtn.className = 'btn primary';
+  uploadBtn.id = 'upload-map-btn';
+  uploadBtn.textContent = 'Upload floor plan';
+  uploadBtn.onclick = uploadNewMap;
+  actions.appendChild(uploadBtn);
+  wrap.appendChild(actions);
+
+  const status = document.createElement('div');
+  status.className = 'hint';
+  status.id = 'map-upload-status';
+  wrap.appendChild(status);
+
+  return wrap;
+}
+
+function loadImageAsDataUrl(file, maxWidth) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read the file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not read that as an image.'));
+      img.onload = () => {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > maxWidth) {
+          const s = maxWidth / w;
+          w = Math.round(w * s);
+          h = Math.round(h * s);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.88), width: w, height: h });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadNewMap() {
+  const statusEl = document.getElementById('map-upload-status');
+  if (!sbClient) {
+    if (statusEl) statusEl.textContent = 'Shared sync isn\u2019t connected \u2014 set up Supabase first (see SUPABASE_CONFIG) so uploads can be saved and shared.';
+    return;
+  }
+  const labelInput = document.getElementById('new-map-label');
+  const fileInput = document.getElementById('new-map-file');
+  const label = labelInput ? labelInput.value.trim() : '';
+  const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+  if (!label) { if (statusEl) statusEl.textContent = 'Give the floor plan a name first.'; return; }
+  if (!file) { if (statusEl) statusEl.textContent = 'Choose an image file first.'; return; }
+
+  const btn = document.getElementById('upload-map-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Uploading\u2026'; }
+  if (statusEl) statusEl.textContent = '';
+
+  try {
+    const { dataUrl, width, height } = await loadImageAsDataUrl(file, 2000);
+    const id = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    const sortOrder = customMaps.length ? Math.max(...customMaps.map(m => m.sortOrder || 0)) + 1 : 0;
+    const note = 'Uploaded floor plan \u2014 not yet calibrated. Use Calibrate to set its real scale.';
+    const row = { id, label, image_data: dataUrl, width, height, ftpx: 5, note, color: '', sort_order: sortOrder };
+
+    const { error } = await sbClient.from(MAPS_TABLE).insert(row);
+    if (error) throw error;
+
+    customMaps.push({ id, label, imageData: dataUrl, width, height, ftpx: 5, note, color: '', sortOrder });
+    rebuildMapRegistry();
+    buildTabs();
+    renderCounts();
+    toast('Floor plan uploaded \u2014 now set its scale.');
+    openCalibratorFor(id);
+  } catch (err) {
+    console.error('Map upload failed:', err);
+    if (statusEl) statusEl.textContent = 'Upload failed \u2014 see console for details.';
+    if (btn) { btn.disabled = false; btn.textContent = 'Upload floor plan'; }
+  }
+}
+
+async function deleteCustomMap(id) {
+  if (BUILTIN_MAP_ORDER.includes(id)) { resetBuiltinMap(id); return; } // safety net; the UI shouldn't route here for these
+  const m = customMaps.find(mm => mm.id === id);
+  if (!m) return;
+  const affected = booths.filter(b => b.mapId === id).length + labels.filter(l => l.mapId === id).length;
+  const warn = affected
+    ? ('Delete "' + m.label + '"? This also removes ' + affected + ' booth/label item(s) placed on it. This cannot be undone.')
+    : ('Delete "' + m.label + '"? This cannot be undone.');
+  if (!confirm(warn)) return;
+  if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t delete a shared floor plan without it.'); return; }
+
+  try {
+    const { error } = await sbClient.from(MAPS_TABLE).delete().eq('id', id);
+    if (error) throw error;
+
+    customMaps = customMaps.filter(mm => mm.id !== id);
+    booths = booths.filter(b => b.mapId !== id);
+    labels = labels.filter(l => l.mapId !== id);
+    rebuildMapRegistry();
+
+    if (currentMapId === id) { currentMapId = MAP_ORDER[0]; planImg.src = MAP_IMGS[currentMapId]; }
+    buildTabs();
+    refreshView();
+    persist(); // push the booth/label removal to the shared layout
+    renderAdminModal();
+    toast('Floor plan deleted.');
+  } catch (err) {
+    console.error('Delete map failed:', err);
+    toast('Could not delete that floor plan \u2014 see console.');
+  }
+}
+
+// One of the five original floor plans can't disappear as a tab (booths on it would
+// have nowhere to live), so instead of deleting it, this just removes the database
+// row and falls back to the shipped default image/scale/note. Booths already placed
+// on it are left alone.
+async function resetBuiltinMap(id) {
+  const m = BUILTIN_MAPS[id];
+  if (!m) return;
+  if (!confirm('Reset "' + m.label + '" back to its original shipped image and scale? Booths already placed on it are kept.')) return;
+  if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t reset a shared floor plan without it.'); return; }
+
+  try {
+    const { error } = await sbClient.from(MAPS_TABLE).delete().eq('id', id);
+    if (error) throw error;
+
+    customMaps = customMaps.filter(mm => mm.id !== id);
+    rebuildMapRegistry();
+    if (currentMapId === id) planImg.src = MAP_IMGS[id];
+    buildTabs();
+    refreshView();
+    renderAdminModal();
+    toast('Reset to the default floor plan.');
+  } catch (err) {
+    console.error('Reset map failed:', err);
+    toast('Could not reset that floor plan \u2014 see console.');
+  }
+}
+
+function buildCalibratorView(mapId) {
+  const wrap = document.createElement('div');
+  const m = MAPS[mapId];
+  if (!m) { wrap.textContent = 'That floor plan is no longer available.'; return wrap; }
+
+  const instructions = document.createElement('p');
+  instructions.style.cssText = 'font-size:12.5px; color:#4b5563; margin:0 0 10px;';
+  instructions.textContent = 'Click two points on something of known real-world length (a door, a marked wall) \u2014 you\u2019ll be asked to enter that length in feet. Measure a couple of different features for a more accurate average.';
+  wrap.appendChild(instructions);
+
+  const imgWrap = document.createElement('div');
+  imgWrap.className = 'calib-img-wrap';
+  const img = document.createElement('img');
+  img.src = MAP_IMGS[mapId];
+  img.draggable = false;
+  imgWrap.appendChild(img);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  imgWrap.appendChild(svg);
+  wrap.appendChild(imgWrap);
+
+  function redraw() {
+    svg.innerHTML = '';
+    imgWrap.querySelectorAll('.calib-marker').forEach(el => el.remove());
+    const addMarker = (xPct, yPct) => {
+      const dot = document.createElement('div');
+      dot.className = 'calib-marker';
+      dot.style.left = xPct + '%';
+      dot.style.top = yPct + '%';
+      imgWrap.appendChild(dot);
+    };
+    const addLine = (x1, y1, x2, y2) => {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1 + '%'); line.setAttribute('y1', y1 + '%');
+      line.setAttribute('x2', x2 + '%'); line.setAttribute('y2', y2 + '%');
+      line.setAttribute('stroke', '#c0392b'); line.setAttribute('stroke-width', '2');
+      svg.appendChild(line);
+    };
+    calibMeasurements.forEach(mm => {
+      addMarker(mm.x1Pct, mm.y1Pct); addMarker(mm.x2Pct, mm.y2Pct);
+      addLine(mm.x1Pct, mm.y1Pct, mm.x2Pct, mm.y2Pct);
+    });
+    if (calibPendingPoint) addMarker(calibPendingPoint.xPct, calibPendingPoint.yPct);
+  }
+  redraw();
+
+  imgWrap.addEventListener('click', (e) => {
+    const rect = imgWrap.getBoundingClientRect();
+    const xPct = (e.clientX - rect.left) / rect.width * 100;
+    const yPct = (e.clientY - rect.top) / rect.height * 100;
+
+    if (!calibPendingPoint) {
+      calibPendingPoint = { xPct, yPct };
+      redraw();
+      return;
+    }
+    const p1 = calibPendingPoint;
+    const p2 = { xPct, yPct };
+    calibPendingPoint = null;
+
+    const dxPx = (p2.xPct - p1.xPct) / 100 * m.w;
+    const dyPx = (p2.yPct - p1.yPct) / 100 * m.h;
+    const pxDist = Math.sqrt(dxPx * dxPx + dyPx * dyPx);
+
+    const feetStr = prompt('Real-world length of this line, in feet:');
+    const ft = parseFloat(feetStr);
+    if (!feetStr || isNaN(ft) || ft <= 0) { redraw(); return; }
+
+    calibMeasurements.push({ x1Pct: p1.xPct, y1Pct: p1.yPct, x2Pct: p2.xPct, y2Pct: p2.yPct, pxDist, ft, pxPerFt: pxDist / ft });
+    renderAdminModal();
+  });
+
+  const listLabel = document.createElement('div');
+  listLabel.className = 'admin-section-label';
+  listLabel.textContent = 'Measurements';
+  wrap.appendChild(listLabel);
+
+  if (calibMeasurements.length === 0) {
+    const none = document.createElement('div');
+    none.className = 'hint';
+    none.textContent = 'No measurements yet \u2014 click two points on the image above to start.';
+    wrap.appendChild(none);
+  } else {
+    calibMeasurements.forEach((mm, i) => {
+      const row = document.createElement('div');
+      row.className = 'admin-list-item';
+      const info = document.createElement('div');
+      info.className = 'aitem-info';
+      info.innerHTML = '<div class="aitem-title">' + mm.pxDist.toFixed(1) + 'px = ' + mm.ft + 'ft</div>' +
+        '<div class="aitem-sub">' + mm.pxPerFt.toFixed(2) + ' px/ft</div>';
+      row.appendChild(info);
+      const rm = document.createElement('button');
+      rm.className = 'danger';
+      rm.textContent = 'Remove';
+      rm.onclick = () => { calibMeasurements.splice(i, 1); renderAdminModal(); };
+      row.appendChild(rm);
+      wrap.appendChild(row);
+    });
+    const avg = calibMeasurements.reduce((s, mm) => s + mm.pxPerFt, 0) / calibMeasurements.length;
+    const avgRow = document.createElement('div');
+    avgRow.style.cssText = 'font-size:12.5px; font-weight:700; margin:8px 0 14px;';
+    avgRow.textContent = 'Average: ' + avg.toFixed(2) + ' px/ft';
+    wrap.appendChild(avgRow);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'admin-form-actions';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'btn';
+  backBtn.textContent = 'Cancel';
+  backBtn.onclick = () => { adminView = 'maps'; calibratingMapId = null; renderAdminModal(); };
+  actions.appendChild(backBtn);
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn primary';
+  saveBtn.textContent = 'Save calibration';
+  saveBtn.disabled = calibMeasurements.length === 0;
+  saveBtn.onclick = () => saveCalibration(mapId);
+  actions.appendChild(saveBtn);
+  wrap.appendChild(actions);
+
+  return wrap;
+}
+
+async function saveCalibration(mapId) {
+  if (calibMeasurements.length === 0) return;
+  const avg = calibMeasurements.reduce((s, mm) => s + mm.pxPerFt, 0) / calibMeasurements.length;
+  const note = calibMeasurements.length === 1
+    ? ('Scale calibrated using the interactive scale tool: ' + calibMeasurements[0].ft + 'ft reference line measured directly on this plan.')
+    : ('Scale calibrated using the interactive scale tool: ' + calibMeasurements.length + ' reference lines measured directly on this plan, averaged to ' + avg.toFixed(2) + ' px/ft.');
+
+  if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t save a shared calibration without it.'); return; }
+
+  try {
+    const { error } = await sbClient.from(MAPS_TABLE).update({ ftpx: avg, note }).eq('id', mapId);
+    if (error) throw error;
+    const m = customMaps.find(mm => mm.id === mapId);
+    if (m) { m.ftpx = avg; m.note = note; }
+    rebuildMapRegistry();
+    refreshView();
+    adminView = 'maps';
+    calibratingMapId = null;
+    renderAdminModal();
+    toast('Scale saved: ' + avg.toFixed(2) + ' px/ft.');
+  } catch (err) {
+    console.error('Save calibration failed:', err);
+    toast('Could not save the calibration \u2014 see console.');
+  }
+}
+
+// ---- Packages admin ----
+function buildPackagesAdminView() {
+  const wrap = document.createElement('div');
+
+  const label = document.createElement('div');
+  label.className = 'admin-section-label';
+  label.textContent = 'Current packages';
+  wrap.appendChild(label);
+
+  packages.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).forEach(p => {
+    const count = booths.filter(b => b.type === p.key).length;
+    const item = document.createElement('div');
+    item.className = 'admin-list-item';
+    const sw = document.createElement('div');
+    sw.className = 'aitem-swatch';
+    sw.style.background = p.color;
+    item.appendChild(sw);
+    const info = document.createElement('div');
+    info.className = 'aitem-info';
+    info.innerHTML = '<div class="aitem-title">' + escapeHtml(p.label) + ' (' + escapeHtml(p.key) + ')</div>' +
+      '<div class="aitem-sub">' + p.widthFt + '\u00d7' + p.depthFt + ' ft' + (count ? ' \u2014 ' + count + ' placed' : '') + '</div>';
+    item.appendChild(info);
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.onclick = () => { editingPackageKey = p.key; renderAdminModal(); };
+    item.appendChild(editBtn);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger';
+    delBtn.textContent = 'Delete';
+    delBtn.onclick = () => deletePackageAdmin(p.key);
+    item.appendChild(delBtn);
+    wrap.appendChild(item);
+  });
+
+  const editing = packages.find(p => p.key === editingPackageKey);
+  const formLabel = document.createElement('div');
+  formLabel.className = 'admin-section-label';
+  formLabel.textContent = editing ? ('Edit "' + editing.label + '"') : 'Add a new package';
+  wrap.appendChild(formLabel);
+
+  const form = document.createElement('div');
+  form.className = 'admin-form';
+  form.innerHTML =
+    '<label>Short code (e.g. E) \u2014 shown on booths without a name</label>' +
+    '<input type="text" id="pkg-key" maxlength="6" value="' + (editing ? escapeHtml(editing.key) : '') + '"' + (editing ? ' disabled' : '') + '>' +
+    '<label>Package name</label>' +
+    '<input type="text" id="pkg-label" value="' + (editing ? escapeHtml(editing.label) : '') + '">' +
+    '<div class="row2">' +
+      '<div><label>Width (ft)</label><input type="number" id="pkg-width" min="1" step="0.5" value="' + (editing ? editing.widthFt : 10) + '"></div>' +
+      '<div><label>Depth (ft)</label><input type="number" id="pkg-depth" min="1" step="0.5" value="' + (editing ? editing.depthFt : 6) + '"></div>' +
+    '</div>' +
+    '<label>Color</label>' +
+    '<input type="color" id="pkg-color" value="' + (editing ? editing.color : '#2962FF') + '">';
+  wrap.appendChild(form);
+
+  const actions = document.createElement('div');
+  actions.className = 'admin-form-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn primary';
+  saveBtn.textContent = editing ? 'Save changes' : 'Add package';
+  saveBtn.onclick = savePackageForm;
+  actions.appendChild(saveBtn);
+  if (editing) {
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.onclick = () => { editingPackageKey = null; renderAdminModal(); };
+    actions.appendChild(cancelBtn);
+  }
+  wrap.appendChild(actions);
+
+  const status = document.createElement('div');
+  status.className = 'hint';
+  status.id = 'pkg-form-status';
+  wrap.appendChild(status);
+
+  return wrap;
+}
+
+async function savePackageForm() {
+  const statusEl = document.getElementById('pkg-form-status');
+  const keyInput = document.getElementById('pkg-key');
+  const labelInput = document.getElementById('pkg-label');
+  const widthInput = document.getElementById('pkg-width');
+  const depthInput = document.getElementById('pkg-depth');
+  const colorInput = document.getElementById('pkg-color');
+
+  const editing = !!editingPackageKey;
+  const key = editing ? editingPackageKey : (keyInput.value || '').trim().toUpperCase();
+  const label = (labelInput.value || '').trim();
+  const widthFt = parseFloat(widthInput.value);
+  const depthFt = parseFloat(depthInput.value);
+  const color = colorInput.value || '#6b7280';
+
+  if (!key) { statusEl.textContent = 'Enter a short code.'; return; }
+  if (!label) { statusEl.textContent = 'Enter a package name.'; return; }
+  if (!widthFt || !depthFt || widthFt <= 0 || depthFt <= 0) { statusEl.textContent = 'Enter a valid width and depth.'; return; }
+  if (!editing && packages.some(p => p.key === key)) { statusEl.textContent = 'That code is already in use.'; return; }
+  if (!sbClient) { statusEl.textContent = 'Shared sync isn\u2019t connected \u2014 set up Supabase first so package changes can be saved and shared.'; return; }
+
+  const sortOrder = editing ? getPkg(key).sortOrder : (packages.length ? Math.max(...packages.map(p => p.sortOrder || 0)) + 1 : 0);
+  const row = { key, label, width_ft: widthFt, depth_ft: depthFt, color, sort_order: sortOrder };
+
+  try {
+    const { error } = await sbClient.from(PACKAGES_TABLE).upsert(row);
+    if (error) throw error;
+
+    if (editing) {
+      const p = packages.find(pp => pp.key === key);
+      if (p) { p.label = label; p.widthFt = widthFt; p.depthFt = depthFt; p.color = color; }
+    } else {
+      packages.push({ key, label, widthFt, depthFt, color, sortOrder });
+    }
+    editingPackageKey = null;
+    renderPackageSidebar();
+    renderAdminModal();
+    refreshView(); // booth colors may have changed if an existing package's color was edited
+    toast(editing ? 'Package updated.' : 'Package added.');
+  } catch (err) {
+    console.error('Save package failed:', err);
+    statusEl.textContent = 'Could not save \u2014 see console for details.';
+  }
+}
+
+async function deletePackageAdmin(key) {
+  const p = getPkg(key);
+  const count = booths.filter(b => b.type === key).length;
+  const warn = count
+    ? ('Delete "' + p.label + '"? This also removes ' + count + ' booth(s) using it, across every map. This cannot be undone.')
+    : ('Delete "' + p.label + '"? This cannot be undone.');
+  if (!confirm(warn)) return;
+  if (packages.length <= 1) { toast('At least one package must remain.'); return; }
+  if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t delete a shared package without it.'); return; }
+
+  try {
+    const { error } = await sbClient.from(PACKAGES_TABLE).delete().eq('key', key);
+    if (error) throw error;
+
+    packages = packages.filter(pp => pp.key !== key);
+    booths = booths.filter(b => b.type !== key);
+    renderPackageSidebar();
+    refreshView();
+    persist();
+    renderAdminModal();
+    toast('Package deleted.');
+  } catch (err) {
+    console.error('Delete package failed:', err);
+    toast('Could not delete that package \u2014 see console.');
+  }
+}
+
+// init
+renderPackageSidebar();
+buildTabs();
+planImg.src = MAP_IMGS[currentMapId];
+renderAll();
+applyZoom();
+initSupabase();
+</script>
+</body>
+</html>
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+  .brand { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+  .brand .sub {
+    display: block; font-weight: 400; font-size: 12px;
+    color: #6b7280; margin-top: 3px; line-height: 1.4;
+  }
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #8a8f98; margin-bottom: 2px;
+  }
+  .pkg-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .swatch { width: 30px; height: 30px; border-radius: 6px; flex-shrink: 0; }
+  .pkg-info { flex: 1; min-width: 0; }
+  .pkg-name { font-size: 13px; font-weight: 700; }
+  .pkg-size { font-size: 11px; color: #6b7280; }
+  .pkg-count { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .add-btn {
+    width: 30px; height: 30px; border-radius: 8px; border: none; color: white;
+    font-size: 18px; line-height: 1; cursor: pointer; flex-shrink: 0; transition: filter 0.15s;
+  }
+  .add-btn:hover { filter: brightness(1.1); }
+  .add-btn:active { filter: brightness(0.92); }
+
+  .totals {
+    font-size: 13px; padding: 12px 14px; background: #f0f1f4; border-radius: 10px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .totals b { font-size: 20px; }
+
+  .actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 8px; }
+  .sync-status { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6b7280; padding: 6px 2px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; flex-shrink: 0; }
+  .sync-dot.connected { background: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.2); }
+  .sync-dot.connecting { background: #f39c12; animation: pulse 1.2s infinite; }
+  .sync-dot.error { background: #e74c3c; }
+  .sync-dot.offline { background: #9ca3af; }
+  .sync-dot.not-configured { background: #e74c3c; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .version-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .version-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; background: #f3f4f6; border-radius: 6px; font-size: 11.5px; }
+  .version-item .vinfo { flex: 1; line-height: 1.4; }
+  .version-item .vtime { color: #1f2937; font-weight: 600; }
+  .version-item .vcount { color: #6b7280; }
+  .version-item .vname { color: #1d4ed8; font-weight: 700; font-size: 12px; margin-bottom: 1px; cursor: pointer; }
+  .version-item .vname:hover { text-decoration: underline; }
+  .version-item .vname-add { color: #9aa3b2; font-size: 11px; margin-bottom: 1px; cursor: pointer; }
+  .version-item .vname-add:hover { color: #1d4ed8; text-decoration: underline; }
+  .version-item .vname-input { width: 100%; box-sizing: border-box; padding: 3px 6px; margin-bottom: 2px;
+    border: 1px solid #1d4ed8; border-radius: 5px; font-size: 12px; font-weight: 700; color: #1c2733; }
+  #version-name { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 6px;
+    border: 1px solid #cfd6e0; border-radius: 6px; font-size: 12.5px; color: #1c2733; }
+  #version-name::placeholder { color: #9aa3b2; }
+  .version-item button { font-size: 11px; padding: 4px 9px; border-radius: 5px; border: 1px solid #d1d5db; background: white; cursor: pointer; color: #374151; }
+  .version-item button:hover { background: #e5e7eb; }
+  .btn {
+    border: 1px solid var(--line); background: white; padding: 9px 12px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink);
+  }
+  .btn:hover { background: #f2f2f2; }
+  .btn.danger { color: #c0392b; }
+  .btn.primary { background: var(--ink); color: white; border-color: var(--ink); }
+  .btn.primary:hover { filter: brightness(1.15); }
+  .hint { font-size: 11.5px; color: #8a8f98; line-height: 1.5; }
+
+  .canvas-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .map-tabs {
+    display: flex; gap: 6px; padding: 14px 26px 0 26px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .map-tab {
+    padding: 9px 14px; font-size: 13px; font-weight: 600; border: 1px solid var(--line);
+    border-bottom: none; border-radius: 8px 8px 0 0; background: #f0f1f4; color: #6b7280;
+    cursor: pointer; margin-bottom: -1px;
+  }
+  .map-tab.active { background: var(--paper); color: var(--ink); border-bottom: 1px solid var(--paper); }
+  .map-tab .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+
+  .mode-row { padding: 14px 26px 0 26px; background: var(--panel); }
+  .mode-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .mode-btn {
+    border: none; background: white; color: #6b7280; font-size: 12.5px; font-weight: 600;
+    padding: 7px 13px; cursor: pointer;
+  }
+  .mode-btn + .mode-btn { border-left: 1px solid var(--line); }
+  .mode-btn.active { background: var(--ink); color: white; }
+
+  .overview-wrap { flex: 1; padding: 26px; overflow: auto; background: var(--paper); }
+  .overview-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start;
+  }
+  .overview-cell {
+    background: white; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.05);
+  }
+  .overview-cell .cell-label {
+    font-size: 12.5px; font-weight: 700; padding: 9px 12px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 6px; justify-content: space-between;
+  }
+  .overview-cell .cell-label .cell-count { font-weight: 400; color: #8a8f98; font-size: 11px; }
+  .overview-cell .cell-plan { position: relative; }
+  .overview-cell .cell-plan img { display: block; width: 100%; height: auto; }
+  .overview-booth {
+    position: absolute; border-width: 1px; border-style: solid; border-radius: 1px;
+    transform-origin: 50% 50%;
+  }
+  @media (max-width: 1000px) {
+    .overview-grid { grid-template-columns: 1fr; }
+  }
+
+  .canvas-wrap {
+    flex: 1; padding: 26px; overflow: auto;
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+  .zoom-bar {
+    display: flex; align-items: center; gap: 8px; padding: 7px 26px;
+    background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12.5px; color: #4b5563;
+  }
+  .zoom-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); background: #fff;
+    cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; color: #374151;
+  }
+  .zoom-btn:hover { background: #f3f4f6; }
+  .zoom-fit { width: auto; padding: 0 10px; font-size: 11.5px; font-weight: 600; }
+  .zoom-pct { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; color: #1f2937; }
+  .zoom-hint { color: #9ca3af; font-size: 11px; margin-left: 4px; }
+  .plan {
+    position: relative; width: 100%; user-select: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.05);
+    border-radius: 4px; background: white; flex-shrink: 0;
+  }
+  .plan img { display: block; width: 100%; height: auto; pointer-events: none; border-radius: 4px; }
+  .booth {
+    position: absolute; border-radius: 2px; border-width: 1.5px; border-style: solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: white; cursor: grab; touch-action: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25); transform-origin: 50% 50%;
+  }
+  .booth:active { cursor: grabbing; }
+  .booth.dragging { opacity: 0.85; z-index: 50; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+  .booth.editing { cursor: text; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--color-a-dark, #1740b8); z-index: 52; }
+  .booth-label { outline: none; padding: 0 2px; white-space: nowrap; pointer-events: none; }
+  .booth.editing .booth-label { pointer-events: auto; white-space: normal; word-break: break-word; }
+  .booth .del {
+    position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; border-radius: 50%;
+    background: #c0392b; color: white; font-size: 11px; line-height: 18px; text-align: center;
+    display: none; cursor: pointer; z-index: 12;
+  }
+  .booth .rotate {
+    position: absolute; top: -9px; left: -9px; width: 18px; height: 18px; border-radius: 50%;
+    background: #2c3e50; color: white; font-size: 12px; line-height: 18px; text-align: center;
+    display: none; cursor: pointer; z-index: 12;
+  }
+  .booth .rotate-stalk {
+    position: absolute; top: -14px; left: 50%; width: 1px; height: 14px; background: #2c3e50; display: none; z-index: 12;
+  }
+  .booth .rotate-handle {
+    position: absolute; top: -20px; left: 50%; width: 20px; height: 20px; margin-left: -10px;
+    border-radius: 50%; background: #2c3e50; border: 2px solid white; display: none; cursor: grab; z-index: 13;
+  }
+  .booth .rotate-handle::after {
+    content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
+  }
+  .booth .rotate-handle:active { cursor: grabbing; }
+  .booth:hover .del, .booth:hover .rotate,
+  .booth:hover .rotate-stalk, .booth:hover .rotate-handle,
+  .booth.selected .del, .booth.selected .rotate,
+  .booth.selected .rotate-stalk, .booth.selected .rotate-handle,
+  .booth.rotating .rotate-stalk, .booth.rotating .rotate-handle { display: block; }
+  .booth.selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(41,98,255,0.6), 0 1px 2px rgba(0,0,0,0.25); }
+
+  .plan-label {
+    position: absolute; padding: 2px 4px; border-radius: 4px; cursor: grab; touch-action: none;
+    background: rgba(255,255,255,0.94); border: 1.5px solid #2c3e50; color: #1c2733;
+    font-size: 12px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    user-select: none; z-index: 20; box-sizing: border-box;
+    min-width: 56px; min-height: 24px;
+    display: flex; align-items: center; justify-content: center; overflow: visible;
+  }
+  .plan-label:active { cursor: grabbing; }
+  .plan-label.dragging { opacity: 0.85; z-index: 51; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+  .plan-label.editing { cursor: text; box-shadow: 0 0 0 2px var(--accent, #2962FF); }
+  .plan-label .label-text {
+    outline: none; width: 100%; text-align: center; line-height: 1.15;
+    white-space: normal; word-break: break-word; overflow-wrap: break-word;
+  }
+  .plan-label .del {
+    position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; border-radius: 50%;
+    background: #c0392b; color: white; font-size: 10px; line-height: 16px; text-align: center;
+    display: none; cursor: pointer; z-index: 4;
+  }
+  .plan-label .resize-handle {
+    position: absolute; right: -6px; bottom: -6px; width: 14px; height: 14px; border-radius: 3px;
+    background: #2c3e50; border: 2px solid white; cursor: nwse-resize; display: none; z-index: 3;
+  }
+  .plan-label .rotate {
+    position: absolute; top: -8px; left: -8px; width: 16px; height: 16px; border-radius: 50%;
+    background: #2c3e50; color: white; font-size: 10px; line-height: 16px; text-align: center;
+    display: none; cursor: pointer; z-index: 4;
+  }
+  .plan-label .rotate-stalk {
+    position: absolute; top: -13px; left: 50%; width: 1px; height: 13px; background: #2c3e50; display: none; z-index: 4;
+  }
+  .plan-label .rotate-handle {
+    position: absolute; top: -19px; left: 50%; width: 18px; height: 18px; margin-left: -9px;
+    border-radius: 50%; background: #2c3e50; border: 2px solid white; display: none; cursor: grab; z-index: 5;
+  }
+  .plan-label .rotate-handle:active { cursor: grabbing; }
+  .plan-label:hover .del, .plan-label.selected .del,
+  .plan-label:hover .resize-handle, .plan-label.selected .resize-handle,
+  .plan-label:hover .rotate, .plan-label.selected .rotate,
+  .plan-label:hover .rotate-stalk, .plan-label.selected .rotate-stalk,
+  .plan-label:hover .rotate-handle, .plan-label.selected .rotate-handle,
+  .plan-label.rotating .rotate-stalk, .plan-label.rotating .rotate-handle { display: block; }
+  .plan-label.selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(41,98,255,0.6); }
+  .dim-readout {
+    position: absolute; background: rgba(20,20,20,0.88); color: #fff; font-size: 11px;
+    padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; z-index: 60;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .type-A { background: rgba(41,98,255,0.75); border-color: var(--color-a-dark); }
+  .type-B { background: rgba(46,139,87,0.75); border-color: var(--color-b-dark); }
+  .type-C { background: rgba(255,140,0,0.75); border-color: var(--color-c-dark); }
+  .type-D { background: rgba(155,89,182,0.75); border-color: var(--color-d-dark); }
+  .type-AA { background: rgba(229,57,53,0.75); border-color: var(--color-aa-dark); }
+
   @media (max-width: 860px) {
     .app { flex-direction: column; }
     .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
