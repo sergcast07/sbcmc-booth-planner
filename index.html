@@ -274,6 +274,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -376,6 +378,7 @@
         <button class="mode-btn active" id="mode-edit-btn" onclick="switchViewMode('edit')">Edit one map</button>
         <button class="mode-btn" id="mode-overview-btn" onclick="switchViewMode('overview')">See all maps</button>
       </div>
+      <button class="mode-btn" id="export-pdf-btn" style="margin-left:10px; border-radius:8px; border:1px solid var(--line);" onclick="exportPDF()">Print / Export PDF</button>
     </div>
     <div class="map-tabs" id="map-tabs"></div>
     <div class="zoom-bar">
@@ -399,6 +402,14 @@
 <script>
 const WIDTH_FT = { A: 10, AA: 20, B: 10, C: 10, D: 10 };
 const DEPTH_FT = { A: 10, AA: 10, B: 6, C: 4, D: 4 };
+const PKG_LABEL = {
+  AA: 'Package Double A (20\u00d710 ft)',
+  A:  'Package A (10\u00d710 ft)',
+  B:  'Package B (10\u00d76 ft)',
+  C:  'Package C (10\u00d74 ft)',
+  D:  'Package D (10\u00d74 ft)'
+};
+const PKG_ORDER = ['AA', 'A', 'B', 'C', 'D'];
 
 const MAPS = {"s100": {"label": "S100 \u2014 Classrooms", "w": 1423, "h": 792, "ftpx": 4.78, "note": "Scale calibrated using the interactive scale tool: 22ft and 17ft reference lines measured directly on this plan (5.09 and 4.47 px/ft, averaged to 4.78). Confirmed by you."}, "atrium": {"label": "Atrium / Connectors", "w": 1283, "h": 2005, "ftpx": 6.98, "note": "Scale calibrated using the interactive scale tool: 26ft reference line measured directly on this plan. Confirmed by you, though based on a single reference \u2014 a second line here would firm this up further."}, "e200": {"label": "E200 \u2014 Chapel / East Wing", "w": 1655, "h": 1855, "ftpx": 4.35, "note": "Scale calibrated using the interactive scale tool: four reference lines measured directly on this plan (28.9ft, 16.8ft, 25.4ft, 24.3ft \u2192 5.39, 3.57, 4.12, 4.32 px/ft, averaged to 4.35). Confirmed by you."}, "w200": {"label": "W200 \u2014 Worship / West Wing", "w": 1210, "h": 1145, "ftpx": 2.78, "note": "Scale recalibrated using the interactive scale tool: 14.2ft reference line re-measured directly on this plan (39.5px \u2192 2.78 px/ft). Confirmed by you. Note: this replaced a prior value of 6.15; booths sized before this recalibration were rendered ~2.2x too large on W200."}, "s200": {"label": "S200 \u2014 Gym / Recreation Level", "w": 1404, "h": 881, "ftpx": 4.96, "note": "Scale calibrated using the interactive scale tool: 69.9ft hallway reference line measured directly on this plan. Confirmed by you."}};
 const MAP_ORDER = ['w200','e200','s200','atrium','s100'];
@@ -495,6 +506,220 @@ function renderOverview() {
     cell.appendChild(planDiv);
     grid.appendChild(cell);
   });
+}
+
+// --- Print / Export PDF -----------------------------------------------
+// Renders each map (booths + ad-hoc labels) offscreen at high resolution,
+// captures it as an image, and assembles a PDF: one page per map plus a
+// text summary of what's placed in each area. Runs independently of
+// whatever is currently on screen, so it doesn't disturb the user's view.
+
+async function buildPrintMapCanvas(mapId) {
+  const m = MAPS[mapId];
+  const mapBooths = booths.filter(b => b.mapId === mapId);
+  const mapLabels = labels.filter(l => l.mapId === mapId);
+
+  const CAPTURE_W = 1600; // offscreen render width, for a crisp PDF image
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:' + CAPTURE_W + 'px; background:#ffffff;';
+  const rel = document.createElement('div');
+  rel.style.cssText = 'position:relative; width:100%; line-height:0;';
+
+  const img = document.createElement('img');
+  img.src = MAP_IMGS[mapId];
+  img.style.cssText = 'display:block; width:100%; height:auto;';
+  rel.appendChild(img);
+
+  mapBooths.forEach(b => {
+    const { wPct, hPct } = pctSize(mapId, b.wFt, b.hFt);
+    const div = document.createElement('div');
+    div.className = 'overview-booth type-' + b.type;
+    div.style.left = b.xPct + '%';
+    div.style.top = b.yPct + '%';
+    div.style.width = wPct + '%';
+    div.style.height = hPct + '%';
+    div.style.transform = 'rotate(' + (b.angle || 0) + 'deg)';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.justifyContent = 'center';
+    div.style.overflow = 'hidden';
+    div.style.fontSize = '9px';
+    div.style.fontWeight = '700';
+    div.style.lineHeight = '1.1';
+    div.style.color = '#fff';
+    div.style.textAlign = 'center';
+    div.style.padding = '1px';
+    div.textContent = b.type + (b.name ? (' \u2014 ' + b.name) : '');
+    rel.appendChild(div);
+  });
+
+  mapLabels.forEach(lb => {
+    const { wPct, hPct } = pctSize(mapId, lb.wFt || 5, lb.hFt || 2);
+    const div = document.createElement('div');
+    div.style.cssText = 'position:absolute; display:flex; align-items:center; justify-content:center; '
+      + 'background:rgba(255,255,255,0.94); border:1.2px solid #2c3e50; border-radius:4px; '
+      + 'font-size:10px; font-weight:600; color:#1c2733; text-align:center; padding:1px 3px; overflow:hidden;';
+    div.style.left = lb.xPct + '%';
+    div.style.top = lb.yPct + '%';
+    div.style.width = wPct + '%';
+    div.style.height = hPct + '%';
+    div.style.transform = 'rotate(' + (lb.angle || 0) + 'deg)';
+    div.textContent = lb.text || '';
+    rel.appendChild(div);
+  });
+
+  wrap.appendChild(rel);
+  document.body.appendChild(wrap);
+
+  try {
+    await new Promise((resolve, reject) => {
+      if (img.complete && img.naturalWidth > 0) resolve();
+      else {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error('Could not load image for ' + m.label));
+      }
+    });
+    await new Promise(r => setTimeout(r, 30)); // let layout settle before capture
+    const canvas = await html2canvas(rel, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    return canvas;
+  } finally {
+    document.body.removeChild(wrap);
+  }
+}
+
+async function exportPDF() {
+  const btn = document.getElementById('export-pdf-btn');
+  if (typeof html2canvas === 'undefined' || !window.jspdf) {
+    toast('PDF tools didn\u2019t load \u2014 check your internet connection and try again.');
+    return;
+  }
+  const origLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating PDF\u2026'; }
+  toast('Generating PDF \u2014 this can take a few seconds\u2026');
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const MARGIN = 36;
+    let doc = null;
+
+    // Page 1..N: one map per page, image sized to fit with a title
+    for (let i = 0; i < MAP_ORDER.length; i++) {
+      const mapId = MAP_ORDER[i];
+      const m = MAPS[mapId];
+      const canvas = await buildPrintMapCanvas(mapId);
+      const landscape = canvas.width >= canvas.height;
+      const orientation = landscape ? 'landscape' : 'portrait';
+
+      if (i === 0) {
+        doc = new jsPDF({ unit: 'pt', format: 'letter', orientation });
+      } else {
+        doc.addPage('letter', orientation);
+      }
+
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const titleH = 26;
+      const maxW = pageW - MARGIN * 2;
+      const maxH = pageH - MARGIN * 2 - titleH;
+      const scale = Math.min(maxW / canvas.width, maxH / canvas.height);
+      const drawW = canvas.width * scale;
+      const drawH = canvas.height * scale;
+      const x = (pageW - drawW) / 2;
+      const y = MARGIN + titleH;
+
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(14);
+      doc.text(m.label, MARGIN, MARGIN + 10);
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, drawW, drawH);
+    }
+
+    // Summary pages: what's placed in each area, in plain text (selectable, no images)
+    doc.addPage('letter', 'portrait');
+    let py = MARGIN;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const usableW = pageW - MARGIN * 2;
+
+    function ensureSpace(lines) {
+      if (py + lines * 14 > pageH - MARGIN) {
+        doc.addPage('letter', 'portrait');
+        py = MARGIN;
+      }
+    }
+
+    doc.setFont(undefined, 'bold'); doc.setFontSize(18);
+    doc.text('Exhibit Area Summary', MARGIN, py); py += 22;
+    doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+    doc.text('Generated ' + new Date().toLocaleDateString(), MARGIN, py); py += 22;
+
+    MAP_ORDER.forEach(mapId => {
+      const m = MAPS[mapId];
+      const mapBooths = booths.filter(b => b.mapId === mapId);
+      const mapLabels = labels.filter(l => l.mapId === mapId);
+
+      ensureSpace(2);
+      doc.setFont(undefined, 'bold'); doc.setFontSize(13);
+      doc.text(m.label, MARGIN, py); py += 18;
+
+      if (mapBooths.length === 0 && mapLabels.length === 0) {
+        doc.setFont(undefined, 'italic'); doc.setFontSize(10.5);
+        doc.text('No booths or labels placed yet.', MARGIN + 10, py); py += 18;
+        return;
+      }
+
+      const counts = {};
+      mapBooths.forEach(b => { counts[b.type] = (counts[b.type] || 0) + 1; });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(10.5);
+      PKG_ORDER.forEach(t => {
+        if (counts[t]) {
+          ensureSpace(1);
+          doc.text('\u2022 ' + counts[t] + ' \u00d7 ' + (PKG_LABEL[t] || ('Package ' + t)), MARGIN + 10, py);
+          py += 14;
+        }
+      });
+      ensureSpace(1);
+      doc.setFont(undefined, 'bold');
+      doc.text('Total booths: ' + mapBooths.length, MARGIN + 10, py); py += 18;
+      doc.setFont(undefined, 'normal');
+
+      const named = mapBooths.filter(b => b.name && b.name.trim());
+      if (named.length) {
+        ensureSpace(1);
+        doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
+        doc.text('Exhibitors placed:', MARGIN + 10, py); py += 14;
+        doc.setFont(undefined, 'normal');
+        named.forEach(b => {
+          const wrapped = doc.splitTextToSize('\u2013 ' + b.name.trim() + ' (' + b.type + ')', usableW - 20);
+          ensureSpace(wrapped.length);
+          wrapped.forEach(line => { doc.text(line, MARGIN + 20, py); py += 13; });
+        });
+        py += 4;
+      }
+
+      const namedLabels = mapLabels.filter(l => l.text && l.text.trim());
+      if (namedLabels.length) {
+        ensureSpace(1);
+        doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
+        doc.text('Area labels:', MARGIN + 10, py); py += 14;
+        doc.setFont(undefined, 'normal');
+        namedLabels.forEach(lb => {
+          const wrapped = doc.splitTextToSize('\u2013 ' + lb.text.trim(), usableW - 20);
+          ensureSpace(wrapped.length);
+          wrapped.forEach(line => { doc.text(line, MARGIN + 20, py); py += 13; });
+        });
+      }
+
+      py += 14; // gap before next map's section
+    });
+
+    doc.save('SBCMC-Booth-Layout-' + new Date().toISOString().slice(0, 10) + '.pdf');
+    toast('PDF downloaded \u2014 check your downloads folder.');
+  } catch (err) {
+    console.error('Export PDF failed:', err);
+    toast('Could not generate the PDF \u2014 see console for details.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+  }
 }
 
 function buildTabs() {
