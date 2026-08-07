@@ -344,12 +344,150 @@
     .app { flex-direction: column; }
     .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
   }
+
+/* ==== Sponsor Tracker ==== */
+.top-nav {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.top-nav .brand-mini { font-size: 13px; font-weight: 700; margin-right: 12px; }
+.top-nav-btn {
+  padding: 7px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper);
+  font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink);
+}
+.top-nav-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+#sponsor-view { display: none; }
+.sp-wrap { display: flex; min-height: calc(100vh - 49px); }
+.sp-side {
+  width: 260px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--line);
+  padding: 20px 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;
+}
+.sp-stat { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.sp-stat b { font-size: 14px; }
+.sp-filter-btn {
+  text-align: left; padding: 7px 10px; border-radius: 7px; border: 1px solid transparent;
+  background: transparent; font-size: 12.5px; cursor: pointer; color: #55595f;
+}
+.sp-filter-btn.active { background: var(--paper); border-color: var(--line); font-weight: 700; color: var(--ink); }
+.sp-main { flex: 1; padding: 20px 24px; overflow-y: auto; }
+.sp-topbar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+.sp-search {
+  flex: 1; max-width: 320px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px;
+}
+.sp-add-btn {
+  padding: 8px 14px; border-radius: 8px; border: none; background: var(--color-a); color: #fff;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.sp-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table.sp-table { width: 100%; min-width: 900px; border-collapse: collapse; background: var(--panel); table-layout: fixed; }
+table.sp-table thead th {
+  position: relative; text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #8a8f98;
+  padding: 9px 16px 9px 12px; border-bottom: 1px solid var(--line); background: var(--paper);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.sp-col-resize {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 8px; cursor: col-resize;
+  z-index: 2; touch-action: none;
+}
+.sp-col-resize:hover, .sp-col-resize.resizing { background: rgba(41,98,255,0.25); }
+table.sp-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.sp-table tbody tr.sp-row { cursor: pointer; }
+table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
+.sp-org { font-weight: 700; }
+.sp-sub { font-size: 11.5px; color: #8a8f98; }
+.sp-badge { font-size: 10.5px; padding: 3px 8px; border-radius: 10px; font-weight: 600; display: inline-block; white-space: nowrap; }
+.sp-badge-reg { background: #e3f3e8; color: #1f7a3f; }
+.sp-badge-inkind { background: #fdf1de; color: #b56200; }
+.sp-badge-lapsed { background: #fbe7e4; color: #a52620; }
+.sp-badge-recruit { background: #e9edf5; color: #46536b; }
+.sp-pkg-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.sp-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sp-detail-row { display: none; }
+.sp-detail-row.open { display: table-row; }
+.sp-detail-cell { padding: 0 !important; border-bottom: 1px solid var(--line); }
+.sp-detail-inner { padding: 18px 20px 22px; background: var(--paper); border-left: 3px solid var(--color-a); margin: 10px; border-radius: 8px; }
+.sp-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 16px; }
+.sp-fieldset { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.sp-fieldset legend { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #8a8f98; font-weight: 700; padding: 0 4px; }
+.sp-field { margin-bottom: 8px; }
+.sp-field label { display: block; font-size: 10.5px; color: #8a8f98; margin-bottom: 2px; }
+.sp-field input[type=text], .sp-field input[type=email], .sp-field input[type=date], .sp-field select, .sp-field textarea {
+  width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; font-family: inherit; background: #fff;
+}
+.sp-field textarea { min-height: 50px; resize: vertical; }
+.sp-check { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-bottom: 6px; }
+.sp-comm-item { font-size: 12px; padding: 6px 9px; background: #fff; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 5px; }
+.sp-comm-item .ts { color: #8a8f98; font-size: 10.5px; margin-right: 6px; }
+.sp-action-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 5px; }
+.sp-action-item.done { text-decoration: line-through; opacity: .55; }
+.sp-mini-btn { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer; }
+.sp-mini-btn:hover { background: var(--paper); }
+.sp-add-row { display: flex; gap: 6px; margin-top: 6px; }
+.sp-add-row input, .sp-add-row select { flex: 1; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; }
+.sp-linked-booth { font-size: 12px; padding: 8px 10px; background: #fff; border: 1px dashed var(--line); border-radius: 6px; }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
+<div class="top-nav">
+  <span class="brand-mini">SBCMC 2027</span>
+  <button class="top-nav-btn active" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
+  <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker</button>
+</div>
+<div id="sponsor-view">
+  <div class="sp-wrap">
+    <div class="sp-side">
+      <div>
+        <div class="sp-stat"><span>Tracked</span><b id="sp-stat-total">0</b></div>
+        <div class="sp-stat"><span>Registered</span><b id="sp-stat-reg">0</b></div>
+        <div class="sp-stat"><span>In-kind (any)</span><b id="sp-stat-inkind">0</b></div>
+        <div class="sp-stat"><span>To pursue</span><b id="sp-stat-pursue">0</b></div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:6px;">Filter</div>
+        <div style="display:flex; flex-direction:column; gap:3px;">
+          <button class="sp-filter-btn active" data-f="all" onclick="setSponsorFilter('all')">All</button>
+          <button class="sp-filter-btn" data-f="Registered - Paid" onclick="setSponsorFilter('Registered - Paid')">Registered, Paid</button>
+          <button class="sp-filter-btn" data-f="Registered - Pending Payment" onclick="setSponsorFilter('Registered - Pending Payment')">Registered, Pending Payment</button>
+          <button class="sp-filter-btn" data-f="In-Kind - Registered" onclick="setSponsorFilter('In-Kind - Registered')">In-Kind, Registered</button>
+          <button class="sp-filter-btn" data-f="In-Kind - Not Registered" onclick="setSponsorFilter('In-Kind - Not Registered')">In-Kind, Not Registered</button>
+          <button class="sp-filter-btn" data-f="Not Yet Registered (Prior Sponsor)" onclick="setSponsorFilter('Not Yet Registered (Prior Sponsor)')">Lapsed / Prior Sponsor</button>
+          <button class="sp-filter-btn" data-f="Recruit Target" onclick="setSponsorFilter('Recruit Target')">Recruit Targets</button>
+          <button class="sp-filter-btn" data-f="Declined" onclick="setSponsorFilter('Declined')">Declined</button>
+          <button class="sp-filter-btn" data-f="__flagged__" onclick="setSponsorFilter('__flagged__')">🚩 Flagged for Review</button>
+          <button class="sp-filter-btn" data-f="__overdue__" onclick="setSponsorFilter('__overdue__')">⚠️ Payment Overdue</button>
+        </div>
+      </div>
+      <div class="hint">Click any sponsor to open their full record: contact info, package, money, program/stage commitments, logistics, a communication log, and action items. Link them to a booth on the floor plan from inside their record.</div>
+    </div>
+    <div class="sp-main">
+      <div class="sp-topbar">
+        <input class="sp-search" id="sp-search" placeholder="Search organization or contact…" oninput="setSponsorSearch(this.value)">
+        <button class="sp-add-btn" onclick="addSponsor()">+ Add sponsor</button>
+        <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="exportSponsorsCSV()">Export CSV</button>
+      </div>
+      <div class="sp-table-wrap">
+      <table class="sp-table" id="sp-table">
+        <thead><tr id="sp-thead-row">
+          <th data-col="0" style="width:36px;"></th>
+          <th data-col="1" style="width:190px; cursor:pointer;" onclick="setSponsorSort('org')">Organization <span id="sort-arrow-org"></span><span class="sp-col-resize" data-colidx="1"></span></th>
+          <th data-col="2" style="width:150px;">Contact<span class="sp-col-resize" data-colidx="2"></span></th>
+          <th data-col="3" style="width:90px;">Package<span class="sp-col-resize" data-colidx="3"></span></th>
+          <th data-col="4" style="width:130px; cursor:pointer;" onclick="setSponsorSort('amount')">Amount / Status <span id="sort-arrow-amount"></span><span class="sp-col-resize" data-colidx="4"></span></th>
+          <th data-col="5" style="width:110px; cursor:pointer;" onclick="setSponsorSort('due')">Due <span id="sort-arrow-due"></span><span class="sp-col-resize" data-colidx="5"></span></th>
+          <th data-col="6" style="width:140px;">Tracker Status<span class="sp-col-resize" data-colidx="6"></span></th>
+          <th data-col="7" style="width:110px;">Linked Booth<span class="sp-col-resize" data-colidx="7"></span></th>
+        </tr></thead>
+        <tbody id="sp-rows"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="app">
   <div class="sidebar">
     <div class="brand">
@@ -1435,6 +1573,7 @@ async function initSupabase() {
     // populated (built-ins + custom) before booths/labels are fetched and filtered by it.
     await loadPackagesFromDb();
     await loadCustomMapsFromDb();
+    await loadSponsorsFromDb();
     rebuildMapRegistry();
     renderPackageSidebar();
     buildTabs();
@@ -1475,6 +1614,7 @@ async function initSupabase() {
         if (status === 'SUBSCRIBED') updateSyncStatus('connected');
         else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') updateSyncStatus('error');
       });
+    subscribeSponsorRealtime();
   } catch (err) {
     console.error('Supabase init failed:', err);
     updateSyncStatus('error');
@@ -2734,12 +2874,622 @@ async function deletePackageAdmin(key) {
   }
 }
 
+
+
+// ==================== Sponsor Tracker ====================
+// Tracks sponsors/exhibitors as full relationships, not just floor-plan boxes:
+// contact info, money, program/stage commitments, logistics, a communication log,
+// and action items -- plus an optional link to a placed booth on the floor plan.
+//
+// Requires a new table (same Supabase project as everything above):
+//   create table if not exists sponsors (
+//     id text primary key,
+//     org text not null,
+//     contact_name text default '',
+//     contact_email text default '',
+//     contact_phone text default '',
+//     package text default '',
+//     tracker_status text default 'Recruit Target',
+//     linked_booth_id text default '',
+//     data jsonb not null default '{}'::jsonb,
+//     sort_order int default 0,
+//     updated_at timestamptz default now()
+//   );
+//   alter table sponsors enable row level security;
+//   create policy "public read sponsors" on sponsors for select using (true);
+//   create policy "public write sponsors" on sponsors for insert with check (true);
+//   create policy "public update sponsors" on sponsors for update using (true);
+//   create policy "public delete sponsors" on sponsors for delete using (true);
+//   alter publication supabase_realtime add table sponsors;
+// (Same "open to anyone with the anon key" tradeoff as the rest of this tool -- fine
+// for an internal, unlisted-link planning tool. Don't put anything truly sensitive here.)
+
+const SPONSORS_TABLE = 'sponsors';
+let sponsors = [];
+let sponsorFilter = 'all';
+let sponsorSearch = '';
+let sponsorSortKey = null; // null | 'org' | 'amount' | 'due'
+let sponsorSortDir = 1; // 1 asc, -1 desc
+let openSponsorId = null;
+let sbSponsorChannel = null;
+
+const DEFAULT_SPONSORS = [{"id": "sp_0", "org": "Southeastern Baptist Theological Seminary", "contactName": "Evan Lyon", "contactEmail": "elyon@sebts.edu", "contactPhone": "9197612384", "package": "D", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "Paid", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "Paid", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_1", "org": "Southeastern Baptist Theological Seminary", "contactName": "Evan Lyon", "contactEmail": "elyon@sebts.edu", "contactPhone": "9197612384", "package": "C", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "Paid", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "Paid", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_2", "org": "Brentwood Benson", "contactName": "Emily Gibbs", "contactEmail": "emily.gibbs@brentwoodbenson.com", "contactPhone": "770-540-9856", "package": "AA", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "Helping sponsor a breakout session with Russell Mauldin in the \"Worship Refuel\" track", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_3", "org": "True North Presents", "contactName": "Roy Hayes", "contactEmail": "royjhayes@truenorthpresents.com", "contactPhone": "6157751088", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_4", "org": "Worship Planner", "contactName": "Ken Boer", "contactEmail": "ken@worshipplanner.com", "contactPhone": "301-758-9106", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_5", "org": "The Southern Baptist Theological Seminary", "contactName": "James Patten", "contactEmail": "jpatten@sbts.edu", "contactPhone": "(502-897-4200", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_6", "org": "J.W. Pepper", "contactName": "Cynthia Revo", "contactEmail": "crevo@jwpepper.com", "contactPhone": "610-232-1887", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "Package A. Also donating bags again in exchange for booth space (confirm if bag donation is separate from the $2,500 already on file)", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": "Donating bags again in exchange for booth space (amount not specified)"}, "comms": [], "actionItems": []}}, {"id": "sp_7", "org": "Crossway", "contactName": "Liz Shuter", "contactEmail": "conferences@crossway.org", "contactPhone": "6306824300", "package": "D", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_8", "org": "University of Mobile", "contactName": "Andrew Goodwin", "contactEmail": "agoodwin@umobile.edu", "contactPhone": "561-414-6471", "package": "B", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_9", "org": "Celebrating Grace", "contactName": "Elizabeth Laube", "contactEmail": "elizabeth.laube@celebrating-grace.com", "contactPhone": "254-878-4752", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_10", "org": "Semsen Music", "contactName": "Daniel Semsen", "contactEmail": "dsemsen@me.com", "contactPhone": "8183592270", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "Also donating $10k to sponsor \"Revive the Choir\" breakout track", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "10000", "adhocDescription": "Donating to sponsor \"Revive the Choir\" breakout track"}, "comms": [], "actionItems": []}}, {"id": "sp_11", "org": "William Carey University", "contactName": "Katie Rupert", "contactEmail": "krupert@wmcarey.edu", "contactPhone": "6013186175", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_12", "org": "Liberty University School of Music", "contactName": "Stephen Muller", "contactEmail": "som@liberty.edu", "contactPhone": "4345926568", "package": "B", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "Paid", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "Paid", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_13", "org": "Paragon 360", "contactName": "Ryan Cowen", "contactEmail": "rcowen@paragon360.com", "contactPhone": "4178237282", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_14", "org": "New Orleans Baptist Theological Seminary and Leavell College", "contactName": "Bradley Ducote", "contactEmail": "recruiter2@nobts.edu", "contactPhone": "5048168215", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_15", "org": "STS Institute - Scott Dawson Evangelistic Association", "contactName": "Michael Adler", "contactEmail": "madler56@gmail.com", "contactPhone": "2054107238", "package": "B", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_16", "org": "StowTown Worship Resource", "contactName": "Landon Beene", "contactEmail": "graced@imcconcerts.com", "contactPhone": "423-967-8668", "package": "AA", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_17", "org": "California Baptist University", "contactName": "Travis Maclay", "contactEmail": "tmaclay@calbaptist.edu", "contactPhone": "5124109591", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "Processing", "checkoutTier": "2500", "specialNotes": "Package D. Also donating $20k for the Collegiate Collective (previous file showed Package A/$2,500 - please confirm which is current)", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "20000", "adhocDescription": "Donating to sponsor the Collegiate Collective"}, "comms": [], "actionItems": []}}, {"id": "sp_18", "org": "ForeverTruth Florida", "contactName": "Valissa Calhoun", "contactEmail": "valissa@forevertruth.com", "contactPhone": "4484883474", "package": "D", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_19", "org": "Daystar Baptist Missions", "contactName": "Trey Bailey", "contactEmail": "t.bailey@dbmi.org", "contactPhone": "4239914211", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_20", "org": "North Greenville University", "contactName": "Andy Ray", "contactEmail": "andy.ray@ngu.edu", "contactPhone": "8645613420", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "Processing", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_21", "org": "Corzic Music", "contactName": "Ryan Massey", "contactEmail": "ryan.massey@corzic.com", "contactPhone": "8185172818", "package": "AA", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_22", "org": "Frank Jones Ministries", "contactName": "Frank Jones", "contactEmail": "", "contactPhone": "", "package": "D", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_23", "org": "Sing the Bible Ministries", "contactName": "Randall Goodgame", "contactEmail": "randallgoodgame@mac.com", "contactPhone": "", "package": "D", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_24", "org": "Church Visuals", "contactName": "Carl Barnhill", "contactEmail": "carl@churchvisuals.com", "contactPhone": "", "package": "", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_25", "org": "Let the People Sing, Inc. (LTPS)", "contactName": "Scott Connell", "contactEmail": "scott.connell@firstbaptist.com", "contactPhone": "904.366.1247", "package": "", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Unresolved", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_26", "org": "Accountable2You", "contactName": "Alex Constantino", "contactEmail": "aconstantino@accountable2you.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "3 min", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_27", "org": "Baylor University School of Music", "contactName": "Chason Disheroon", "contactEmail": "chason_disheroon@baylor.edu", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_28", "org": "Building Your Band", "contactName": "David Loftis", "contactEmail": "david@loftiscoaching.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_29", "org": "Cedarville University/Worship 4:24", "contactName": "Roger O'Neel", "contactEmail": "oneelr@cedarville.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "1 min for Worship424 in a session", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_30", "org": "Church Trac", "contactName": "Byron Teddar", "contactEmail": "byron@churchtrac.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "2 min - emailed | 1 min", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_31", "org": "Dallas Baptist University", "contactName": "Wilson Petter", "contactEmail": "wpetter@dbu.edu", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_32", "org": "Danley Sounds Labs", "contactName": "Scott Howard", "contactEmail": "scott@danleysoundlabs.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_33", "org": "Daywind Worship", "contactName": "Jonathan Crumpton", "contactEmail": "jcrumpton0869@me.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_34", "org": "FBC First Counseling", "contactName": "Jess Weber", "contactEmail": "Jessicaw@fbcjax.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_35", "org": "FBC Weekend Workshop", "contactName": "Jess Weber", "contactEmail": "Jessicaw@fbcjax.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_36", "org": "Florida Baptist Convention", "contactName": "Tanner Cade", "contactEmail": "TCade@FLBAPTIST.ORG", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "1 min end of Sunday / Patrick Coats", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_37", "org": "Global Missions Project", "contactName": "Camp Kirkland", "contactEmail": "camp@globalmissionsproject.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_38", "org": "Gold City Quartet", "contactName": "Joel Stapleton", "contactEmail": "joel.goldcity@outlook.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_39", "org": "Kenny & Claire", "contactName": "Claire Hilliard", "contactEmail": "booking@kennyandclaire.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_40", "org": "Lifeway Worship", "contactName": "Kirk Kirland", "contactEmail": "Kirk.Kirkland@lifeway.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "7500", "specialNotes": "5 min / Sun PM", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "7500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_41", "org": "MBTS", "contactName": "Mallory McAllister", "contactEmail": "mmcallister@mbts.edu", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_42", "org": "Murdock Music", "contactName": "Curtis Murdock", "contactEmail": "sbcmc.exhibits@gmail.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_43", "org": "Oklahoma Baptist University", "contactName": "Steve Sims", "contactEmail": "stephen.sims@okbu.edu", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_44", "org": "One Eighty Digital", "contactName": "Cristy Bird", "contactEmail": "cristy@oneeighty.digital", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_45", "org": "Ouachita Baptist University", "contactName": "David Tatum", "contactEmail": "tatumd@obu.edu", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_46", "org": "Praise Charts", "contactName": "Natasha Fogg", "contactEmail": "natasha.fogg@praisecharts.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "10000", "specialNotes": "3min | 3 min | X", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "10000", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_47", "org": "Prism", "contactName": "Valerie Cameron", "contactEmail": "vcameron@prismmusic.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "10000", "specialNotes": "3 min | 3 airpods", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "10000", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_48", "org": "RF Venue", "contactName": "Catherine Lindquist", "contactEmail": "catherine@rfvenue.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_49", "org": "SBC Worship (Worship Initiative)", "contactName": "Andrew McKinney and Dave Keil", "contactEmail": "andrew@worshipinitiative.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "Graphic Preroll | no video /concert", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_50", "org": "SWBTS", "contactName": "Chuck Lewis", "contactEmail": "clewis@swbts.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_51", "org": "Samford University", "contactName": "Nelson Cowan", "contactEmail": "ncowan@samford.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_52", "org": "Scripture Songs", "contactName": "Jerry West", "contactEmail": "jerrywestmusic@gmail.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_53", "org": "Worship MD", "contactName": "Doug Gould", "contactEmail": "worshipmd@gmail.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_54", "org": "Worship Quest Ministries", "contactName": "Steven Brooks", "contactEmail": "steven@worshipquest.net", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_55", "org": "Centricity", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Recruit Target", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_56", "org": "Baptist Search Partners", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Recruit Target", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_57", "org": "Sweetwater", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Recruit Target", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_58", "org": "P360.events", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Recruit Target", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target - may help with production support", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}];
+
+function switchTopView(view) {
+  const isFloor = view === 'floorplan';
+  document.querySelector('.app').style.display = isFloor ? 'flex' : 'none';
+  document.getElementById('sponsor-view').style.display = isFloor ? 'none' : 'block';
+  document.getElementById('nav-floorplan-btn').classList.toggle('active', isFloor);
+  document.getElementById('nav-sponsors-btn').classList.toggle('active', !isFloor);
+  if (!isFloor) renderSponsorView();
+}
+
+async function loadSponsorsFromDb() {
+  if (!sbClient) { sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); return; }
+  try {
+    const { data, error } = await sbClient.from(SPONSORS_TABLE).select('*').order('sort_order', { ascending: true });
+    if (error) { console.warn('Sponsors table not available, using local defaults:', error.message); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); return; }
+    if (!data || data.length === 0) {
+      const seed = DEFAULT_SPONSORS.map((s, i) => ({
+        id: s.id, org: s.org, contact_name: s.contactName, contact_email: s.contactEmail,
+        contact_phone: s.contactPhone, package: s.package, tracker_status: s.trackerStatus,
+        linked_booth_id: s.linkedBoothId, data: s.data, sort_order: i
+      }));
+      const { error: seedErr } = await sbClient.from(SPONSORS_TABLE).insert(seed);
+      if (seedErr) { console.warn('Could not seed sponsors table:', seedErr.message); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); return; }
+      sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } }));
+      return;
+    }
+    sponsors = data.map(rowToSponsor);
+  } catch (err) {
+    console.warn('Sponsors load failed, using local defaults:', err);
+    sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } }));
+  }
+}
+
+function rowToSponsor(row) {
+  return {
+    id: row.id, org: row.org, contactName: row.contact_name || '', contactEmail: row.contact_email || '',
+    contactPhone: row.contact_phone || '', package: row.package || '', trackerStatus: row.tracker_status || 'Recruit Target',
+    linkedBoothId: row.linked_booth_id || '', sortOrder: row.sort_order || 0,
+    data: Object.assign({
+      amountStatus: '', checkoutTier: '', specialNotes: '',
+      program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
+      logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
+      money: { committed: '', paid: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
+      comms: [], actionItems: [], flagged: false
+    }, row.data || {})
+  };
+}
+
+function subscribeSponsorRealtime() {
+  if (!sbClient || sbSponsorChannel) return;
+  sbSponsorChannel = sbClient
+    .channel('sponsor-tracker-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: SPONSORS_TABLE }, (payload) => {
+      if (payload.eventType === 'DELETE') {
+        sponsors = sponsors.filter(s => s.id !== payload.old.id);
+      } else {
+        const updated = rowToSponsor(payload.new);
+        const idx = sponsors.findIndex(s => s.id === updated.id);
+        if (idx >= 0) sponsors[idx] = updated; else sponsors.push(updated);
+      }
+      if (document.getElementById('nav-sponsors-btn').classList.contains('active')) renderSponsorView();
+    })
+    .subscribe();
+}
+
+let sponsorPushTimers = {};
+function pushSponsor(s) {
+  if (!sbClient) return;
+  clearTimeout(sponsorPushTimers[s.id]);
+  sponsorPushTimers[s.id] = setTimeout(async () => {
+    const row = {
+      id: s.id, org: s.org, contact_name: s.contactName, contact_email: s.contactEmail,
+      contact_phone: s.contactPhone, package: s.package, tracker_status: s.trackerStatus,
+      linked_booth_id: s.linkedBoothId, data: s.data, sort_order: s.sortOrder || 0,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sbClient.from(SPONSORS_TABLE).upsert(row);
+    if (error) console.error('Sponsor save failed:', error);
+  }, 300);
+}
+
+function makeSponsorId() { return 'sp_' + Date.now() + '_' + Math.floor(Math.random() * 10000); }
+
+function addSponsor() {
+  const s = {
+    id: makeSponsorId(), org: 'New Sponsor', contactName: '', contactEmail: '', contactPhone: '',
+    package: '', trackerStatus: 'Recruit Target', linkedBoothId: '', sortOrder: sponsors.length,
+    data: {
+      amountStatus: '', checkoutTier: '', specialNotes: '',
+      program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
+      logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
+      money: { committed: '', paid: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
+      comms: [], actionItems: [], flagged: false
+    }
+  };
+  sponsors.push(s);
+  pushSponsor(s);
+  openSponsorId = s.id;
+  renderSponsorView();
+}
+
+function deleteSponsor(id) {
+  const s = sponsors.find(x => x.id === id);
+  if (!s) return;
+  if (!confirm('Delete "' + s.org + '" from the sponsor tracker? This cannot be undone.')) return;
+  sponsors = sponsors.filter(x => x.id !== id);
+  if (sbClient) sbClient.from(SPONSORS_TABLE).delete().eq('id', id).then(({ error }) => { if (error) console.error('Delete sponsor failed:', error); });
+  openSponsorId = null;
+  renderSponsorView();
+}
+
+function setSponsorFilter(f) {
+  sponsorFilter = f;
+  document.querySelectorAll('.sp-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderSponsorRows();
+}
+function setSponsorSearch(v) { sponsorSearch = v; renderSponsorRows(); }
+
+function sponsorBadgeClass(status) {
+  const s = (status || '').toLowerCase();
+  if (s.includes('declined')) return 'sp-badge-lapsed';
+  if (s.includes('not yet registered') || s.includes('prior sponsor')) return 'sp-badge-lapsed';
+  if (s.includes('recruit')) return 'sp-badge-recruit';
+  if (s.includes('in-kind') && s.includes('not registered')) return 'sp-badge-inkind';
+  if (s.includes('registered')) return 'sp-badge-reg';
+  return 'sp-badge-recruit';
+}
+
+function allBoothsForDropdown() {
+  const list = [];
+  booths.forEach(b => {
+    const mapLabel = MAPS[b.mapId] ? MAPS[b.mapId].label : b.mapId;
+    const pkg = getPkg(b.type);
+    list.push({ id: b.id, label: mapLabel + ' — ' + pkg.label + (b.name ? ' (' + b.name + ')' : ' (unnamed)') });
+  });
+  return list;
+}
+
+const SPONSOR_COL_WIDTHS_KEY = 'sbcmcSponsorColWidths';
+let sponsorColResizeInit = false;
+
+function loadSponsorColWidths() {
+  try { return JSON.parse(localStorage.getItem(SPONSOR_COL_WIDTHS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveSponsorColWidths(widths) {
+  try { localStorage.setItem(SPONSOR_COL_WIDTHS_KEY, JSON.stringify(widths)); }
+  catch (e) { /* localStorage unavailable, resizing just won't persist */ }
+}
+function applySavedSponsorColWidths() {
+  const widths = loadSponsorColWidths();
+  document.querySelectorAll('#sp-thead-row th[data-col]').forEach(th => {
+    const idx = th.dataset.col;
+    if (widths[idx]) th.style.width = widths[idx] + 'px';
+  });
+}
+
+function initSponsorColumnResize() {
+  if (sponsorColResizeInit) return;
+  const handles = document.querySelectorAll('.sp-col-resize');
+  if (handles.length === 0) return; // header not in DOM yet
+  sponsorColResizeInit = true;
+  applySavedSponsorColWidths();
+
+  handles.forEach(handle => {
+    let startX = 0, startWidth = 0, th = null;
+    function onDown(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      th = handle.closest('th');
+      startX = e.clientX;
+      startWidth = th.getBoundingClientRect().width;
+      handle.classList.add('resizing');
+      handle.setPointerCapture(e.pointerId);
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+    }
+    function onMove(e) {
+      const newWidth = Math.max(40, startWidth + (e.clientX - startX));
+      th.style.width = newWidth + 'px';
+    }
+    function onUp() {
+      handle.classList.remove('resizing');
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      const widths = loadSponsorColWidths();
+      document.querySelectorAll('#sp-thead-row th[data-col]').forEach(t => {
+        widths[t.dataset.col] = Math.round(t.getBoundingClientRect().width);
+      });
+      saveSponsorColWidths(widths);
+    }
+    handle.addEventListener('pointerdown', onDown);
+    // prevent the sort-click handler on the <th> from firing when starting a drag
+    handle.addEventListener('click', e => e.stopPropagation());
+  });
+}
+
+function renderSponsorView() {
+  renderSponsorStats();
+  renderSponsorRows();
+  initSponsorColumnResize();
+}
+
+function renderSponsorStats() {
+  document.getElementById('sp-stat-total').textContent = sponsors.length;
+  document.getElementById('sp-stat-reg').textContent = sponsors.filter(s => s.trackerStatus.toLowerCase().includes('registered') && !s.trackerStatus.toLowerCase().includes('not registered') && !s.trackerStatus.toLowerCase().includes('not yet')).length;
+  document.getElementById('sp-stat-inkind').textContent = sponsors.filter(s => s.trackerStatus.toLowerCase().includes('in-kind')).length;
+  document.getElementById('sp-stat-pursue').textContent = sponsors.filter(s => s.trackerStatus === 'Recruit Target' || s.trackerStatus === 'Not Yet Registered (Prior Sponsor)').length;
+}
+
+function csvEscape(val) {
+  const s = val == null ? '' : String(val);
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function currentFilteredSponsors() {
+  let filtered = sponsors.filter(s => {
+    let matchesFilter;
+    if (sponsorFilter === 'all') matchesFilter = true;
+    else if (sponsorFilter === '__flagged__') matchesFilter = !!s.data.flagged;
+    else if (sponsorFilter === '__overdue__') matchesFilter = isOverdue(s);
+    else matchesFilter = s.trackerStatus === sponsorFilter;
+    const hay = (s.org + ' ' + s.contactName).toLowerCase();
+    const matchesSearch = !sponsorSearch || hay.includes(sponsorSearch.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+  if (sponsorSortKey) {
+    filtered = filtered.slice().sort((a, b) => {
+      const va = sponsorSortValue(a, sponsorSortKey), vb = sponsorSortValue(b, sponsorSortKey);
+      if (va < vb) return -1 * sponsorSortDir;
+      if (va > vb) return 1 * sponsorSortDir;
+      return 0;
+    });
+  }
+  return filtered;
+}
+
+function exportSponsorsCSV() {
+  const rows = currentFilteredSponsors();
+  const headers = [
+    'Organization', 'Contact Name', 'Contact Email', 'Contact Phone', 'Package',
+    'Tracker Status', 'Flagged for Review', 'Base Amount', 'Ad-hoc Amount', 'Ad-hoc Description',
+    'Paid', 'Invoice Sent', 'Payment Due Date', 'Payment Overdue',
+    'Program Type', 'Program Track', 'Program Time Slot', 'Program Length (min)', 'Materials Confirmed',
+    'Power Needed', 'AV Needed', 'Load-in Time', 'Staff Badges Needed', 'Shipping Notes',
+    'Linked Booth', 'Special Notes', 'Communication Log', 'Action Items'
+  ];
+  const lines = [headers.map(csvEscape).join(',')];
+
+  rows.forEach(s => {
+    const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
+    const linkedBoothLabel = linkedBooth ? ((MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '') + ' - ' + getPkg(linkedBooth.type).label) : '';
+    const commsStr = (s.data.comms || []).map(c => c.ts + ': ' + c.note).join(' | ');
+    const actionsStr = (s.data.actionItems || []).map(a => (a.done ? '[done] ' : '[open] ') + a.text + ' (' + (a.owner || '') + ')').join(' | ');
+    const pkgLabel = s.package ? getPkg(s.package).label : '';
+
+    const row = [
+      s.org, s.contactName, s.contactEmail, s.contactPhone, pkgLabel,
+      s.trackerStatus, s.data.flagged ? 'Yes' : 'No',
+      s.data.checkoutTier || s.data.money.committed || '', s.data.money.adhocAmount || '', s.data.money.adhocDescription || '',
+      s.data.money.paid || '', s.data.money.invoiceSent ? 'Yes' : 'No', s.data.money.dueDate || '', isOverdue(s) ? 'Yes' : 'No',
+      s.data.program.type || '', s.data.program.track || '', s.data.program.timeSlot || '', s.data.program.lengthMin || '', s.data.program.fulfilled ? 'Yes' : 'No',
+      s.data.logistics.power ? 'Yes' : 'No', s.data.logistics.av ? 'Yes' : 'No', s.data.logistics.loadInTime || '', s.data.logistics.badgeCount || '', s.data.logistics.shipping || '',
+      linkedBoothLabel, s.data.specialNotes || '', commsStr, actionsStr
+    ];
+    lines.push(row.map(csvEscape).join(','));
+  });
+
+  const csvContent = lines.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'SBCMC-Sponsors-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Exported ' + rows.length + ' sponsor' + (rows.length === 1 ? '' : 's') + ' to CSV.');
+}
+
+function isOverdue(s) {
+  const due = s.data.money.dueDate;
+  if (!due) return false;
+  const paidEnough = (s.data.money.paid || '').toLowerCase().includes('paid') || s.trackerStatus.toLowerCase().includes('paid');
+  if (paidEnough) return false;
+  const todayStr = new Date().toISOString().slice(0,10);
+  return due < todayStr;
+}
+
+function setSponsorSort(key) {
+  if (sponsorSortKey === key) {
+    sponsorSortDir = -sponsorSortDir;
+  } else {
+    sponsorSortKey = key;
+    sponsorSortDir = 1;
+  }
+  ['org','amount','due'].forEach(k => {
+    const el = document.getElementById('sort-arrow-' + k);
+    if (el) el.textContent = (k === sponsorSortKey) ? (sponsorSortDir === 1 ? '▲' : '▼') : '';
+  });
+  renderSponsorRows();
+}
+
+function sponsorSortValue(s, key) {
+  if (key === 'org') return (s.org || '').toLowerCase();
+  if (key === 'amount') {
+    const n = Number(s.data.checkoutTier || s.data.money.committed || 0) + Number(s.data.money.adhocAmount || 0);
+    return isNaN(n) ? 0 : n;
+  }
+  if (key === 'due') return s.data.money.dueDate || '9999-99-99'; // blanks sort last
+  return '';
+}
+
+function sponsorAmountCell(s) {
+  const base = s.data.checkoutTier || s.data.money.committed || '';
+  const adhoc = s.data.money.adhocAmount || '';
+  const status = s.data.amountStatus || '';
+  let parts = [];
+  if (base) parts.push('$' + Number(base).toLocaleString());
+  else if (status) parts.push(status);
+  if (adhoc) parts.push('+ $' + Number(adhoc).toLocaleString() + ' ad-hoc');
+  return parts.length ? escapeHtml(parts.join(' ')) : '\u2014';
+}
+
+function renderSponsorRows() {
+  const tbody = document.getElementById('sp-rows');
+  tbody.innerHTML = '';
+  let filtered = sponsors.filter(s => {
+    let matchesFilter;
+    if (sponsorFilter === 'all') matchesFilter = true;
+    else if (sponsorFilter === '__flagged__') matchesFilter = !!s.data.flagged;
+    else if (sponsorFilter === '__overdue__') matchesFilter = isOverdue(s);
+    else matchesFilter = s.trackerStatus === sponsorFilter;
+    const hay = (s.org + ' ' + s.contactName).toLowerCase();
+    const matchesSearch = !sponsorSearch || hay.includes(sponsorSearch.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  if (sponsorSortKey) {
+    filtered = filtered.slice().sort((a, b) => {
+      const va = sponsorSortValue(a, sponsorSortKey), vb = sponsorSortValue(b, sponsorSortKey);
+      if (va < vb) return -1 * sponsorSortDir;
+      if (va > vb) return 1 * sponsorSortDir;
+      return 0;
+    });
+  }
+
+  filtered.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.className = 'sp-row';
+    const pkg = s.package ? getPkg(s.package) : null;
+    const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
+    const overdue = isOverdue(s);
+    const dueCell = s.data.money.dueDate
+      ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${s.data.money.dueDate}</span>` : escapeHtml(s.data.money.dueDate))
+      : '—';
+    tr.innerHTML = `
+      <td>${s.data.flagged ? '<span title="Flagged for review">🚩</span>' : ''}</td>
+      <td class="sp-org">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
+      <td>${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
+      <td>${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '—'}</td>
+      <td>${sponsorAmountCell(s)}</td>
+      <td>${dueCell}</td>
+      <td><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${s.trackerStatus}</span></td>
+      <td>${linkedBooth ? '✓ ' + escapeHtml(MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '') : '—'}</td>
+    `;
+    tr.addEventListener('click', () => toggleSponsorDetail(s.id));
+    tbody.appendChild(tr);
+
+    const dtr = document.createElement('tr');
+    dtr.className = 'sp-detail-row' + (openSponsorId === s.id ? ' open' : '');
+    dtr.id = 'sp-detail-' + s.id;
+    dtr.innerHTML = `<td class="sp-detail-cell" colspan="8">${openSponsorId === s.id ? sponsorDetailHTML(s) : ''}</td>`;
+    tbody.appendChild(dtr);
+  });
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+
+function toggleSponsorDetail(id) {
+  openSponsorId = openSponsorId === id ? null : id;
+  renderSponsorRows();
+}
+
+function sponsorDetailHTML(s) {
+  const pkgOptions = packages.map(p => `<option value="${p.key}" ${s.package === p.key ? 'selected' : ''}>${p.label}</option>`).join('');
+  const STATUS_PRESETS = ['Registered - Paid', 'Registered - Pending Payment', 'In-Kind - Registered', 'In-Kind - Not Registered', 'Not Yet Registered (Prior Sponsor)', 'Recruit Target', 'Declined'];
+  const statusOptions = STATUS_PRESETS.map(st => `<option value="${st}">`).join('');
+  const boothOptions = allBoothsForDropdown().map(b => `<option value="${b.id}" ${s.linkedBoothId === b.id ? 'selected' : ''}>${b.label}</option>`).join('');
+  const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
+
+  const commsHtml = (s.data.comms || []).slice().reverse().map(c =>
+    `<div class="sp-comm-item"><span class="ts">${c.ts}</span>${escapeHtml(c.note)}</div>`
+  ).join('') || '<div class="sp-sub">Nothing logged yet.</div>';
+
+  const actionsHtml = (s.data.actionItems || []).map((a, i) =>
+    `<div class="sp-action-item ${a.done ? 'done' : ''}">
+       <input type="checkbox" ${a.done ? 'checked' : ''} onchange="toggleActionItem('${s.id}',${i})">
+       <span style="flex:1;">${escapeHtml(a.text)}</span>
+       <span class="sp-sub">${a.owner || ''}</span>
+       <button class="sp-mini-btn" onclick="removeActionItem('${s.id}',${i})">&times;</button>
+     </div>`
+  ).join('') || '<div class="sp-sub">No open items.</div>';
+
+  return `
+    <div class="sp-detail-inner">
+      <div class="sp-detail-grid">
+        <fieldset class="sp-fieldset">
+          <legend>Contact</legend>
+          <div class="sp-field"><label>Organization</label><input type="text" value="${escapeHtml(s.org)}" onchange="updateSponsorSimple('${s.id}','org',this.value)"></div>
+          <div class="sp-field"><label>Contact name</label><input type="text" value="${escapeHtml(s.contactName)}" onchange="updateSponsorSimple('${s.id}','contactName',this.value)"></div>
+          <div class="sp-field"><label>Email</label><input type="email" value="${escapeHtml(s.contactEmail)}" onchange="updateSponsorSimple('${s.id}','contactEmail',this.value)"></div>
+          <div class="sp-field"><label>Phone</label><input type="text" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}','contactPhone',this.value)"></div>
+          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> 🚩 Flag for review</div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Package &amp; Status</legend>
+          <div class="sp-field"><label>Package (floor plan tier)</label><select onchange="updateSponsorSimple('${s.id}','package',this.value)"><option value="">—</option>${pkgOptions}</select></div>
+          <div class="sp-field"><label>Tracker status (pick a suggestion or type your own)</label><input type="text" list="status-list-${s.id}" value="${escapeHtml(s.trackerStatus)}" onchange="updateSponsorSimple('${s.id}','trackerStatus',this.value)"><datalist id="status-list-${s.id}">${statusOptions}</datalist></div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Linked Booth</legend>
+          <div class="sp-field"><select onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">— not linked —</option>${boothOptions}</select></div>
+          <div class="sp-linked-booth">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + getPkg(linkedBooth.type).label : 'No booth linked yet — place their booth on the floor plan, then link it here.'}</div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Money</legend>
+          <div class="sp-field"><label>Committed ($)</label><input type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
+          <div class="sp-field"><label>Paid ($)</label><input type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
+          <div class="sp-field"><label>Payment due date</label><input type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
+          <div class="sp-check"><input type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"> Invoice sent</div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Program / Stage Commitment</legend>
+          <div class="sp-field"><label>Type (breakout / video / live mention / giveaway)</label><input type="text" value="${escapeHtml(s.data.program.type)}" onchange="updateSponsorNested('${s.id}','program','type',this.value)"></div>
+          <div class="sp-field"><label>Track / session name</label><input type="text" value="${escapeHtml(s.data.program.track)}" onchange="updateSponsorNested('${s.id}','program','track',this.value)"></div>
+          <div class="sp-field"><label>Time slot</label><input type="text" value="${escapeHtml(s.data.program.timeSlot)}" onchange="updateSponsorNested('${s.id}','program','timeSlot',this.value)"></div>
+          <div class="sp-field"><label>Length (min)</label><input type="text" value="${escapeHtml(s.data.program.lengthMin)}" onchange="updateSponsorNested('${s.id}','program','lengthMin',this.value)"></div>
+          <div class="sp-check"><input type="checkbox" ${s.data.program.fulfilled ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','fulfilled',this.checked)"> Materials received / confirmed</div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Logistics</legend>
+          <div class="sp-check"><input type="checkbox" ${s.data.logistics.power ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','power',this.checked)"> Power needed</div>
+          <div class="sp-check"><input type="checkbox" ${s.data.logistics.av ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','av',this.checked)"> AV needed</div>
+          <div class="sp-field"><label>Load-in time</label><input type="text" value="${escapeHtml(s.data.logistics.loadInTime)}" onchange="updateSponsorNested('${s.id}','logistics','loadInTime',this.value)"></div>
+          <div class="sp-field"><label>Staff badges needed</label><input type="text" value="${escapeHtml(s.data.logistics.badgeCount)}" onchange="updateSponsorNested('${s.id}','logistics','badgeCount',this.value)"></div>
+          <div class="sp-field"><label>Shipping / drayage notes</label><input type="text" value="${escapeHtml(s.data.logistics.shipping)}" onchange="updateSponsorNested('${s.id}','logistics','shipping',this.value)"></div>
+        </fieldset>
+      </div>
+
+      <div class="sp-detail-grid">
+        <fieldset class="sp-fieldset" style="grid-column: span 2;">
+          <legend>Special Arrangement Notes</legend>
+          <textarea onchange="updateSponsorData('${s.id}','specialNotes',this.value)">${escapeHtml(s.data.specialNotes)}</textarea>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Communication Log</legend>
+          ${commsHtml}
+          <div class="sp-add-row">
+            <input type="text" id="comm-input-${s.id}" placeholder="e.g. Sent welcome email 8/6">
+            <button class="sp-mini-btn" onclick="addComm('${s.id}')">Log</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Action Items</legend>
+          ${actionsHtml}
+          <div class="sp-add-row">
+            <input type="text" id="action-input-${s.id}" placeholder="What needs to happen">
+            <select id="action-owner-${s.id}"><option>Sergio</option><option>Them</option></select>
+            <button class="sp-mini-btn" onclick="addActionItem('${s.id}')">Add</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+        <button class="sp-mini-btn" style="color:#a52620; border-color:#f0c9c4;" onclick="deleteSponsor('${s.id}')">Delete sponsor</button>
+      </div>
+    </div>
+  `;
+}
+
+function getSponsor(id) { return sponsors.find(s => s.id === id); }
+
+function updateSponsorSimple(id, field, value) {
+  const s = getSponsor(id); if (!s) return;
+  s[field] = value;
+  if (field === 'org' && value.trim()) {
+    const dupe = sponsors.find(x => x.id !== id && x.org.trim().toLowerCase() === value.trim().toLowerCase());
+    if (dupe) toast('Heads up: "' + value + '" looks like it may already be tracked (another record with the same name exists).');
+  }
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function updateSponsorData(id, field, value) {
+  const s = getSponsor(id); if (!s) return;
+  s.data[field] = value;
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function updateSponsorNested(id, group, field, value) {
+  const s = getSponsor(id); if (!s) return;
+  s.data[group][field] = value;
+  pushSponsor(s);
+  renderSponsorRows();
+}
+
+function linkBoothToSponsor(sponsorId, boothId) {
+  const s = getSponsor(sponsorId); if (!s) return;
+  s.linkedBoothId = boothId || '';
+  const booth = booths.find(b => b.id === boothId);
+  if (booth && !booth.name) {
+    booth.name = s.org;
+    refreshView();
+    persist(); // saves booths/labels back to booth_layouts
+  }
+  pushSponsor(s);
+  renderSponsorRows();
+}
+
+function addComm(id) {
+  const input = document.getElementById('comm-input-' + id);
+  const val = input.value.trim();
+  if (!val) return;
+  const s = getSponsor(id);
+  const ts = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  s.data.comms.push({ ts, note: val });
+  input.value = '';
+  pushSponsor(s);
+  renderSponsorRows();
+}
+
+function addActionItem(id) {
+  const input = document.getElementById('action-input-' + id);
+  const owner = document.getElementById('action-owner-' + id).value;
+  const val = input.value.trim();
+  if (!val) return;
+  const s = getSponsor(id);
+  s.data.actionItems.push({ text: val, owner, done: false });
+  input.value = '';
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function toggleActionItem(id, i) {
+  const s = getSponsor(id);
+  s.data.actionItems[i].done = !s.data.actionItems[i].done;
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function removeActionItem(id, i) {
+  const s = getSponsor(id);
+  s.data.actionItems.splice(i, 1);
+  pushSponsor(s);
+  renderSponsorRows();
+}
+
+
 // init
 renderPackageSidebar();
 buildTabs();
 planImg.src = MAP_IMGS[currentMapId];
 renderAll();
 applyZoom();
+if (!isSupabaseConfigured()) { loadSponsorsFromDb(); }
 initSupabase();
 </script>
 </body>
