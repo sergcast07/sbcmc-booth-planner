@@ -406,8 +406,12 @@ table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
 .sp-detail-row.open { display: table-row; }
 .sp-detail-cell { padding: 0 !important; border-bottom: 1px solid var(--line); }
 .sp-detail-inner { padding: 18px 20px 22px; background: var(--paper); border-left: 3px solid var(--color-a); margin: 10px; border-radius: 8px; }
-.sp-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 16px; }
+.sp-detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 16px; }
+.sp-detail-grid.sp-detail-notes { grid-template-columns: 1fr; }
 .sp-fieldset { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.sp-subhead { font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: #a9adb3; font-weight: 700; margin: 14px 0 7px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.sp-subhead:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+@media (max-width: 900px) { .sp-detail-grid { grid-template-columns: 1fr; } }
 .sp-fieldset legend { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #8a8f98; font-weight: 700; padding: 0 4px; }
 .sp-field { margin-bottom: 8px; }
 .sp-field label { display: block; font-size: 10.5px; color: #8a8f98; margin-bottom: 2px; }
@@ -2983,6 +2987,8 @@ function parseMoneyNum(v) {
 }
 
 function isSponsorMarkedPaid(s) {
+  if (s.data.money.paymentStatus) return s.data.money.paymentStatus === 'Paid in Full';
+  // legacy fallback for records saved before the Payment Status dropdown existed
   return /paid/i.test(s.trackerStatus) || /paid/i.test(s.data.money.paid || '');
 }
 
@@ -3009,7 +3015,16 @@ function renderDashboard() {
   cashSponsors.forEach(s => {
     const committed = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + parseMoneyNum(s.data.money.adhocAmount);
     totalCommitted += committed;
-    if (isSponsorMarkedPaid(s)) totalCollected += committed;
+    const status = s.data.money.paymentStatus;
+    const paidAmt = parseMoneyNum(s.data.money.paid);
+    if (status === 'Paid in Full') {
+      totalCollected += committed;
+    } else if (status === 'Partially Paid') {
+      totalCollected += Math.min(paidAmt, committed); // never count more than what's actually committed
+    } else if (!status && isSponsorMarkedPaid(s)) {
+      // legacy record with no Payment Status set yet, but old signals say paid
+      totalCollected += committed;
+    }
   });
   const totalOutstanding = totalCommitted - totalCollected;
 
@@ -3104,8 +3119,8 @@ function rowToSponsor(row) {
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
-      money: { committed: '', paid: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
-      comms: [], actionItems: [], flagged: false
+      money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
+      comms: [], actionItems: [], questions: [], flagged: false
     }, row.data || {})
   };
 }
@@ -3153,8 +3168,8 @@ function addSponsor() {
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
-      money: { committed: '', paid: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
-      comms: [], actionItems: [], flagged: false
+      money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
+      comms: [], actionItems: [], questions: [], flagged: false
     }
   };
   sponsors.push(s);
@@ -3305,10 +3320,10 @@ function exportSponsorsCSV() {
   const headers = [
     'Organization', 'Contact Name', 'Contact Email', 'Contact Phone', 'Package',
     'Tracker Status', 'Flagged for Review', 'Base Amount', 'Ad-hoc Amount', 'Ad-hoc Description',
-    'Paid', 'Invoice Sent', 'Payment Due Date', 'Payment Overdue',
+    'Payment Status', 'Amount Paid', 'Invoice Sent', 'Payment Due Date', 'Payment Overdue',
     'Program Type', 'Program Track', 'Program Time Slot', 'Program Length (min)', 'Materials Confirmed',
     'Power Needed', 'AV Needed', 'Load-in Time', 'Staff Badges Needed', 'Shipping Notes',
-    'Linked Booth', 'Special Notes', 'Communication Log', 'Action Items'
+    'Linked Booth', 'Special Notes', 'Communication Log', 'Action Items', 'Questions for Sponsor'
   ];
   const lines = [headers.map(csvEscape).join(',')];
 
@@ -3317,16 +3332,17 @@ function exportSponsorsCSV() {
     const linkedBoothLabel = linkedBooth ? ((MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '') + ' - ' + getPkg(linkedBooth.type).label) : '';
     const commsStr = (s.data.comms || []).map(c => c.ts + ': ' + c.note).join(' | ');
     const actionsStr = (s.data.actionItems || []).map(a => (a.done ? '[done] ' : '[open] ') + a.text + ' (' + (a.owner || '') + ')').join(' | ');
+    const questionsStr = (s.data.questions || []).map(q => (q.resolved ? '[answered] ' : '[open] ') + q.text).join(' | ');
     const pkgLabel = s.package ? getPkg(s.package).label : '';
 
     const row = [
       s.org, s.contactName, s.contactEmail, s.contactPhone, pkgLabel,
       s.trackerStatus, s.data.flagged ? 'Yes' : 'No',
       s.data.money.committed || s.data.checkoutTier || '', s.data.money.adhocAmount || '', s.data.money.adhocDescription || '',
-      s.data.money.paid || '', s.data.money.invoiceSent ? 'Yes' : 'No', s.data.money.dueDate || '', isOverdue(s) ? 'Yes' : 'No',
+      s.data.money.paymentStatus || '', s.data.money.paid || '', s.data.money.invoiceSent ? 'Yes' : 'No', s.data.money.dueDate || '', isOverdue(s) ? 'Yes' : 'No',
       s.data.program.type || '', s.data.program.track || '', s.data.program.timeSlot || '', s.data.program.lengthMin || '', s.data.program.fulfilled ? 'Yes' : 'No',
       s.data.logistics.power ? 'Yes' : 'No', s.data.logistics.av ? 'Yes' : 'No', s.data.logistics.loadInTime || '', s.data.logistics.badgeCount || '', s.data.logistics.shipping || '',
-      linkedBoothLabel, s.data.specialNotes || '', commsStr, actionsStr
+      linkedBoothLabel, s.data.specialNotes || '', commsStr, actionsStr, questionsStr
     ];
     lines.push(row.map(csvEscape).join(','));
   });
@@ -3347,7 +3363,9 @@ function exportSponsorsCSV() {
 function isOverdue(s) {
   const due = s.data.money.dueDate;
   if (!due) return false;
-  const paidEnough = (s.data.money.paid || '').toLowerCase().includes('paid') || s.trackerStatus.toLowerCase().includes('paid');
+  const paidEnough = s.data.money.paymentStatus
+    ? (s.data.money.paymentStatus === 'Paid in Full')
+    : ((s.data.money.paid || '').toLowerCase().includes('paid') || s.trackerStatus.toLowerCase().includes('paid'));
   if (paidEnough) return false;
   const todayStr = new Date().toISOString().slice(0,10);
   return due < todayStr;
@@ -3380,11 +3398,12 @@ function sponsorSortValue(s, key) {
 function sponsorAmountCell(s) {
   const base = s.data.money.committed || s.data.checkoutTier || '';
   const adhoc = s.data.money.adhocAmount || '';
-  const status = s.data.amountStatus || '';
+  const status = s.data.money.paymentStatus || s.data.amountStatus || '';
   let parts = [];
   if (base) parts.push('$' + Number(base).toLocaleString());
   else if (status) parts.push(status);
   if (adhoc) parts.push('+ $' + Number(adhoc).toLocaleString() + ' ad-hoc');
+  if (base && status) parts.push('(' + status + ')');
   return parts.length ? escapeHtml(parts.join(' ')) : '\u2014';
 }
 
@@ -3472,28 +3491,33 @@ function sponsorDetailHTML(s) {
      </div>`
   ).join('') || '<div class="sp-sub">No open items.</div>';
 
+  const questionsHtml = (s.data.questions || []).map((q, i) =>
+    `<div class="sp-action-item ${q.resolved ? 'done' : ''}">
+       <input type="checkbox" ${q.resolved ? 'checked' : ''} onchange="toggleQuestionResolved('${s.id}',${i})" title="Mark answered">
+       <span style="flex:1;">${escapeHtml(q.text)}</span>
+       <span class="sp-sub">${q.ts || ''}</span>
+       <button class="sp-mini-btn" onclick="removeQuestion('${s.id}',${i})">&times;</button>
+     </div>`
+  ).join('') || '<div class="sp-sub">Nothing logged yet.</div>';
+
   return `
     <div class="sp-detail-inner">
       <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
-          <legend>Contact</legend>
+          <legend>Contact &amp; Booking</legend>
           <div class="sp-field"><label>Organization</label><input type="text" value="${escapeHtml(s.org)}" onchange="updateSponsorSimple('${s.id}','org',this.value)"></div>
           <div class="sp-field"><label>Contact name</label><input type="text" value="${escapeHtml(s.contactName)}" onchange="updateSponsorSimple('${s.id}','contactName',this.value)"></div>
           <div class="sp-field"><label>Email</label><input type="email" value="${escapeHtml(s.contactEmail)}" onchange="updateSponsorSimple('${s.id}','contactEmail',this.value)"></div>
           <div class="sp-field"><label>Phone</label><input type="text" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}','contactPhone',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> 🚩 Flag for review</div>
-        </fieldset>
+          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> \U0001F6A9 Flag for review</div>
 
-        <fieldset class="sp-fieldset">
-          <legend>Package &amp; Status</legend>
-          <div class="sp-field"><label>Package (floor plan tier)</label><select onchange="updateSponsorSimple('${s.id}','package',this.value)"><option value="">—</option>${pkgOptions}</select></div>
+          <div class="sp-subhead">Package &amp; Status</div>
+          <div class="sp-field"><label>Package (floor plan tier)</label><select onchange="updateSponsorSimple('${s.id}','package',this.value)"><option value="">\u2014</option>${pkgOptions}</select></div>
           <div class="sp-field"><label>Tracker status (pick a suggestion or type your own)</label><input type="text" list="status-list-${s.id}" value="${escapeHtml(s.trackerStatus)}" onchange="updateSponsorSimple('${s.id}','trackerStatus',this.value)"><datalist id="status-list-${s.id}">${statusOptions}</datalist></div>
-        </fieldset>
 
-        <fieldset class="sp-fieldset">
-          <legend>Linked Booth</legend>
-          <div class="sp-field"><select onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">— not linked —</option>${boothOptions}</select></div>
-          <div class="sp-linked-booth">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + getPkg(linkedBooth.type).label : 'No booth linked yet — place their booth on the floor plan, then link it here.'}</div>
+          <div class="sp-subhead">Linked Booth</div>
+          <div class="sp-field"><select onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
+          <div class="sp-linked-booth">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + getPkg(linkedBooth.type).label : 'No booth linked yet \u2014 place their booth on the floor plan, then link it here.'}</div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
@@ -3501,22 +3525,21 @@ function sponsorDetailHTML(s) {
           <div class="sp-field"><label>Base package ($)</label><input type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
           <div class="sp-field"><label>Additional / ad-hoc commitment ($)</label><input type="text" value="${escapeHtml(s.data.money.adhocAmount)}" onchange="updateSponsorNested('${s.id}','money','adhocAmount',this.value)"></div>
           <div class="sp-field"><label>What the ad-hoc amount is for</label><input type="text" value="${escapeHtml(s.data.money.adhocDescription)}" placeholder="e.g. sponsoring a breakout track" onchange="updateSponsorNested('${s.id}','money','adhocDescription',this.value)"></div>
-          <div class="sp-field"><label>Paid ($)</label><input type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
+          <div class="sp-field"><label>Payment status</label><select onchange="updateSponsorNested('${s.id}','money','paymentStatus',this.value)"><option value="" ${!s.data.money.paymentStatus ? 'selected' : ''}>\u2014 not set \u2014</option><option value="Not Paid" ${s.data.money.paymentStatus === 'Not Paid' ? 'selected' : ''}>Not Paid</option><option value="Partially Paid" ${s.data.money.paymentStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option><option value="Paid in Full" ${s.data.money.paymentStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option></select></div>
+          <div class="sp-field"><label>Amount paid ($)</label><input type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
           <div class="sp-field"><label>Payment due date</label><input type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
           <div class="sp-check"><input type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"> Invoice sent</div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
-          <legend>Program / Stage Commitment</legend>
+          <legend>Program, Stage &amp; Logistics</legend>
           <div class="sp-field"><label>Type (breakout / video / live mention / giveaway)</label><input type="text" value="${escapeHtml(s.data.program.type)}" onchange="updateSponsorNested('${s.id}','program','type',this.value)"></div>
           <div class="sp-field"><label>Track / session name</label><input type="text" value="${escapeHtml(s.data.program.track)}" onchange="updateSponsorNested('${s.id}','program','track',this.value)"></div>
           <div class="sp-field"><label>Time slot</label><input type="text" value="${escapeHtml(s.data.program.timeSlot)}" onchange="updateSponsorNested('${s.id}','program','timeSlot',this.value)"></div>
           <div class="sp-field"><label>Length (min)</label><input type="text" value="${escapeHtml(s.data.program.lengthMin)}" onchange="updateSponsorNested('${s.id}','program','lengthMin',this.value)"></div>
           <div class="sp-check"><input type="checkbox" ${s.data.program.fulfilled ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','fulfilled',this.checked)"> Materials received / confirmed</div>
-        </fieldset>
 
-        <fieldset class="sp-fieldset">
-          <legend>Logistics</legend>
+          <div class="sp-subhead">Logistics</div>
           <div class="sp-check"><input type="checkbox" ${s.data.logistics.power ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','power',this.checked)"> Power needed</div>
           <div class="sp-check"><input type="checkbox" ${s.data.logistics.av ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','av',this.checked)"> AV needed</div>
           <div class="sp-field"><label>Load-in time</label><input type="text" value="${escapeHtml(s.data.logistics.loadInTime)}" onchange="updateSponsorNested('${s.id}','logistics','loadInTime',this.value)"></div>
@@ -3525,18 +3548,29 @@ function sponsorDetailHTML(s) {
         </fieldset>
       </div>
 
-      <div class="sp-detail-grid">
-        <fieldset class="sp-fieldset" style="grid-column: span 2;">
+      <div class="sp-detail-grid sp-detail-notes">
+        <fieldset class="sp-fieldset">
           <legend>Special Arrangement Notes</legend>
           <textarea onchange="updateSponsorData('${s.id}','specialNotes',this.value)">${escapeHtml(s.data.specialNotes)}</textarea>
         </fieldset>
+      </div>
 
+      <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Communication Log</legend>
           ${commsHtml}
           <div class="sp-add-row">
             <input type="text" id="comm-input-${s.id}" placeholder="e.g. Sent welcome email 8/6">
             <button class="sp-mini-btn" onclick="addComm('${s.id}')">Log</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Questions / Comments for Sponsor</legend>
+          ${questionsHtml}
+          <div class="sp-add-row">
+            <input type="text" id="question-input-${s.id}" placeholder="e.g. Confirm if bag donation is separate from $2,500">
+            <button class="sp-mini-btn" onclick="addQuestion('${s.id}')">Log</button>
           </div>
         </fieldset>
 
@@ -3628,6 +3662,31 @@ function toggleActionItem(id, i) {
 function removeActionItem(id, i) {
   const s = getSponsor(id);
   s.data.actionItems.splice(i, 1);
+  pushSponsor(s);
+  renderSponsorRows();
+}
+
+function addQuestion(id) {
+  const input = document.getElementById('question-input-' + id);
+  const val = input.value.trim();
+  if (!val) return;
+  const s = getSponsor(id);
+  if (!s.data.questions) s.data.questions = [];
+  const ts = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  s.data.questions.push({ text: val, resolved: false, ts });
+  input.value = '';
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function toggleQuestionResolved(id, i) {
+  const s = getSponsor(id);
+  s.data.questions[i].resolved = !s.data.questions[i].resolved;
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function removeQuestion(id, i) {
+  const s = getSponsor(id);
+  s.data.questions.splice(i, 1);
   pushSponsor(s);
   renderSponsorRows();
 }
