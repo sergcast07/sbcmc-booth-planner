@@ -490,6 +490,35 @@ table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
 .db-row-value { width: 90px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 @media (max-width: 760px) { .db-grid-2 { grid-template-columns: 1fr; } }
 
+/* ==== Mobile ==== */
+@media (max-width: 760px) {
+  .top-nav { flex-wrap: wrap; padding: 8px 12px; }
+  .top-nav .brand-mini { width: 100%; margin-bottom: 4px; }
+  .top-nav-btn { padding: 6px 12px; font-size: 12.5px; }
+
+  .sp-wrap { flex-direction: column; min-height: auto; }
+  .sp-side { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
+  .sp-main { padding: 14px; }
+  .sp-topbar { flex-wrap: wrap; }
+  .sp-search { max-width: none; width: 100%; }
+  .sp-add-btn { flex: 1; }
+
+  .sp-add-row { flex-wrap: wrap; }
+  .sp-add-row input { min-width: 140px; }
+
+  .canvas-body-row { flex-direction: column; }
+  .spot-directory { width: 100%; border-left: none; border-top: 1px solid var(--line); max-height: 240px; }
+
+  .db-wrap { padding: 20px 14px 40px; }
+  .db-cards { grid-template-columns: repeat(2, 1fr); }
+  .db-row-label { width: 100px; font-size: 11.5px; }
+
+  /* iOS auto-zooms on focusing any input under 16px -- bump these up on mobile only */
+  input[type="text"], input[type="email"], input[type="date"], input[type="password"], select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -562,9 +591,9 @@ table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
 </script>
 <div class="top-nav">
   <span class="brand-mini">SBCMC 2027</span>
-  <button class="top-nav-btn active" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
+  <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
   <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker</button>
-  <button class="top-nav-btn" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
+  <button class="top-nav-btn active" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
 </div>
 <div id="sponsor-view">
   <div class="sp-wrap">
@@ -617,7 +646,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
   </div>
 </div>
 
-<div id="dashboard-view" style="display:none;">
+<div id="dashboard-view">
   <div class="db-wrap">
     <div class="db-header">
       <h2>Sponsorship Progress</h2>
@@ -645,7 +674,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
   </div>
 </div>
 
-<div class="app">
+<div class="app" style="display:none;">
   <div class="sidebar">
     <div class="brand">
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;">
@@ -1801,6 +1830,7 @@ async function initSupabase() {
     await loadPackagesFromDb();
     await loadCustomMapsFromDb();
     await loadSponsorsFromDb();
+    renderDashboard();
     rebuildMapRegistry();
     renderPackageSidebar();
     buildTabs();
@@ -3649,7 +3679,10 @@ function toggleSponsorDetail(id) {
 function sponsorDetailHTML(s) {
   const pkgOptions = packages.map(p => `<option value="${p.key}" ${s.package === p.key ? 'selected' : ''}>${p.label}</option>`).join('');
   const STATUS_PRESETS = ['Registered - Paid', 'Registered - Pending Payment', 'In-Kind - Registered', 'In-Kind - Not Registered', 'Not Yet Registered (Prior Sponsor)', 'Recruit Target', 'Declined'];
-  const statusOptions = STATUS_PRESETS.map(st => `<option value="${st}">`).join('');
+  // If a sponsor somehow has a status outside the preset list (e.g. from before this was a
+  // dropdown), still show it as a selected option instead of silently dropping/changing it.
+  const statusChoices = STATUS_PRESETS.includes(s.trackerStatus) ? STATUS_PRESETS : [s.trackerStatus, ...STATUS_PRESETS];
+  const statusOptions = statusChoices.map(st => `<option value="${escapeHtml(st)}" ${st === s.trackerStatus ? 'selected' : ''}>${escapeHtml(st)}</option>`).join('');
   const boothOptions = allBoothsForDropdown().map(b => `<option value="${b.id}" ${s.linkedBoothId === b.id ? 'selected' : ''}>${b.label}</option>`).join('');
   const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
 
@@ -3684,11 +3717,11 @@ function sponsorDetailHTML(s) {
           <div class="sp-field"><label>Contact name</label><input type="text" value="${escapeHtml(s.contactName)}" onchange="updateSponsorSimple('${s.id}','contactName',this.value)"></div>
           <div class="sp-field"><label>Email</label><input type="email" value="${escapeHtml(s.contactEmail)}" onchange="updateSponsorSimple('${s.id}','contactEmail',this.value)"></div>
           <div class="sp-field"><label>Phone</label><input type="text" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}','contactPhone',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> \U0001F6A9 Flag for review</div>
+          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> 🚩 Flag for review</div>
 
           <div class="sp-subhead">Package &amp; Status</div>
           <div class="sp-field"><label>Package (floor plan tier)</label><select onchange="updateSponsorSimple('${s.id}','package',this.value)"><option value="">\u2014</option>${pkgOptions}</select></div>
-          <div class="sp-field"><label>Tracker status (pick a suggestion or type your own)</label><input type="text" list="status-list-${s.id}" value="${escapeHtml(s.trackerStatus)}" onchange="updateSponsorSimple('${s.id}','trackerStatus',this.value)"><datalist id="status-list-${s.id}">${statusOptions}</datalist></div>
+          <div class="sp-field"><label>Tracker status</label><select onchange="updateSponsorSimple('${s.id}','trackerStatus',this.value)">${statusOptions}</select></div>
 
           <div class="sp-subhead">Linked Booth</div>
           <div class="sp-field"><select onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
@@ -3882,7 +3915,7 @@ function removeQuestion(id, i) {
 renderPackageSidebar();
 buildTabs();
 planImg.src = MAP_IMGS[currentMapId];
-if (!isSupabaseConfigured()) { loadSponsorsFromDb().then(() => { renderAll(); }); } else { renderAll(); }
+if (!isSupabaseConfigured()) { loadSponsorsFromDb().then(() => { renderAll(); renderDashboard(); }); } else { renderAll(); }
 applyZoom();
 initSupabase();
 </script>
