@@ -3174,7 +3174,7 @@ function exportSponsorsCSV() {
     const row = [
       s.org, s.contactName, s.contactEmail, s.contactPhone, pkgLabel,
       s.trackerStatus, s.data.flagged ? 'Yes' : 'No',
-      s.data.checkoutTier || s.data.money.committed || '', s.data.money.adhocAmount || '', s.data.money.adhocDescription || '',
+      s.data.money.committed || s.data.checkoutTier || '', s.data.money.adhocAmount || '', s.data.money.adhocDescription || '',
       s.data.money.paid || '', s.data.money.invoiceSent ? 'Yes' : 'No', s.data.money.dueDate || '', isOverdue(s) ? 'Yes' : 'No',
       s.data.program.type || '', s.data.program.track || '', s.data.program.timeSlot || '', s.data.program.lengthMin || '', s.data.program.fulfilled ? 'Yes' : 'No',
       s.data.logistics.power ? 'Yes' : 'No', s.data.logistics.av ? 'Yes' : 'No', s.data.logistics.loadInTime || '', s.data.logistics.badgeCount || '', s.data.logistics.shipping || '',
@@ -3222,7 +3222,7 @@ function setSponsorSort(key) {
 function sponsorSortValue(s, key) {
   if (key === 'org') return (s.org || '').toLowerCase();
   if (key === 'amount') {
-    const n = Number(s.data.checkoutTier || s.data.money.committed || 0) + Number(s.data.money.adhocAmount || 0);
+    const n = Number(s.data.money.committed || s.data.checkoutTier || 0) + Number(s.data.money.adhocAmount || 0);
     return isNaN(n) ? 0 : n;
   }
   if (key === 'due') return s.data.money.dueDate || '9999-99-99'; // blanks sort last
@@ -3230,7 +3230,7 @@ function sponsorSortValue(s, key) {
 }
 
 function sponsorAmountCell(s) {
-  const base = s.data.checkoutTier || s.data.money.committed || '';
+  const base = s.data.money.committed || s.data.checkoutTier || '';
   const adhoc = s.data.money.adhocAmount || '';
   const status = s.data.amountStatus || '';
   let parts = [];
@@ -3350,7 +3350,9 @@ function sponsorDetailHTML(s) {
 
         <fieldset class="sp-fieldset">
           <legend>Money</legend>
-          <div class="sp-field"><label>Committed ($)</label><input type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
+          <div class="sp-field"><label>Base package ($)</label><input type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
+          <div class="sp-field"><label>Additional / ad-hoc commitment ($)</label><input type="text" value="${escapeHtml(s.data.money.adhocAmount)}" onchange="updateSponsorNested('${s.id}','money','adhocAmount',this.value)"></div>
+          <div class="sp-field"><label>What the ad-hoc amount is for</label><input type="text" value="${escapeHtml(s.data.money.adhocDescription)}" placeholder="e.g. sponsoring a breakout track" onchange="updateSponsorNested('${s.id}','money','adhocDescription',this.value)"></div>
           <div class="sp-field"><label>Paid ($)</label><input type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
           <div class="sp-field"><label>Payment due date</label><input type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
           <div class="sp-check"><input type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"> Invoice sent</div>
