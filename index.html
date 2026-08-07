@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SBCMC Booth Layout Planner</title>
+<meta name="robots" content="noindex, nofollow">
 <style>
   :root {
     --color-a: #2962FF;
@@ -155,6 +156,20 @@
     flex: 1; padding: 26px; overflow: auto;
     display: flex; align-items: flex-start; justify-content: center;
   }
+  .canvas-body-row { display: flex; flex: 1; min-height: 0; }
+  .spot-directory {
+    width: 260px; flex-shrink: 0; border-left: 1px solid var(--line); background: var(--panel);
+    padding: 18px 16px; overflow-y: auto;
+  }
+  .spot-directory-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .spot-row {
+    display: flex; align-items: center; gap: 8px; padding: 7px 6px; border-radius: 6px; cursor: pointer;
+    font-size: 12.5px; border-bottom: 1px solid var(--paper);
+  }
+  .spot-row:hover { background: var(--paper); }
+  .spot-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .spot-name { font-weight: 700; flex-shrink: 0; min-width: 56px; }
+  .spot-sponsor { color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .zoom-bar {
     display: flex; align-items: center; gap: 8px; padding: 7px 26px;
     background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12.5px; color: #4b5563;
@@ -345,6 +360,29 @@
     .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
   }
 
+  /* ==== Access Gate ==== */
+  #access-gate {
+    position: fixed; inset: 0; z-index: 9999; background: var(--ink);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  #access-gate .gate-card {
+    background: var(--panel); border-radius: 12px; padding: 32px 28px; width: 100%; max-width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35); text-align: center;
+  }
+  #access-gate h1 { font-size: 16px; margin: 0 0 4px; }
+  #access-gate p { font-size: 12.5px; color: #8a8f98; margin: 0 0 18px; }
+  #access-gate input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 14px; text-align: center; margin-bottom: 10px; box-sizing: border-box;
+  }
+  #access-gate button {
+    width: 100%; padding: 10px; border: none; border-radius: 8px; background: var(--color-a);
+    color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  #access-gate button:hover { opacity: 0.92; }
+  #access-gate .gate-error { color: #a52620; font-size: 12px; margin-top: 8px; min-height: 16px; }
+  body.gate-locked > *:not(#access-gate) { display: none !important; }
+
 /* ==== Sponsor Tracker ==== */
 .top-nav {
   display: flex; align-items: center; gap: 8px;
@@ -458,6 +496,70 @@ table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
+<div id="access-gate">
+  <div class="gate-card">
+    <h1>SBCMC 2027</h1>
+    <p>This planner is shared with the conference team only. Enter the password to continue.</p>
+    <input type="password" id="gate-password-input" placeholder="Password" autocomplete="off">
+    <button onclick="checkGatePassword()">Enter</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+<script>
+// Shared-password gate, like a locked spreadsheet: one password for the whole team,
+// entered once per browser (stored via localStorage so it persists across visits).
+// Honest limitation: this is a client-side deterrent, not real access control -- anyone
+// who views this file's source can read the hash below, and the Supabase anon key later
+// in this page grants direct API access independent of this gate. It stops a random
+// person who stumbles on the link; it will not stop someone specifically targeting this site.
+(function() {
+  var GATE_HASH = '72f98362bb1cbc378e36035e1af9121832cc7e7f1d12a80364e840aa6e8ba77c';
+  var GATE_KEY = 'sbcmcGateOk';
+
+  function sha256(str) {
+    var enc = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', enc).then(function(buf) {
+      return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+
+  function unlock() {
+    document.body.classList.remove('gate-locked');
+    document.getElementById('access-gate').style.display = 'none';
+  }
+
+  window.checkGatePassword = function() {
+    var input = document.getElementById('gate-password-input');
+    var errEl = document.getElementById('gate-error');
+    sha256(input.value).then(function(hash) {
+      if (hash === GATE_HASH) {
+        try { localStorage.setItem(GATE_KEY, GATE_HASH); } catch (e) { /* private browsing, etc -- just won't persist */ }
+        errEl.textContent = '';
+        unlock();
+      } else {
+        errEl.textContent = 'Incorrect password. Try again.';
+        input.value = '';
+        input.focus();
+      }
+    });
+  };
+
+  document.body.classList.add('gate-locked');
+  var stored = null;
+  try { stored = localStorage.getItem(GATE_KEY); } catch (e) { /* private browsing, etc */ }
+  if (stored === GATE_HASH) {
+    unlock();
+  } else {
+    document.getElementById('gate-password-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); checkGatePassword(); }
+    });
+    setTimeout(function() {
+      var el = document.getElementById('gate-password-input');
+      if (el) el.focus();
+    }, 50);
+  }
+})();
+</script>
 <div class="top-nav">
   <span class="brand-mini">SBCMC 2027</span>
   <button class="top-nav-btn active" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
@@ -611,9 +713,16 @@ table.sp-table tbody tr.sp-row:hover { background: var(--paper); }
       <button class="zoom-btn zoom-fit" onclick="zoomFit()" title="Fit to window">Fit</button>
       <span class="zoom-hint">Ctrl/Cmd + scroll also zooms</span>
     </div>
-    <div class="canvas-wrap" id="edit-view">
-      <div class="plan" id="plan">
-        <img id="plan-img" src="" alt="floor plan">
+    <div class="canvas-body-row" id="canvas-body-row">
+      <div class="canvas-wrap" id="edit-view">
+        <div class="plan" id="plan">
+          <img id="plan-img" src="" alt="floor plan">
+        </div>
+      </div>
+      <div class="spot-directory" id="spot-directory">
+        <div class="spot-directory-title">Spot Directory <span id="spot-directory-map-label" style="font-weight:400; color:#8a8f98;"></span></div>
+        <div class="hint" style="margin-bottom:10px;">Double-click any booth on the map to rename its spot. Click a row here to jump to that sponsor's record.</div>
+        <div class="spot-directory-list" id="spot-directory-list"></div>
       </div>
     </div>
     <div class="overview-wrap" id="overview-view" style="display:none;">
@@ -772,7 +881,7 @@ function switchViewMode(mode) {
   document.getElementById('mode-edit-btn').classList.toggle('active', mode === 'edit');
   document.getElementById('mode-overview-btn').classList.toggle('active', mode === 'overview');
   document.getElementById('map-tabs').style.display = mode === 'edit' ? 'flex' : 'none';
-  document.getElementById('edit-view').style.display = mode === 'edit' ? 'flex' : 'none';
+  document.getElementById('canvas-body-row').style.display = mode === 'edit' ? 'flex' : 'none';
   document.getElementById('overview-view').style.display = mode === 'overview' ? 'block' : 'none';
   setAddControlsEnabled(mode === 'edit');
   refreshView();
@@ -1000,17 +1109,21 @@ async function exportPDF() {
       doc.text('Total booths: ' + mapBooths.length, MARGIN + 10, py); py += 18;
       doc.setFont(undefined, 'normal');
 
-      const named = mapBooths.filter(b => b.name && b.name.trim());
-      if (named.length) {
+      const linkedBooths = mapBooths.filter(b => (typeof sponsors !== 'undefined') && sponsors.some(s => s.linkedBoothId === b.id));
+      if (linkedBooths.length) {
         ensureSpace(1);
         doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
         doc.text('Exhibitors placed:', MARGIN + 10, py); py += 14;
         doc.setFont(undefined, 'normal');
-        named.forEach(b => {
-          const wrapped = doc.splitTextToSize('\u2013 ' + b.name.trim() + ' (' + b.type + ')', usableW - 20);
-          ensureSpace(wrapped.length);
-          wrapped.forEach(line => { doc.text(line, MARGIN + 20, py); py += 13; });
-        });
+        linkedBooths
+          .slice()
+          .sort((a, b) => (a.spotName || '').localeCompare(b.spotName || '', undefined, { numeric: true }))
+          .forEach(b => {
+            const sp = sponsors.find(s => s.linkedBoothId === b.id);
+            const wrapped = doc.splitTextToSize('\u2013 ' + b.spotName + ': ' + sp.org + ' (' + b.type + ')', usableW - 20);
+            ensureSpace(wrapped.length);
+            wrapped.forEach(line => { doc.text(line, MARGIN + 20, py); py += 13; });
+          });
         py += 4;
       }
 
@@ -1151,12 +1264,23 @@ function renderCounts() {
 
 function boothTitle(b) {
   const p = getPkg(b.type);
-  return p.label + (b.name ? ' \u2014 ' + b.name : '') + ' \u2014 ' + Math.round(b.angle) + '\u00b0';
+  const sp = (typeof sponsors !== 'undefined') ? sponsors.find(sp => sp.linkedBoothId === b.id) : null;
+  return (b.spotName || p.label) + ' \u2014 ' + p.label + (sp ? ' \u2014 ' + sp.org : '') + ' \u2014 ' + Math.round(b.angle) + '\u00b0';
+}
+
+function nextSpotName(mapId) {
+  let maxN = 0;
+  booths.filter(bb => bb.mapId === mapId).forEach(bb => {
+    const m = /^Spot (\d+)$/.exec(bb.spotName || '');
+    if (m) maxN = Math.max(maxN, parseInt(m[1], 10));
+  });
+  return 'Spot ' + (maxN + 1);
 }
 
 function createBoothEl(b) {
   if (b.angle === undefined) b.angle = 0;
   if (b.name === undefined) b.name = '';
+  if (!b.spotName) b.spotName = nextSpotName(b.mapId);
   const { wPct, hPct } = pctSize(b.mapId, b.wFt, b.hFt);
   const p = getPkg(b.type);
   const el = document.createElement('div');
@@ -1174,7 +1298,7 @@ function createBoothEl(b) {
 
   const label = document.createElement('span');
   label.className = 'booth-label';
-  label.textContent = b.name ? b.name : b.type;
+  label.textContent = b.spotName;
   el.appendChild(label);
 
   const stalk = document.createElement('div');
@@ -1204,15 +1328,14 @@ function createBoothEl(b) {
   el.appendChild(del);
 
   el.addEventListener('pointerdown', onPointerDown);
-  el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditBoothName(el, b, label); });
+  el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditSpotName(el, b, label); });
   plan.appendChild(el);
   return el;
 }
 
-function startEditBoothName(el, b, labelSpan) {
+function startEditSpotName(el, b, labelSpan) {
   el.classList.add('editing');
   labelSpan.contentEditable = 'true';
-  if (!b.name) labelSpan.textContent = '';
   labelSpan.focus();
   const range = document.createRange();
   range.selectNodeContents(labelSpan);
@@ -1224,19 +1347,66 @@ function startEditBoothName(el, b, labelSpan) {
     labelSpan.contentEditable = 'false';
     el.classList.remove('editing');
     const text = labelSpan.textContent.trim();
-    b.name = text;
-    labelSpan.textContent = text ? text : b.type;
+    b.spotName = text || nextSpotName(b.mapId);
+    labelSpan.textContent = b.spotName;
     el.title = boothTitle(b);
     labelSpan.removeEventListener('blur', commit);
     labelSpan.removeEventListener('keydown', onKey);
     persist();
+    renderSpotDirectory();
   }
   function onKey(e) {
     if (e.key === 'Enter') { e.preventDefault(); labelSpan.blur(); }
-    if (e.key === 'Escape') { e.preventDefault(); labelSpan.textContent = b.name || b.type; labelSpan.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); labelSpan.textContent = b.spotName; labelSpan.blur(); }
   }
   labelSpan.addEventListener('blur', commit);
   labelSpan.addEventListener('keydown', onKey);
+}
+
+
+function renderSpotDirectory() {
+  const listEl = document.getElementById('spot-directory-list');
+  const mapLabelEl = document.getElementById('spot-directory-map-label');
+  if (!listEl) return; // not in DOM yet (sponsor module not injected, or view not built)
+  const m = MAPS[currentMapId];
+  if (mapLabelEl) mapLabelEl.textContent = m ? ('\u2014 ' + m.label) : '';
+
+  const mapBooths = booths.filter(b => b.mapId === currentMapId).slice().sort((a, b) => {
+    return (a.spotName || '').localeCompare(b.spotName || '', undefined, { numeric: true });
+  });
+
+  if (mapBooths.length === 0) {
+    listEl.innerHTML = '<div class="hint">No booths placed on this map yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = mapBooths.map(b => {
+    const sp = (typeof sponsors !== 'undefined') ? sponsors.find(s => s.linkedBoothId === b.id) : null;
+    const p = getPkg(b.type);
+    return `
+      <div class="spot-row" onclick="jumpToSponsorFromSpot('${b.id}')" title="${sp ? 'Open ' + escapeHtml(sp.org) + ' in the Sponsor Tracker' : 'Not linked to a sponsor yet'}">
+        <span class="spot-swatch" style="background:${p.color}"></span>
+        <span class="spot-name">${escapeHtml(b.spotName)}</span>
+        <span class="spot-sponsor">${sp ? escapeHtml(sp.org) : '\u2014 unassigned \u2014'}</span>
+      </div>`;
+  }).join('');
+}
+
+function jumpToSponsorFromSpot(boothId) {
+  if (typeof sponsors === 'undefined') return;
+  const sp = sponsors.find(s => s.linkedBoothId === boothId);
+  if (!sp) return;
+  switchTopView('sponsors');
+  sponsorFilter = 'all';
+  sponsorSearch = '';
+  document.getElementById('sp-search').value = '';
+  document.querySelectorAll('.sp-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === 'all'));
+  openSponsorId = sp.id;
+  renderSponsorView();
+  setTimeout(() => {
+    const row = document.getElementById('sp-detail-' + sp.id);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 50);
 }
 
 
@@ -1288,6 +1458,7 @@ function renderAll() {
   booths.filter(b => b.mapId === currentMapId).forEach(b => createBoothEl(b));
   labels.filter(l => l.mapId === currentMapId).forEach(l => createLabelEl(l));
   renderCounts();
+  renderSpotDirectory();
 }
 
 function addBooth(type) {
@@ -1295,12 +1466,13 @@ function addBooth(type) {
   const b = {
     id: makeId(), mapId: currentMapId, type: type,
     xPct: 46, yPct: 46,
-    wFt: p.widthFt, hFt: p.depthFt, angle: 0, name: ''
+    wFt: p.widthFt, hFt: p.depthFt, angle: 0, name: '', spotName: nextSpotName(currentMapId)
   };
   booths.push(b);
   createBoothEl(b);
   renderCounts();
   persist();
+  renderSpotDirectory();
 }
 
 function removeBooth(id) {
@@ -1762,7 +1934,7 @@ async function seedBuiltinMapsIfEmpty() {
 function applyRemoteState(data) {
   booths = (data.booths || []).filter(b => MAPS[b.mapId]).map(b => ({
     id: b.id || makeId(), mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
-    wFt: b.wFt || 10, hFt: b.hFt || getPkg(b.type).depthFt || 6, angle: b.angle || 0, name: b.name || ''
+    wFt: b.wFt || 10, hFt: b.hFt || getPkg(b.type).depthFt || 6, angle: b.angle || 0, name: b.name || '', spotName: b.spotName || ''
   }));
   labels = (data.labels || []).filter(l => MAPS[l.mapId]).map(l => ({
     id: l.id || makeId(), mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
@@ -1780,7 +1952,7 @@ function pushRemoteState(isSeed) {
       data: {
         booths: booths.map(b => ({
           id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
-          wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
+          wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || '', spotName: b.spotName || ''
         })),
         labels: labels.map(l => ({
           id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
@@ -1827,7 +1999,7 @@ async function saveVersion() {
       name: versionName,
       booths: booths.map(b => ({
         id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
-        wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || ''
+        wFt: b.wFt, hFt: b.hFt, angle: b.angle, name: b.name || '', spotName: b.spotName || ''
       })),
       labels: labels.map(l => ({
         id: l.id, mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
@@ -2979,6 +3151,7 @@ function switchTopView(view) {
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
   if (view === 'sponsors') renderSponsorView();
   if (view === 'dashboard') renderDashboard();
+  if (view === 'floorplan' && typeof renderSpotDirectory === 'function') renderSpotDirectory();
 }
 
 function parseMoneyNum(v) {
@@ -3139,6 +3312,7 @@ function subscribeSponsorRealtime() {
         if (idx >= 0) sponsors[idx] = updated; else sponsors.push(updated);
       }
       if (document.getElementById('nav-sponsors-btn').classList.contains('active')) renderSponsorView();
+      if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
     })
     .subscribe();
 }
@@ -3211,7 +3385,7 @@ function allBoothsForDropdown() {
   booths.forEach(b => {
     const mapLabel = MAPS[b.mapId] ? MAPS[b.mapId].label : b.mapId;
     const pkg = getPkg(b.type);
-    list.push({ id: b.id, label: mapLabel + ' — ' + pkg.label + (b.name ? ' (' + b.name + ')' : ' (unnamed)') });
+    list.push({ id: b.id, label: mapLabel + ' \u2014 ' + (b.spotName || pkg.label) + ' (' + pkg.label + ')' });
   });
   return list;
 }
@@ -3330,7 +3504,7 @@ function exportSponsorsCSV() {
 
   rows.forEach(s => {
     const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
-    const linkedBoothLabel = linkedBooth ? ((MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '') + ' - ' + getPkg(linkedBooth.type).label) : '';
+    const linkedBoothLabel = linkedBooth ? ((linkedBooth.spotName || '') + ' - ' + (MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '') + ' - ' + getPkg(linkedBooth.type).label) : '';
     const commsStr = (s.data.comms || []).map(c => c.ts + ': ' + c.note).join(' | ');
     const actionsStr = (s.data.actionItems || []).map(a => (a.done ? '[done] ' : '[open] ') + a.text + ' (' + (a.owner || '') + ')').join(' | ');
     const questionsStr = (s.data.questions || []).map(q => (q.resolved ? '[answered] ' : '[open] ') + q.text).join(' | ');
@@ -3448,7 +3622,7 @@ function renderSponsorRows() {
       <td>${sponsorAmountCell(s)}</td>
       <td>${dueCell}</td>
       <td><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${s.trackerStatus}</span></td>
-      <td>${linkedBooth ? '✓ ' + escapeHtml(MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '') : '—'}</td>
+      <td>${linkedBooth ? escapeHtml((linkedBooth.spotName || '') + ' \u2014 ' + (MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '')) : '\u2014'}</td>
     `;
     tr.addEventListener('click', () => toggleSponsorDetail(s.id));
     tbody.appendChild(tr);
@@ -3518,7 +3692,7 @@ function sponsorDetailHTML(s) {
 
           <div class="sp-subhead">Linked Booth</div>
           <div class="sp-field"><select onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
-          <div class="sp-linked-booth">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + getPkg(linkedBooth.type).label : 'No booth linked yet \u2014 place their booth on the floor plan, then link it here.'}</div>
+          <div class="sp-linked-booth">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + escapeHtml(linkedBooth.spotName || getPkg(linkedBooth.type).label) : 'No booth linked yet \u2014 place their booth on the floor plan, then link it here.'}</div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
@@ -3597,10 +3771,24 @@ function getSponsor(id) { return sponsors.find(s => s.id === id); }
 
 function updateSponsorSimple(id, field, value) {
   const s = getSponsor(id); if (!s) return;
+  const prevValue = s[field];
   s[field] = value;
   if (field === 'org' && value.trim()) {
     const dupe = sponsors.find(x => x.id !== id && x.org.trim().toLowerCase() === value.trim().toLowerCase());
     if (dupe) toast('Heads up: "' + value + '" looks like it may already be tracked (another record with the same name exists).');
+  }
+  if (field === 'trackerStatus') {
+    const wasInKind = /in-kind/i.test(prevValue || '');
+    const isInKind = /in-kind/i.test(value || '');
+    const hasDollarAmount = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) > 0;
+    if (isInKind && !wasInKind && hasDollarAmount) {
+      const shownAmount = s.data.money.committed || s.data.checkoutTier;
+      const clearIt = confirm('This sponsor still shows a base package amount of $' + Number(shownAmount).toLocaleString() + ' from before. Since they\'re now In-Kind, clear that dollar amount? (Any ad-hoc cash commitment, like a separate donation, is left untouched either way.)');
+      if (clearIt) {
+        s.data.money.committed = '';
+        s.data.checkoutTier = '';
+      }
+    }
   }
   pushSponsor(s);
   renderSponsorRows();
@@ -3621,14 +3809,11 @@ function updateSponsorNested(id, group, field, value) {
 function linkBoothToSponsor(sponsorId, boothId) {
   const s = getSponsor(sponsorId); if (!s) return;
   s.linkedBoothId = boothId || '';
-  const booth = booths.find(b => b.id === boothId);
-  if (booth && !booth.name) {
-    booth.name = s.org;
-    refreshView();
-    persist(); // saves booths/labels back to booth_layouts
-  }
+  // The booth's on-map label always shows its spot name (e.g. "Spot 4"), never the
+  // sponsor org -- that pairing lives in the Spot Directory next to the map instead.
   pushSponsor(s);
   renderSponsorRows();
+  if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
 }
 
 function addComm(id) {
@@ -3697,9 +3882,8 @@ function removeQuestion(id, i) {
 renderPackageSidebar();
 buildTabs();
 planImg.src = MAP_IMGS[currentMapId];
-renderAll();
+if (!isSupabaseConfigured()) { loadSponsorsFromDb().then(() => { renderAll(); }); } else { renderAll(); }
 applyZoom();
-if (!isSupabaseConfigured()) { loadSponsorsFromDb(); }
 initSupabase();
 </script>
 </body>
