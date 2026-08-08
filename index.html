@@ -393,7 +393,11 @@
     font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold);
     font-weight: 600; margin-bottom: 6px;
   }
-  #access-gate h1 { font-family: var(--font-display); font-size: 24px; font-weight: 700; margin: 0 0 8px; color: var(--teal-deep); }
+  #access-gate h1 { font-family: var(--font-display); font-size: 24px; font-weight: 700; margin: 0 0 2px; color: var(--teal-deep); }
+  #access-gate .gate-subname {
+    font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft);
+    font-weight: 600; margin-bottom: 14px;
+  }
   #access-gate p { font-size: 13px; color: var(--ink-soft); margin: 0 0 20px; line-height: 1.5; }
   #access-gate input {
     width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 9px;
@@ -569,12 +573,23 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .db-bar-fill { height: 100%; background: linear-gradient(90deg, var(--teal-deep), var(--teal)); border-radius: 14px 0 0 14px; transition: width .4s ease; }
 .db-bar-caption { font-size: 12.5px; color: var(--ink-soft); margin-top: 10px; }
 .db-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.db-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12.5px; }
+.db-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12.5px; padding: 3px 6px; border-radius: 6px; transition: background 0.12s; }
+.db-row:hover { background: var(--teal-pale); }
 .db-row-label { width: 150px; flex-shrink: 0; color: var(--ink-soft); }
 .db-row-bar-outer { flex: 1; height: 14px; background: var(--teal-pale); border-radius: 7px; overflow: hidden; }
 .db-row-bar-fill { height: 100%; border-radius: 7px 0 0 7px; transition: width 0.4s ease; }
 .db-row-value { width: 90px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
 @media (max-width: 760px) { .db-grid-2 { grid-template-columns: 1fr; } }
+
+.db-timeline-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+.db-goal-input { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); }
+.db-goal-input label { font-weight: 600; }
+.db-goal-input input {
+  width: 110px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px;
+}
+.db-goal-input input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-pale); }
+.db-timeline-caption { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
+.db-timeline-empty { font-size: 12.5px; color: var(--ink-soft); padding: 20px 0; text-align: center; }
 
 /* ==== Mobile ==== */
 @media (max-width: 760px) {
@@ -605,6 +620,70 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   }
 }
 
+/* ==== Dashboard Drill-Down Popup ==== */
+.dd-table { width: 100%; border-collapse: collapse; }
+.dd-table th {
+  text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft);
+  padding: 8px 10px; border-bottom: 2px solid var(--teal-pale); background: var(--teal-pale); font-weight: 700;
+}
+.dd-table td { padding: 9px 10px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.dd-table tr:last-child td { border-bottom: none; }
+.dd-org { font-weight: 700; }
+.dd-sub { font-size: 11px; color: var(--ink-soft); }
+.dd-empty { padding: 30px 10px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+.dd-count { font-size: 12px; color: var(--ink-soft); margin-bottom: 10px; }
+
+/* ==== Budget ==== */
+.bg-wrap { max-width: 1100px; margin: 0 auto; padding: 0 0 60px; }
+.bg-hero {
+  background: linear-gradient(135deg, var(--teal-deep) 0%, #1B333B 100%);
+  padding: 40px 32px 34px; margin-bottom: 24px; position: relative; overflow: hidden;
+}
+.bg-body { padding: 0 24px; }
+.bg-netbar {
+  display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 28px;
+}
+.bg-net-card {
+  flex: 1; min-width: 180px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px; border-top: 3px solid var(--gold);
+}
+.bg-net-card .bnc-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft); margin-bottom: 8px; font-weight: 700; }
+.bg-net-card .bnc-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--teal-deep); }
+.bg-net-card .bnc-sub { font-size: 11px; color: var(--ink-soft); margin-top: 4px; }
+.bg-section-title {
+  font-size: 15px; font-weight: 700; font-family: var(--font-display); color: var(--teal-deep);
+  margin: 8px 0 14px; padding-bottom: 6px; border-bottom: 2px solid var(--gold);
+}
+.bg-cat-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink);
+  margin: 22px 0 8px; padding-left: 10px; border-left: 3px solid var(--teal);
+}
+.bg-cat-note { font-size: 11.5px; color: var(--ink-soft); margin: -4px 0 10px 13px; }
+table.bg-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 6px; }
+table.bg-table th {
+  text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft);
+  padding: 8px 10px; background: var(--teal-pale); border-bottom: 2px solid var(--teal-pale); font-weight: 700;
+}
+table.bg-table td { padding: 7px 10px; font-size: 12.5px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.bg-table tr:last-child td { border-bottom: none; }
+table.bg-table tr.bg-subtotal td { font-weight: 700; background: var(--paper); border-top: 1px solid var(--line); }
+table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); color: var(--teal-deep); font-size: 13px; }
+.bg-input {
+  width: 100%; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px;
+  background: #fff; box-sizing: border-box;
+}
+.bg-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-pale); }
+.bg-input.bg-readonly { background: var(--teal-pale); border-color: transparent; color: var(--teal-deep); font-weight: 600; cursor: not-allowed; }
+.bg-input-label { width: 100%; }
+.bg-status-select { font-size: 11px; padding: 3px 5px; border-radius: 5px; border: 1px solid var(--line); }
+.bg-status-Last-Years-Actual { background: #E7E7E7; color: #444; }
+.bg-status-Quoted { background: #E1EFE4; color: #256B3F; }
+.bg-status-Estimated { background: var(--gold-pale); color: #8B5E13; }
+.bg-status-Rough-Guess { background: #F6E3DF; color: #9C3A2E; }
+.bg-live-note { font-size: 10.5px; color: var(--teal); font-weight: 600; }
+.bg-remove-btn { background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 14px; padding: 0 4px; }
+.bg-remove-btn:hover { color: #a52620; }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -616,6 +695,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   <div class="gate-card">
     <div class="gate-eyebrow">The Southern Baptist</div>
     <h1>SBCMC 2027</h1>
+    <div class="gate-subname">Church Music Conference</div>
     <p>This planner is shared with the conference team only. Enter the password to continue.</p>
     <input type="password" id="gate-password-input" placeholder="Password" autocomplete="off">
     <button onclick="checkGatePassword()">Enter</button>
@@ -679,9 +759,12 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 </script>
 <div class="top-nav">
   <span class="brand-mini">SBCMC 2027</span>
-  <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
-  <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker</button>
   <button class="top-nav-btn active" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
+  <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker</button>
+  <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
+  <!-- Budget tab disabled for now, per request -- code is intact below, just re-enable this button to bring it back
+  <button class="top-nav-btn" id="nav-budget-btn" onclick="switchTopView('budget')">Budget</button>
+  -->
 </div>
 <div id="sponsor-view">
   <div class="sp-wrap">
@@ -717,9 +800,9 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
       <div class="sp-topbar">
         <input class="sp-search" id="sp-search" placeholder="Search organization or contact…" oninput="setSponsorSearch(this.value)">
         <select class="sp-sort-select" id="sp-sort-select" onchange="setSponsorSortFromDropdown(this.value)">
-          <option value="">Sort by\u2026</option>
-          <option value="org-asc">Organization (A\u2013Z)</option>
-          <option value="org-desc">Organization (Z\u2013A)</option>
+          <option value="">Sort by…</option>
+          <option value="org-asc">Organization (A–Z)</option>
+          <option value="org-desc">Organization (Z–A)</option>
           <option value="amount-desc">Amount (high to low)</option>
           <option value="amount-asc">Amount (low to high)</option>
           <option value="due-asc">Payment due date (soonest)</option>
@@ -771,6 +854,17 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
         <div class="db-bar-caption" id="db-progress-caption"></div>
       </div>
 
+      <div class="db-section">
+        <div class="db-timeline-header">
+          <div class="db-section-title" style="margin-bottom:0;">Sponsorship Progress Over Time</div>
+          <div class="db-goal-input">
+            <label for="db-goal-input">Goal $</label>
+            <input type="number" id="db-goal-input" placeholder="e.g. 40000" oninput="setFundraisingGoal(this.value)">
+          </div>
+        </div>
+        <div id="db-timeline-chart"></div>
+      </div>
+
       <div class="db-grid-2">
         <div class="db-section">
           <div class="db-section-title">By Tracker Status</div>
@@ -779,6 +873,10 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
         <div class="db-section">
           <div class="db-section-title">Committed $ by Package Tier</div>
           <div id="db-package-breakdown"></div>
+        </div>
+        <div class="db-section">
+          <div class="db-section-title">New vs. Returning Sponsors</div>
+          <div id="db-newreturning-breakdown"></div>
         </div>
       </div>
     </div>
@@ -792,6 +890,41 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
       <button class="admin-close" onclick="closeSponsorshipGuide()">&times;</button>
     </div>
     <div class="admin-modal-body" id="sponsorship-guide-body"></div>
+  </div>
+</div>
+
+<div class="admin-overlay" id="dashboard-drill-overlay" style="display:none;" onclick="if(event.target===this) closeDashboardDrill()">
+  <div class="admin-modal" style="max-width:760px;">
+    <div class="admin-modal-header">
+      <span id="dashboard-drill-title">Sponsors</span>
+      <button class="admin-close" onclick="closeDashboardDrill()">&times;</button>
+    </div>
+    <div class="admin-modal-body" id="dashboard-drill-body"></div>
+  </div>
+</div>
+
+<div id="budget-view" style="display:none;">
+  <div class="bg-wrap">
+    <div class="bg-hero">
+      <svg class="db-staff-lines" viewBox="0 0 320 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="0" y1="40" x2="320" y2="20" stroke="white" stroke-width="1.5"/>
+        <line x1="0" y1="70" x2="320" y2="50" stroke="white" stroke-width="1.5"/>
+        <line x1="0" y1="100" x2="320" y2="80" stroke="white" stroke-width="1.5"/>
+        <line x1="0" y1="130" x2="320" y2="110" stroke="white" stroke-width="1.5"/>
+        <line x1="0" y1="160" x2="320" y2="140" stroke="white" stroke-width="1.5"/>
+      </svg>
+      <div class="db-header">
+        <h2>2027 Conference Budget</h2>
+        <p class="db-caveat">Exhibitor/Vendor "Actual" pulls live from the Sponsor Tracker automatically \u2014 no need to enter that twice. Everything else here is editable.</p>
+      </div>
+    </div>
+    <div class="bg-body">
+      <div class="bg-netbar" id="bg-netbar"></div>
+      <div class="bg-section-title">Income</div>
+      <div id="bg-income"></div>
+      <div class="bg-section-title">Expenses</div>
+      <div id="bg-expenses"></div>
+    </div>
   </div>
 </div>
 
@@ -1967,6 +2100,7 @@ async function initSupabase() {
     await loadCustomMapsFromDb();
     await loadSponsorsFromDb();
     renderDashboard();
+    // await loadBudgetFromDb(); // Budget tab disabled for now -- uncomment to re-enable
     rebuildMapRegistry();
     renderPackageSidebar();
     buildTabs();
@@ -2008,6 +2142,7 @@ async function initSupabase() {
         else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') updateSyncStatus('error');
       });
     subscribeSponsorRealtime();
+    // subscribeBudgetRealtime(); // Budget tab disabled for now -- uncomment to re-enable
   } catch (err) {
     console.error('Supabase init failed:', err);
     updateSyncStatus('error');
@@ -3306,17 +3441,22 @@ let sponsorSortDir = 1; // 1 asc, -1 desc
 let openSponsorId = null;
 let sbSponsorChannel = null;
 
-const DEFAULT_SPONSORS = [{"id": "sp_0", "org": "Southeastern Baptist Theological Seminary", "contactName": "Evan Lyon", "contactEmail": "elyon@sebts.edu", "contactPhone": "9197612384", "package": "SPACE", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "Paid", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "Paid", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_1", "org": "Southeastern Baptist Theological Seminary", "contactName": "Evan Lyon", "contactEmail": "elyon@sebts.edu", "contactPhone": "9197612384", "package": "C", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "Paid", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "Paid", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_2", "org": "Brentwood Benson", "contactName": "Emily Gibbs", "contactEmail": "emily.gibbs@brentwoodbenson.com", "contactPhone": "770-540-9856", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "Helping sponsor a breakout session with Russell Mauldin in the \"Worship Refuel\" track", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "2000", "adhocDescription": "Double exhibit space upgrade (Package A + $2,000)"}, "comms": [], "actionItems": []}}, {"id": "sp_3", "org": "True North Presents", "contactName": "Roy Hayes", "contactEmail": "royjhayes@truenorthpresents.com", "contactPhone": "6157751088", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_4", "org": "Worship Planner", "contactName": "Ken Boer", "contactEmail": "ken@worshipplanner.com", "contactPhone": "301-758-9106", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_5", "org": "The Southern Baptist Theological Seminary", "contactName": "James Patten", "contactEmail": "jpatten@sbts.edu", "contactPhone": "(502-897-4200", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_6", "org": "J.W. Pepper", "contactName": "Cynthia Revo", "contactEmail": "crevo@jwpepper.com", "contactPhone": "610-232-1887", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "Package A. Also donating bags again in exchange for booth space (confirm if bag donation is separate from the $2,500 already on file)", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": "Donating bags again in exchange for booth space (amount not specified)"}, "comms": [], "actionItems": []}}, {"id": "sp_7", "org": "Crossway", "contactName": "Liz Shuter", "contactEmail": "conferences@crossway.org", "contactPhone": "6306824300", "package": "SPACE", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_8", "org": "University of Mobile", "contactName": "Andrew Goodwin", "contactEmail": "agoodwin@umobile.edu", "contactPhone": "561-414-6471", "package": "B", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_9", "org": "Celebrating Grace", "contactName": "Elizabeth Laube", "contactEmail": "elizabeth.laube@celebrating-grace.com", "contactPhone": "254-878-4752", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_10", "org": "Semsen Music", "contactName": "Daniel Semsen", "contactEmail": "dsemsen@me.com", "contactPhone": "8183592270", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "Also donating $10k to sponsor \"Revive the Choir\" breakout track", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "10000", "adhocDescription": "Donating to sponsor \"Revive the Choir\" breakout track"}, "comms": [], "actionItems": []}}, {"id": "sp_11", "org": "William Carey University", "contactName": "Katie Rupert", "contactEmail": "krupert@wmcarey.edu", "contactPhone": "6013186175", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_12", "org": "Liberty University School of Music", "contactName": "Stephen Muller", "contactEmail": "som@liberty.edu", "contactPhone": "4345926568", "package": "B", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "Paid", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "Paid", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_13", "org": "Paragon 360", "contactName": "Ryan Cowen", "contactEmail": "rcowen@paragon360.com", "contactPhone": "4178237282", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_14", "org": "New Orleans Baptist Theological Seminary and Leavell College", "contactName": "Bradley Ducote", "contactEmail": "recruiter2@nobts.edu", "contactPhone": "5048168215", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_15", "org": "STS Institute - Scott Dawson Evangelistic Association", "contactName": "Michael Adler", "contactEmail": "madler56@gmail.com", "contactPhone": "2054107238", "package": "B", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_16", "org": "StowTown Worship Resource", "contactName": "Landon Beene", "contactEmail": "graced@imcconcerts.com", "contactPhone": "423-967-8668", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "2000", "adhocDescription": "Double exhibit space upgrade (Package A + $2,000)"}, "comms": [], "actionItems": []}}, {"id": "sp_17", "org": "California Baptist University", "contactName": "Travis Maclay", "contactEmail": "tmaclay@calbaptist.edu", "contactPhone": "5124109591", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "Processing", "checkoutTier": "2500", "specialNotes": "Package D. Also donating $20k for the Collegiate Collective (previous file showed Package A/$2,500 - please confirm which is current)", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "20000", "adhocDescription": "Donating to sponsor the Collegiate Collective"}, "comms": [], "actionItems": []}}, {"id": "sp_18", "org": "ForeverTruth Florida", "contactName": "Valissa Calhoun", "contactEmail": "valissa@forevertruth.com", "contactPhone": "4484883474", "package": "SPACE", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_19", "org": "Daystar Baptist Missions", "contactName": "Trey Bailey", "contactEmail": "t.bailey@dbmi.org", "contactPhone": "4239914211", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_20", "org": "North Greenville University", "contactName": "Andy Ray", "contactEmail": "andy.ray@ngu.edu", "contactPhone": "8645613420", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "Processing", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_21", "org": "Corzic Music", "contactName": "Ryan Massey", "contactEmail": "ryan.massey@corzic.com", "contactPhone": "8185172818", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "2000", "adhocDescription": "Double exhibit space upgrade (Package A + $2,000)"}, "comms": [], "actionItems": []}}, {"id": "sp_22", "org": "Frank Jones Ministries", "contactName": "Frank Jones", "contactEmail": "", "contactPhone": "", "package": "D", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_23", "org": "Sing the Bible Ministries", "contactName": "Randall Goodgame", "contactEmail": "randallgoodgame@mac.com", "contactPhone": "", "package": "D", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_24", "org": "Church Visuals", "contactName": "Carl Barnhill", "contactEmail": "carl@churchvisuals.com", "contactPhone": "", "package": "", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_25", "org": "Let the People Sing, Inc. (LTPS)", "contactName": "Scott Connell", "contactEmail": "scott.connell@firstbaptist.com", "contactPhone": "904.366.1247", "package": "", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Unresolved", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_26", "org": "Accountable2You", "contactName": "Alex Constantino", "contactEmail": "aconstantino@accountable2you.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "3 min", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_27", "org": "Baylor University School of Music", "contactName": "Chason Disheroon", "contactEmail": "chason_disheroon@baylor.edu", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_28", "org": "Building Your Band", "contactName": "David Loftis", "contactEmail": "david@loftiscoaching.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_29", "org": "Cedarville University/Worship 4:24", "contactName": "Roger O'Neel", "contactEmail": "oneelr@cedarville.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "1 min for Worship424 in a session", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_30", "org": "Church Trac", "contactName": "Byron Teddar", "contactEmail": "byron@churchtrac.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "2 min - emailed | 1 min", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_31", "org": "Dallas Baptist University", "contactName": "Wilson Petter", "contactEmail": "wpetter@dbu.edu", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_32", "org": "Danley Sounds Labs", "contactName": "Scott Howard", "contactEmail": "scott@danleysoundlabs.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_33", "org": "Daywind Worship", "contactName": "Jonathan Crumpton", "contactEmail": "jcrumpton0869@me.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_34", "org": "FBC First Counseling", "contactName": "Jess Weber", "contactEmail": "Jessicaw@fbcjax.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_35", "org": "FBC Weekend Workshop", "contactName": "Jess Weber", "contactEmail": "Jessicaw@fbcjax.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_36", "org": "Florida Baptist Convention", "contactName": "Tanner Cade", "contactEmail": "TCade@FLBAPTIST.ORG", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "1 min end of Sunday / Patrick Coats", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_37", "org": "Global Missions Project", "contactName": "Camp Kirkland", "contactEmail": "camp@globalmissionsproject.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_38", "org": "Gold City Quartet", "contactName": "Joel Stapleton", "contactEmail": "joel.goldcity@outlook.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_39", "org": "Kenny & Claire", "contactName": "Claire Hilliard", "contactEmail": "booking@kennyandclaire.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_40", "org": "Lifeway Worship", "contactName": "Kirk Kirland", "contactEmail": "Kirk.Kirkland@lifeway.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "7500", "specialNotes": "5 min / Sun PM", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "7500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_41", "org": "MBTS", "contactName": "Mallory McAllister", "contactEmail": "mmcallister@mbts.edu", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_42", "org": "Murdock Music", "contactName": "Curtis Murdock", "contactEmail": "sbcmc.exhibits@gmail.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_43", "org": "Oklahoma Baptist University", "contactName": "Steve Sims", "contactEmail": "stephen.sims@okbu.edu", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_44", "org": "One Eighty Digital", "contactName": "Cristy Bird", "contactEmail": "cristy@oneeighty.digital", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_45", "org": "Ouachita Baptist University", "contactName": "David Tatum", "contactEmail": "tatumd@obu.edu", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_46", "org": "Praise Charts", "contactName": "Natasha Fogg", "contactEmail": "natasha.fogg@praisecharts.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "10000", "specialNotes": "3min | 3 min | X", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "10000", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_47", "org": "Prism", "contactName": "Valerie Cameron", "contactEmail": "vcameron@prismmusic.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "10000", "specialNotes": "3 min | 3 airpods", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "10000", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_48", "org": "RF Venue", "contactName": "Catherine Lindquist", "contactEmail": "catherine@rfvenue.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_49", "org": "SBC Worship (Worship Initiative)", "contactName": "Andrew McKinney and Dave Keil", "contactEmail": "andrew@worshipinitiative.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "Graphic Preroll | no video /concert", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_50", "org": "SWBTS", "contactName": "Chuck Lewis", "contactEmail": "clewis@swbts.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_51", "org": "Samford University", "contactName": "Nelson Cowan", "contactEmail": "ncowan@samford.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_52", "org": "Scripture Songs", "contactName": "Jerry West", "contactEmail": "jerrywestmusic@gmail.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_53", "org": "Worship MD", "contactName": "Doug Gould", "contactEmail": "worshipmd@gmail.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_54", "org": "Worship Quest Ministries", "contactName": "Steven Brooks", "contactEmail": "steven@worshipquest.net", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_55", "org": "Centricity", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New prospective sponsor", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_56", "org": "Baptist Search Partners", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New prospective sponsor", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_57", "org": "Sweetwater", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New prospective sponsor", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}, {"id": "sp_58", "org": "P360.events", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New prospective sponsor - may help with production support", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": []}}];
+const DEFAULT_SPONSORS = [{"id": "sp_0", "org": "Southeastern Baptist Theological Seminary", "contactName": "Evan Lyon", "contactEmail": "elyon@sebts.edu", "contactPhone": "(919) 761-2384", "package": "SPACE", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "500", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": "", "paymentStatus": "Paid in Full"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-07-27"}}, {"id": "sp_1", "org": "Southeastern Baptist Theological Seminary", "contactName": "Evan Lyon", "contactEmail": "elyon@sebts.edu", "contactPhone": "(919) 761-2384", "package": "C", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "750", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": "", "paymentStatus": "Paid in Full"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-07-27"}}, {"id": "sp_2", "org": "Brentwood Benson", "contactName": "Emily Gibbs", "contactEmail": "emily.gibbs@brentwoodbenson.com", "contactPhone": "(770) 540-9856", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "Helping sponsor a breakout session with Russell Mauldin in the \"Worship Refuel\" track", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "2000", "adhocDescription": "Double exhibit space upgrade (Package A + $2,000)"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-29"}}, {"id": "sp_3", "org": "True North Presents", "contactName": "Roy Hayes", "contactEmail": "royjhayes@truenorthpresents.com", "contactPhone": "(615) 775-1088", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-29"}}, {"id": "sp_4", "org": "Worship Planner", "contactName": "Ken Boer", "contactEmail": "ken@worshipplanner.com", "contactPhone": "(301) 758-9106", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-29"}}, {"id": "sp_5", "org": "The Southern Baptist Theological Seminary", "contactName": "James Patten", "contactEmail": "jpatten@sbts.edu", "contactPhone": "(502) 897-4200", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-29"}}, {"id": "sp_6", "org": "J.W. Pepper", "contactName": "Cynthia Revo", "contactEmail": "crevo@jwpepper.com", "contactPhone": "(610) 232-1887", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "Package A. Also donating bags again in exchange for booth space (confirm if bag donation is separate from the $2,500 already on file)", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": "Donating bags again in exchange for booth space (amount not specified)"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-28"}}, {"id": "sp_7", "org": "Crossway", "contactName": "Liz Shuter", "contactEmail": "conferences@crossway.org", "contactPhone": "(630) 682-4300", "package": "SPACE", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-26"}}, {"id": "sp_8", "org": "University of Mobile", "contactName": "Andrew Goodwin", "contactEmail": "agoodwin@umobile.edu", "contactPhone": "(561) 414-6471", "package": "B", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-22"}}, {"id": "sp_9", "org": "Celebrating Grace", "contactName": "Elizabeth Laube", "contactEmail": "elizabeth.laube@celebrating-grace.com", "contactPhone": "(254) 878-4752", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-22"}}, {"id": "sp_10", "org": "Semsen Music", "contactName": "Daniel Semsen", "contactEmail": "dsemsen@me.com", "contactPhone": "(818) 359-2270", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "Also donating $10k to sponsor \"Revive the Choir\" breakout track", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "10000", "adhocDescription": "Donating to sponsor \"Revive the Choir\" breakout track"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-21"}}, {"id": "sp_11", "org": "William Carey University", "contactName": "Katie Rupert", "contactEmail": "krupert@wmcarey.edu", "contactPhone": "(601) 318-6175", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-20"}}, {"id": "sp_12", "org": "Liberty University School of Music", "contactName": "Stephen Muller", "contactEmail": "som@liberty.edu", "contactPhone": "(434) 592-6568", "package": "B", "trackerStatus": "Registered - Paid", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "1500", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": "", "paymentStatus": "Paid in Full"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-13"}}, {"id": "sp_13", "org": "Paragon 360", "contactName": "Ryan Cowen", "contactEmail": "rcowen@paragon360.com", "contactPhone": "(417) 823-7282", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-08"}}, {"id": "sp_14", "org": "New Orleans Baptist Theological Seminary and Leavell College", "contactName": "Bradley Ducote", "contactEmail": "recruiter2@nobts.edu", "contactPhone": "(504) 816-8215", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-07"}}, {"id": "sp_15", "org": "STS Institute - Scott Dawson Evangelistic Association", "contactName": "Michael Adler", "contactEmail": "madler56@gmail.com", "contactPhone": "(205) 410-7238", "package": "B", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": false, "registeredDate": "2026-05-06"}}, {"id": "sp_16", "org": "StowTown Worship Resource", "contactName": "Landon Beene", "contactEmail": "graced@imcconcerts.com", "contactPhone": "(423) 967-8668", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "2000", "adhocDescription": "Double exhibit space upgrade (Package A + $2,000)"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-06"}}, {"id": "sp_17", "org": "California Baptist University", "contactName": "Travis Maclay", "contactEmail": "tmaclay@calbaptist.edu", "contactPhone": "(512) 410-9591", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "Also donating $20k for the Collegiate Collective", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "20000", "adhocDescription": "Donating to sponsor the Collegiate Collective", "paymentStatus": "Not Paid"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-06"}}, {"id": "sp_18", "org": "ForeverTruth Florida", "contactName": "Valissa Calhoun", "contactEmail": "valissa@forevertruth.com", "contactPhone": "(448) 488-3474", "package": "SPACE", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-06"}}, {"id": "sp_19", "org": "Daystar Baptist Missions", "contactName": "Trey Bailey", "contactEmail": "t.bailey@dbmi.org", "contactPhone": "(423) 991-4211", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-05-06"}}, {"id": "sp_20", "org": "North Greenville University", "contactName": "Andy Ray", "contactEmail": "andy.ray@ngu.edu", "contactPhone": "(864) 561-3420", "package": "C", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": "", "paymentStatus": "Not Paid"}, "comms": [], "actionItems": [], "returning": false, "registeredDate": "2026-05-04"}}, {"id": "sp_21", "org": "Corzic Music", "contactName": "Ryan Massey", "contactEmail": "ryan.massey@corzic.com", "contactPhone": "(818) 517-2818", "package": "A", "trackerStatus": "Registered - Pending Payment", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "2000", "adhocDescription": "Double exhibit space upgrade (Package A + $2,000)"}, "comms": [], "actionItems": [], "returning": true, "registeredDate": "2026-04-30"}}, {"id": "sp_22", "org": "Frank Jones Ministries", "contactName": "Frank Jones", "contactEmail": "", "contactPhone": "", "package": "D", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": false, "registeredDate": ""}}, {"id": "sp_23", "org": "Sing the Bible Ministries", "contactName": "Randall Goodgame", "contactEmail": "randallgoodgame@mac.com", "contactPhone": "", "package": "D", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": false, "registeredDate": ""}}, {"id": "sp_24", "org": "Church Visuals", "contactName": "Carl Barnhill", "contactEmail": "carl@churchvisuals.com", "contactPhone": "", "package": "", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Comp - confirmed", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": true, "registeredDate": ""}}, {"id": "sp_25", "org": "Let the People Sing, Inc. (LTPS)", "contactName": "Scott Connell", "contactEmail": "scott.connell@firstbaptist.com", "contactPhone": "(904) 366-1247", "package": "", "trackerStatus": "In-Kind - Not Registered", "linkedBoothId": "", "data": {"amountStatus": "Unresolved", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": false, "registeredDate": ""}}, {"id": "sp_26", "org": "Accountable2You", "contactName": "Alex Constantino", "contactEmail": "aconstantino@accountable2you.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "3 min", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_27", "org": "Baylor University School of Music", "contactName": "Chason Disheroon", "contactEmail": "chason_disheroon@baylor.edu", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_28", "org": "Building Your Band", "contactName": "David Loftis", "contactEmail": "david@loftiscoaching.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_29", "org": "Cedarville University/Worship 4:24", "contactName": "Roger O'Neel", "contactEmail": "oneelr@cedarville.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "1 min for Worship424 in a session", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_30", "org": "Church Trac", "contactName": "Byron Teddar", "contactEmail": "byron@churchtrac.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "2 min - emailed | 1 min", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_31", "org": "Dallas Baptist University", "contactName": "Wilson Petter", "contactEmail": "wpetter@dbu.edu", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_32", "org": "Danley Sounds Labs", "contactName": "Scott Howard", "contactEmail": "scott@danleysoundlabs.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_33", "org": "Daywind Worship", "contactName": "Jonathan Crumpton", "contactEmail": "jcrumpton0869@me.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "1500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "1500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_34", "org": "FBC First Counseling", "contactName": "Jess Weber", "contactEmail": "jessicaw@fbcjax.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_35", "org": "FBC Weekend Workshop", "contactName": "Jess Weber", "contactEmail": "jessicaw@fbcjax.com", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_36", "org": "Florida Baptist Convention", "contactName": "Tanner Cade", "contactEmail": "tcade@flbaptist.org", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "4500", "specialNotes": "1 min end of Sunday / Patrick Coats", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "4500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_37", "org": "Global Missions Project", "contactName": "Camp Kirkland", "contactEmail": "camp@globalmissionsproject.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_38", "org": "Gold City Quartet", "contactName": "Joel Stapleton", "contactEmail": "joel.goldcity@outlook.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_39", "org": "Kenny & Claire", "contactName": "Claire Hilliard", "contactEmail": "booking@kennyandclaire.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_40", "org": "Lifeway Worship", "contactName": "Kirk Kirland", "contactEmail": "kirk.kirkland@lifeway.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "7500", "specialNotes": "5 min / Sun PM", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "7500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_41", "org": "MBTS", "contactName": "Mallory McAllister", "contactEmail": "mmcallister@mbts.edu", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_42", "org": "Murdock Music", "contactName": "Curtis Murdock", "contactEmail": "sbcmc.exhibits@gmail.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_43", "org": "Oklahoma Baptist University", "contactName": "Steve Sims", "contactEmail": "stephen.sims@okbu.edu", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_44", "org": "One Eighty Digital", "contactName": "Cristy Bird", "contactEmail": "cristy@oneeighty.digital", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_45", "org": "Ouachita Baptist University", "contactName": "David Tatum", "contactEmail": "tatumd@obu.edu", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_46", "org": "Praise Charts", "contactName": "Natasha Fogg", "contactEmail": "natasha.fogg@praisecharts.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "10000", "specialNotes": "3min | 3 min | X", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "10000", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_47", "org": "Prism", "contactName": "Valerie Cameron", "contactEmail": "vcameron@prismmusic.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "10000", "specialNotes": "3 min | 3 airpods", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "10000", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_48", "org": "RF Venue", "contactName": "Catherine Lindquist", "contactEmail": "catherine@rfvenue.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_49", "org": "SBC Worship (Worship Initiative)", "contactName": "Andrew McKinney and Dave Keil", "contactEmail": "andrew@worshipinitiative.com", "contactPhone": "", "package": "A", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "Graphic Preroll | no video /concert", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_50", "org": "SWBTS", "contactName": "Chuck Lewis", "contactEmail": "clewis@swbts.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "2500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "2500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_51", "org": "Samford University", "contactName": "Nelson Cowan", "contactEmail": "ncowan@samford.edu", "contactPhone": "", "package": "B", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_52", "org": "Scripture Songs", "contactName": "Jerry West", "contactEmail": "jerrywestmusic@gmail.com", "contactPhone": "", "package": "", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "500", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "500", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_53", "org": "Worship MD", "contactName": "Doug Gould", "contactEmail": "worshipmd@gmail.com", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_54", "org": "Worship Quest Ministries", "contactName": "Steven Brooks", "contactEmail": "steven@worshipquest.net", "contactPhone": "", "package": "D", "trackerStatus": "Not Yet Registered (Prior Sponsor)", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "750", "specialNotes": "", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "750", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_55", "org": "Centricity", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_56", "org": "Baptist Search Partners", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_57", "org": "Sweetwater", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}, {"id": "sp_58", "org": "P360.events", "contactName": "", "contactEmail": "", "contactPhone": "", "package": "", "trackerStatus": "Prospective Sponsor", "linkedBoothId": "", "data": {"amountStatus": "", "checkoutTier": "", "specialNotes": "New recruit target - may help with production support", "program": {"type": "", "track": "", "timeSlot": "", "lengthMin": "", "fulfilled": false}, "logistics": {"power": false, "av": false, "loadInTime": "", "badgeCount": "", "shipping": ""}, "money": {"committed": "", "paid": "", "invoiceSent": false, "dueDate": "", "adhocAmount": "", "adhocDescription": ""}, "comms": [], "actionItems": [], "returning": null, "registeredDate": ""}}];
 
 function switchTopView(view) {
   document.querySelector('.app').style.display = view === 'floorplan' ? 'flex' : 'none';
   document.getElementById('sponsor-view').style.display = view === 'sponsors' ? 'block' : 'none';
   document.getElementById('dashboard-view').style.display = view === 'dashboard' ? 'block' : 'none';
+  const budgetViewEl = document.getElementById('budget-view');
+  if (budgetViewEl) budgetViewEl.style.display = view === 'budget' ? 'block' : 'none';
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
   document.getElementById('nav-sponsors-btn').classList.toggle('active', view === 'sponsors');
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
+  const budgetBtnEl = document.getElementById('nav-budget-btn');
+  if (budgetBtnEl) budgetBtnEl.classList.toggle('active', view === 'budget');
   if (view === 'sponsors') renderSponsorView();
   if (view === 'dashboard') renderDashboard();
+  if (view === 'budget' && typeof renderBudget === 'function' && budgetViewEl) renderBudget();
   if (view === 'floorplan') {
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
     // The map only just became visible (was display:none), so its container had zero
@@ -3349,6 +3489,56 @@ const DASH_STATUS_COLORS = {
 };
 function dashStatusColor(status) {
   return DASH_STATUS_COLORS[status] || '#6b7280';
+}
+
+function sponsorsForDashboardKey(key) {
+  if (key === 'all') return sponsors.slice();
+  if (key === 'cash') return sponsors.filter(s => /^registered/i.test(s.trackerStatus));
+  if (key === 'collected') return sponsors.filter(s => /^registered/i.test(s.trackerStatus) && isSponsorMarkedPaid(s));
+  if (key === 'outstanding') return sponsors.filter(s => /^registered/i.test(s.trackerStatus) && !isSponsorMarkedPaid(s));
+  if (key === 'inkind') return sponsors.filter(s => /in-kind/i.test(s.trackerStatus));
+  if (key === 'prospective') return sponsors.filter(s => s.trackerStatus === 'Prospective Sponsor' || s.trackerStatus === 'Not Yet Registered (Prior Sponsor)');
+  if (key.startsWith('status:')) { const st = key.slice(7); return sponsors.filter(s => s.trackerStatus === st); }
+  if (key.startsWith('pkg:')) { const pk = key.slice(4); return sponsors.filter(s => s.package === pk); }
+  if (key === 'returning') return sponsors.filter(s => s.data.returning === true);
+  if (key === 'new') return sponsors.filter(s => s.data.returning === false);
+  return [];
+}
+
+function openDashboardDrill(key, title) {
+  const list = sponsorsForDashboardKey(key);
+  document.getElementById('dashboard-drill-title').textContent = title;
+  const body = document.getElementById('dashboard-drill-body');
+
+  if (list.length === 0) {
+    body.innerHTML = '<div class="dd-empty">Nothing here yet.</div>';
+    document.getElementById('dashboard-drill-overlay').style.display = 'flex';
+    return;
+  }
+
+  const rows = list.slice().sort((a, b) => a.org.localeCompare(b.org)).map(s => {
+    const pkg = s.package ? getPkg(s.package) : null;
+    return `<tr>
+      <td><div class="dd-org">${escapeHtml(s.org)}</div>${s.data.specialNotes ? `<div class="dd-sub">${escapeHtml(s.data.specialNotes)}</div>` : ''}</td>
+      <td>${escapeHtml(s.contactName) || '\u2014'}${s.contactEmail ? `<div class="dd-sub">${escapeHtml(s.contactEmail)}</div>` : ''}</td>
+      <td>${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '\u2014'}</td>
+      <td>${sponsorAmountCell(s)}</td>
+      <td><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${escapeHtml(s.trackerStatus)}</span></td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="dd-count">${list.length} sponsor${list.length === 1 ? '' : 's'}</div>
+    <table class="dd-table">
+      <thead><tr><th>Organization</th><th>Contact</th><th>Package</th><th>Amount / Status</th><th>Tracker Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  document.getElementById('dashboard-drill-overlay').style.display = 'flex';
+}
+
+function closeDashboardDrill() {
+  document.getElementById('dashboard-drill-overlay').style.display = 'none';
 }
 
 function renderDashboard() {
@@ -3387,8 +3577,8 @@ function renderDashboard() {
   const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
   const ICON_GIFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>';
   const ICON_TARGET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>';
-  function dbCard(icon, iconColor, label, value, sub, valueColor) {
-    return `<div class="db-card">
+  function dbCard(icon, iconColor, label, value, sub, valueColor, drillKey, drillTitle) {
+    return `<div class="db-card" onclick="openDashboardDrill('${drillKey}', '${escapeHtml(drillTitle)}')" style="cursor:pointer;">
       <div style="width:30px; height:30px; border-radius:8px; background:${iconColor}18; color:${iconColor}; display:flex; align-items:center; justify-content:center; margin-bottom:10px;"><span style="width:16px; height:16px; display:block;">${icon}</span></div>
       <div class="db-card-label">${label}</div>
       <div class="db-card-value" ${valueColor ? `style="color:${valueColor};"` : ''}>${value}</div>
@@ -3396,12 +3586,12 @@ function renderDashboard() {
     </div>`;
   }
   cardsEl.innerHTML =
-    dbCard(ICON_USERS, '#5C879C', 'Total Tracked', sponsors.length, 'across all statuses') +
-    dbCard(ICON_DOLLAR, '#A17A26', 'Cash Committed', fmt(totalCommitted), cashSponsors.length + ' cash sponsor' + (cashSponsors.length === 1 ? '' : 's')) +
-    dbCard(ICON_CHECK, '#2E8B57', 'Collected', fmt(totalCollected), 'marked as Paid', '#2E8B57') +
-    dbCard(ICON_CLOCK, '#a52620', 'Outstanding', fmt(totalOutstanding), 'committed, not yet collected', '#a52620') +
-    dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades') +
-    dbCard(ICON_TARGET, '#57676B', 'Prospective Value', fmt(prospectivePotential), prospectiveSponsors.length + ' not-yet-registered, based on last known package');
+    dbCard(ICON_USERS, '#5C879C', 'Total Tracked', sponsors.length, 'across all statuses', null, 'all', 'All Sponsors') +
+    dbCard(ICON_DOLLAR, '#A17A26', 'Cash Committed', fmt(totalCommitted), cashSponsors.length + ' cash sponsor' + (cashSponsors.length === 1 ? '' : 's'), null, 'cash', 'Cash Committed Sponsors') +
+    dbCard(ICON_CHECK, '#2E8B57', 'Collected', fmt(totalCollected), 'marked as Paid', '#2E8B57', 'collected', 'Collected (Paid in Full)') +
+    dbCard(ICON_CLOCK, '#a52620', 'Outstanding', fmt(totalOutstanding), 'committed, not yet collected', '#a52620', 'outstanding', 'Outstanding Payments') +
+    dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades', null, 'inkind', 'In-Kind Sponsors') +
+    dbCard(ICON_TARGET, '#57676B', 'Prospective Value', fmt(prospectivePotential), prospectiveSponsors.length + ' not-yet-registered, based on last known package', null, 'prospective', 'Prospective Sponsors');
 
   // Progress bar
   const pct = totalCommitted > 0 ? Math.min(100, (totalCollected / totalCommitted) * 100) : 0;
@@ -3417,7 +3607,7 @@ function renderDashboard() {
   statusEl.innerHTML = Object.entries(statusCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([status, count]) => `
-      <div class="db-row">
+      <div class="db-row" onclick="openDashboardDrill('status:${escapeHtml(status)}', '${escapeHtml(status)}')" style="cursor:pointer;">
         <div class="db-row-label">${escapeHtml(status)}</div>
         <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(count / maxStatusCount) * 100}%; background:${dashStatusColor(status)};"></div></div>
         <div class="db-row-value">${count}</div>
@@ -3437,20 +3627,242 @@ function renderDashboard() {
   pkgEl.innerHTML = pkgEntries.length ? pkgEntries.map(([key, amt]) => {
     const pkg = getPkg(key);
     return `
-      <div class="db-row">
+      <div class="db-row" onclick="openDashboardDrill('pkg:${escapeHtml(key)}', '${escapeHtml(pkg.label)} Sponsors')" style="cursor:pointer;">
         <div class="db-row-label">${escapeHtml(pkg.label)}</div>
         <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(amt / maxPkgTotal) * 100}%; background:${pkg.color};"></div></div>
         <div class="db-row-value">${fmt(amt)}</div>
       </div>
     `;
   }).join('') : '<div class="db-caveat">No sponsors have a package assigned yet.</div>';
+
+  renderNewReturningBreakdown();
+  renderTimelineChart();
+}
+
+const FUNDRAISING_GOAL_KEY = 'sbcmcFundraisingGoal';
+function getFundraisingGoal() {
+  try { const v = localStorage.getItem(FUNDRAISING_GOAL_KEY); return v ? Number(v) : null; }
+  catch (e) { return null; }
+}
+function setFundraisingGoal(val) {
+  try {
+    if (!val) { localStorage.removeItem(FUNDRAISING_GOAL_KEY); }
+    else { localStorage.setItem(FUNDRAISING_GOAL_KEY, val); }
+  } catch (e) { /* private browsing, etc -- goal just won't persist */ }
+  renderTimelineChart();
+}
+
+function renderNewReturningBreakdown() {
+  const el = document.getElementById('db-newreturning-breakdown');
+  if (!el) return;
+  const active = sponsors.filter(s => s.data.returning === true || s.data.returning === false);
+  const returningCount = active.filter(s => s.data.returning === true).length;
+  const newCount = active.filter(s => s.data.returning === false).length;
+  const max = Math.max(1, returningCount, newCount);
+  if (active.length === 0) {
+    el.innerHTML = '<div class="db-caveat">No active sponsors marked returning/new yet.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="db-row" onclick="openDashboardDrill('returning', 'Returning Sponsors')" style="cursor:pointer;">
+      <div class="db-row-label">Returning (sponsored last year)</div>
+      <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(returningCount / max) * 100}%; background:#2E8B57;"></div></div>
+      <div class="db-row-value">${returningCount}</div>
+    </div>
+    <div class="db-row" onclick="openDashboardDrill('new', 'New Sponsors')" style="cursor:pointer;">
+      <div class="db-row-label">New (first time this year)</div>
+      <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(newCount / max) * 100}%; background:#A17A26;"></div></div>
+      <div class="db-row-value">${newCount}</div>
+    </div>
+  `;
+}
+
+function renderTimelineChart() {
+  const container = document.getElementById('db-timeline-chart');
+  if (!container) return;
+  const goalInput = document.getElementById('db-goal-input');
+  const goal = getFundraisingGoal();
+  if (goalInput && document.activeElement !== goalInput) goalInput.value = goal || '';
+
+  // Only cash (Registered) sponsors with a real registration date go into this timeline --
+  // in-kind, lapsed, and prospective records don't have a genuine registration date to plot.
+  const dated = sponsors.filter(s => /^registered/i.test(s.trackerStatus) && s.data.registeredDate);
+  if (dated.length === 0) {
+    container.innerHTML = '<div class="db-timeline-empty">No dated registrations yet to chart. This fills in automatically as sponsors register through the checkout form.</div>';
+    return;
+  }
+
+  // Group same-day amounts, then build a cumulative series sorted by date.
+  const byDate = {};
+  dated.forEach(s => {
+    const amt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + parseMoneyNum(s.data.money.adhocAmount);
+    byDate[s.data.registeredDate] = (byDate[s.data.registeredDate] || 0) + amt;
+  });
+  const sortedDates = Object.keys(byDate).sort();
+  let running = 0;
+  const points = sortedDates.map(d => { running += byDate[d]; return { date: d, cum: running }; });
+  // Extend a flat line to today so the chart reads as "where things stand right now."
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (todayStr > points[points.length - 1].date) points.push({ date: todayStr, cum: running });
+
+  const totalCum = points[points.length - 1].cum;
+  const yMax = Math.max(totalCum, goal || 0) * 1.15 || 100;
+
+  const W = 680, H = 220, padL = 60, padR = 20, padT = 16, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const t0 = new Date(points[0].date).getTime();
+  const t1 = new Date(points[points.length - 1].date).getTime();
+  const xFor = t => t1 === t0 ? padL : padL + ((new Date(t).getTime() - t0) / (t1 - t0)) * plotW;
+  const yFor = v => padT + plotH - (v / yMax) * plotH;
+
+  const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + xFor(p.date).toFixed(1) + ',' + yFor(p.cum).toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${xFor(points[points.length - 1].date).toFixed(1)},${(padT + plotH).toFixed(1)} L${xFor(points[0].date).toFixed(1)},${(padT + plotH).toFixed(1)} Z`;
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const y = padT + plotH - f * plotH;
+    const val = yMax * f;
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--line)" stroke-width="1"/>
+            <text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="var(--ink-soft)">$${Math.round(val).toLocaleString()}</text>`;
+  }).join('');
+
+  const dateLabel = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const xLabels = `
+    <text x="${xFor(points[0].date)}" y="${H - 10}" text-anchor="start" font-size="10" fill="var(--ink-soft)">${dateLabel(points[0].date)}</text>
+    <text x="${xFor(points[points.length - 1].date)}" y="${H - 10}" text-anchor="end" font-size="10" fill="var(--ink-soft)">${dateLabel(points[points.length - 1].date)}</text>
+  `;
+
+  const goalLine = goal ? `
+    <line x1="${padL}" y1="${yFor(goal)}" x2="${W - padR}" y2="${yFor(goal)}" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <text x="${W - padR}" y="${yFor(goal) - 6}" text-anchor="end" font-size="10.5" fill="var(--gold)" font-weight="700">Goal: $${goal.toLocaleString()}</text>
+  ` : '';
+
+  const dots = points.map(p => `<circle cx="${xFor(p.date)}" cy="${yFor(p.cum)}" r="3" fill="var(--teal-deep)"/>`).join('');
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; max-height:260px;">
+      <defs>
+        <linearGradient id="db-area-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--teal)" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="var(--teal)" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      ${goalLine}
+      <path d="${areaPath}" fill="url(#db-area-fill)"/>
+      <path d="${linePath}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>
+      ${dots}
+      ${xLabels}
+    </svg>
+  `;
+
+  const caption = goal
+    ? `$${Math.round(totalCum).toLocaleString()} committed of your $${goal.toLocaleString()} goal \u2014 $${Math.max(0, Math.round(goal - totalCum)).toLocaleString()} still needed (${Math.min(100, Math.round((totalCum / goal) * 100))}%)`
+    : `$${Math.round(totalCum).toLocaleString()} committed as of today, based on ${dated.length} dated registration${dated.length === 1 ? '' : 's'}. Set a goal above to track what's still needed.`;
+  const captionEl = document.createElement('div');
+  captionEl.className = 'db-timeline-caption';
+  captionEl.textContent = caption;
+  container.appendChild(captionEl);
+}
+
+// Known facts from the original checkout export, used only to backfill "returning" /
+// "registeredDate" on live records that were created before those fields existed.
+// This never overwrites a value someone has already set by hand -- only fills in blanks.
+const KNOWN_RETURNING_ORGS = new Set([
+  'Brentwood Benson', 'California Baptist University', 'Celebrating Grace',
+  'Church Visuals', 'Corzic Music', 'Crossway', 'Daystar Baptist Missions',
+  'ForeverTruth Florida', 'J.W. Pepper', 'Liberty University School of Music',
+  'New Orleans Baptist Theological Seminary and Leavell College', 'Paragon 360',
+  'Semsen Music', 'The Southern Baptist Theological Seminary', 'StowTown Worship Resource',
+  'True North Presents', 'University of Mobile', 'William Carey University',
+  'Worship Planner', 'Southeastern Baptist Theological Seminary'
+]);
+const KNOWN_NEW_ORGS = new Set([
+  'STS Institute - Scott Dawson Evangelistic Association', 'North Greenville University',
+  'Frank Jones Ministries', 'Sing the Bible Ministries', 'Let the People Sing, Inc. (LTPS)'
+]);
+const KNOWN_REG_DATES = {
+  'Brentwood Benson': '2026-05-29', 'California Baptist University': '2026-05-06',
+  'Celebrating Grace': '2026-05-22', 'Corzic Music': '2026-04-30', 'Crossway': '2026-05-26',
+  'Daystar Baptist Missions': '2026-05-06', 'ForeverTruth Florida': '2026-05-06',
+  'J.W. Pepper': '2026-05-28', 'Liberty University School of Music': '2026-05-13',
+  'New Orleans Baptist Theological Seminary and Leavell College': '2026-05-07',
+  'North Greenville University': '2026-05-04', 'Paragon 360': '2026-05-08',
+  'STS Institute - Scott Dawson Evangelistic Association': '2026-05-06',
+  'Semsen Music': '2026-05-21', 'Southeastern Baptist Theological Seminary': '2026-07-27',
+  'StowTown Worship Resource': '2026-05-06', 'The Southern Baptist Theological Seminary': '2026-05-29',
+  'True North Presents': '2026-05-29', 'University of Mobile': '2026-05-22',
+  'William Carey University': '2026-05-20', 'Worship Planner': '2026-05-29'
+};
+
+function formatPhoneUS(phone) {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6,10)}`;
+  return phone; // leave anything unusual untouched rather than guess
+}
+
+async function normalizeContactFormatting() {
+  let patchedAny = false;
+  sponsors.forEach(s => {
+    let changed = false;
+    // Migrate the old "Recruit Target" status label to its replacement, "Prospective Sponsor" --
+    // some live records still carry the pre-rename value.
+    if (s.trackerStatus === 'Recruit Target') { s.trackerStatus = 'Prospective Sponsor'; changed = true; }
+    // Migrate the legacy free-text amountStatus into the real Payment Status dropdown, which
+    // was added after these records already existed and never got backfilled.
+    if (!s.data.money.paymentStatus && s.data.amountStatus === 'Paid') {
+      s.data.money.paymentStatus = 'Paid in Full';
+      s.data.money.paid = s.data.money.committed || s.data.money.paid; // fix "Paid" sitting in a $-amount field
+      s.data.amountStatus = '';
+      changed = true;
+    } else if (!s.data.money.paymentStatus && s.data.amountStatus === 'Processing') {
+      s.data.money.paymentStatus = 'Not Paid'; // conservative: "processing" isn't confirmed complete
+      s.data.amountStatus = '';
+      changed = true;
+    }
+    if (s.contactPhone) {
+      const formatted = formatPhoneUS(s.contactPhone);
+      if (formatted !== s.contactPhone) { s.contactPhone = formatted; changed = true; }
+    }
+    if (s.contactEmail) {
+      const normalized = s.contactEmail.trim().toLowerCase();
+      if (normalized !== s.contactEmail) { s.contactEmail = normalized; changed = true; }
+    }
+    // One-off content fix: an earlier note on CBU's record still said "Package D" after the
+    // package field itself was corrected to "A" -- clean it up only if that stale text is
+    // still there verbatim, so a manual edit since then is never overwritten.
+    if (s.org === 'California Baptist University' && s.data.specialNotes && s.data.specialNotes.startsWith('Package D. Also donating $20k')) {
+      s.data.specialNotes = 'Also donating $20k for the Collegiate Collective';
+      changed = true;
+    }
+    if (changed) { patchedAny = true; pushSponsor(s); }
+  });
+  return patchedAny;
+}
+
+async function backfillReturningAndDates() {
+  const isActive = s => /^registered/i.test(s.trackerStatus) || /in-kind/i.test(s.trackerStatus);
+  let patchedAny = false;
+  sponsors.forEach(s => {
+    if (!isActive(s)) return;
+    let changed = false;
+    if (s.data.returning === null || s.data.returning === undefined) {
+      if (KNOWN_RETURNING_ORGS.has(s.org)) { s.data.returning = true; changed = true; }
+      else if (KNOWN_NEW_ORGS.has(s.org)) { s.data.returning = false; changed = true; }
+    }
+    if (!s.data.registeredDate && KNOWN_REG_DATES[s.org]) {
+      s.data.registeredDate = KNOWN_REG_DATES[s.org];
+      changed = true;
+    }
+    if (changed) { patchedAny = true; pushSponsor(s); }
+  });
+  return patchedAny;
 }
 
 async function loadSponsorsFromDb() {
-  if (!sbClient) { sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); return; }
+  if (!sbClient) { sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); await backfillReturningAndDates(); await normalizeContactFormatting(); return; }
   try {
     const { data, error } = await sbClient.from(SPONSORS_TABLE).select('*').order('sort_order', { ascending: true });
-    if (error) { console.warn('Sponsors table not available, using local defaults:', error.message); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); return; }
+    if (error) { console.warn('Sponsors table not available, using local defaults:', error.message); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); await backfillReturningAndDates(); await normalizeContactFormatting(); return; }
     if (!data || data.length === 0) {
       const seed = DEFAULT_SPONSORS.map((s, i) => ({
         id: s.id, org: s.org, contact_name: s.contactName, contact_email: s.contactEmail,
@@ -3463,9 +3875,13 @@ async function loadSponsorsFromDb() {
       return;
     }
     sponsors = data.map(rowToSponsor);
+    await backfillReturningAndDates(); // fills in gaps on records created before these fields existed
+    await normalizeContactFormatting(); // standardizes phone/email formatting on load
   } catch (err) {
     console.warn('Sponsors load failed, using local defaults:', err);
     sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } }));
+    await backfillReturningAndDates();
+    await normalizeContactFormatting();
   }
 }
 
@@ -3479,7 +3895,7 @@ function rowToSponsor(row) {
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
-      comms: [], actionItems: [], questions: [], flagged: false
+      comms: [], actionItems: [], questions: [], flagged: false, returning: null, registeredDate: ''
     }, row.data || {})
   };
 }
@@ -3529,7 +3945,7 @@ function addSponsor() {
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
-      comms: [], actionItems: [], questions: [], flagged: false
+      comms: [], actionItems: [], questions: [], flagged: false, returning: null, registeredDate: ''
     }
   };
   sponsors.push(s);
@@ -3916,6 +4332,8 @@ function sponsorDetailHTML(s) {
           <div class="sp-subhead">Package &amp; Status</div>
           <div class="sp-field"><label>Package (floor plan tier)</label><select onchange="updateSponsorPackage('${s.id}',this.value)"><option value="">\u2014</option>${pkgOptions}</select></div>
           <div class="sp-field"><label>Tracker status</label><select onchange="updateSponsorSimple('${s.id}','trackerStatus',this.value)">${statusOptions}</select></div>
+          <div class="sp-field"><label>Returning sponsor? (sponsored last year)</label><select onchange="updateSponsorReturning('${s.id}',this.value)"><option value="" ${s.data.returning === null || s.data.returning === undefined ? 'selected' : ''}>\u2014 not set \u2014</option><option value="true" ${s.data.returning === true ? 'selected' : ''}>Yes, returning</option><option value="false" ${s.data.returning === false ? 'selected' : ''}>No, new this year</option></select></div>
+          <div class="sp-field"><label>Registered date</label><input type="date" value="${escapeHtml(s.data.registeredDate)}" onchange="updateSponsorData('${s.id}','registeredDate',this.value)"></div>
 
           <div class="sp-subhead">Linked Booth</div>
           <div class="sp-field"><select onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
@@ -4011,6 +4429,13 @@ const ADDON_TYPE_SUGGESTIONS = [
   'Full-Page Ad in Conference Booklet ($250)',
   'Half-Page Ad in Conference Booklet ($100)'
 ];
+
+function updateSponsorReturning(id, value) {
+  const s = getSponsor(id); if (!s) return;
+  s.data.returning = value === '' ? null : (value === 'true');
+  pushSponsor(s);
+  renderSponsorRows();
+}
 
 function updateSponsorPackage(id, value) {
   const s = getSponsor(id); if (!s) return;
@@ -4194,6 +4619,411 @@ function openSponsorshipGuide() {
 
 function closeSponsorshipGuide() {
   document.getElementById('sponsorship-guide-overlay').style.display = 'none';
+}
+
+// ==================== Budget ====================
+// Mirrors the real SBCMC_Budget_Model.xlsx structure (Conference Budget + Sponsor Detail
+// tabs). The Org Annual Budget tab is intentionally NOT ported here -- that's the whole
+// organization's finances across the year, a different system with a different owner.
+//
+// Requires one more table in the same Supabase project:
+//   create table if not exists budget_data (
+//     id text primary key,
+//     data jsonb not null default '{}'::jsonb,
+//     updated_at timestamptz default now()
+//   );
+//   alter table budget_data enable row level security;
+//   create policy "public read budget_data" on budget_data for select using (true);
+//   create policy "public write budget_data" on budget_data for insert with check (true);
+//   create policy "public update budget_data" on budget_data for update using (true);
+//   alter publication supabase_realtime add table budget_data;
+
+const BUDGET_TABLE = 'budget_data';
+const BUDGET_ROW_ID = 'sbcmc-2027-budget';
+let budgetData = null;
+const DEFAULT_BUDGET = {"registration": {"member": {"phases": [{"label": "Early Bird Phase 1", "price": 200, "count": 20, "status": "Rough Guess", "actual": null}, {"label": "Early Bird Phase 2", "price": 220, "count": 80, "status": "Rough Guess", "actual": null}, {"label": "Early Bird Phase 3", "price": 240, "count": 200, "status": "Rough Guess", "actual": null}, {"label": "Regular", "price": 250, "count": 200, "status": "Rough Guess", "actual": null}]}, "nonMember": {"phases": [{"label": "Early Bird Phase 1", "price": 250, "count": 125, "status": "Rough Guess", "actual": null}, {"label": "Early Bird Phase 2", "price": 270, "count": 25, "status": "Rough Guess", "actual": null}, {"label": "Early Bird Phase 3", "price": 290, "count": 25, "status": "Rough Guess", "actual": null}, {"label": "Regular", "price": 300, "count": 25, "status": "Rough Guess", "actual": null}]}, "groupRate": {"phases": [{"label": "Early Bird Phase 1", "price": 230, "count": 0, "status": "Rough Guess", "actual": null}, {"label": "Early Bird Phase 2", "price": 230, "count": 50, "status": "Rough Guess", "actual": null}, {"label": "Early Bird Phase 3", "price": 230, "count": 50, "status": "Rough Guess", "actual": null}, {"label": "Regular", "price": 230, "count": 50, "status": "Estimated", "actual": null}]}, "spouse": {"price": 150, "count": 30, "status": "Rough Guess", "actual": null}, "lifetimeMember": {"price": 0, "count": 20, "status": "Rough Guess", "actual": null}, "collegeStudent": {"price": 100, "count": 100, "status": "Estimated", "actual": null}}, "exhibitorVendor": {"standardPackagesBudget": 75000, "alaCarteBudget": 2700, "alaCarteActual": null}, "giftsInKind": {"countBudget": 4, "valueBudget": 3200, "status": "Rough Guess"}, "facilityMeals": {"facilityRental": {"budget": 1800, "actual": null, "status": "Last Year's Actual"}, "mealCostPerAttendee": {"price": 80, "actual": null, "status": "Last Year's Actual"}, "mealsOnlyPerformers": {"price": 60, "count": 20, "actual": null, "status": "Last Year's Actual"}}, "presenters": {"honorariums": {"budget": 20500, "actual": null, "status": "Last Year's Actual"}, "lodging": {"budget": 5076, "actual": null, "status": "Last Year's Actual"}, "travel": {"budget": 2574, "actual": null, "status": "Last Year's Actual"}, "studentCollectiveLodging": {"budget": 10147, "actual": null, "status": "Last Year's Actual"}}, "headliners": [{"name": "CityAlight", "fee": 60000, "donation": 60000, "status": "Estimated"}, {"name": "Headliner 2", "fee": 3500, "donation": 0, "status": "Estimated"}, {"name": "Headliner 3", "fee": 2500, "donation": 0, "status": "Estimated"}, {"name": "Headliner 4 (add as needed)", "fee": 0, "donation": 0, "status": ""}, {"name": "Headliner 5 (add as needed)", "fee": 0, "donation": 0, "status": ""}], "headlinerFood": {"price": 75, "count": 16, "actual": null, "status": "Last Year's Actual"}, "otherPrograms": {"budget": 12000, "actual": null, "status": "Last Year's Actual"}, "otherCosts": {"printing": {"budget": 9612, "actual": null, "status": "Last Year's Actual"}, "plaques": {"budget": 940, "actual": null, "status": "Last Year's Actual"}, "misc": {"budget": 2878, "actual": null, "status": "Last Year's Actual"}}, "additionalFixed": [{"label": "Badges", "amount": 2500, "status": "Estimated"}, {"label": "Additional Fixed Expense 2", "amount": 0, "status": ""}, {"label": "Additional Fixed Expense 3", "amount": 0, "status": ""}], "additionalPerAttendee": [{"label": "Additional Per-Attendee Expense 1", "costPerPerson": 0, "status": ""}, {"label": "Additional Per-Attendee Expense 2", "costPerPerson": 0, "status": ""}, {"label": "Additional Per-Attendee Expense 3", "costPerPerson": 0, "status": ""}]}
+;
+const STATUS_OPTIONS = ["", "Last Year's Actual", "Quoted", "Estimated", "Rough Guess"];
+
+async function loadBudgetFromDb() {
+  if (!sbClient) { budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET)); return; }
+  try {
+    const { data, error } = await sbClient.from(BUDGET_TABLE).select('*').eq('id', BUDGET_ROW_ID).maybeSingle();
+    if (error) { console.warn('Budget table not available, using defaults:', error.message); budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET)); return; }
+    if (!data) {
+      const { error: seedErr } = await sbClient.from(BUDGET_TABLE).insert({ id: BUDGET_ROW_ID, data: DEFAULT_BUDGET });
+      if (seedErr) console.warn('Could not seed budget table:', seedErr.message);
+      budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET));
+      return;
+    }
+    budgetData = data.data;
+  } catch (err) {
+    console.warn('Budget load failed, using defaults:', err);
+    budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET));
+  }
+}
+
+let budgetPushTimer = null;
+function pushBudget() {
+  if (!sbClient) return;
+  clearTimeout(budgetPushTimer);
+  budgetPushTimer = setTimeout(async () => {
+    const { error } = await sbClient.from(BUDGET_TABLE).upsert({ id: BUDGET_ROW_ID, data: budgetData, updated_at: new Date().toISOString() });
+    if (error) console.error('Budget save failed:', error);
+  }, 300);
+}
+
+function subscribeBudgetRealtime() {
+  if (!sbClient) return;
+  sbClient.channel('budget-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: BUDGET_TABLE, filter: `id=eq.${BUDGET_ROW_ID}` }, (payload) => {
+      if (payload.new && payload.new.data) {
+        budgetData = payload.new.data;
+        const btn = document.getElementById('nav-budget-btn');
+        if (btn && btn.classList.contains('active')) renderBudget();
+      }
+    })
+    .subscribe();
+}
+
+function getPath(obj, path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj); }
+function setPath(obj, path, value) {
+  const parts = path.split('.');
+  let o = obj;
+  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+  o[parts[parts.length - 1]] = value;
+}
+
+function updateBudgetNumber(path, value) {
+  setPath(budgetData, path, value === '' ? null : Number(value));
+  pushBudget();
+  renderBudget();
+}
+function updateBudgetText(path, value) {
+  setPath(budgetData, path, value);
+  pushBudget();
+  renderBudget();
+}
+
+function bgFmt(n) { return n == null ? '\u2014' : '$' + Math.round(n).toLocaleString(); }
+function bgStatusClass(s) { return 'bg-status-' + (s || '').replace(/[^a-zA-Z]/g, '-'); }
+function bgStatusSelect(path, current) {
+  return `<select class="bg-status-select ${bgStatusClass(current)}" onchange="updateBudgetText('${path}',this.value); this.className='bg-status-select ' + ('bg-status-'+this.value.replace(/[^a-zA-Z]/g,'-'))">
+    ${STATUS_OPTIONS.map(o => `<option value="${o}" ${o === current ? 'selected' : ''}>${o || '\u2014'}</option>`).join('')}
+  </select>`;
+}
+
+// ---- Registrant totals (drive meal cost + additional-per-attendee counts, like the sheet) ----
+function totalRegistrants() {
+  const b = budgetData;
+  let t = 0;
+  ['member', 'nonMember', 'groupRate'].forEach(cat => { b.registration[cat].phases.forEach(p => t += Number(p.count || 0)); });
+  t += Number(b.registration.spouse.count || 0);
+  t += Number(b.registration.lifetimeMember.count || 0);
+  t += Number(b.registration.collegeStudent.count || 0);
+  return t;
+}
+
+function registrationCategoryTotal(cat) {
+  return budgetData.registration[cat].phases.reduce((sum, p) => sum + Number(p.price || 0) * Number(p.count || 0), 0);
+}
+function registrationCategoryCount(cat) {
+  return budgetData.registration[cat].phases.reduce((sum, p) => sum + Number(p.count || 0), 0);
+}
+
+function totalRegistrationRevenue() {
+  let t = registrationCategoryTotal('member') + registrationCategoryTotal('nonMember') + registrationCategoryTotal('groupRate');
+  t += Number(budgetData.registration.spouse.price || 0) * Number(budgetData.registration.spouse.count || 0);
+  t += Number(budgetData.registration.lifetimeMember.price || 0) * Number(budgetData.registration.lifetimeMember.count || 0);
+  t += Number(budgetData.registration.collegeStudent.price || 0) * Number(budgetData.registration.collegeStudent.count || 0);
+  return t;
+}
+
+// ---- Live link to Sponsor Tracker: exhibitor/vendor cash actual, in-kind count ----
+function liveExhibitorVendorActual() {
+  if (typeof sponsors === 'undefined') return null;
+  const cash = sponsors.filter(s => /^registered/i.test(s.trackerStatus));
+  return cash.reduce((sum, s) => sum + parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + parseMoneyNum(s.data.money.adhocAmount), 0);
+}
+function liveInKindCount() {
+  if (typeof sponsors === 'undefined') return null;
+  return sponsors.filter(s => /in-kind/i.test(s.trackerStatus)).length;
+}
+
+function totalExhibitorVendorBudget() { return Number(budgetData.exhibitorVendor.standardPackagesBudget || 0) + Number(budgetData.exhibitorVendor.alaCarteBudget || 0); }
+
+function totalCashIncomeBudget() { return totalRegistrationRevenue() + totalExhibitorVendorBudget(); }
+function totalCashIncomeActual() {
+  const liveVendor = liveExhibitorVendorActual();
+  const alaCarteActual = budgetData.exhibitorVendor.alaCarteActual;
+  const vendorActual = (liveVendor || 0) + Number(alaCarteActual || 0);
+  return vendorActual; // registration actuals aren't tracked elsewhere in this app, so income actual = vendor actual only
+}
+
+// ---- Expense totals ----
+function facilityMealsBudget() {
+  const fm = budgetData.facilityMeals;
+  return Number(fm.facilityRental.budget || 0) + Number(fm.mealCostPerAttendee.price || 0) * totalRegistrants() + Number(fm.mealsOnlyPerformers.price || 0) * Number(fm.mealsOnlyPerformers.count || 0);
+}
+function presentersBudget() {
+  const p = budgetData.presenters;
+  return Number(p.honorariums.budget || 0) + Number(p.lodging.budget || 0) + Number(p.travel.budget || 0) + Number(p.studentCollectiveLodging.budget || 0);
+}
+function headlinerNetTotal() { return budgetData.headliners.reduce((sum, h) => sum + Math.max(0, Number(h.fee || 0) - Number(h.donation || 0)), 0); }
+function headlinersAndProgramsBudget() {
+  return headlinerNetTotal() + Number(budgetData.headlinerFood.price || 0) * Number(budgetData.headlinerFood.count || 0) + Number(budgetData.otherPrograms.budget || 0);
+}
+function otherCostsBudget() {
+  const o = budgetData.otherCosts;
+  return Number(o.printing.budget || 0) + Number(o.plaques.budget || 0) + Number(o.misc.budget || 0);
+}
+function additionalFixedBudget() { return budgetData.additionalFixed.reduce((sum, x) => sum + Number(x.amount || 0), 0); }
+function additionalPerAttendeeBudget() { return budgetData.additionalPerAttendee.reduce((sum, x) => sum + Number(x.costPerPerson || 0) * totalRegistrants(), 0); }
+
+function totalExpensesBudget() {
+  return facilityMealsBudget() + presentersBudget() + headlinersAndProgramsBudget() + otherCostsBudget() + additionalFixedBudget() + additionalPerAttendeeBudget();
+}
+
+function netResultBudget() { return totalCashIncomeBudget() - totalExpensesBudget(); }
+
+// ---- Array row add/remove (headliners, additional fixed/per-attendee -- "fully editable") ----
+function addHeadliner() {
+  budgetData.headliners.push({ name: 'New Headliner', fee: 0, donation: 0, status: '' });
+  pushBudget(); renderBudget();
+}
+function removeHeadliner(i) { budgetData.headliners.splice(i, 1); pushBudget(); renderBudget(); }
+function addFixedExpense() {
+  budgetData.additionalFixed.push({ label: 'New Fixed Expense', amount: 0, status: '' });
+  pushBudget(); renderBudget();
+}
+function removeFixedExpense(i) { budgetData.additionalFixed.splice(i, 1); pushBudget(); renderBudget(); }
+function addPerAttendeeExpense() {
+  budgetData.additionalPerAttendee.push({ label: 'New Per-Attendee Expense', costPerPerson: 0, status: '' });
+  pushBudget(); renderBudget();
+}
+function removePerAttendeeExpense(i) { budgetData.additionalPerAttendee.splice(i, 1); pushBudget(); renderBudget(); }
+
+function bgNumInput(path, value, readonly) {
+  return `<input type="number" class="bg-input ${readonly ? 'bg-readonly' : ''}" value="${value == null ? '' : value}" ${readonly ? 'readonly' : `onchange="updateBudgetNumber('${path}',this.value)"`}>`;
+}
+function bgTextInput(path, value) {
+  return `<input type="text" class="bg-input bg-input-label" value="${escapeHtml(value)}" onchange="updateBudgetText('${path}',this.value)">`;
+}
+
+function renderRegistrationSection() {
+  const catLabels = { member: 'Member', nonMember: 'Non-Member', groupRate: 'Group Rate' };
+  let html = '';
+  ['member', 'nonMember', 'groupRate'].forEach(cat => {
+    html += `<table class="bg-table"><thead><tr><th style="width:26%">${catLabels[cat]}</th><th style="width:12%">Price</th><th style="width:10%"># Registrants</th><th style="width:14%">Budget</th><th style="width:14%">Actual</th><th style="width:14%">Variance</th><th>Status</th></tr></thead><tbody>`;
+    budgetData.registration[cat].phases.forEach((p, i) => {
+      const budget = Number(p.price || 0) * Number(p.count || 0);
+      const variance = p.actual != null ? p.actual - budget : null;
+      html += `<tr>
+        <td>${escapeHtml(p.label)}</td>
+        <td>${bgNumInput(`registration.${cat}.phases.${i}.price`, p.price)}</td>
+        <td>${bgNumInput(`registration.${cat}.phases.${i}.count`, p.count)}</td>
+        <td>${bgFmt(budget)}</td>
+        <td>${bgNumInput(`registration.${cat}.phases.${i}.actual`, p.actual)}</td>
+        <td>${variance == null ? '\u2014' : bgFmt(variance)}</td>
+        <td>${bgStatusSelect(`registration.${cat}.phases.${i}.status`, p.status)}</td>
+      </tr>`;
+    });
+    html += `<tr class="bg-subtotal"><td>${catLabels[cat]} Subtotal</td><td></td><td>${registrationCategoryCount(cat)}</td><td>${bgFmt(registrationCategoryTotal(cat))}</td><td colspan="3"></td></tr>`;
+    html += `</tbody></table>`;
+  });
+
+  // Spouse / Lifetime Member / College-Student -- single-row categories
+  html += `<table class="bg-table"><thead><tr><th style="width:26%">Category</th><th style="width:12%">Price</th><th style="width:10%"># Registrants</th><th style="width:14%">Budget</th><th style="width:14%">Actual</th><th style="width:14%">Variance</th><th>Status</th></tr></thead><tbody>`;
+  [['spouse', 'Spouse'], ['lifetimeMember', 'Lifetime Member'], ['collegeStudent', 'College/Student']].forEach(([key, label]) => {
+    const item = budgetData.registration[key];
+    const budget = Number(item.price || 0) * Number(item.count || 0);
+    const variance = item.actual != null ? item.actual - budget : null;
+    html += `<tr>
+      <td>${label}</td>
+      <td>${bgNumInput(`registration.${key}.price`, item.price)}</td>
+      <td>${bgNumInput(`registration.${key}.count`, item.count)}</td>
+      <td>${bgFmt(budget)}</td>
+      <td>${bgNumInput(`registration.${key}.actual`, item.actual)}</td>
+      <td>${variance == null ? '\u2014' : bgFmt(variance)}</td>
+      <td>${bgStatusSelect(`registration.${key}.status`, item.status)}</td>
+    </tr>`;
+  });
+  html += `<tr class="bg-total"><td>Total Registrants / Registration Revenue</td><td></td><td>${totalRegistrants()}</td><td>${bgFmt(totalRegistrationRevenue())}</td><td colspan="3"></td></tr>`;
+  html += `</tbody></table>`;
+  return html;
+}
+
+function renderExhibitorVendorSection() {
+  const ev = budgetData.exhibitorVendor;
+  const liveActual = liveExhibitorVendorActual();
+  const alaCarteVariance = ev.alaCarteActual != null ? ev.alaCarteActual - Number(ev.alaCarteBudget || 0) : null;
+  const inKindLiveCount = liveInKindCount();
+  let html = `<table class="bg-table"><thead><tr><th style="width:32%">Category</th><th style="width:20%">Budget</th><th style="width:22%">Actual</th><th style="width:16%">Variance</th><th>Notes</th></tr></thead><tbody>`;
+  html += `<tr>
+    <td>Standard Exhibit Packages</td>
+    <td>${bgNumInput('exhibitorVendor.standardPackagesBudget', ev.standardPackagesBudget)}</td>
+    <td>${bgFmt(liveActual)} <span class="bg-live-note">\u25CF live from Sponsor Tracker</span></td>
+    <td>${liveActual != null ? bgFmt(liveActual - Number(ev.standardPackagesBudget || 0)) : '\u2014'}</td>
+    <td class="bg-cat-note" style="margin:0;">Sums all cash-registered sponsors' committed + ad-hoc $</td>
+  </tr>`;
+  html += `<tr>
+    <td>\u00c0 la Carte &amp; Other Sponsor Revenue</td>
+    <td>${bgNumInput('exhibitorVendor.alaCarteBudget', ev.alaCarteBudget)}</td>
+    <td>${bgNumInput('exhibitorVendor.alaCarteActual', ev.alaCarteActual)}</td>
+    <td>${alaCarteVariance == null ? '\u2014' : bgFmt(alaCarteVariance)}</td>
+    <td class="bg-cat-note" style="margin:0;">Food sponsorships, single ads, songwriter fees, etc. -- entered by hand for now</td>
+  </tr>`;
+  const totalVendorActual = (liveActual || 0) + Number(ev.alaCarteActual || 0);
+  html += `<tr class="bg-total"><td>Total Exhibitor/Vendor Cash Revenue</td><td>${bgFmt(totalExhibitorVendorBudget())}</td><td>${bgFmt(totalVendorActual)}</td><td>${bgFmt(totalVendorActual - totalExhibitorVendorBudget())}</td><td></td></tr>`;
+  html += `</tbody></table>`;
+
+  html += `<table class="bg-table" style="margin-top:10px;"><thead><tr><th style="width:40%">Gifts-in-Kind (non-cash \u2014 memo only, not in cash totals)</th><th style="width:18%">Budget #</th><th style="width:18%">Live #</th><th style="width:24%">Est. Value ($)</th></tr></thead><tbody>
+    <tr><td>Exhibitors providing in-kind</td><td>${bgNumInput('giftsInKind.countBudget', budgetData.giftsInKind.countBudget)}</td><td>${inKindLiveCount == null ? '\u2014' : inKindLiveCount + ' <span class="bg-live-note">\u25CF live</span>'}</td><td>${bgNumInput('giftsInKind.valueBudget', budgetData.giftsInKind.valueBudget)}</td></tr>
+  </tbody></table>`;
+  return html;
+}
+
+function renderFlatRow(path, label, item, extraNote) {
+  const variance = item.actual != null ? item.actual - Number(item.budget || 0) : null;
+  return `<tr>
+    <td>${label}${extraNote ? `<div class="bg-cat-note" style="margin:2px 0 0;">${extraNote}</div>` : ''}</td>
+    <td>${bgNumInput(`${path}.budget`, item.budget)}</td>
+    <td>${bgNumInput(`${path}.actual`, item.actual)}</td>
+    <td>${variance == null ? '\u2014' : bgFmt(variance)}</td>
+    <td>${bgStatusSelect(`${path}.status`, item.status)}</td>
+  </tr>`;
+}
+
+function renderExpensesSection() {
+  let html = '';
+
+  // Facility & Meals
+  const fm = budgetData.facilityMeals;
+  html += `<div class="bg-cat-title">Facility &amp; Meals</div>
+  <table class="bg-table"><thead><tr><th style="width:34%">Category</th><th style="width:16%">Budget / Price</th><th style="width:16%">Actual</th><th style="width:16%">Variance</th><th>Status</th></tr></thead><tbody>`;
+  html += renderFlatRow('facilityMeals.facilityRental', 'Facility Rental', fm.facilityRental);
+  const mealBudget = Number(fm.mealCostPerAttendee.price || 0) * totalRegistrants();
+  const mealVariance = fm.mealCostPerAttendee.actual != null ? fm.mealCostPerAttendee.actual - mealBudget : null;
+  html += `<tr><td>Meal Cost per Attendee<div class="bg-cat-note" style="margin:2px 0 0;">\u00d7 ${totalRegistrants()} total registrants (linked above)</div></td>
+    <td>${bgNumInput('facilityMeals.mealCostPerAttendee.price', fm.mealCostPerAttendee.price)}/person</td>
+    <td>${bgNumInput('facilityMeals.mealCostPerAttendee.actual', fm.mealCostPerAttendee.actual)}</td>
+    <td>${mealVariance == null ? '\u2014' : bgFmt(mealVariance)}</td>
+    <td>${bgStatusSelect('facilityMeals.mealCostPerAttendee.status', fm.mealCostPerAttendee.status)}</td></tr>`;
+  const perfBudget = Number(fm.mealsOnlyPerformers.price || 0) * Number(fm.mealsOnlyPerformers.count || 0);
+  const perfVariance = fm.mealsOnlyPerformers.actual != null ? fm.mealsOnlyPerformers.actual - perfBudget : null;
+  html += `<tr><td>Meals-Only Performers</td>
+    <td>${bgNumInput('facilityMeals.mealsOnlyPerformers.price', fm.mealsOnlyPerformers.price)}/person \u00d7 ${bgNumInput('facilityMeals.mealsOnlyPerformers.count', fm.mealsOnlyPerformers.count)}</td>
+    <td>${bgNumInput('facilityMeals.mealsOnlyPerformers.actual', fm.mealsOnlyPerformers.actual)}</td>
+    <td>${perfVariance == null ? '\u2014' : bgFmt(perfVariance)}</td>
+    <td>${bgStatusSelect('facilityMeals.mealsOnlyPerformers.status', fm.mealsOnlyPerformers.status)}</td></tr>`;
+  html += `<tr class="bg-subtotal"><td>Total Facility &amp; Meals</td><td colspan="3">${bgFmt(facilityMealsBudget())}</td><td></td></tr>`;
+  html += `</tbody></table>`;
+
+  // Presenters / Speakers
+  const pr = budgetData.presenters;
+  html += `<div class="bg-cat-title">Presenters / Speakers</div>
+  <table class="bg-table"><thead><tr><th style="width:34%">Category</th><th style="width:16%">Budget</th><th style="width:16%">Actual</th><th style="width:16%">Variance</th><th>Status</th></tr></thead><tbody>`;
+  html += renderFlatRow('presenters.honorariums', 'Honorariums', pr.honorariums);
+  html += renderFlatRow('presenters.lodging', 'Lodging', pr.lodging);
+  html += renderFlatRow('presenters.travel', 'Travel', pr.travel);
+  html += renderFlatRow('presenters.studentCollectiveLodging', 'Student Collective Lodging', pr.studentCollectiveLodging);
+  html += `<tr class="bg-subtotal"><td>Total Presenters/Speakers</td><td colspan="3">${bgFmt(presentersBudget())}</td><td></td></tr>`;
+  html += `</tbody></table>`;
+
+  // Headliners
+  html += `<div class="bg-cat-title">Headliners <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--ink-soft);">(one line per act \u2014 all-inclusive: pay + lodging + travel)</span></div>
+  <table class="bg-table"><thead><tr><th style="width:26%">Act</th><th style="width:16%">Fee</th><th style="width:16%">Donation Received</th><th style="width:16%">Net Cost</th><th style="width:18%">Status</th><th></th></tr></thead><tbody>`;
+  budgetData.headliners.forEach((h, i) => {
+    const net = Math.max(0, Number(h.fee || 0) - Number(h.donation || 0));
+    html += `<tr>
+      <td>${bgTextInput(`headliners.${i}.name`, h.name)}</td>
+      <td>${bgNumInput(`headliners.${i}.fee`, h.fee)}</td>
+      <td>${bgNumInput(`headliners.${i}.donation`, h.donation)}</td>
+      <td>${bgFmt(net)}</td>
+      <td>${bgStatusSelect(`headliners.${i}.status`, h.status)}</td>
+      <td><button class="bg-remove-btn" onclick="removeHeadliner(${i})" title="Remove">&times;</button></td>
+    </tr>`;
+  });
+  html += `<tr class="bg-subtotal"><td>Total Headliner Fees (Net of Donations)</td><td colspan="4">${bgFmt(headlinerNetTotal())}</td><td></td></tr>`;
+  html += `</tbody></table><button class="sp-mini-btn" onclick="addHeadliner()" style="margin:6px 0 4px;">+ Add headliner</button>`;
+
+  const hf = budgetData.headlinerFood;
+  const hfBudget = Number(hf.price || 0) * Number(hf.count || 0);
+  const hfVariance = hf.actual != null ? hf.actual - hfBudget : null;
+  html += `<table class="bg-table" style="margin-top:8px;"><thead><tr><th style="width:34%">Category</th><th style="width:16%">Budget / Price</th><th style="width:16%">Actual</th><th style="width:16%">Variance</th><th>Status</th></tr></thead><tbody>`;
+  html += `<tr><td>Headliner Food (all acts combined)</td>
+    <td>${bgNumInput('headlinerFood.price', hf.price)}/person \u00d7 ${bgNumInput('headlinerFood.count', hf.count)}</td>
+    <td>${bgNumInput('headlinerFood.actual', hf.actual)}</td>
+    <td>${hfVariance == null ? '\u2014' : bgFmt(hfVariance)}</td>
+    <td>${bgStatusSelect('headlinerFood.status', hf.status)}</td></tr>`;
+  html += renderFlatRow('otherPrograms', 'Other Programs/Concerts (non-headliner)', budgetData.otherPrograms);
+  html += `<tr class="bg-subtotal"><td>Total Headliners &amp; Programs</td><td colspan="3">${bgFmt(headlinersAndProgramsBudget())}</td><td></td></tr>`;
+  html += `</tbody></table>`;
+
+  // Other Conference Costs
+  const oc = budgetData.otherCosts;
+  html += `<div class="bg-cat-title">Other Conference Costs</div>
+  <table class="bg-table"><thead><tr><th style="width:34%">Category</th><th style="width:16%">Budget</th><th style="width:16%">Actual</th><th style="width:16%">Variance</th><th>Status</th></tr></thead><tbody>`;
+  html += renderFlatRow('otherCosts.printing', 'Annual Conference Printing', oc.printing);
+  html += renderFlatRow('otherCosts.plaques', 'Plaques', oc.plaques);
+  html += renderFlatRow('otherCosts.misc', 'Conference Miscellaneous', oc.misc);
+  html += `<tr class="bg-subtotal"><td>Total Other Conference Costs</td><td colspan="3">${bgFmt(otherCostsBudget())}</td><td></td></tr>`;
+  html += `</tbody></table>`;
+
+  // Additional Fixed Expenses
+  html += `<div class="bg-cat-title">Additional Fixed Expenses <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--ink-soft);">(same $ regardless of headcount)</span></div>
+  <table class="bg-table"><thead><tr><th style="width:44%">Label</th><th style="width:20%">Amount</th><th style="width:26%">Status</th><th></th></tr></thead><tbody>`;
+  budgetData.additionalFixed.forEach((x, i) => {
+    html += `<tr>
+      <td>${bgTextInput(`additionalFixed.${i}.label`, x.label)}</td>
+      <td>${bgNumInput(`additionalFixed.${i}.amount`, x.amount)}</td>
+      <td>${bgStatusSelect(`additionalFixed.${i}.status`, x.status)}</td>
+      <td><button class="bg-remove-btn" onclick="removeFixedExpense(${i})" title="Remove">&times;</button></td>
+    </tr>`;
+  });
+  html += `<tr class="bg-subtotal"><td>Total Additional Fixed Expenses</td><td colspan="2">${bgFmt(additionalFixedBudget())}</td><td></td></tr>`;
+  html += `</tbody></table><button class="sp-mini-btn" onclick="addFixedExpense()" style="margin:6px 0 4px;">+ Add fixed expense</button>`;
+
+  // Additional Per-Attendee Expenses
+  html += `<div class="bg-cat-title">Additional Per-Attendee Expenses <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--ink-soft);">(scale with registrant count)</span></div>
+  <table class="bg-table"><thead><tr><th style="width:34%">Label</th><th style="width:16%">Cost/Person</th><th style="width:14%"># Attendees</th><th style="width:16%">Budget</th><th style="width:16%">Status</th><th></th></tr></thead><tbody>`;
+  budgetData.additionalPerAttendee.forEach((x, i) => {
+    const b = Number(x.costPerPerson || 0) * totalRegistrants();
+    html += `<tr>
+      <td>${bgTextInput(`additionalPerAttendee.${i}.label`, x.label)}</td>
+      <td>${bgNumInput(`additionalPerAttendee.${i}.costPerPerson`, x.costPerPerson)}</td>
+      <td>${totalRegistrants()} <span class="bg-live-note">\u25CF linked</span></td>
+      <td>${bgFmt(b)}</td>
+      <td>${bgStatusSelect(`additionalPerAttendee.${i}.status`, x.status)}</td>
+      <td><button class="bg-remove-btn" onclick="removePerAttendeeExpense(${i})" title="Remove">&times;</button></td>
+    </tr>`;
+  });
+  html += `<tr class="bg-subtotal"><td>Total Additional Per-Attendee Expenses</td><td colspan="4">${bgFmt(additionalPerAttendeeBudget())}</td><td></td></tr>`;
+  html += `</tbody></table><button class="sp-mini-btn" onclick="addPerAttendeeExpense()" style="margin:6px 0 4px;">+ Add per-attendee expense</button>`;
+
+  html += `<table class="bg-table" style="margin-top:14px;"><tbody><tr class="bg-total"><td style="width:70%;">TOTAL CONFERENCE EXPENSES</td><td>${bgFmt(totalExpensesBudget())}</td></tr></tbody></table>`;
+
+  return html;
+}
+
+function renderBudget() {
+  if (!budgetData) return;
+  const netB = netResultBudget();
+  const netbarEl = document.getElementById('bg-netbar');
+  netbarEl.innerHTML = `
+    <div class="bg-net-card"><div class="bnc-label">Total Cash Income (Budget)</div><div class="bnc-value">${bgFmt(totalCashIncomeBudget())}</div><div class="bnc-sub">Registration + Exhibitor/Vendor</div></div>
+    <div class="bg-net-card"><div class="bnc-label">Total Expenses (Budget)</div><div class="bnc-value">${bgFmt(totalExpensesBudget())}</div><div class="bnc-sub">All categories below</div></div>
+    <div class="bg-net-card"><div class="bnc-label">Net Conference Result</div><div class="bnc-value" style="color:${netB >= 0 ? '#2E8B57' : '#a52620'};">${netB >= 0 ? 'Surplus ' : 'Deficit '}${bgFmt(Math.abs(netB))}</div><div class="bnc-sub">Budgeted income minus expenses</div></div>
+  `;
+
+  document.getElementById('bg-income').innerHTML = `
+    <div class="bg-cat-title">Registration (by category)</div>
+    ${renderRegistrationSection()}
+    <div class="bg-cat-title">Exhibitors / Vendors</div>
+    ${renderExhibitorVendorSection()}
+    <table class="bg-table" style="margin-top:14px;"><tbody><tr class="bg-total"><td style="width:70%;">TOTAL CONFERENCE CASH INCOME</td><td>${bgFmt(totalCashIncomeBudget())}</td></tr></tbody></table>
+  `;
+  document.getElementById('bg-expenses').innerHTML = renderExpensesSection();
 }
 
 
