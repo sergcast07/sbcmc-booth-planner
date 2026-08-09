@@ -485,6 +485,11 @@ table.sp-table td { padding: 11px 12px; font-size: 13px; border-bottom: 1px soli
 table.sp-table tbody tr.sp-row { cursor: pointer; transition: background 0.1s; }
 table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-org { font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sp-task-badge {
+  display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 5px; border-radius: 9px;
+  background: var(--teal-pale); color: var(--teal-deep); vertical-align: middle;
+}
+.sp-task-badge-overdue { background: #F6E3DF; color: #9C3A2E; }
 .sp-sub { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .sp-badge { font-size: 10.5px; padding: 3px 10px; border-radius: 12px; font-weight: 700; display: inline-block; white-space: nowrap; letter-spacing: 0.01em; }
 .sp-badge-reg { background: #E1EFE4; color: #256B3F; }
@@ -538,6 +543,17 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-comm-item .ts { color: var(--ink-soft); font-size: 10.5px; margin-right: 6px; font-weight: 600; }
 .sp-action-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 5px; }
 .sp-action-item.done { text-decoration: line-through; opacity: .55; }
+.sp-action-item-wrap { margin-bottom: 6px; }
+.sp-action-item-wrap .sp-action-item { margin-bottom: 0; }
+.sp-action-comments {
+  margin: 4px 0 6px 26px; padding: 8px 10px; background: var(--paper);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.sp-action-comment {
+  font-size: 11.5px; padding: 4px 0; border-bottom: 1px dashed var(--line);
+}
+.sp-action-comment:last-of-type { border-bottom: none; }
+.sp-action-comment .ts { color: var(--ink-soft); font-weight: 600; margin-right: 6px; font-size: 10.5px; }
 .sp-mini-btn { border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; color: var(--ink); transition: background 0.15s, border-color 0.15s; }
 .sp-mini-btn:hover { background: var(--teal-pale); border-color: var(--teal); }
 .sp-add-row { display: flex; gap: 6px; margin-top: 6px; }
@@ -739,11 +755,12 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 
 /* ==== Print (Dashboard Report) ==== */
 @media print {
-  @page { margin: 0.32in; }
+  @page { margin: 0.55in 0.6in; }
 
   /* Force colors/backgrounds to actually print instead of relying on the user enabling
      "background graphics" in their print dialog -- otherwise white text on the dark hero
-     band would print invisible. */
+     band would print invisible, and the package/status colors that carry real meaning
+     would silently disappear into grayscale. */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 
   /* Hide everything that isn't the Dashboard report itself, regardless of what's showing
@@ -754,57 +771,79 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 
   #dashboard-view { display: block !important; }
 
-  body, html { background: #fff !important; font-size: 12px; }
+  body, html { background: #fff !important; font-size: 12.5px; line-height: 1.45; }
 
   .db-wrap { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
-  .db-hero { padding: 0 0 6px !important; margin-bottom: 8px !important; border-bottom: 2px solid var(--gold); background: #fff !important; }
+
+  /* ==== Report header ==== */
+  .db-hero {
+    padding: 0 0 12px !important; margin-bottom: 20px !important;
+    border-bottom: 1.5px solid var(--gold); background: #fff !important;
+  }
   .db-staff-lines { display: none !important; }
-  .db-header h2 { color: var(--teal-deep) !important; font-size: 17px !important; margin-bottom: 2px !important; }
-  .db-caveat { display: none !important; } /* explanatory prose isn't essential on a printed handout -- keep the page for numbers */
-  .print-only { display: block !important; margin-bottom: 3px !important; font-size: 12.5px !important; }
+  .db-header h2 { color: var(--teal-deep) !important; font-size: 22px !important; margin-bottom: 4px !important; }
+  .db-caveat { display: none !important; } /* explanatory prose reads as help text on screen; a printed report doesn't need it */
+  .print-only { display: block !important; margin-bottom: 4px !important; font-size: 13px !important; color: var(--ink-soft) !important; }
   .db-body { padding: 0 !important; }
 
-  /* Cards: tighter padding and smaller value text so 6 cards take noticeably less height */
-  .db-cards { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; margin-bottom: 10px !important; }
-  .db-card { padding: 7px !important; box-shadow: none !important; break-inside: avoid; page-break-inside: avoid; }
+  /* ==== KPI cards: real breathing room, not crammed ==== */
+  .db-cards { grid-template-columns: repeat(3, 1fr) !important; gap: 12px !important; margin-bottom: 22px !important; }
+  .db-card {
+    padding: 12px 14px !important; box-shadow: none !important; border-top-width: 2px !important;
+    break-inside: avoid; page-break-inside: avoid;
+  }
   .db-card:hover { transform: none !important; box-shadow: none !important; }
-  .db-card > div:first-child { width: 18px !important; height: 18px !important; margin-bottom: 3px !important; }
-  .db-card-label { font-size: 8px !important; margin-bottom: 2px !important; }
-  .db-card-value { font-size: 16px !important; }
-  .db-card-sub, .db-card-breakdown { font-size: 8px !important; margin-top: 1px !important; }
+  .db-card > div:first-child { width: 22px !important; height: 22px !important; margin-bottom: 6px !important; }
+  .db-card-label { font-size: 9px !important; margin-bottom: 4px !important; }
+  .db-card-value { font-size: 21px !important; }
+  .db-card-sub { font-size: 10px !important; margin-top: 3px !important; }
+  .db-card-breakdown { font-size: 9.5px !important; margin-top: 3px !important; line-height: 1.4 !important; }
 
-  /* Sections: only the small, atomic pieces (individual cards/rows) get break-inside:avoid.
-     Large sections (charts) are allowed to split across the page break -- forcing an entire
-     ~300px chart onto a fresh page is what was pushing this report to a third page. */
-  .db-section, .db-opportunity-section { margin-bottom: 7px !important; }
-  .db-section-title { font-size: 10px !important; margin-bottom: 4px !important; padding-left: 7px !important; }
-  .db-grid-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+  /* ==== Section rhythm ==== */
+  .db-section, .db-opportunity-section { margin-bottom: 22px !important; }
+  .db-section-title {
+    font-size: 12.5px !important; margin-bottom: 10px !important; padding-left: 9px !important;
+    letter-spacing: 0.04em !important;
+  }
+  .db-grid-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 26px !important; }
+
+  /* Deliberate page break: page 1 is the executive summary (cards + progress toward goal),
+     page 2 is the supporting breakdown (package tier, status, opportunity). This replaces
+     letting content spill wherever it happens to land, which is what produced a cramped
+     page 1 and a nearly-empty page 2 before. */
+  .db-print-page2-start { break-before: page; page-break-before: always; margin-top: 0 !important; }
 
   .db-goal-input { display: none !important; }
-  .db-timeline-header { display: block !important; margin-bottom: 3px !important; }
+  .db-timeline-header { display: block !important; margin-bottom: 8px !important; }
 
-  .db-row { margin-bottom: 2px !important; padding: 1px 3px !important; break-inside: avoid; page-break-inside: avoid; }
-  .db-row-label { font-size: 9.5px !important; }
-  .db-row-bar-outer { height: 8px !important; }
-  .db-row-value { font-size: 9.5px !important; }
+  /* Individual rows stay atomic (never split mid-row across a page break), but the larger
+     sections containing them are free to break between rows if a whole section doesn't fit. */
+  .db-row { margin-bottom: 6px !important; padding: 2px 6px !important; break-inside: avoid; page-break-inside: avoid; }
+  .db-row-label { font-size: 11px !important; }
+  .db-row-bar-outer { height: 11px !important; }
+  .db-row-value { font-size: 11px !important; }
   .db-row, .db-card, .db-opp-clickable { cursor: default !important; }
   .db-row:hover { background: transparent !important; }
 
-  .db-nr-summary { font-size: 11.5px !important; margin-bottom: 4px !important; line-height: 1.5 !important; }
+  .db-nr-summary { font-size: 13px !important; margin-bottom: 8px !important; line-height: 1.6 !important; }
 
-  .db-opportunity-section { padding: 7px 9px !important; }
+  .db-opportunity-section { padding: 14px 16px !important; }
   .db-opportunity-note { display: none !important; }
-  .db-opportunity-flag { font-size: 8px !important; padding: 1px 5px !important; }
-  .db-opp-bar-outer { height: 20px !important; margin-bottom: 3px !important; }
-  .db-opp-caption { font-size: 9.5px !important; margin-bottom: 3px !important; }
+  .db-opportunity-flag { font-size: 9px !important; padding: 2px 7px !important; }
+  .db-opp-bar-outer { height: 24px !important; margin-bottom: 6px !important; }
+  .db-opp-caption { font-size: 11px !important; margin-bottom: 8px !important; }
 
-  /* Shrink the two SVG charts specifically -- these are the tallest single elements on
-     the page, so cutting their print height is the highest-leverage way to save space. */
-  #db-package-breakdown svg { max-height: 160px !important; }
-  #db-timeline-chart svg { max-height: 115px !important; }
-  .db-timeline-caption { font-size: 9px !important; margin-top: 2px !important; }
+  /* Charts: sized to be genuinely legible, not just as small as possible. Page 1's timeline
+     chart and page 2's package chart are each the only major visual on their half of the
+     page, so they can afford real size. */
+  #db-package-breakdown svg { max-height: 200px !important; }
+  #db-timeline-chart svg { max-height: 170px !important; }
+  .db-timeline-caption { font-size: 10.5px !important; margin-top: 6px !important; }
 
   svg { max-width: 100% !important; }
+
+  /* Suppress the browser's own page-break widow/orphan awkwardness on the last section */
+  .db-opportunity-section:last-of-type { margin-bottom: 0 !important; }
 }
 
 </style>
@@ -993,7 +1032,7 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
         <div id="db-timeline-chart"></div>
       </div>
 
-      <div class="db-section">
+      <div class="db-section db-print-page2-start">
         <div class="db-section-title">Committed $ by Package Tier</div>
         <div id="db-package-breakdown"></div>
       </div>
@@ -1917,6 +1956,7 @@ function addBooth(type) {
   renderCounts();
   persist();
   renderSpotDirectory();
+  if (typeof renderCapacitySection === 'function') renderCapacitySection();
 }
 
 function removeBooth(id) {
@@ -1932,6 +1972,7 @@ function removeBooth(id) {
   }
   renderAll();
   persist();
+  if (typeof renderCapacitySection === 'function') renderCapacitySection();
 }
 
 function addLabel() {
@@ -2645,6 +2686,7 @@ function clearCurrentMap() {
   labels = labels.filter(l => l.mapId !== currentMapId);
   refreshView();
   persist();
+  if (typeof renderCapacitySection === 'function') renderCapacitySection();
 }
 
 function clearAllMaps() {
@@ -2652,6 +2694,7 @@ function clearAllMaps() {
   labels = [];
   refreshView();
   persist();
+  if (typeof renderCapacitySection === 'function') renderCapacitySection();
 }
 
 let dragEl = null, dragOffsetX = 0, dragOffsetY = 0, planRect = null;
@@ -2794,6 +2837,7 @@ function pasteClipboard() {
   // cascade: next paste offsets from this one, so repeated pastes fan out
   clipboard.data = { ...src, xPct, yPct };
   persist();
+  if (typeof renderCapacitySection === 'function') renderCapacitySection();
   return true;
 }
 
@@ -3249,6 +3293,7 @@ async function deleteCustomMap(id) {
     refreshView();
     persist(); // push the booth/label removal to the shared layout
     renderAdminModal();
+    if (typeof renderCapacitySection === 'function') renderCapacitySection();
     toast('Floor plan deleted.');
   } catch (err) {
     console.error('Delete map failed:', err);
@@ -3575,6 +3620,7 @@ async function deletePackageAdmin(key) {
     refreshView();
     persist();
     renderAdminModal();
+    if (typeof renderCapacitySection === 'function') renderCapacitySection();
     toast('Package deleted.');
   } catch (err) {
     console.error('Delete package failed:', err);
@@ -4005,21 +4051,18 @@ function renderDashboard() {
   const maxStatusCount = Math.max(1, ...Object.values(statusCounts));
   const statusTotal = activeSponsors.length;
   const statusEl = document.getElementById('db-status-breakdown');
-  const statusEntries = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
-  const statusSummary = statusEntries.map(([status, count]) => {
-    const pct = statusTotal > 0 ? Math.round((count / statusTotal) * 100) : 0;
-    return `<span class="db-nr-pct" style="color:${dashStatusColor(status)};">${pct}% ${escapeHtml(status)}</span>`;
-  }).join('<span class="db-nr-pct-sep">/</span>');
-  statusEl.innerHTML = `
-    <div class="db-nr-summary" style="font-size:14px; line-height:1.6;">${statusSummary}</div>
-    ${statusEntries.map(([status, count]) => `
+  statusEl.innerHTML = Object.entries(statusCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([status, count]) => {
+      const pct = statusTotal > 0 ? Math.round((count / statusTotal) * 100) : 0;
+      return `
       <div class="db-row" onclick="openDashboardDrill('status:${escapeHtml(status)}', '${escapeHtml(status)}')" style="cursor:pointer;">
         <div class="db-row-label">${escapeHtml(status)}</div>
         <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(count / maxStatusCount) * 100}%; background:${dashStatusColor(status)};"></div></div>
-        <div class="db-row-value">${count}</div>
+        <div class="db-row-value">${count} <span class="db-row-pct">(${pct}%)</span></div>
       </div>
-    `).join('')}
-  `;
+    `;
+    }).join('');
 
   // Package tier breakdown ($ base package price only -- ad-hoc/donation amounts are
   // excluded here on purpose, since they're a separate commitment from the booth tier itself.
@@ -4099,9 +4142,12 @@ function renderCapacitySection() {
   }
   const byPkg = {};
   booths.forEach(b => {
-    if (!byPkg[b.type]) byPkg[b.type] = { total: 0, linked: 0 };
-    byPkg[b.type].total++;
-    if (sponsors.some(s => s.linkedBoothId === b.id && isActiveThisYear(s))) byPkg[b.type].linked++;
+    // Guard against a stray leading/trailing space on the type value creating a silent
+    // second bucket that looks like a missing booth (e.g. "AA" vs "AA ").
+    const key = (b.type || '').trim();
+    if (!byPkg[key]) byPkg[key] = { total: 0, linked: 0 };
+    byPkg[key].total++;
+    if (sponsors.some(s => s.linkedBoothId === b.id && isActiveThisYear(s))) byPkg[key].linked++;
   });
   const entries = Object.entries(byPkg).sort((a, b) => b[1].total - a[1].total);
   if (entries.length === 0) {
@@ -4113,13 +4159,48 @@ function renderCapacitySection() {
     const remaining = counts.total - counts.linked;
     const pct = counts.total > 0 ? (counts.linked / counts.total) * 100 : 0;
     return `
-      <div class="db-row" style="cursor:default;">
+      <div class="db-row" onclick="openBoothCapacityDrill('${escapeHtml(key)}')" style="cursor:pointer;">
         <div class="db-row-label">${escapeHtml(pkg.label)}</div>
         <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${pct}%; background:${pkg.color};"></div></div>
         <div class="db-row-value">${counts.linked}/${counts.total} <span class="db-row-pct">(${remaining} left)</span></div>
       </div>
     `;
   }).join('');
+}
+
+function openBoothCapacityDrill(key) {
+  const pkg = getPkg(key);
+  const matching = booths.filter(b => (b.type || '').trim() === key);
+  document.getElementById('dashboard-drill-title').textContent = pkg.label + ' \u2014 Booths Placed';
+  const body = document.getElementById('dashboard-drill-body');
+
+  if (matching.length === 0) {
+    body.innerHTML = '<div class="dd-empty">No booths of this type placed yet.</div>';
+    document.getElementById('dashboard-drill-overlay').style.display = 'flex';
+    return;
+  }
+
+  const sorted = matching.slice().sort((a, b) => (a.spotName || '').localeCompare(b.spotName || '', undefined, { numeric: true }));
+  const rows = sorted.map(b => {
+    const sp = sponsors.find(s => s.linkedBoothId === b.id && isActiveThisYear(s));
+    const anySp = sponsors.find(s => s.linkedBoothId === b.id); // even if not counted as "active", show it so nothing looks silently missing
+    const mapLabel = MAPS[b.mapId] ? MAPS[b.mapId].label : (b.mapId || '(unknown map)');
+    let sponsorCell;
+    if (sp) sponsorCell = escapeHtml(sp.org);
+    else if (anySp) sponsorCell = `<span style="color:var(--ink-soft);">${escapeHtml(anySp.org)} (linked, but not Registered/Committed/In-Kind)</span>`;
+    else sponsorCell = '<span style="color:var(--ink-soft);">\u2014 unlinked \u2014</span>';
+    return `<tr>
+      <td class="dd-org">${escapeHtml(b.spotName || '(no spot name)')}</td>
+      <td>${escapeHtml(mapLabel)}</td>
+      <td>${sponsorCell}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="dd-count">${matching.length} booth${matching.length === 1 ? '' : 's'} of this type placed on the floor plan</div>
+    <table class="dd-table"><thead><tr><th>Spot</th><th>Map</th><th>Linked Sponsor</th></tr></thead><tbody>${rows}</tbody></table>
+  `;
+  document.getElementById('dashboard-drill-overlay').style.display = 'flex';
 }
 
 
@@ -4307,7 +4388,11 @@ function renderTimelineChart() {
   `;
 
   const caption = goal
-    ? `$${Math.round(totalCum).toLocaleString()} committed of your $${goal.toLocaleString()} goal \u2014 $${Math.max(0, Math.round(goal - totalCum)).toLocaleString()} still needed (${Math.min(100, Math.round((totalCum / goal) * 100))}%)`
+    ? (() => {
+        const committedPct = Math.min(100, Math.round((totalCum / goal) * 100));
+        const neededPct = Math.max(0, 100 - committedPct);
+        return `$${Math.round(totalCum).toLocaleString()} committed (${committedPct}%) of your $${goal.toLocaleString()} goal \u2014 $${Math.max(0, Math.round(goal - totalCum)).toLocaleString()} still needed (${neededPct}%)`;
+      })()
     : `$${Math.round(totalCum).toLocaleString()} committed as of today, based on ${dated.length} dated registration${dated.length === 1 ? '' : 's'}. Set a goal above to track what's still needed.`;
   const captionEl = document.createElement('div');
   captionEl.className = 'db-timeline-caption';
@@ -4569,12 +4654,16 @@ function sponsorBadgeClass(status) {
   return 'sp-badge-recruit';
 }
 
-function allBoothsForDropdown() {
+function allBoothsForDropdown(excludeSponsorId) {
   const list = [];
   booths.forEach(b => {
     const mapLabel = MAPS[b.mapId] ? MAPS[b.mapId].label : b.mapId;
     const pkg = getPkg(b.type);
-    list.push({ id: b.id, label: mapLabel + ' \u2014 ' + (b.spotName || pkg.label) + ' (' + pkg.label + ')' });
+    // A booth already linked to a DIFFERENT sponsor isn't available -- surface that in the
+    // label and mark it disabled, rather than letting two orgs silently share one spot.
+    const claimedBy = sponsors.find(s => s.linkedBoothId === b.id && s.id !== excludeSponsorId);
+    const label = mapLabel + ' \u2014 ' + (b.spotName || pkg.label) + ' (' + pkg.label + ')' + (claimedBy ? ' \u2014 already linked to ' + claimedBy.org : '');
+    list.push({ id: b.id, label, disabled: !!claimedBy });
   });
   return list;
 }
@@ -4793,9 +4882,18 @@ function sponsorSortValue(s, key) {
 }
 
 function sponsorAmountCell(s) {
+  const status = s.data.money.paymentStatus || s.data.amountStatus || '';
+
+  // In-Kind sponsors are non-cash by definition -- never show a $ figure here, even if a
+  // stray number is sitting in the committed field from an old package assignment. Showing
+  // "$750" for a comp arrangement reads as real revenue, which is misleading. Just show the
+  // arrangement status consistently for every in-kind sponsor, whether or not one is set.
+  if (/in-kind/i.test(s.trackerStatus)) {
+    return status ? escapeHtml(status) : '\u2014';
+  }
+
   const base = s.data.money.committed || s.data.checkoutTier || '';
   const adhoc = sponsorAdhocTotal(s);
-  const status = s.data.money.paymentStatus || s.data.amountStatus || '';
   let parts = [];
   if (base) parts.push('$' + Number(base).toLocaleString());
   else if (status) parts.push(status);
@@ -4807,6 +4905,7 @@ function sponsorAmountCell(s) {
 function renderSponsorRows() {
   const tbody = document.getElementById('sp-rows');
   tbody.innerHTML = '';
+  const todayStr = new Date().toISOString().slice(0, 10);
   let filtered = sponsors.filter(s => {
     let matchesFilter;
     if (sponsorFilter === 'all') matchesFilter = true;
@@ -4836,7 +4935,12 @@ function renderSponsorRows() {
       ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${s.data.money.dueDate}</span>` : escapeHtml(s.data.money.dueDate))
       : '—';
     tr.innerHTML = `
-      <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">\u25B8</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}</td>
+      <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">\u25B8</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${(() => {
+        const openItems = (s.data.actionItems || []).filter(a => !a.done);
+        if (openItems.length === 0) return '';
+        const hasOverdue = openItems.some(a => a.dueDate && a.dueDate < todayStr);
+        return ` <span class="sp-task-badge ${hasOverdue ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}${hasOverdue ? ', at least one overdue' : ''}">📋${openItems.length}</span>`;
+      })()}</td>
       <td class="sp-org">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
       <td>${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
       <td>${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '—'}</td>
@@ -4885,7 +4989,7 @@ function sponsorDetailHTML(s) {
   // dropdown), still show it as a selected option instead of silently dropping/changing it.
   const statusChoices = STATUS_PRESETS.includes(s.trackerStatus) ? STATUS_PRESETS : [s.trackerStatus, ...STATUS_PRESETS];
   const statusOptions = statusChoices.map(st => `<option value="${escapeHtml(st)}" ${st === s.trackerStatus ? 'selected' : ''}>${escapeHtml(st)}</option>`).join('');
-  const boothOptions = allBoothsForDropdown().map(b => `<option value="${b.id}" ${s.linkedBoothId === b.id ? 'selected' : ''}>${b.label}</option>`).join('');
+  const boothOptions = allBoothsForDropdown(s.id).map(b => `<option value="${b.id}" ${s.linkedBoothId === b.id ? 'selected' : ''} ${b.disabled ? 'disabled' : ''}>${b.disabled ? '\u26D4 ' : ''}${escapeHtml(b.label)}</option>`).join('');
   const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
 
   const commsHtml = (s.data.comms || []).slice().reverse().map(c =>
@@ -4895,13 +4999,28 @@ function sponsorDetailHTML(s) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const actionsHtml = (s.data.actionItems || []).map((a, i) => {
     const isOverdueItem = a.dueDate && !a.done && a.dueDate < todayStr;
-    return `<div class="sp-action-item ${a.done ? 'done' : ''}">
-       <input type="checkbox" ${a.done ? 'checked' : ''} onchange="toggleActionItem('${s.id}',${i})">
-       <span style="flex:1;">${escapeHtml(a.text)}</span>
-       ${a.dueDate ? `<span class="sp-sub" style="${isOverdueItem ? 'color:#a52620; font-weight:700;' : ''}">${isOverdueItem ? '\u26A0\uFE0F ' : ''}${escapeHtml(a.dueDate)}</span>` : ''}
-       <span class="sp-sub">${a.owner || ''}</span>
-       <button class="sp-mini-btn" onclick="removeActionItem('${s.id}',${i})">&times;</button>
-     </div>`;
+    const itemKey = s.id + ':' + i;
+    const isExpanded = expandedActionItems.has(itemKey);
+    const comments = a.comments || [];
+    return `<div class="sp-action-item-wrap">
+      <div class="sp-action-item ${a.done ? 'done' : ''}">
+         <input type="checkbox" ${a.done ? 'checked' : ''} onchange="toggleActionItem('${s.id}',${i})">
+         <span style="flex:1;">${escapeHtml(a.text)}</span>
+         ${a.dueDate ? `<span class="sp-sub" style="${isOverdueItem ? 'color:#a52620; font-weight:700;' : ''}">${isOverdueItem ? '\u26A0\uFE0F ' : ''}${escapeHtml(a.dueDate)}</span>` : ''}
+         <span class="sp-sub">${a.owner || ''}</span>
+         <button class="sp-mini-btn" onclick="toggleActionItemExpand('${s.id}',${i})" title="Comments">\u{1F4AC}${comments.length ? ' ' + comments.length : ''}</button>
+         <button class="sp-mini-btn" onclick="removeActionItem('${s.id}',${i})">&times;</button>
+      </div>
+      ${isExpanded ? `
+        <div class="sp-action-comments">
+          ${comments.length ? comments.map(c => `<div class="sp-action-comment"><span class="ts">${escapeHtml(c.ts)}</span>${escapeHtml(c.text)}</div>`).join('') : '<div class="sp-sub">No updates logged yet.</div>'}
+          <div class="sp-add-row">
+            <input type="text" id="action-comment-input-${s.id}-${i}" placeholder="Log an update on this item...">
+            <button class="sp-mini-btn" onclick="addActionItemComment('${s.id}',${i})">Add</button>
+          </div>
+        </div>
+      ` : ''}
+    </div>`;
   }).join('') || '<div class="sp-sub">No open items.</div>';
 
   const questionsHtml = (s.data.questions || []).map((q, i) =>
@@ -5113,6 +5232,17 @@ function updateSponsorNested(id, group, field, value) {
 
 function linkBoothToSponsor(sponsorId, boothId) {
   const s = getSponsor(sponsorId); if (!s) return;
+  // Defensive check even though the dropdown already disables taken booths -- if someone
+  // else claims this booth in the moment between rendering and clicking (e.g. two people
+  // editing at once), refuse the assignment instead of letting two orgs silently share a spot.
+  if (boothId) {
+    const claimedBy = sponsors.find(sp => sp.linkedBoothId === boothId && sp.id !== sponsorId);
+    if (claimedBy) {
+      toast('That booth is already linked to ' + claimedBy.org + ' \u2014 pick a different spot.');
+      renderSponsorRows(); // reset the dropdown back to its real state
+      return;
+    }
+  }
   s.linkedBoothId = boothId || '';
   // The booth's on-map label always shows its spot name (e.g. "Spot 4"), never the
   // sponsor org -- that pairing lives in the Spot Directory next to the map instead.
@@ -5133,6 +5263,8 @@ function addComm(id) {
   renderSponsorRows();
 }
 
+let expandedActionItems = new Set(); // tracks which action items have their comment thread open, keyed "sponsorId:index"
+
 function addActionItem(id) {
   const input = document.getElementById('action-input-' + id);
   const owner = document.getElementById('action-owner-' + id).value;
@@ -5141,9 +5273,27 @@ function addActionItem(id) {
   const val = input.value.trim();
   if (!val) return;
   const s = getSponsor(id);
-  s.data.actionItems.push({ text: val, owner, done: false, dueDate });
+  s.data.actionItems.push({ text: val, owner, done: false, dueDate, comments: [] });
   input.value = '';
   if (dueDateEl) dueDateEl.value = '';
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function toggleActionItemExpand(id, i) {
+  const key = id + ':' + i;
+  if (expandedActionItems.has(key)) expandedActionItems.delete(key);
+  else expandedActionItems.add(key);
+  renderSponsorRows();
+}
+function addActionItemComment(id, i) {
+  const input = document.getElementById('action-comment-input-' + id + '-' + i);
+  const val = input.value.trim();
+  if (!val) return;
+  const s = getSponsor(id); if (!s) return;
+  const item = s.data.actionItems[i]; if (!item) return;
+  if (!item.comments) item.comments = [];
+  const ts = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  item.comments.push({ text: val, ts });
   pushSponsor(s);
   renderSponsorRows();
 }
