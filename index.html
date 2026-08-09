@@ -481,11 +481,11 @@ table.sp-table thead th {
   z-index: 2; touch-action: none;
 }
 .sp-col-resize:hover, .sp-col-resize.resizing { background: rgba(92,135,156,0.3); }
-table.sp-table td { padding: 11px 12px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.sp-table td { padding: 11px 12px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: top; overflow: hidden; }
 table.sp-table tbody tr.sp-row { cursor: pointer; transition: background 0.1s; }
 table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
-.sp-org { font-weight: 700; color: var(--ink); }
-.sp-sub { font-size: 11.5px; color: var(--ink-soft); }
+.sp-org { font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sp-sub { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .sp-badge { font-size: 10.5px; padding: 3px 10px; border-radius: 12px; font-weight: 700; display: inline-block; white-space: nowrap; letter-spacing: 0.01em; }
 .sp-badge-reg { background: #E1EFE4; color: #256B3F; }
 .sp-badge-inkind { background: var(--gold-pale); color: #8B5E13; }
@@ -505,6 +505,11 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   padding: 0 6px 4px 0; border-bottom: 2px solid var(--gold); margin-bottom: 6px;
 }
 .sp-subhead { font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft); font-weight: 700; margin: 14px 0 7px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.sp-adhoc-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+.sp-adhoc-row { display: flex; align-items: center; gap: 8px; }
+.sp-adhoc-row .sp-check { flex: 1; font-size: 12px; }
+.sp-adhoc-amount { width: 70px; flex-shrink: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+.sp-adhoc-amount:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-pale); }
 .sp-subhead:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
 @media (max-width: 900px) { .sp-detail-grid { grid-template-columns: 1fr; } }
 .sp-field { margin-bottom: 9px; }
@@ -554,6 +559,9 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 }
 .db-header h2 { font-family: var(--font-display); margin: 0 0 8px; font-size: 28px; font-weight: 700; color: #fff; position: relative; }
 .db-caveat { font-size: 12.5px; color: rgba(255,255,255,0.65); max-width: 620px; line-height: 1.6; margin: 0; position: relative; }
+.db-nr-summary { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+.db-nr-pct-sep { color: var(--line); margin: 0 6px; font-weight: 400; }
+.db-row-pct { color: var(--ink-soft); font-weight: 400; font-size: 11px; }
 .db-body { padding: 0 24px; }
 .db-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 32px; }
 .db-card {
@@ -579,6 +587,40 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .db-row-bar-outer { flex: 1; height: 14px; background: var(--teal-pale); border-radius: 7px; overflow: hidden; }
 .db-row-bar-fill { height: 100%; border-radius: 7px 0 0 7px; transition: width 0.4s ease; }
 .db-row-value { width: 90px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+
+.db-opportunity-section {
+  border: 1px dashed var(--teal);
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: var(--teal-pale);
+}
+.db-opportunity-flag {
+  font-size: 10px; text-transform: none; letter-spacing: 0; font-weight: 700;
+  color: var(--teal-deep); background: #fff; border: 1px solid var(--teal);
+  border-radius: 10px; padding: 2px 9px; margin-left: 10px; vertical-align: middle;
+}
+.db-opportunity-note { font-size: 12px; color: var(--ink-soft); margin: -6px 0 16px; max-width: 640px; line-height: 1.5; }
+.db-opp-bar-outer {
+  position: relative; width: 100%; height: 40px; background: #fff; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--line); margin-bottom: 8px;
+}
+.db-opp-bar-current {
+  position: absolute; top: 0; left: 0; height: 100%; background: var(--teal-deep);
+  display: flex; align-items: center; padding-left: 12px; color: #fff; font-size: 12px; font-weight: 700;
+  white-space: nowrap; overflow: hidden;
+}
+.db-opp-bar-potential {
+  position: absolute; top: 0; height: 100%;
+  background: repeating-linear-gradient(45deg, var(--gold-pale), var(--gold-pale) 6px, #f0e2c4 6px, #f0e2c4 12px);
+  border-left: 2px dashed var(--gold);
+  display: flex; align-items: center; padding-left: 12px; color: #8B5E13; font-size: 12px; font-weight: 700;
+  white-space: nowrap; overflow: hidden;
+}
+.db-opp-caption { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; }
+.db-opp-caption b { color: var(--ink); }
+.db-opp-clickable { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+.db-opp-clickable:hover { color: var(--teal-deep); }
+.db-opp-tbd { font-size: 11px; color: var(--ink-soft); font-style: italic; font-weight: 400; }
 @media (max-width: 760px) { .db-grid-2 { grid-template-columns: 1fr; } }
 
 .db-timeline-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
@@ -786,7 +828,7 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
           <button class="sp-filter-btn" data-f="Registered - Pending Payment" onclick="setSponsorFilter('Registered - Pending Payment')">Registered, Pending Payment</button>
           <button class="sp-filter-btn" data-f="In-Kind - Registered" onclick="setSponsorFilter('In-Kind - Registered')">In-Kind, Registered</button>
           <button class="sp-filter-btn" data-f="In-Kind - Not Registered" onclick="setSponsorFilter('In-Kind - Not Registered')">In-Kind, Not Registered</button>
-          <button class="sp-filter-btn" data-f="Not Yet Registered (Prior Sponsor)" onclick="setSponsorFilter('Not Yet Registered (Prior Sponsor)')">Lapsed / Prior Sponsor</button>
+          <button class="sp-filter-btn" data-f="Not Yet Registered (Prior Sponsor)" onclick="setSponsorFilter('Not Yet Registered (Prior Sponsor)')">Awaiting Renewal</button>
           <button class="sp-filter-btn" data-f="Prospective Sponsor" onclick="setSponsorFilter('Prospective Sponsor')">Prospective Sponsors</button>
           <button class="sp-filter-btn" data-f="Declined" onclick="setSponsorFilter('Declined')">Declined</button>
           <button class="sp-filter-btn" data-f="__flagged__" onclick="setSponsorFilter('__flagged__')">🚩 Flagged for Review</button>
@@ -865,19 +907,27 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
         <div id="db-timeline-chart"></div>
       </div>
 
+      <div class="db-section">
+        <div class="db-section-title">Committed $ by Package Tier</div>
+        <div id="db-package-breakdown"></div>
+      </div>
+
       <div class="db-grid-2">
         <div class="db-section">
           <div class="db-section-title">By Tracker Status</div>
           <div id="db-status-breakdown"></div>
         </div>
         <div class="db-section">
-          <div class="db-section-title">Committed $ by Package Tier</div>
-          <div id="db-package-breakdown"></div>
-        </div>
-        <div class="db-section">
           <div class="db-section-title">New vs. Returning Sponsors</div>
           <div id="db-newreturning-breakdown"></div>
         </div>
+      </div>
+
+      <div class="db-section db-opportunity-section">
+        <div class="db-section-title" style="border-left-color: var(--teal);">Potential Upside <span class="db-opportunity-flag">Not counted in totals above</span></div>
+        <p class="db-opportunity-note">What sponsors awaiting renewal and prospective sponsors could add if they convert, based on last known package value. This is opportunity, not committed money — kept fully separate from the real totals on this page.</p>
+        <div id="db-opportunity-bar"></div>
+        <div id="db-opportunity-breakdown"></div>
       </div>
     </div>
   </div>
@@ -915,7 +965,7 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
       </svg>
       <div class="db-header">
         <h2>2027 Conference Budget</h2>
-        <p class="db-caveat">Exhibitor/Vendor "Actual" pulls live from the Sponsor Tracker automatically \u2014 no need to enter that twice. Everything else here is editable.</p>
+        <p class="db-caveat">Exhibitor/Vendor "Actual" pulls live from the Sponsor Tracker automatically — no need to enter that twice. Everything else here is editable.</p>
       </div>
     </div>
     <div class="bg-body">
@@ -1775,6 +1825,15 @@ function addBooth(type) {
 
 function removeBooth(id) {
   booths = booths.filter(b => b.id !== id);
+  // If any sponsor was linked to this booth, clear that link rather than leaving it
+  // silently pointing at a booth that no longer exists.
+  if (typeof sponsors !== 'undefined') {
+    const linkedSponsor = sponsors.find(s => s.linkedBoothId === id);
+    if (linkedSponsor) {
+      linkedSponsor.linkedBoothId = '';
+      if (typeof pushSponsor === 'function') pushSponsor(linkedSponsor);
+    }
+  }
   renderAll();
   persist();
 }
@@ -2170,6 +2229,18 @@ async function loadPackagesFromDb() {
       key: p.key, label: p.label, widthFt: Number(p.width_ft), depthFt: Number(p.depth_ft),
       color: p.color || '#6b7280', sortOrder: p.sort_order || 0
     }));
+    // Backfill: packages seeded before "Exhibit Space Only" ($500 tier) existed won't have
+    // it, since seeding only ever runs once on an empty table. Add it here if it's missing,
+    // rather than requiring anyone to run SQL by hand.
+    if (!packages.some(p => p.key === 'SPACE')) {
+      const spacePkg = DEFAULT_PACKAGES.find(p => p.key === 'SPACE');
+      const { error: addErr } = await sbClient.from(PACKAGES_TABLE).insert({
+        key: spacePkg.key, label: spacePkg.label, width_ft: spacePkg.widthFt, depth_ft: spacePkg.depthFt,
+        color: spacePkg.color, sort_order: spacePkg.sortOrder
+      });
+      if (!addErr) packages.push({ ...spacePkg });
+      else console.warn('Could not backfill Exhibit Space Only package:', addErr.message);
+    }
   } catch (err) {
     console.warn('Packages load failed, using defaults:', err);
   }
@@ -2241,7 +2312,16 @@ function applyRemoteState(data) {
     id: l.id || makeId(), mapId: l.mapId, xPct: l.xPct, yPct: l.yPct,
     wFt: l.wFt || 5, hFt: l.hFt || 2, angle: l.angle || 0, text: l.text || 'Label'
   }));
+  // Backfill: booths placed before spot names existed load with spotName: '' above. The
+  // canvas fills in a default the moment it renders, but that's an in-memory fallback only --
+  // it was never actually saved. Assign and persist it for real here, once, so the database
+  // matches what's on screen instead of relying on the same fallback recomputing every load.
+  let backfilledAnySpotName = false;
+  booths.forEach(b => {
+    if (!b.spotName) { b.spotName = nextSpotName(b.mapId); backfilledAnySpotName = true; }
+  });
   refreshView();
+  if (backfilledAnySpotName) persist();
 }
 
 function pushRemoteState(isSeed) {
@@ -3472,6 +3552,57 @@ function parseMoneyNum(v) {
   return isNaN(n) ? 0 : n;
 }
 
+// The standard menu of ad-hoc add-ons from the Sponsorship Guide (food sponsorships +
+// single ads). Food sponsorships start blank -- they're per-person/per-day, so a flat
+// number would be misleading. Single ads have a real flat guide price, so checking one
+// auto-fills that amount (still editable, in case the actual negotiated rate differs).
+const STANDARD_ADHOC_LABELS = [
+  'Snack Area Sponsorship', 'Breakfast Area Sponsorship', 'Lunch Sponsorship, Monday',
+  'Lunch Sponsorship, Tuesday', 'Dessert Fellowship Sponsorship', 'Welcome Mix & Mingle Sponsorship',
+  '3-Minute Video Spot', 'Website Link \u2013 1-Year Placement', 'Social Media Advertisement',
+  'Insert for Registration Bag', 'Giveaway During Main Session',
+  'Full-Page Ad in Conference Booklet', 'Half-Page Ad in Conference Booklet'
+];
+const SINGLE_AD_FLAT_PRICES = {
+  '3-Minute Video Spot': 500,
+  'Website Link \u2013 1-Year Placement': 250,
+  'Social Media Advertisement': 100,
+  'Insert for Registration Bag': 250,
+  'Giveaway During Main Session': 100,
+  'Full-Page Ad in Conference Booklet': 250,
+  'Half-Page Ad in Conference Booklet': 100
+};
+function defaultAdhocItems() {
+  return STANDARD_ADHOC_LABELS.map(label => ({ label, checked: false, amount: null }));
+}
+
+function sponsorAdhocTotal(s) {
+  const items = s.data.money.adhocItems || [];
+  const itemsSum = items.filter(i => i.checked).reduce((sum, i) => sum + parseMoneyNum(i.amount), 0);
+  return itemsSum + parseMoneyNum(s.data.money.adhocAmount);
+}
+
+function toggleAdhocItem(id, idx, checked) {
+  const s = getSponsor(id); if (!s) return;
+  if (!s.data.money.adhocItems) s.data.money.adhocItems = defaultAdhocItems();
+  const item = s.data.money.adhocItems[idx];
+  item.checked = checked;
+  // Auto-fill the flat guide price for single-ad items when checked, but only if the
+  // amount is still blank -- never overwrite a number staff already entered.
+  if (checked && (item.amount == null || item.amount === '') && SINGLE_AD_FLAT_PRICES[item.label] != null) {
+    item.amount = SINGLE_AD_FLAT_PRICES[item.label];
+  }
+  pushSponsor(s);
+  renderSponsorRows();
+}
+function updateAdhocItemAmount(id, idx, value) {
+  const s = getSponsor(id); if (!s) return;
+  if (!s.data.money.adhocItems) s.data.money.adhocItems = defaultAdhocItems();
+  s.data.money.adhocItems[idx].amount = value === '' ? null : Number(value);
+  pushSponsor(s);
+  renderSponsorRows();
+}
+
 function isSponsorMarkedPaid(s) {
   if (s.data.money.paymentStatus) return s.data.money.paymentStatus === 'Paid in Full';
   // legacy fallback for records saved before the Payment Status dropdown existed
@@ -3493,13 +3624,21 @@ function dashStatusColor(status) {
 
 function sponsorsForDashboardKey(key) {
   if (key === 'all') return sponsors.slice();
+  if (key === 'active') return sponsors.filter(s => /^registered/i.test(s.trackerStatus) || /in-kind/i.test(s.trackerStatus));
   if (key === 'cash') return sponsors.filter(s => /^registered/i.test(s.trackerStatus));
   if (key === 'collected') return sponsors.filter(s => /^registered/i.test(s.trackerStatus) && isSponsorMarkedPaid(s));
   if (key === 'outstanding') return sponsors.filter(s => /^registered/i.test(s.trackerStatus) && !isSponsorMarkedPaid(s));
   if (key === 'inkind') return sponsors.filter(s => /in-kind/i.test(s.trackerStatus));
   if (key === 'prospective') return sponsors.filter(s => s.trackerStatus === 'Prospective Sponsor' || s.trackerStatus === 'Not Yet Registered (Prior Sponsor)');
+  if (key === 'lapsed-only') return sponsors.filter(s => s.trackerStatus === 'Not Yet Registered (Prior Sponsor)');
+  if (key === 'prospect-only') return sponsors.filter(s => s.trackerStatus === 'Prospective Sponsor');
   if (key.startsWith('status:')) { const st = key.slice(7); return sponsors.filter(s => s.trackerStatus === st); }
-  if (key.startsWith('pkg:')) { const pk = key.slice(4); return sponsors.filter(s => s.package === pk); }
+  if (key.startsWith('pkg:')) {
+    const pk = key.slice(4);
+    // Match the dual-axis chart's own scope exactly: registered + in-kind only, so the
+    // popup never shows more sponsors than the bar's dollar total actually represents.
+    return sponsors.filter(s => s.package === pk && (/^registered/i.test(s.trackerStatus) || /in-kind/i.test(s.trackerStatus)));
+  }
   if (key === 'returning') return sponsors.filter(s => s.data.returning === true);
   if (key === 'new') return sponsors.filter(s => s.data.returning === false);
   return [];
@@ -3541,15 +3680,141 @@ function closeDashboardDrill() {
   document.getElementById('dashboard-drill-overlay').style.display = 'none';
 }
 
+function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+
+// Rounds a value up to a "nice" number (1, 2, 5, or 10 x a power of ten) -- the standard
+// approach for chart axes, so gridlines land on round values instead of whatever the raw
+// max-times-padding happens to produce.
+function niceNum(range, round) {
+  if (range <= 0) return 1;
+  const exponent = Math.floor(Math.log10(range));
+  const fraction = range / Math.pow(10, exponent);
+  let niceFraction;
+  if (round) {
+    if (fraction < 1.5) niceFraction = 1;
+    else if (fraction < 3) niceFraction = 2;
+    else if (fraction < 7) niceFraction = 5;
+    else niceFraction = 10;
+  } else {
+    if (fraction <= 1) niceFraction = 1;
+    else if (fraction <= 2) niceFraction = 2;
+    else if (fraction <= 5) niceFraction = 5;
+    else niceFraction = 10;
+  }
+  return niceFraction * Math.pow(10, exponent);
+}
+function niceAxisMax(dataMax, targetTicks) {
+  const roughRange = niceNum(dataMax, false);
+  const step = niceNum(roughRange / (targetTicks - 1), true);
+  const max = Math.ceil(dataMax / step) * step;
+  return { max, step };
+}
+
+function renderPackageDualAxisChart(pkgTotals, pkgCounts) {
+  const pkgEl = document.getElementById('db-package-breakdown');
+  const entries = Object.entries(pkgTotals).sort((a, b) => b[1] - a[1]);
+
+  if (entries.length === 0) {
+    pkgEl.innerHTML = '<div class="db-caveat">No sponsors have a package assigned yet.</div>';
+    return;
+  }
+
+  const dataMax = Math.max(1, ...entries.map(([k, v]) => v));
+  const { max: maxAmt, step: amtStep } = niceAxisMax(dataMax, 5);
+  const maxCount = Math.max(1, ...entries.map(([k]) => pkgCounts[k])) * 1.2;
+
+  const W = 720, H = 300, padL = 64, padR = 56, padT = 20, padB = 46;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const n = entries.length;
+  const slotW = plotW / n;
+  const barW = Math.min(70, slotW * 0.42);
+
+  const yForAmt = v => padT + plotH - (v / maxAmt) * plotH;
+  const yForCount = v => padT + plotH - (v / maxCount) * plotH;
+  const xForSlot = i => padL + i * slotW + slotW / 2;
+
+  // Left axis ($) gridlines + labels -- ticks land on exact multiples of a "nice" step
+  // (amtStep), so every label is a clean round number instead of a fraction of a padded max.
+  const amtTicks = [];
+  for (let v = 0; v <= maxAmt + 0.5; v += amtStep) amtTicks.push(Math.round(v));
+  const leftGrid = amtTicks.map(v => {
+    const y = yForAmt(v);
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--line)" stroke-width="1"/>
+            <text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="var(--ink-soft)">$${v.toLocaleString()}</text>`;
+  }).join('');
+
+  // Right axis (count) tick labels only, no gridlines (left grid already covers the plot area)
+  const countTickCount = Math.min(5, Math.ceil(maxCount));
+  const rightTicks = Array.from({ length: countTickCount + 1 }, (_, i) => i / countTickCount).map(f => {
+    const y = padT + plotH - f * plotH;
+    return `<text x="${W - padR + 10}" y="${y + 4}" text-anchor="start" font-size="10" fill="var(--gold)">${Math.round(maxCount * f)}</text>`;
+  }).join('');
+
+  // Bars ($, left axis) -- one per package, clickable into the drill-down like before.
+  // Uses data-pkg + a real addEventListener below rather than an inline onclick attribute --
+  // inline handlers on SVG nodes injected via innerHTML aren't reliably wired up in every
+  // browser, so this is the defensive, guaranteed-to-work version.
+  const bars = entries.map(([key, amt], i) => {
+    const pkg = getPkg(key);
+    const x = xForSlot(i) - barW / 2;
+    const y = yForAmt(amt);
+    const h = (padT + plotH) - y;
+    return `<rect data-pkg="${escapeHtml(key)}" x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="${pkg.color}" style="cursor:pointer;">
+      <title>${escapeHtml(pkg.label)}: ${fmt(amt)}</title>
+    </rect>`;
+  }).join('');
+
+  // Count line + dots (right axis), overlaid on the same bars
+  const linePath = entries.map(([key], i) => (i === 0 ? 'M' : 'L') + xForSlot(i).toFixed(1) + ',' + yForCount(pkgCounts[key]).toFixed(1)).join(' ');
+  const dots = entries.map(([key], i) => {
+    const cx = xForSlot(i), cy = yForCount(pkgCounts[key]);
+    return `<circle data-pkg="${escapeHtml(key)}" cx="${cx}" cy="${cy}" r="4.5" fill="var(--gold)" stroke="#fff" stroke-width="1.5" style="cursor:pointer;">
+      <title>${escapeHtml(getPkg(key).label)}: ${pkgCounts[key]} sponsor${pkgCounts[key] === 1 ? '' : 's'}</title>
+    </circle>`;
+  }).join('');
+
+  // X-axis category labels
+  const xLabels = entries.map(([key], i) => {
+    const pkg = getPkg(key);
+    return `<text x="${xForSlot(i)}" y="${H - padB + 18}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">${escapeHtml(pkg.label)}</text>
+            <text x="${xForSlot(i)}" y="${H - padB + 32}" text-anchor="middle" font-size="10" fill="var(--ink-soft)">${pkgCounts[key]} sponsor${pkgCounts[key] === 1 ? '' : 's'}</text>`;
+  }).join('');
+
+  pkgEl.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; max-height:320px;">
+      ${leftGrid}
+      ${rightTicks}
+      ${bars}
+      <path d="${linePath}" fill="none" stroke="var(--gold)" stroke-width="2"/>
+      ${dots}
+      ${xLabels}
+      <text x="${padL}" y="14" font-size="10" font-weight="700" fill="var(--ink-soft)">$ COMMITTED</text>
+      <text x="${W - padR}" y="14" text-anchor="end" font-size="10" font-weight="700" fill="var(--gold)"># SPONSORS</text>
+    </svg>
+  `;
+
+  // Wire up real click listeners on every bar and dot -- see note above on why this
+  // isn't done with inline onclick attributes.
+  pkgEl.querySelectorAll('[data-pkg]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.getAttribute('data-pkg');
+      openDashboardDrill('pkg:' + key, getPkg(key).label + ' Sponsors');
+    });
+  });
+}
+
 function renderDashboard() {
+  // "Active" sponsors = the ones the totals on this page are scoped to: Registered (cash)
+  // and In-Kind. Prospective/lapsed/declined sponsors are tracked elsewhere in the app but
+  // intentionally excluded from every dashboard total below.
+  const activeSponsors = sponsors.filter(s => /^registered/i.test(s.trackerStatus) || /in-kind/i.test(s.trackerStatus));
   // Cash sponsors: anything whose tracker status starts with "Registered" (cash tier, not comp)
   const cashSponsors = sponsors.filter(s => /^registered/i.test(s.trackerStatus));
   const inKindSponsors = sponsors.filter(s => /in-kind/i.test(s.trackerStatus));
-  const prospectiveSponsors = sponsors.filter(s => s.trackerStatus === 'Prospective Sponsor' || s.trackerStatus === 'Not Yet Registered (Prior Sponsor)');
 
   let totalCommitted = 0, totalCollected = 0;
   cashSponsors.forEach(s => {
-    const committed = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + parseMoneyNum(s.data.money.adhocAmount);
+    const committed = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
     totalCommitted += committed;
     const status = s.data.money.paymentStatus;
     const paidAmt = parseMoneyNum(s.data.money.paid);
@@ -3564,11 +3829,6 @@ function renderDashboard() {
   });
   const totalOutstanding = totalCommitted - totalCollected;
 
-  let prospectivePotential = 0;
-  prospectiveSponsors.forEach(s => { prospectivePotential += parseMoneyNum(s.data.money.committed || s.data.checkoutTier); });
-
-  const fmt = n => '$' + Math.round(n).toLocaleString();
-
   // Top cards
   const cardsEl = document.getElementById('db-cards');
   const ICON_USERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>';
@@ -3576,7 +3836,6 @@ function renderDashboard() {
   const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
   const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
   const ICON_GIFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>';
-  const ICON_TARGET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>';
   function dbCard(icon, iconColor, label, value, sub, valueColor, drillKey, drillTitle) {
     return `<div class="db-card" onclick="openDashboardDrill('${drillKey}', '${escapeHtml(drillTitle)}')" style="cursor:pointer;">
       <div style="width:30px; height:30px; border-radius:8px; background:${iconColor}18; color:${iconColor}; display:flex; align-items:center; justify-content:center; margin-bottom:10px;"><span style="width:16px; height:16px; display:block;">${icon}</span></div>
@@ -3586,12 +3845,11 @@ function renderDashboard() {
     </div>`;
   }
   cardsEl.innerHTML =
-    dbCard(ICON_USERS, '#5C879C', 'Total Tracked', sponsors.length, 'across all statuses', null, 'all', 'All Sponsors') +
+    dbCard(ICON_USERS, '#5C879C', 'Total Confirmed Exhibitors', activeSponsors.length, 'registered + in-kind only', null, 'active', 'Registered + In-Kind Sponsors') +
     dbCard(ICON_DOLLAR, '#A17A26', 'Cash Committed', fmt(totalCommitted), cashSponsors.length + ' cash sponsor' + (cashSponsors.length === 1 ? '' : 's'), null, 'cash', 'Cash Committed Sponsors') +
     dbCard(ICON_CHECK, '#2E8B57', 'Collected', fmt(totalCollected), 'marked as Paid', '#2E8B57', 'collected', 'Collected (Paid in Full)') +
     dbCard(ICON_CLOCK, '#a52620', 'Outstanding', fmt(totalOutstanding), 'committed, not yet collected', '#a52620', 'outstanding', 'Outstanding Payments') +
-    dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades', null, 'inkind', 'In-Kind Sponsors') +
-    dbCard(ICON_TARGET, '#57676B', 'Prospective Value', fmt(prospectivePotential), prospectiveSponsors.length + ' not-yet-registered, based on last known package', null, 'prospective', 'Prospective Sponsors');
+    dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades', null, 'inkind', 'In-Kind Sponsors');
 
   // Progress bar
   const pct = totalCommitted > 0 ? Math.min(100, (totalCollected / totalCommitted) * 100) : 0;
@@ -3599,9 +3857,9 @@ function renderDashboard() {
   document.getElementById('db-progress-caption').textContent =
     fmt(totalCollected) + ' collected of ' + fmt(totalCommitted) + ' committed (' + pct.toFixed(0) + '%) — ' + fmt(totalOutstanding) + ' still outstanding';
 
-  // Status breakdown (count-based bars)
+  // Status breakdown (count-based bars) -- registered + in-kind statuses only
   const statusCounts = {};
-  sponsors.forEach(s => { statusCounts[s.trackerStatus] = (statusCounts[s.trackerStatus] || 0) + 1; });
+  activeSponsors.forEach(s => { statusCounts[s.trackerStatus] = (statusCounts[s.trackerStatus] || 0) + 1; });
   const maxStatusCount = Math.max(1, ...Object.values(statusCounts));
   const statusEl = document.getElementById('db-status-breakdown');
   statusEl.innerHTML = Object.entries(statusCounts)
@@ -3614,29 +3872,71 @@ function renderDashboard() {
       </div>
     `).join('');
 
-  // Package tier breakdown ($ committed, base + ad-hoc, across all sponsors that have a package set)
+  // Package tier breakdown ($ base package price only -- ad-hoc/donation amounts are
+  // excluded here on purpose, since they're a separate commitment from the booth tier itself.
+  // Registered + in-kind sponsors only, same scope as everything else on this page.
   const pkgTotals = {};
-  sponsors.forEach(s => {
+  const pkgCounts = {};
+  activeSponsors.forEach(s => {
     if (!s.package) return;
-    const amt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + parseMoneyNum(s.data.money.adhocAmount);
+    const amt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier);
     pkgTotals[s.package] = (pkgTotals[s.package] || 0) + amt;
+    pkgCounts[s.package] = (pkgCounts[s.package] || 0) + 1;
   });
-  const maxPkgTotal = Math.max(1, ...Object.values(pkgTotals));
-  const pkgEl = document.getElementById('db-package-breakdown');
-  const pkgEntries = Object.entries(pkgTotals).sort((a, b) => b[1] - a[1]);
-  pkgEl.innerHTML = pkgEntries.length ? pkgEntries.map(([key, amt]) => {
-    const pkg = getPkg(key);
-    return `
-      <div class="db-row" onclick="openDashboardDrill('pkg:${escapeHtml(key)}', '${escapeHtml(pkg.label)} Sponsors')" style="cursor:pointer;">
-        <div class="db-row-label">${escapeHtml(pkg.label)}</div>
-        <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(amt / maxPkgTotal) * 100}%; background:${pkg.color};"></div></div>
-        <div class="db-row-value">${fmt(amt)}</div>
-      </div>
-    `;
-  }).join('') : '<div class="db-caveat">No sponsors have a package assigned yet.</div>';
+  renderPackageDualAxisChart(pkgTotals, pkgCounts);
 
   renderNewReturningBreakdown();
   renderTimelineChart();
+  renderOpportunitySection(totalCommitted);
+}
+
+function renderOpportunitySection(totalCommitted) {
+  const lapsedSponsors = sponsors.filter(s => s.trackerStatus === 'Not Yet Registered (Prior Sponsor)');
+  const prospectSponsors = sponsors.filter(s => s.trackerStatus === 'Prospective Sponsor');
+
+  function splitKnownVsTbd(list) {
+    let known = 0, knownCount = 0, tbdCount = 0;
+    list.forEach(s => {
+      const amt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier);
+      if (amt > 0) { known += amt; knownCount++; }
+      else { tbdCount++; }
+    });
+    return { known, knownCount, tbdCount };
+  }
+
+  const lapsedSplit = splitKnownVsTbd(lapsedSponsors);
+  const prospectSplit = splitKnownVsTbd(prospectSponsors);
+  const totalPotential = lapsedSplit.known + prospectSplit.known;
+  const totalTbdCount = lapsedSplit.tbdCount + prospectSplit.tbdCount;
+  const ceiling = totalCommitted + totalPotential;
+
+  function tbdSuffix(count) { return count > 0 ? ` <span class="db-opp-tbd">+ ${count} more, TBD</span>` : ''; }
+
+  const barEl = document.getElementById('db-opportunity-bar');
+  const currentPct = ceiling > 0 ? (totalCommitted / ceiling) * 100 : 0;
+  const potentialPct = ceiling > 0 ? (totalPotential / ceiling) * 100 : 0;
+  barEl.innerHTML = `
+    <div class="db-opp-bar-outer">
+      <div class="db-opp-bar-current" style="width:${currentPct}%; cursor:pointer;" onclick="openDashboardDrill('cash', 'Cash Committed Sponsors')" title="Click to see what's behind this">${currentPct > 12 ? fmt(totalCommitted) : ''}</div>
+      <div class="db-opp-bar-potential" style="left:${currentPct}%; width:${Math.max(potentialPct, 2)}%; cursor:pointer;" onclick="openDashboardDrill('prospective', 'Awaiting Renewal + Prospective Sponsors')" title="Click to see what's behind this">${potentialPct > 12 ? '+' + fmt(totalPotential) : ''}</div>
+    </div>
+    <div class="db-opp-caption">Currently committed: <b class="db-opp-clickable" onclick="openDashboardDrill('cash', 'Cash Committed Sponsors')">${fmt(totalCommitted)}</b> &nbsp;+&nbsp; Potential upside: <b class="db-opp-clickable" onclick="openDashboardDrill('prospective', 'Awaiting Renewal + Prospective Sponsors')">${fmt(totalPotential)}</b>${tbdSuffix(totalTbdCount)} &nbsp;=&nbsp; Ceiling if everything converts: <b>${fmt(ceiling)}</b>+</div>
+  `;
+
+  const maxOpp = Math.max(1, lapsedSplit.known, prospectSplit.known);
+  const breakdownEl = document.getElementById('db-opportunity-breakdown');
+  breakdownEl.innerHTML = `
+    <div class="db-row" onclick="openDashboardDrill('lapsed-only', 'Awaiting Renewal (Sponsored Last Year)')" style="cursor:pointer;">
+      <div class="db-row-label">Awaiting Renewal (${lapsedSponsors.length}) \u2014 sponsored last year, haven\u2019t heard back</div>
+      <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(lapsedSplit.known / maxOpp) * 100}%; background:#a52620;"></div></div>
+      <div class="db-row-value">${fmt(lapsedSplit.known)}${tbdSuffix(lapsedSplit.tbdCount)}</div>
+    </div>
+    <div class="db-row" onclick="openDashboardDrill('prospect-only', 'Prospective Sponsors (New Targets)')" style="cursor:pointer;">
+      <div class="db-row-label">Prospective (${prospectSponsors.length}) \u2014 new recruit targets</div>
+      <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(prospectSplit.known / maxOpp) * 100}%; background:var(--gold);"></div></div>
+      <div class="db-row-value">${fmt(prospectSplit.known)}${tbdSuffix(prospectSplit.tbdCount)}</div>
+    </div>
+  `;
 }
 
 const FUNDRAISING_GOAL_KEY = 'sbcmcFundraisingGoal';
@@ -3663,16 +3963,24 @@ function renderNewReturningBreakdown() {
     el.innerHTML = '<div class="db-caveat">No active sponsors marked returning/new yet.</div>';
     return;
   }
+  const total = active.length;
+  const returningPct = Math.round((returningCount / total) * 100);
+  const newPct = 100 - returningPct;
   el.innerHTML = `
+    <div class="db-nr-summary">
+      <span class="db-nr-pct" style="color:#2E8B57;">${returningPct}% returning</span>
+      <span class="db-nr-pct-sep">/</span>
+      <span class="db-nr-pct" style="color:#A17A26;">${newPct}% new</span>
+    </div>
     <div class="db-row" onclick="openDashboardDrill('returning', 'Returning Sponsors')" style="cursor:pointer;">
       <div class="db-row-label">Returning (sponsored last year)</div>
       <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(returningCount / max) * 100}%; background:#2E8B57;"></div></div>
-      <div class="db-row-value">${returningCount}</div>
+      <div class="db-row-value">${returningCount} <span class="db-row-pct">(${returningPct}%)</span></div>
     </div>
     <div class="db-row" onclick="openDashboardDrill('new', 'New Sponsors')" style="cursor:pointer;">
       <div class="db-row-label">New (first time this year)</div>
       <div class="db-row-bar-outer"><div class="db-row-bar-fill" style="width:${(newCount / max) * 100}%; background:#A17A26;"></div></div>
-      <div class="db-row-value">${newCount}</div>
+      <div class="db-row-value">${newCount} <span class="db-row-pct">(${newPct}%)</span></div>
     </div>
   `;
 }
@@ -3695,7 +4003,7 @@ function renderTimelineChart() {
   // Group same-day amounts, then build a cumulative series sorted by date.
   const byDate = {};
   dated.forEach(s => {
-    const amt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + parseMoneyNum(s.data.money.adhocAmount);
+    const amt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
     byDate[s.data.registeredDate] = (byDate[s.data.registeredDate] || 0) + amt;
   });
   const sortedDates = Object.keys(byDate).sort();
@@ -3894,7 +4202,7 @@ function rowToSponsor(row) {
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
-      money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
+      money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, returning: null, registeredDate: ''
     }, row.data || {})
   };
@@ -3944,7 +4252,7 @@ function addSponsor() {
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeCount: '', shipping: '' },
-      money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '' },
+      money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, returning: null, registeredDate: ''
     }
   };
@@ -4095,7 +4403,7 @@ function exportSponsorsCSV() {
   const rows = currentFilteredSponsors();
   const headers = [
     'Organization', 'Contact Name', 'Contact Email', 'Contact Phone', 'Package',
-    'Tracker Status', 'Flagged for Review', 'Base Amount', 'Ad-hoc Amount', 'Ad-hoc Description',
+    'Tracker Status', 'Flagged for Review', 'Base Amount', 'Checked Ad-Hoc Items', 'Custom Ad-hoc Amount', 'Custom Ad-hoc Description', 'Total Ad-Hoc $',
     'Payment Status', 'Amount Paid', 'Invoice Sent', 'Payment Due Date', 'Payment Overdue',
     'Program Type', 'Program Track', 'Program Time Slot', 'Program Length (min)', 'Materials Confirmed',
     'Power Needed', 'AV Needed', 'Load-in Time', 'Staff Badges Needed', 'Shipping Notes',
@@ -4111,10 +4419,11 @@ function exportSponsorsCSV() {
     const questionsStr = (s.data.questions || []).map(q => (q.resolved ? '[answered] ' : '[open] ') + q.text).join(' | ');
     const pkgLabel = s.package ? getPkg(s.package).label : '';
 
+    const checkedItemsStr = (s.data.money.adhocItems || []).filter(i => i.checked).map(i => i.label + ' ($' + (i.amount || 0) + ')').join(' | ');
     const row = [
       s.org, s.contactName, s.contactEmail, s.contactPhone, pkgLabel,
       s.trackerStatus, s.data.flagged ? 'Yes' : 'No',
-      s.data.money.committed || s.data.checkoutTier || '', s.data.money.adhocAmount || '', s.data.money.adhocDescription || '',
+      s.data.money.committed || s.data.checkoutTier || '', checkedItemsStr, s.data.money.adhocAmount || '', s.data.money.adhocDescription || '', sponsorAdhocTotal(s),
       s.data.money.paymentStatus || '', s.data.money.paid || '', s.data.money.invoiceSent ? 'Yes' : 'No', s.data.money.dueDate || '', isOverdue(s) ? 'Yes' : 'No',
       s.data.program.type || '', s.data.program.track || '', s.data.program.timeSlot || '', s.data.program.lengthMin || '', s.data.program.fulfilled ? 'Yes' : 'No',
       s.data.logistics.power ? 'Yes' : 'No', s.data.logistics.av ? 'Yes' : 'No', s.data.logistics.loadInTime || '', s.data.logistics.badgeCount || '', s.data.logistics.shipping || '',
@@ -4183,8 +4492,7 @@ function syncSortDropdown() {
 function sponsorSortValue(s, key) {
   if (key === 'org') return (s.org || '').toLowerCase();
   if (key === 'amount') {
-    const n = Number(s.data.money.committed || s.data.checkoutTier || 0) + Number(s.data.money.adhocAmount || 0);
-    return isNaN(n) ? 0 : n;
+    return parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
   }
   if (key === 'due') return s.data.money.dueDate || '9999-99-99'; // blanks sort last
   return '';
@@ -4192,7 +4500,7 @@ function sponsorSortValue(s, key) {
 
 function sponsorAmountCell(s) {
   const base = s.data.money.committed || s.data.checkoutTier || '';
-  const adhoc = s.data.money.adhocAmount || '';
+  const adhoc = sponsorAdhocTotal(s);
   const status = s.data.money.paymentStatus || s.data.amountStatus || '';
   let parts = [];
   if (base) parts.push('$' + Number(base).toLocaleString());
@@ -4343,8 +4651,22 @@ function sponsorDetailHTML(s) {
         <fieldset class="sp-fieldset">
           <legend>Money</legend>
           <div class="sp-field"><label>Base package ($)</label><input type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
-          <div class="sp-field"><label>Additional / ad-hoc commitment ($)</label><input type="text" value="${escapeHtml(s.data.money.adhocAmount)}" onchange="updateSponsorNested('${s.id}','money','adhocAmount',this.value)"></div>
-          <div class="sp-field"><label>What the ad-hoc amount is for</label><input type="text" value="${escapeHtml(s.data.money.adhocDescription)}" placeholder="e.g. sponsoring a breakout track" onchange="updateSponsorNested('${s.id}','money','adhocDescription',this.value)"></div>
+
+          <div class="sp-subhead">Ad-Hoc / Add-On Items</div>
+          <div class="sp-adhoc-list">
+            ${(s.data.money.adhocItems || defaultAdhocItems()).map((item, idx) => `
+              <div class="sp-adhoc-row">
+                <label class="sp-check" style="margin-bottom:0;"><input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleAdhocItem('${s.id}',${idx},this.checked)"> ${escapeHtml(item.label)}</label>
+                <input type="text" class="sp-adhoc-amount" placeholder="$" value="${item.amount == null ? '' : item.amount}" onchange="updateAdhocItemAmount('${s.id}',${idx},this.value)">
+              </div>
+            `).join('')}
+          </div>
+          <div class="sp-subhead">Custom / Other (one-off donations, upgrades, etc.)</div>
+          <div class="sp-field"><label>Custom ad-hoc amount ($)</label><input type="text" value="${escapeHtml(s.data.money.adhocAmount)}" onchange="updateSponsorNested('${s.id}','money','adhocAmount',this.value)"></div>
+          <div class="sp-field"><label>What it's for</label><input type="text" value="${escapeHtml(s.data.money.adhocDescription)}" placeholder="e.g. Double exhibit space upgrade, or a bespoke donation" onchange="updateSponsorNested('${s.id}','money','adhocDescription',this.value)"></div>
+          <div class="sp-field"><label>Total ad-hoc committed</label><div class="bg-input bg-readonly" style="padding:7px 9px;">$${sponsorAdhocTotal(s).toLocaleString()}</div></div>
+
+          <div class="sp-subhead">Payment</div>
           <div class="sp-field"><label>Payment status</label><select onchange="updateSponsorNested('${s.id}','money','paymentStatus',this.value)"><option value="" ${!s.data.money.paymentStatus ? 'selected' : ''}>\u2014 not set \u2014</option><option value="Not Paid" ${s.data.money.paymentStatus === 'Not Paid' ? 'selected' : ''}>Not Paid</option><option value="Partially Paid" ${s.data.money.paymentStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option><option value="Paid in Full" ${s.data.money.paymentStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option></select></div>
           <div class="sp-field"><label>Amount paid ($)</label><input type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
           <div class="sp-field"><label>Payment due date</label><input type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
@@ -4743,7 +5065,7 @@ function totalRegistrationRevenue() {
 function liveExhibitorVendorActual() {
   if (typeof sponsors === 'undefined') return null;
   const cash = sponsors.filter(s => /^registered/i.test(s.trackerStatus));
-  return cash.reduce((sum, s) => sum + parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + parseMoneyNum(s.data.money.adhocAmount), 0);
+  return cash.reduce((sum, s) => sum + parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s), 0);
 }
 function liveInKindCount() {
   if (typeof sponsors === 'undefined') return null;
