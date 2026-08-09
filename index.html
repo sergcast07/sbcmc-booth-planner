@@ -2290,23 +2290,27 @@ async function initSupabase() {
     sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     updateSyncStatus('connecting');
 
-    // Load packages and any admin-uploaded floor plans first, so MAPS is fully
-    // populated (built-ins + custom) before booths/labels are fetched and filtered by it.
-    await loadPackagesFromDb();
-    await loadCustomMapsFromDb();
-    await loadSponsorsFromDb();
-    renderDashboard();
-    // await loadBudgetFromDb(); // Budget tab disabled for now -- uncomment to re-enable
+    // Packages, custom maps, and sponsors don't depend on each other -- fetching them in
+    // parallel instead of one-at-a-time cuts roughly two round-trips' worth of wall-clock
+    // time off first load. The booth-layout fetch still has to wait for MAPS to be ready
+    // (it filters against it), so that one stays sequential after this.
+    await Promise.all([
+      loadPackagesFromDb(),
+      loadCustomMapsFromDb(),
+      (typeof loadSponsorsFromDb === 'function' ? loadSponsorsFromDb() : Promise.resolve())
+    ]);
     rebuildMapRegistry();
     renderPackageSidebar();
     buildTabs();
     if (viewMode === 'edit') { planImg.src = MAP_IMGS[currentMapId]; }
 
-    const { data, error } = await sbClient
-      .from(SHARED_TABLE)
-      .select('data')
-      .eq('id', SHARED_ROW_ID)
-      .maybeSingle();
+    // Kick off the booth-layout fetch now, but don't wait on it before doing the dashboard
+    // render below -- that render is pure CPU work with no network dependency, so it can
+    // run while this request is in flight instead of sitting blocked behind it.
+    const boothLayoutFetch = sbClient.from(SHARED_TABLE).select('data').eq('id', SHARED_ROW_ID).maybeSingle();
+    if (typeof renderDashboard === 'function') renderDashboard();
+
+    const { data, error } = await boothLayoutFetch;
 
     if (error) {
       console.error('Supabase initial fetch failed:', error);
@@ -2323,7 +2327,6 @@ async function initSupabase() {
 
     sbReady = true;
     updateSyncStatus('connected');
-    loadVersionHistory();
 
     sbChannel = sbClient
       .channel('booth-layout-changes')
@@ -2337,8 +2340,8 @@ async function initSupabase() {
         if (status === 'SUBSCRIBED') updateSyncStatus('connected');
         else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') updateSyncStatus('error');
       });
-    subscribeSponsorRealtime();
-    // subscribeBudgetRealtime(); // Budget tab disabled for now -- uncomment to re-enable
+
+    if (typeof subscribeSponsorRealtime === 'function') subscribeSponsorRealtime();
   } catch (err) {
     console.error('Supabase init failed:', err);
     updateSyncStatus('error');
@@ -2880,6 +2883,10 @@ function openAdminPanel() {
   document.getElementById('admin-overlay').style.display = 'flex';
   adminView = isAdmin ? 'home' : 'gate';
   renderAdminModal();
+  // Deferred from initial load -- version history is only ever looked at from inside
+  // this panel, so there's no reason to spend a network round-trip on it before anyone
+  // has even opened Admin.
+  if (typeof loadVersionHistory === 'function') loadVersionHistory();
 }
 function closeAdminPanel() {
   document.getElementById('admin-overlay').style.display = 'none';
@@ -5808,7 +5815,19 @@ function renderBudget() {
 renderPackageSidebar();
 buildTabs();
 planImg.src = MAP_IMGS[currentMapId];
-if (!isSupabaseConfigured()) { loadSponsorsFromDb().then(() => { renderAll(); renderDashboard(); }); } else { renderAll(); }
+if (!isSupabaseConfigured()) {
+  // No Supabase configured -- render immediately from local defaults, nothing to wait on.
+  renderAll();
+  if (typeof loadSponsorsFromDb === 'function') {
+    loadSponsorsFromDb().then(() => {
+      renderAll();
+      if (typeof renderDashboard === 'function') renderDashboard();
+    });
+  }
+}
+// When Supabase IS configured, skip rendering here entirely -- booths/packages/sponsors are
+// all still empty at this point, so this would just be a throwaway render of default state
+// that initSupabase() immediately overwrites once real data has actually loaded.
 applyZoom();
 initSupabase();
 </script>
