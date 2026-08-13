@@ -534,6 +534,24 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 16px; }
 .sp-detail-grid.sp-detail-notes { grid-template-columns: 1fr; }
 .sp-fieldset-wide { grid-column: 1 / -1; }
+
+.sk-detail-header { display: flex; align-items: center; gap: 10px; padding: 14px 22px 0; }
+.sk-completeness-bar-outer { flex: 1; max-width: 220px; height: 8px; background: var(--teal-pale); border-radius: 4px; overflow: hidden; }
+.sk-completeness-bar-fill { height: 100%; border-radius: 4px; transition: width 0.2s; }
+.sk-tabs { display: flex; gap: 4px; padding: 10px 22px 0; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+.sk-tab-btn {
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 12px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; white-space: nowrap;
+}
+.sk-tab-btn:hover { color: var(--ink); }
+.sk-tab-btn.active { color: var(--teal-deep); border-bottom-color: var(--gold); }
+.sk-tab-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #a52620; margin-left: 2px; vertical-align: middle; }
+.sk-tab-panel { padding: 0 22px 18px; }
+.sk-tab-panel .sp-detail-grid { margin-bottom: 0; }
+.sk-logistics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 900px) { .sk-logistics-grid { grid-template-columns: 1fr; } }
+.sk-always-visible { padding: 4px 22px 4px; border-top: 2px solid var(--gold); margin-top: 4px; }
+.sk-always-visible-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 10px 0 8px; }
 .sp-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; align-items: start; }
 .sp-field-grid > .sp-subhead,
 .sp-field-grid > .sk-file-row,
@@ -591,14 +609,14 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-action-comment .ts { color: var(--ink-soft); font-weight: 600; margin-right: 6px; font-size: 10.5px; }
 .sp-mini-btn { border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; color: var(--ink); transition: background 0.15s, border-color 0.15s; }
 .sp-mini-btn:hover { background: var(--teal-pale); border-color: var(--teal); }
-.sp-add-row { display: flex; gap: 6px; margin-top: 6px; }
+.sp-add-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .sp-chevron {
   display: inline-block; font-size: 11px; color: var(--ink-soft); transition: transform 0.15s;
   transform: rotate(0deg);
 }
 .sp-chevron.open { transform: rotate(90deg); color: var(--teal-deep); }
 .sp-detail-close-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-.sp-add-row input, .sp-add-row select { flex: 1; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+.sp-add-row input, .sp-add-row select { flex: 1; min-width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .sp-linked-booth { font-size: 12px; padding: 9px 11px; background: #fff; border: 1px dashed var(--line); border-radius: 7px; color: var(--ink-soft); }
 
 /* ==== Dashboard ==== */
@@ -891,9 +909,9 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 <body>
 <div id="access-gate">
   <div class="gate-card">
-    <div class="gate-eyebrow">The Southern Baptist</div>
-    <h1>SBCMC 2027</h1>
-    <div class="gate-subname">Church Music Conference</div>
+    <div class="gate-eyebrow">SBCMC 2027</div>
+    <h1>The Southern Baptist Church Music Collective</h1>
+    <div class="gate-subname">2027 Conference</div>
     <p>This planner is shared with the conference team only. Enter the password to continue.</p>
     <input type="password" id="gate-password-input" placeholder="Password" autocomplete="off">
     <button onclick="checkGatePassword()">Enter</button>
@@ -1094,6 +1112,7 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
         <button class="sp-add-btn" onclick="addSpeaker()">+ Add speaker/artist</button>
         <button class="sp-add-btn" onclick="exportSpeakersCSV()" style="background:var(--ink-soft);">Export CSV</button>
       </div>
+      <div class="sp-table-wrap">
       <table class="sp-table">
         <thead>
           <tr>
@@ -1102,12 +1121,13 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
             <th>Session</th>
             <th>Contact</th>
             <th onclick="setSpeakerSort('status')" style="cursor:pointer;">Tracker Status</th>
-            <th>Materials</th>
+            <th>Complete</th>
             <th>Host</th>
           </tr>
         </thead>
         <tbody id="sk-rows"></tbody>
       </table>
+      </div>
     </div>
   </div>
 </div>
@@ -2460,15 +2480,20 @@ function renderDriverPublicView() {
       <div class="dv-driver-card">
         <b>${escapeHtml(d.name)}</b>${d.phone ? ' \u2014 ' + escapeHtml(d.phone) : ''}${d.seats ? ' \u2014 ' + escapeHtml(String(d.seats)) + ' seats' : ''}
         <div class="dv-trips">
-          ${trips.length === 0 ? '<div class="sp-sub">No trips assigned yet.</div>' : trips.map(t => `
+          ${trips.length === 0 ? '<div class="sp-sub">No trips assigned yet.</div>' : trips.map(t => {
+            const sp = getSpeaker(t.speakerId);
+            const isAirportLeg = /airport/i.test(t.label);
+            const canCheckFlight = sp && isAirportLeg && sp.data.logistics.travelMethod === 'Flying' && sp.data.logistics.flightInfo;
+            return `
             <div class="dv-trip-row">
-              <span class="dv-time">${escapeHtml(t.pickupTime || '\u2014')}</span>
+              <span class="dv-time">${escapeHtml(friendlyTime(t.pickupTime) || '\u2014')}</span>
               ${escapeHtml(t.speakerName)} \u2014 ${escapeHtml(t.label)}
               ${t.pickupLocation ? '<br><span class="sp-sub">Pickup: ' + escapeHtml(t.pickupLocation) + '</span>' : ''}
-              ${t.dropoffLocation ? '<br><span class="sp-sub">Drop-off: ' + escapeHtml(t.dropoffLocation) + (t.dropoffTime ? ' @ ' + escapeHtml(t.dropoffTime) : '') + '</span>' : ''}
+              ${t.dropoffLocation ? '<br><span class="sp-sub">Drop-off: ' + escapeHtml(t.dropoffLocation) + (t.dropoffTime ? ' @ ' + escapeHtml(friendlyTime(t.dropoffTime)) : '') + '</span>' : ''}
               ${t.notes ? '<br><span class="sp-sub">' + escapeHtml(t.notes) + '</span>' : ''}
+              ${canCheckFlight ? `<br><button class="sp-mini-btn" onclick="checkFlightStatus('${escapeHtml(sp.data.logistics.flightInfo)}')">Check Flight Status</button>` : ''}
             </div>
-          `).join('')}
+          `; }).join('')}
         </div>
       </div>
     `;
@@ -2476,20 +2501,24 @@ function renderDriverPublicView() {
 
   const fullScheduleHtml = chron.length === 0
     ? '<div class="sp-sub">Nothing on the schedule yet.</div>'
-    : `<table class="dv-table"><thead><tr><th>Date</th><th>Time</th><th>Person</th><th>Trip</th><th>Pickup</th><th>Drop-off</th><th>Driver</th></tr></thead><tbody>
+    : `<div class="sp-table-wrap"><table class="dv-table"><thead><tr><th>Date</th><th>Time</th><th>Person</th><th>Trip</th><th>Pickup</th><th>Drop-off</th><th>Driver</th><th>Flight</th></tr></thead><tbody>
         ${chron.map(t => {
           const d = drivers.find(x => x.id === t.driverId);
+          const sp = getSpeaker(t.speakerId);
+          const isAirportLeg = /airport/i.test(t.label);
+          const canCheckFlight = sp && isAirportLeg && sp.data.logistics.travelMethod === 'Flying' && sp.data.logistics.flightInfo;
           return `<tr>
-            <td>${escapeHtml(t.date || '\u2014')}</td>
-            <td>${escapeHtml(t.pickupTime || '\u2014')}</td>
+            <td>${escapeHtml(friendlyDate(t.date) || '\u2014')}</td>
+            <td>${escapeHtml(friendlyTime(t.pickupTime) || '\u2014')}</td>
             <td>${escapeHtml(t.speakerName)}</td>
             <td>${escapeHtml(t.label)}</td>
             <td>${escapeHtml(t.pickupLocation || '\u2014')}</td>
-            <td>${escapeHtml(t.dropoffLocation || '\u2014')}${t.dropoffTime ? ' @ ' + escapeHtml(t.dropoffTime) : ''}</td>
+            <td>${escapeHtml(t.dropoffLocation || '\u2014')}${t.dropoffTime ? ' @ ' + escapeHtml(friendlyTime(t.dropoffTime)) : ''}</td>
             <td>${d ? escapeHtml(d.name) : '<span class="dv-unassigned">Unassigned</span>'}</td>
+            <td>${canCheckFlight ? `<button class="sp-mini-btn" onclick="checkFlightStatus('${escapeHtml(sp.data.logistics.flightInfo)}')">Check Status</button>` : ''}</td>
           </tr>`;
         }).join('')}
-      </tbody></table>`;
+      </tbody></table></div>`;
 
   const hotelsHtml = hotels.map(h => `<div class="dv-trip-row"><b>${escapeHtml(h.name)}</b>${h.address ? ' \u2014 ' + escapeHtml(h.address) : ''}</div>`).join('') || '<div class="sp-sub">No hotels listed.</div>';
 
@@ -5335,7 +5364,29 @@ function copySponsorEmail(id) {
   });
 }
 
+let sponsorActiveTab = 'overview';
+function setSponsorTab(tab) {
+  sponsorActiveTab = tab;
+  renderSponsorRows();
+}
+function sponsorCompleteness(s) {
+  const checks = [];
+  checks.push(!!s.contactEmail);
+  checks.push(!!s.package);
+  checks.push(!!s.data.money.paymentStatus);
+  checks.push(!s.data.program.type || (s.data.program.fulfilled && s.data.program.delivered));
+  checks.push(!!s.linkedBoothId || !isActiveThisYear(s));
+  const done = checks.filter(Boolean).length;
+  return Math.round((done / checks.length) * 100);
+}
+function sponsorTabAlert(s, tab) {
+  if (tab === 'money') return !s.data.money.paymentStatus || s.data.money.paymentStatus === 'Not Paid';
+  if (tab === 'program') return !!s.data.program.type && !(s.data.program.fulfilled && s.data.program.delivered);
+  return false;
+}
+
 function toggleSponsorDetail(id) {
+  if (openSponsorId !== id) sponsorActiveTab = 'overview';
   openSponsorId = openSponsorId === id ? null : id;
   renderSponsorRows();
 }
@@ -5399,7 +5450,27 @@ function sponsorDetailHTML(s) {
       <div class="sp-detail-close-row">
         <button class="sp-mini-btn" onclick="toggleSponsorDetail('${s.id}')">\u25B4 Close</button>
       </div>
-      <div class="sp-detail-grid">
+
+      ${(() => {
+        const completeness = sponsorCompleteness(s);
+        const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
+        const activeTab = sponsorActiveTab;
+        const tabs = [['overview', 'Overview'], ['money', 'Money'], ['program', 'Program & Logistics']];
+        const tabBarHtml = tabs.map(([key, label]) => {
+          const alert = sponsorTabAlert(s, key);
+          return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''}" onclick="setSponsorTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
+        }).join('');
+        return `
+        <div class="sk-detail-header">
+          <div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
+          <span class="sp-sub">${completeness}% complete</span>
+        </div>
+        <div class="sk-tabs">${tabBarHtml}</div>
+        `;
+      })()}
+
+      <div class="sk-tab-panel" style="display:${sponsorActiveTab === 'overview' ? 'block' : 'none'};">
+        <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Contact &amp; Booking</legend>
           <div class="sp-field"><label>Organization</label><input type="text" value="${escapeHtml(s.org)}" onchange="updateSponsorSimple('${s.id}','org',this.value)"></div>
@@ -5412,7 +5483,7 @@ function sponsorDetailHTML(s) {
             </div>
           </div>
           <div class="sp-field"><label>Phone</label><input type="text" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}','contactPhone',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> 🚩 Flag for review</div>
+          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> \ud83d\udea9 Flag for review</div>
 
           <div class="sp-subhead">Package &amp; Status</div>
           <div class="sp-field"><label>Package (floor plan tier)</label><select onchange="updateSponsorPackage('${s.id}',this.value)"><option value="">\u2014</option>${pkgOptions}</select></div>
@@ -5428,6 +5499,15 @@ function sponsorDetailHTML(s) {
           <div class="sp-linked-booth">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + escapeHtml(linkedBooth.spotName || getPkg(linkedBooth.type).label) : 'No booth linked yet \u2014 place their booth on the floor plan, then link it here.'}</div>
         </fieldset>
 
+        <fieldset class="sp-fieldset">
+          <legend>Special Arrangement Notes</legend>
+          <textarea onchange="updateSponsorData('${s.id}','specialNotes',this.value)">${escapeHtml(s.data.specialNotes)}</textarea>
+        </fieldset>
+        </div>
+      </div>
+
+      <div class="sk-tab-panel" style="display:${sponsorActiveTab === 'money' ? 'block' : 'none'};">
+        <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Money</legend>
           <div class="sp-field"><label>Base package ($)</label><input type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
@@ -5453,17 +5533,23 @@ function sponsorDetailHTML(s) {
           <div class="sp-field"><label>Payment due date</label><input type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
           <div class="sp-check"><input type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"> Invoice sent</div>
         </fieldset>
+        </div>
+      </div>
 
+      <div class="sk-tab-panel" style="display:${sponsorActiveTab === 'program' ? 'block' : 'none'};">
+        <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
-          <legend>Program, Stage &amp; Logistics</legend>
+          <legend>Program &amp; Stage</legend>
           <div class="sp-field"><label>Type (pick a suggestion or type your own)</label><input type="text" list="addon-type-list-${s.id}" value="${escapeHtml(s.data.program.type)}" onchange="updateSponsorNested('${s.id}','program','type',this.value)"><datalist id="addon-type-list-${s.id}">${ADDON_TYPE_SUGGESTIONS.map(o => `<option value="${escapeHtml(o)}">`).join('')}</datalist></div>
           <div class="sp-field"><label>Track / session name</label><input type="text" value="${escapeHtml(s.data.program.track)}" onchange="updateSponsorNested('${s.id}','program','track',this.value)"></div>
           <div class="sp-field"><label>Time slot</label><input type="text" value="${escapeHtml(s.data.program.timeSlot)}" onchange="updateSponsorNested('${s.id}','program','timeSlot',this.value)"></div>
           <div class="sp-field"><label>Length (min)</label><input type="text" value="${escapeHtml(s.data.program.lengthMin)}" onchange="updateSponsorNested('${s.id}','program','lengthMin',this.value)"></div>
           <div class="sp-check"><input type="checkbox" ${s.data.program.fulfilled ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','fulfilled',this.checked)"> Materials received / confirmed <span class="sp-sub">(from sponsor)</span></div>
           <div class="sp-check"><input type="checkbox" ${s.data.program.delivered ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','delivered',this.checked)"> We delivered on this commitment <span class="sp-sub">(to sponsor)</span></div>
+        </fieldset>
 
-          <div class="sp-subhead">Logistics</div>
+        <fieldset class="sp-fieldset">
+          <legend>Logistics</legend>
           <div class="sp-check"><input type="checkbox" ${s.data.logistics.power ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','power',this.checked)"> Power needed</div>
           <div class="sp-check"><input type="checkbox" ${s.data.logistics.av ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','av',this.checked)"> AV needed</div>
           <div class="sp-field"><label>Load-in time</label><input type="text" value="${escapeHtml(s.data.logistics.loadInTime)}" onchange="updateSponsorNested('${s.id}','logistics','loadInTime',this.value)"></div>
@@ -5477,16 +5563,12 @@ function sponsorDetailHTML(s) {
           <button class="sp-mini-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add name</button>
           <div class="sp-field"><label>Shipping / drayage notes</label><input type="text" value="${escapeHtml(s.data.logistics.shipping)}" onchange="updateSponsorNested('${s.id}','logistics','shipping',this.value)"></div>
         </fieldset>
+        </div>
       </div>
 
-      <div class="sp-detail-grid sp-detail-notes">
-        <fieldset class="sp-fieldset">
-          <legend>Special Arrangement Notes</legend>
-          <textarea onchange="updateSponsorData('${s.id}','specialNotes',this.value)">${escapeHtml(s.data.specialNotes)}</textarea>
-        </fieldset>
-      </div>
-
-      <div class="sp-detail-grid">
+      <div class="sk-always-visible">
+        <div class="sk-always-visible-label">Ongoing \u2014 always visible, regardless of tab</div>
+        <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Communication Log</legend>
           ${commsHtml}
@@ -5515,9 +5597,10 @@ function sponsorDetailHTML(s) {
             <button class="sp-mini-btn" onclick="addActionItem('${s.id}')">Add</button>
           </div>
         </fieldset>
+        </div>
       </div>
 
-      <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+      <div style="margin-top:14px; padding: 0 22px 16px; display:flex; justify-content:flex-end;">
         <button class="sp-mini-btn" style="color:#a52620; border-color:#f0c9c4;" onclick="deleteSponsor('${s.id}')">Delete sponsor</button>
       </div>
     </div>
@@ -5652,6 +5735,53 @@ function addComm(id) {
 }
 
 let expandedActionItems = new Set(); // tracks which action items have their comment thread open, keyed "sponsorId:index"
+let openTransportAddForms = new Set(); // which speakers currently have the "add a trip" form expanded
+let speakerActiveTab = 'overview'; // shared tab state -- only one speaker record is ever expanded at a time
+
+function setSpeakerTab(tab) {
+  speakerActiveTab = tab;
+  renderSpeakerRows();
+}
+
+function toggleTransportAddForm(id) {
+  if (openTransportAddForms.has(id)) openTransportAddForms.delete(id);
+  else openTransportAddForms.add(id);
+  renderSpeakerRows();
+}
+
+function speakerCompleteness(sp) {
+  // A rough "how filled-in is this record" score -- lets the coordinator spot who needs
+  // attention without opening every single record to check.
+  const checks = [];
+  checks.push(!!sp.contactEmail);
+  checks.push((sp.types || []).length > 0);
+  checks.push(!!sp.data.session.title);
+  checks.push(!!sp.data.financial.feeStatus);
+  const mat = materialsForTypes(sp.types);
+  const mn = sp.data.materialsNeeded || {};
+  checks.push(mat.length === 0 || mat.every(k => mn[k]));
+  checks.push(!!sp.data.logistics.travelMethod);
+  const done = checks.filter(Boolean).length;
+  return Math.round((done / checks.length) * 100);
+}
+
+function speakerTabAlert(sp, tab) {
+  // A small marker on a tab when something in it needs attention, so you know where to
+  // look before you've clicked into every tab.
+  if (tab === 'production') {
+    const mat = materialsForTypes(sp.types);
+    const mn = sp.data.materialsNeeded || {};
+    return mat.some(k => !mn[k]);
+  }
+  if (tab === 'logistics') {
+    return (sp.data.logistics.transportNeeds || []).some(t => !t.driverId);
+  }
+  if (tab === 'financial') {
+    return !sp.data.financial.feeStatus || sp.data.financial.feeStatus === 'Not Paid';
+  }
+  return false;
+}
+
 
 function addActionItem(id) {
   const input = document.getElementById('action-input-' + id);
@@ -6387,7 +6517,7 @@ function speakerBadgeClass(status) {
 
 function defaultSpeakerData() {
   return {
-    session: { title: '', track: '', day: '', timeSlot: '', room: '', lengthMin: '', description: '' },
+    session: { title: '', track: '', sessionDate: '', day: '', timeSlot: '', room: '', lengthMin: '', description: '' },
     financial: { fee: '', feeStatus: '', travelReimbursement: '', w9Received: false, invoiceSent: false, dueDate: '' },
     logistics: {
       partySize: '', // total headcount traveling: artist + band + tour manager + crew, etc.
@@ -6512,6 +6642,13 @@ function updateSpeakerSimple(id, field, value) {
 function updateSpeakerNested(id, group, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data[group][field] = value;
+  pushSpeaker(sp);
+  renderSpeakerRows();
+}
+function updateSpeakerSessionDate(id, value) {
+  const sp = getSpeaker(id); if (!sp) return;
+  sp.data.session.sessionDate = value;
+  sp.data.session.day = fullWeekday(value); // auto-filled, not typed
   pushSpeaker(sp);
   renderSpeakerRows();
 }
@@ -6707,7 +6844,8 @@ function addSpeakerTransportNeed(id) {
   const notes = document.getElementById('sk-transport-notes-' + id).value.trim();
   if (!sp.data.logistics.transportNeeds) sp.data.logistics.transportNeeds = [];
   sp.data.logistics.transportNeeds.push({
-    id: makeId(), label, date, pickupLocation, pickupTime, dropoffLocation, dropoffTime, notes, driverId: ''
+    id: makeId(), label, date, pickupLocation, pickupTime, dropoffLocation, dropoffTime, notes, driverId: '',
+    seatsNeeded: partySizeForSpeaker(id) // defaults to the full party -- splitTransportNeed() can divide this across two bookings later
   });
   pushSpeaker(sp);
   renderSpeakerRows();
@@ -6786,7 +6924,7 @@ function renderSpeakerRows() {
       <td>${escapeHtml(sp.data.session.title || '\u2014')}<div class="sp-sub">${escapeHtml([sp.data.session.day, sp.data.session.timeSlot].filter(Boolean).join(' \u00b7 '))}</div></td>
       <td>${escapeHtml(sp.contactName) || '\u2014'}<div class="sp-sub">${escapeHtml(sp.contactEmail)}</div></td>
       <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
-      <td>${mat.done}/${mat.total} <span class="sp-sub">materials</span></td>
+      <td>${(() => { const c = speakerCompleteness(sp); const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
       <td>${hostCell}</td>
     `;
     tr.style.cursor = 'pointer';
@@ -6806,6 +6944,7 @@ function renderSpeakerRows() {
 }
 
 function toggleSpeakerDetail(id) {
+  if (openSpeakerId !== id) speakerActiveTab = 'overview'; // opening someone new always starts on Overview
   openSpeakerId = openSpeakerId === id ? null : id;
   renderSpeakerRows();
 }
@@ -6877,8 +7016,28 @@ function speakerDetailHTML(sp) {
     </div>
   `).join('') || '<div class="sp-sub">No documents uploaded yet.</div>';
 
+  const completeness = speakerCompleteness(sp);
+  const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
+  const activeTab = speakerActiveTab;
+  const tabs = [
+    ['overview', 'Overview'], ['financial', 'Financial'], ['logistics', 'Logistics'],
+    ['production', 'Production'], ['files', 'Files']
+  ];
+  const tabBarHtml = tabs.map(([key, label]) => {
+    const alert = speakerTabAlert(sp, key);
+    return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''}" onclick="setSpeakerTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
+  }).join('');
+  const showTransportForm = openTransportAddForms.has(sp.id);
+
   return `
-    <div class="sp-detail-grid">
+    <div class="sk-detail-header">
+      <div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
+      <span class="sp-sub">${completeness}% complete</span>
+    </div>
+    <div class="sk-tabs">${tabBarHtml}</div>
+
+    <div class="sk-tab-panel" style="display:${activeTab === 'overview' ? 'block' : 'none'};">
+      <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Contact &amp; Session</legend>
           <div class="sp-field"><label>Name</label><input type="text" value="${escapeHtml(sp.name)}" onchange="updateSpeakerSimple('${sp.id}','name',this.value)"></div>
@@ -6888,17 +7047,29 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label>Contact phone</label><input type="text" value="${escapeHtml(sp.contactPhone)}" onchange="updateSpeakerSimple('${sp.id}','contactPhone',this.value)"></div>
           <div class="sp-field"><label>Tracker status</label><select onchange="updateSpeakerSimple('${sp.id}','trackerStatus',this.value)">${statusOptions}</select></div>
           <div class="sp-check"><input type="checkbox" ${sp.data.flagged ? 'checked' : ''} onchange="updateSpeakerData('${sp.id}','flagged',this.checked)"> Flag for review</div>
+        </fieldset>
 
-          <div class="sp-subhead">Session</div>
+        <fieldset class="sp-fieldset">
+          <legend>Session</legend>
           <div class="sp-field"><label>Session title</label><input type="text" value="${escapeHtml(sp.data.session.title)}" onchange="updateSpeakerNested('${sp.id}','session','title',this.value)"></div>
           <div class="sp-field"><label>Track</label><input type="text" value="${escapeHtml(sp.data.session.track)}" onchange="updateSpeakerNested('${sp.id}','session','track',this.value)"></div>
-          <div class="sp-field"><label>Day</label><input type="text" placeholder="e.g. Monday" value="${escapeHtml(sp.data.session.day)}" onchange="updateSpeakerNested('${sp.id}','session','day',this.value)"></div>
+          <div class="sp-field"><label>Session date</label><input type="date" min="2027-04-11" max="2027-04-14" value="${escapeHtml(sp.data.session.sessionDate)}" onchange="updateSpeakerSessionDate('${sp.id}', this.value)"></div>
+          <div class="sp-field"><label>Day</label><input type="text" readonly value="${sp.data.session.sessionDate ? escapeHtml(sp.data.session.day) : 'Pick a date above'}" style="background:var(--paper); color:var(--ink-soft);"></div>
           <div class="sp-field"><label>Time slot</label><input type="text" placeholder="e.g. 10:00 AM" value="${escapeHtml(sp.data.session.timeSlot)}" onchange="updateSpeakerNested('${sp.id}','session','timeSlot',this.value)"></div>
           <div class="sp-field"><label>Room</label><input type="text" value="${escapeHtml(sp.data.session.room)}" onchange="updateSpeakerNested('${sp.id}','session','room',this.value)"></div>
           <div class="sp-field"><label>Length (min)</label><input type="number" value="${escapeHtml(sp.data.session.lengthMin)}" onchange="updateSpeakerNested('${sp.id}','session','lengthMin',this.value)"></div>
           <div class="sp-field"><label>Description</label><textarea rows="2" onchange="updateSpeakerNested('${sp.id}','session','description',this.value)">${escapeHtml(sp.data.session.description)}</textarea></div>
         </fieldset>
 
+        <fieldset class="sp-fieldset">
+          <legend>Notes</legend>
+          <textarea rows="3" onchange="updateSpeakerData('${sp.id}','specialNotes',this.value)">${escapeHtml(sp.data.specialNotes)}</textarea>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="sk-tab-panel" style="display:${activeTab === 'financial' ? 'block' : 'none'};">
+      <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Financial</legend>
           <div class="sp-field"><label>Fee ($)</label><input type="text" value="${escapeHtml(sp.data.financial.fee)}" onchange="updateSpeakerNested('${sp.id}','financial','fee',this.value)"></div>
@@ -6913,13 +7084,15 @@ function speakerDetailHTML(sp) {
           <div class="sp-check"><input type="checkbox" ${sp.data.financial.w9Received ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','w9Received',this.checked)"> W9 received</div>
           <div class="sp-check"><input type="checkbox" ${sp.data.financial.invoiceSent ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','invoiceSent',this.checked)"> Invoice sent</div>
         </fieldset>
+      </div>
+    </div>
 
-        <fieldset class="sp-fieldset sp-fieldset-wide">
-          <legend>Logistics</legend>
+    <div class="sk-tab-panel" style="display:${activeTab === 'logistics' ? 'block' : 'none'};">
+      <div class="sk-logistics-grid">
+        <fieldset class="sp-fieldset">
+          <legend>Travel</legend>
           <div class="sp-field-grid">
           <div class="sp-field"><label>Party size (total headcount: artist + band/crew)</label><input type="number" value="${escapeHtml(sp.data.logistics.partySize)}" onchange="updateSpeakerNested('${sp.id}','logistics','partySize',this.value)"></div>
-
-          <div class="sp-subhead">Travel</div>
           <div class="sp-field"><label>Travel method</label><select onchange="updateSpeakerNested('${sp.id}','logistics','travelMethod',this.value)">
             <option value="" ${!sp.data.logistics.travelMethod ? 'selected' : ''}>\u2014 not set \u2014</option>
             <option value="Flying" ${sp.data.logistics.travelMethod === 'Flying' ? 'selected' : ''}>Flying</option>
@@ -6931,20 +7104,24 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label>Arrival time</label><input type="time" value="${escapeHtml(sp.data.logistics.arrivalTime)}" onchange="updateSpeakerNested('${sp.id}','logistics','arrivalTime',this.value)"></div>
           <div class="sp-field"><label>Departure date</label><input type="date" value="${escapeHtml(sp.data.logistics.departureDate)}" onchange="updateSpeakerNested('${sp.id}','logistics','departureDate',this.value)"></div>
           <div class="sp-field"><label>Departure time</label><input type="time" value="${escapeHtml(sp.data.logistics.departureTime)}" onchange="updateSpeakerNested('${sp.id}','logistics','departureTime',this.value)"></div>
+          </div>
+        </fieldset>
 
-          <div class="sp-subhead">Ground Transportation</div>
+        <fieldset class="sp-fieldset">
+          <legend>Ground Transportation</legend>
           ${(sp.data.logistics.transportNeeds || []).map((t, i) => {
             const driver = drivers.find(d => d.id === t.driverId);
             return `
             <div class="sk-file-row" style="flex-wrap:wrap;">
-              <span style="flex:1 1 100%;"><b>${escapeHtml(t.label)}</b>${t.date ? ' \u2014 ' + escapeHtml(t.date) : ''}</span>
-              <span class="sp-sub">${t.pickupLocation ? 'Pickup: ' + escapeHtml(t.pickupLocation) + (t.pickupTime ? ' @ ' + escapeHtml(t.pickupTime) : '') : ''}</span>
-              <span class="sp-sub">${t.dropoffLocation ? 'Drop-off: ' + escapeHtml(t.dropoffLocation) + (t.dropoffTime ? ' @ ' + escapeHtml(t.dropoffTime) : '') : ''}</span>
+              <span style="flex:1 1 100%;"><b>${escapeHtml(t.label)}</b>${t.date ? ' \u2014 ' + escapeHtml(friendlyDate(t.date)) : ''}</span>
+              <span class="sp-sub">${t.pickupLocation ? 'Pickup: ' + escapeHtml(t.pickupLocation) + (t.pickupTime ? ' @ ' + escapeHtml(friendlyTime(t.pickupTime)) : '') : ''}</span>
+              <span class="sp-sub">${t.dropoffLocation ? 'Drop-off: ' + escapeHtml(t.dropoffLocation) + (t.dropoffTime ? ' @ ' + escapeHtml(friendlyTime(t.dropoffTime)) : '') : ''}</span>
               <span class="sp-sub">${driver ? 'Driver: ' + escapeHtml(driver.name) : '<span style="color:#a52620;">Driver unassigned</span>'}</span>
               ${t.notes ? `<span class="sp-sub" style="flex:1 1 100%;">${escapeHtml(t.notes)}</span>` : ''}
               <button class="sp-mini-btn" onclick="removeSpeakerTransportNeed('${sp.id}',${i})">&times;</button>
             </div>
           `; }).join('') || '<div class="sp-sub">No transportation needs added yet.</div>'}
+          ${showTransportForm ? `
           <div class="sp-subhead" style="margin-top:8px;">+ Add a Transportation Need</div>
           <div class="sp-add-row" style="flex-wrap:wrap;">
             <input type="text" id="sk-transport-label-${sp.id}" list="sk-transport-suggestions" placeholder="e.g. Airport Pickup, Hotel to Church" style="flex:1 1 100%; margin-bottom:6px;" onchange="autofillTransportLocations('${sp.id}', this.value)">
@@ -6963,10 +7140,15 @@ function speakerDetailHTML(sp) {
               <option value="${escapeHtml(AIRPORT_NAME)} (${escapeHtml(AIRPORT_ADDRESS)})">
             </datalist>
             <input type="text" id="sk-transport-notes-${sp.id}" placeholder="Notes" style="flex:2 1 100%; margin-top:6px;">
-            <button class="sp-mini-btn" onclick="addSpeakerTransportNeed('${sp.id}')" style="margin-top:6px;">+ Add</button>
+            <button class="sp-mini-btn" onclick="addSpeakerTransportNeed('${sp.id}'); toggleTransportAddForm('${sp.id}');" style="margin-top:6px;">+ Add</button>
+            <button class="sp-mini-btn" onclick="toggleTransportAddForm('${sp.id}')" style="margin-top:6px;">Cancel</button>
           </div>
+          ` : `<button class="sp-mini-btn" style="margin-top:8px;" onclick="toggleTransportAddForm('${sp.id}')">+ Add a Trip</button>`}
+        </fieldset>
 
-          <div class="sp-subhead">Lodging</div>
+        <fieldset class="sp-fieldset">
+          <legend>Lodging &amp; Meals</legend>
+          <div class="sp-field-grid">
           <div class="sp-check"><input type="checkbox" ${sp.data.logistics.lodgingNeeded ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','lodgingNeeded',this.checked)"> Lodging needed</div>
           <div class="sp-field"><label>Hotel</label><select onchange="updateSpeakerNested('${sp.id}','logistics','hotelId',this.value)">
             <option value="" ${!sp.data.logistics.hotelId ? 'selected' : ''}>\u2014 not set \u2014</option>
@@ -6975,8 +7157,6 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label>Nights needed</label><input type="number" value="${escapeHtml(sp.data.logistics.nightsNeeded)}" onchange="updateSpeakerNested('${sp.id}','logistics','nightsNeeded',this.value)"></div>
           <div class="sp-field"><label>Rooms needed</label><input type="number" value="${escapeHtml(sp.data.logistics.roomsNeeded)}" onchange="updateSpeakerNested('${sp.id}','logistics','roomsNeeded',this.value)"></div>
           <div class="sp-check"><input type="checkbox" ${sp.data.logistics.hotelConfirmed ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','hotelConfirmed',this.checked)"> Hotel confirmed</div>
-
-          <div class="sp-subhead">Meals</div>
           <div class="sp-field"><label>Meal arrangement</label><select onchange="updateSpeakerNested('${sp.id}','logistics','mealsProvided',this.value)">
             <option value="" ${!sp.data.logistics.mealsProvided ? 'selected' : ''}>\u2014 not set \u2014</option>
             <option value="All meals provided" ${sp.data.logistics.mealsProvided === 'All meals provided' ? 'selected' : ''}>All meals provided</option>
@@ -6984,12 +7164,15 @@ function speakerDetailHTML(sp) {
             <option value="On their own" ${sp.data.logistics.mealsProvided === 'On their own' ? 'selected' : ''}>On their own</option>
           </select></div>
           <div class="sp-field"><label>Meal notes (dietary restrictions, specifics)</label><textarea rows="2" onchange="updateSpeakerNested('${sp.id}','logistics','mealNotes',this.value)">${escapeHtml(sp.data.logistics.mealNotes)}</textarea></div>
+          </div>
+        </fieldset>
 
-          <div class="sp-subhead">Assigned Host</div>
+        <fieldset class="sp-fieldset">
+          <legend>Host &amp; Badges</legend>
+          <div class="sp-field-grid">
           <div class="sp-check"><input type="checkbox" ${sp.data.logistics.hostNeeded ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','hostNeeded',this.checked)"> A host is needed</div>
           <div class="sp-field"><label>Host name</label><input type="text" placeholder="Who's assigned" value="${escapeHtml(sp.data.logistics.hostName)}" onchange="updateSpeakerNested('${sp.id}','logistics','hostName',this.value)"></div>
-
-          <div class="sp-subhead">Badges <span class="sp-sub" style="font-weight:400;">(assumes the full party needs one \u2014 name them here as party size grows)</span></div>
+          <div class="sp-sub" style="grid-column:1/-1;">Badges <span style="font-weight:400;">(assumes the full party needs one)</span></div>
           ${(sp.data.logistics.badgeNames || []).map((name, i) => `
             <div class="sp-add-row" style="margin-bottom:4px;">
               <input type="text" value="${escapeHtml(name)}" onchange="updateSpeakerBadgeName('${sp.id}',${i},this.value)">
@@ -6998,12 +7181,14 @@ function speakerDetailHTML(sp) {
           `).join('')}
           <div class="sp-sub" style="margin-bottom:4px;">${(sp.data.logistics.badgeNames || []).length} of ${sp.data.logistics.partySize || '?'} party members named</div>
           <button class="sp-mini-btn" onclick="addSpeakerBadgeName('${sp.id}')">+ Add name</button>
-
-          <div class="sp-subhead">AV</div>
           <div class="sp-field"><label>AV / tech needs</label><textarea rows="2" onchange="updateSpeakerNested('${sp.id}','logistics','avNeeds',this.value)">${escapeHtml(sp.data.logistics.avNeeds)}</textarea></div>
           </div>
         </fieldset>
+      </div>
+    </div>
 
+    <div class="sk-tab-panel" style="display:${activeTab === 'production' ? 'block' : 'none'};">
+      <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Sound Check &amp; Production</legend>
           <div class="sp-check"><input type="checkbox" ${sp.data.production.soundCheckScheduled ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','production','soundCheckScheduled',this.checked)"> Sound check scheduled</div>
@@ -7018,7 +7203,11 @@ function speakerDetailHTML(sp) {
           <legend>Materials We Need From Them</legend>
           ${materialsNeededHtml}
         </fieldset>
+      </div>
+    </div>
 
+    <div class="sk-tab-panel" style="display:${activeTab === 'files' ? 'block' : 'none'};">
+      <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Materials They Want Shared With Attendees</legend>
           ${filesHtml}
@@ -7040,12 +7229,15 @@ function speakerDetailHTML(sp) {
             <button class="sp-mini-btn" onclick="uploadSpeakerInternalDoc('${sp.id}')">Upload</button>
           </div>
         </fieldset>
+      </div>
+    </div>
 
-        <fieldset class="sp-fieldset">
-          <legend>Notes</legend>
-          <textarea rows="3" onchange="updateSpeakerData('${sp.id}','specialNotes',this.value)">${escapeHtml(sp.data.specialNotes)}</textarea>
-        </fieldset>
+      </div>
+    </div>
 
+    <div class="sk-always-visible">
+      <div class="sk-always-visible-label">Ongoing \u2014 always visible, regardless of tab</div>
+      <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Communication Log</legend>
           ${commsHtml}
@@ -7074,9 +7266,12 @@ function speakerDetailHTML(sp) {
             <button class="sp-mini-btn" onclick="addSpeakerQuestion('${sp.id}')">Add</button>
           </div>
         </fieldset>
+      </div>
+    </div>
 
-        <button class="sp-add-btn" style="margin-top:10px;" onclick="emailSpeakerSummary('${sp.id}')">\u2709\uFE0F Email Them Their Summary</button>
-        <button class="sp-mini-btn" style="margin-top:10px; margin-left:8px; color:#a52620;" onclick="removeSpeaker('${sp.id}')">Remove this speaker/artist</button>
+    <div style="padding: 4px 22px 16px;">
+      <button class="sp-add-btn" onclick="emailSpeakerSummary('${sp.id}')">\u2709\uFE0F Email Them Their Summary</button>
+      <button class="sp-mini-btn" style="margin-left:8px; color:#a52620;" onclick="removeSpeaker('${sp.id}')">Remove this speaker/artist</button>
     </div>
   `;
 }
@@ -7166,10 +7361,73 @@ function timeToMinutes(t) {
   return parts[0] * 60 + (parts[1] || 0);
 }
 
+function friendlyTime(t) {
+  // Input fields store times as 24-hour "HH:MM" -- convert to plain 12-hour for display.
+  if (!t) return '';
+  const parts = t.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parts[1] || '00';
+  if (isNaN(h)) return t; // not a recognizable time string -- show as-is rather than mangling it
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return h12 + ':' + String(m).padStart(2, '0') + ' ' + period;
+}
+function friendlyDate(d) {
+  // Input fields store dates as "YYYY-MM-DD" -- convert to plain English. Built via the
+  // (year, month, day) Date constructor rather than parsing the string directly, since
+  // parsing a date-only ISO string treats it as UTC midnight and can display as the wrong
+  // day once converted to a US timezone.
+  if (!d) return '';
+  const parts = d.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return d;
+  const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+  return dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function fullWeekday(d) {
+  // Same UTC-safe construction as friendlyDate, but returns just the full weekday name
+  // (e.g. "Monday") -- used to auto-fill the session's day field from a picked date.
+  if (!d) return '';
+  const parts = d.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return '';
+  const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+  return dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+}
+
 function partySizeForSpeaker(speakerId) {
   const sp = getSpeaker(speakerId);
   const n = sp ? parseInt(sp.data.logistics.partySize, 10) : NaN;
   return isNaN(n) || n < 1 ? 1 : n; // default to 1 (just themselves) if it was never set
+}
+
+function seatsForNeed(t, speakerId) {
+  // Older transport needs (created before this field existed) fall back to the speaker's
+  // overall party size, same as before.
+  const n = parseInt(t.seatsNeeded, 10);
+  if (!isNaN(n) && n >= 1) return n;
+  return partySizeForSpeaker(speakerId || t.speakerId);
+}
+
+function splitTransportNeed(speakerId, idx) {
+  // One booking representing a big party (e.g. an 8-person band) that needs two vehicles --
+  // this divides the headcount across two separate bookings, each independently assignable
+  // to its own driver via the normal per-row dropdown.
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  const need = sp.data.logistics.transportNeeds[idx]; if (!need) return;
+  const total = seatsForNeed(need, speakerId);
+  if (total < 2) { toast('Only ' + total + ' ' + (total === 1 ? 'person is' : 'people are') + ' on this trip \u2014 nothing to split.'); return; }
+  const answer = prompt('Split this trip across two vehicles.\nHow many people go in the first vehicle? (' + total + ' total)', Math.ceil(total / 2));
+  if (answer === null) return;
+  const n1 = parseInt(answer, 10);
+  if (isNaN(n1) || n1 < 1 || n1 >= total) { toast('Enter a number between 1 and ' + (total - 1) + '.'); return; }
+  const n2 = total - n1;
+  need.seatsNeeded = n1;
+  need.driverId = ''; // let the coordinator re-pick for each half rather than assuming
+  const secondHalf = Object.assign({}, need, { id: makeId(), seatsNeeded: n2, driverId: '' });
+  sp.data.logistics.transportNeeds.splice(idx + 1, 0, secondHalf);
+  pushSpeaker(sp);
+  renderSpeakerRows();
+  if (typeof renderTransportationView === 'function') renderTransportationView();
+  toast('Split into ' + n1 + ' + ' + n2 + ' \u2014 assign a driver to each below.');
 }
 
 function allTransportNeeds() {
@@ -7293,16 +7551,16 @@ function renderTransportationView() {
   const groups = suggestTransportGroupings();
   currentSuggestedGroups = groups; // stashed so the "Assign to this group" button can look it up by index without embedding JSON in an onclick attribute
   const suggestionsHtml = groups.map((group, gi) => {
-    const totalPeople = group.reduce((sum, t) => sum + partySizeForSpeaker(t.speakerId), 0);
+    const totalPeople = group.reduce((sum, t) => sum + seatsForNeed(t, t.speakerId), 0);
     return `
       <div class="sk-rider-box" style="margin-bottom:10px;">
         <div style="font-weight:700; margin-bottom:6px;">${escapeHtml(group[0].label)} \u2014 ${group.length} booking${group.length === 1 ? '' : 's'}, ${totalPeople} people total, same trip window</div>
         ${group.map(t => {
           const rowWarnId = 'tr-group-row-warn-' + gi + '-' + t.speakerId + '-' + t.idx;
-          const people = partySizeForSpeaker(t.speakerId);
+          const people = seatsForNeed(t, t.speakerId);
           return `
           <div class="sp-add-row" style="margin:2px 0;">
-            <span class="sp-sub" style="flex:2;">${escapeHtml(t.speakerName)} (${people} ${people === 1 ? 'person' : 'people'}) \u2014 ${escapeHtml(t.pickupTime || '')} ${t.pickupLocation ? 'from ' + escapeHtml(t.pickupLocation) : ''}</span>
+            <span class="sp-sub" style="flex:2;">${escapeHtml(t.speakerName)} (${people} ${people === 1 ? 'person' : 'people'}) \u2014 ${escapeHtml(friendlyTime(t.pickupTime) || '')} ${t.pickupLocation ? 'from ' + escapeHtml(t.pickupLocation) : ''}</span>
             <select onchange="assignDriverToNeed('${t.speakerId}',${t.idx},this.value); checkRowSeatCapacity('${rowWarnId}', this.value, ${people});">${driverOptionsHtml(t.driverId)}</select>
             <span id="${rowWarnId}"></span>
           </div>`;
@@ -7318,10 +7576,11 @@ function renderTransportationView() {
   }).join('');
 
   const chron = chronologicalTransportNeeds();
-  const totalLanding = chron.filter(t => /airport/i.test(t.label) && (t.label.toLowerCase().includes('pickup') || t.label.toLowerCase().includes('arrival'))).reduce((sum, t) => sum + partySizeForSpeaker(t.speakerId), 0);
+  const totalLanding = chron.filter(t => /airport/i.test(t.label) && (t.label.toLowerCase().includes('pickup') || t.label.toLowerCase().includes('arrival'))).reduce((sum, t) => sum + seatsForNeed(t, t.speakerId), 0);
   const reportHtml = chron.length === 0
     ? '<div class="sp-sub">No transportation needs logged yet \u2014 add them from each speaker/artist\u2019s Logistics section.</div>'
     : `<div class="sp-sub" style="margin-bottom:8px;"><b style="color:var(--ink); font-size:14px;">${totalLanding}</b> people landing across all airport pickups on file</div>
+      <div class="sp-table-wrap">
       <table class="sp-table"><thead><tr>
         <th>Date</th><th>Pickup Time</th><th>Person</th><th># People</th><th>Trip</th><th>Pickup</th><th>Drop-off</th><th>Driver</th><th>Flight</th>
       </tr></thead><tbody>
@@ -7329,19 +7588,19 @@ function renderTransportationView() {
           const sp = getSpeaker(t.speakerId);
           const isAirportLeg = /airport/i.test(t.label);
           const canCheckFlight = sp && isAirportLeg && sp.data.logistics.travelMethod === 'Flying' && sp.data.logistics.flightInfo;
-          const people = partySizeForSpeaker(t.speakerId);
+          const people = seatsForNeed(t, t.speakerId);
           const driver = drivers.find(d => d.id === t.driverId);
           const overCapacity = driver && driver.seats && Number(driver.seats) < people;
           const rowWarnId = 'tr-row-warn-' + t.speakerId + '-' + t.idx;
           return `
           <tr>
-            <td>${escapeHtml(t.date || '\u2014')}</td>
-            <td>${escapeHtml(t.pickupTime || '\u2014')}</td>
+            <td>${escapeHtml(friendlyDate(t.date) || '\u2014')}</td>
+            <td>${escapeHtml(friendlyTime(t.pickupTime) || '\u2014')}</td>
             <td>${escapeHtml(t.speakerName)}</td>
-            <td>${people}</td>
+            <td>${people}${people > 1 ? ` <button class="sp-mini-btn" onclick="splitTransportNeed('${t.speakerId}',${t.idx})" title="Split this trip across two vehicles">Split</button>` : ''}</td>
             <td>${escapeHtml(t.label)}</td>
             <td>${escapeHtml(t.pickupLocation || '\u2014')}</td>
-            <td>${escapeHtml(t.dropoffLocation || '\u2014')}${t.dropoffTime ? ' @ ' + escapeHtml(t.dropoffTime) : ''}</td>
+            <td>${escapeHtml(t.dropoffLocation || '\u2014')}${t.dropoffTime ? ' @ ' + escapeHtml(friendlyTime(t.dropoffTime)) : ''}</td>
             <td>
               <select onchange="assignDriverToNeed('${t.speakerId}',${t.idx},this.value); checkRowSeatCapacity('${rowWarnId}', this.value, ${people});">${driverOptionsHtml(t.driverId)}</select>
               <div id="${rowWarnId}">${overCapacity ? `<span style="color:#a52620; font-weight:600;">\u26A0\uFE0F Only ${driver.seats} seats for ${people} people</span>` : ''}</div>
@@ -7349,7 +7608,8 @@ function renderTransportationView() {
             <td>${canCheckFlight ? `<button class="sp-mini-btn" onclick="checkFlightStatus('${escapeHtml(sp.data.logistics.flightInfo)}')">Check Status</button>` : ''}</td>
           </tr>
         `; }).join('')}
-      </tbody></table>`;
+      </tbody></table>
+      </div>`;
 
   el.innerHTML = `
     <div class="db-grid-2" style="margin-bottom:18px;">
@@ -7433,13 +7693,13 @@ function emailSpeakerSummary(id) {
   const hasLogisticsInfo = lg.arrivalDate || lg.departureDate || lg.lodgingNeeded || lg.mealsProvided || (lg.transportNeeds || []).length || lg.hostNeeded || (lg.badgeNames || []).some(Boolean);
   if (hasLogisticsInfo) {
     lines.push('LOGISTICS');
-    if (lg.arrivalDate) lines.push('  Arrival: ' + lg.arrivalDate + (lg.arrivalTime ? ' at ' + lg.arrivalTime : ''));
-    if (lg.departureDate) lines.push('  Departure: ' + lg.departureDate + (lg.departureTime ? ' at ' + lg.departureTime : ''));
+    if (lg.arrivalDate) lines.push('  Arrival: ' + friendlyDate(lg.arrivalDate) + (lg.arrivalTime ? ' at ' + friendlyTime(lg.arrivalTime) : ''));
+    if (lg.departureDate) lines.push('  Departure: ' + friendlyDate(lg.departureDate) + (lg.departureTime ? ' at ' + friendlyTime(lg.departureTime) : ''));
     (lg.transportNeeds || []).forEach(t => {
       const driver = drivers.find(d => d.id === t.driverId);
-      let line = '  Transport \u2014 ' + t.label + (t.date ? ' (' + t.date + ')' : '');
-      if (t.pickupLocation || t.pickupTime) line += '\n    Pickup: ' + [t.pickupLocation, t.pickupTime].filter(Boolean).join(' @ ');
-      if (t.dropoffLocation || t.dropoffTime) line += '\n    Drop-off: ' + [t.dropoffLocation, t.dropoffTime].filter(Boolean).join(' @ ');
+      let line = '  Transport \u2014 ' + t.label + (t.date ? ' (' + friendlyDate(t.date) + ')' : '');
+      if (t.pickupLocation || t.pickupTime) line += '\n    Pickup: ' + [t.pickupLocation, friendlyTime(t.pickupTime)].filter(Boolean).join(' @ ');
+      if (t.dropoffLocation || t.dropoffTime) line += '\n    Drop-off: ' + [t.dropoffLocation, friendlyTime(t.dropoffTime)].filter(Boolean).join(' @ ');
       if (driver) line += '\n    Driver: ' + driver.name;
       lines.push(line);
     });
