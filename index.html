@@ -512,7 +512,7 @@ table.sp-table thead th {
 table.sp-table td { padding: 11px 12px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: top; overflow: hidden; }
 table.sp-table tbody tr.sp-row { cursor: pointer; transition: background 0.1s; }
 table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
-.sp-org { font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sp-org { font-weight: 700; color: var(--ink); white-space: normal; overflow-wrap: break-word; }
 .sp-task-badge {
   display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 5px; border-radius: 9px;
   background: var(--teal-pale); color: var(--teal-deep); vertical-align: middle;
@@ -530,9 +530,10 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-detail-row { display: none; }
 .sp-detail-row.open { display: table-row; }
 .sp-detail-cell { padding: 0 !important; border-bottom: 1px solid var(--line); }
-.sp-detail-inner { padding: 20px 22px 24px; background: var(--paper); border-left: 3px solid var(--gold); margin: 10px; border-radius: 10px; }
+.sp-detail-inner { padding: 20px 0 24px; background: var(--paper); border-left: 3px solid var(--gold); margin: 10px; border-radius: 10px; }
 .sp-detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 16px; }
-.sp-detail-grid.sp-detail-notes { grid-template-columns: 1fr; }
+.sp-detail-grid.sp-detail-1col { grid-template-columns: 1fr; }
+.sp-detail-grid.sp-detail-2col { grid-template-columns: 1fr 1fr; }
 .sp-fieldset-wide { grid-column: 1 / -1; }
 
 .sk-detail-header { display: flex; align-items: center; gap: 10px; padding: 14px 22px 0; }
@@ -557,21 +558,22 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-field-grid > .sk-file-row,
 .sp-field-grid > .sp-add-row,
 .sp-field-grid > .sk-rider-box,
+.sp-field-grid > .sp-adhoc-list,
 .sp-field-grid > .sp-sub:not(.sp-field .sp-sub) { grid-column: 1 / -1; }
-.sp-fieldset { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.sp-fieldset { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
 .sp-fieldset legend {
   font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--teal-deep); font-weight: 700;
   padding: 0 6px 4px 0; border-bottom: 2px solid var(--gold); margin-bottom: 6px;
 }
 .sp-subhead { font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft); font-weight: 700; margin: 14px 0 7px; padding-top: 12px; border-top: 1px dashed var(--line); }
-.sp-adhoc-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+.sp-adhoc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 4px; }
 .sp-adhoc-row { display: flex; align-items: center; gap: 8px; }
 .sp-adhoc-row .sp-check { flex: 1; font-size: 12px; }
 .sp-adhoc-amount { width: 70px; flex-shrink: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .sp-adhoc-delivered { display: flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--ink-soft); flex-shrink: 0; white-space: nowrap; }
 .sp-adhoc-amount:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-pale); }
 .sp-subhead:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
-@media (max-width: 900px) { .sp-detail-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .sp-detail-grid, .sp-detail-grid.sp-detail-1col, .sp-detail-grid.sp-detail-2col { grid-template-columns: 1fr; } }
 .sp-field { margin-bottom: 9px; }
 .sp-field label { display: block; font-size: 10.5px; color: var(--ink-soft); margin-bottom: 3px; }
 .sp-field input[type=text], .sp-field input[type=email], .sp-field input[type=date], .sp-field select, .sp-field textarea {
@@ -615,7 +617,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   transform: rotate(0deg);
 }
 .sp-chevron.open { transform: rotate(90deg); color: var(--teal-deep); }
-.sp-detail-close-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .sp-add-row input, .sp-add-row select { flex: 1; min-width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .sp-linked-booth { font-size: 12px; padding: 9px 11px; background: #fff; border: 1px dashed var(--line); border-radius: 7px; color: var(--ink-soft); }
 
@@ -2642,7 +2644,7 @@ async function initSupabase() {
 async function loadPackagesFromDb() {
   try {
     const { data, error } = await sbClient.from(PACKAGES_TABLE).select('*').order('sort_order', { ascending: true });
-    if (error) { console.warn('Packages table not available, using defaults:', error.message); return; }
+    if (error) { console.warn('Packages table not available, using defaults:', errDetail(error)); return; }
     if (!data || data.length === 0) {
       const seed = DEFAULT_PACKAGES.map(p => ({
         key: p.key, label: p.label, width_ft: p.widthFt, depth_ft: p.depthFt, color: p.color, sort_order: p.sortOrder
@@ -2679,12 +2681,12 @@ async function loadPackagesFromDb() {
 async function loadCustomMapsFromDb() {
   try {
     const { data, error } = await sbClient.from(MAPS_TABLE).select('*').order('sort_order', { ascending: true });
-    if (error) { console.warn('Custom maps table not available:', error.message); return; }
+    if (error) { console.warn('Custom maps table not available:', errDetail(error)); return; }
 
     if (!data || data.length === 0) {
       await seedBuiltinMapsIfEmpty();
       const retry = await sbClient.from(MAPS_TABLE).select('*').order('sort_order', { ascending: true });
-      if (retry.error) { console.warn('Custom maps reload after seed failed:', retry.error.message); return; }
+      if (retry.error) { console.warn('Custom maps reload after seed failed:', errDetail(retry.error)); return; }
       customMaps = (retry.data || []).map(m => ({
         id: m.id, label: m.label, imageData: m.image_data, width: m.width, height: m.height,
         ftpx: Number(m.ftpx), note: m.note || '', color: m.color || '', sortOrder: m.sort_order || 0
@@ -2726,7 +2728,7 @@ async function seedBuiltinMapsIfEmpty() {
   }
   if (rows.length === 0) return;
   const { error } = await sbClient.from(MAPS_TABLE).insert(rows);
-  if (error) console.warn('Seeding built-in floor plans failed:', error.message);
+  if (error) console.warn('Seeding built-in floor plans failed:', errDetail(error));
 }
 
 function applyRemoteState(data) {
@@ -3056,8 +3058,10 @@ function toast(msg) {
   if (!t) {
     t = document.createElement('div');
     t.id = 'kb-toast';
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', 'polite');
     t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
-      + 'background:#1f2a44;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;'
+      + 'max-width:min(90vw,480px);background:#1f2a44;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;'
       + 'font-family:system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9999;'
       + 'pointer-events:none;opacity:0;transition:opacity .15s;';
     document.body.appendChild(t);
@@ -3065,7 +3069,9 @@ function toast(msg) {
   t.textContent = msg;
   t.style.opacity = '1';
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 1400);
+  // Longer messages (e.g. save-failure errors) need more time to read than a quick "Saved" blip.
+  const duration = Math.min(7000, Math.max(1400, msg.length * 60));
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, duration);
 }
 
 function isTypingContext() {
@@ -3306,9 +3312,9 @@ function buildEditMapView(mapId) {
   const form = document.createElement('div');
   form.className = 'admin-form';
   form.innerHTML =
-    '<label>Name (shown on its tab)</label>' +
+    '<label for="edit-map-label">Name (shown on its tab)</label>' +
     '<input type="text" id="edit-map-label" value="' + escapeHtml(m.label) + '">' +
-    '<label>Replace image (optional)</label>' +
+    '<label for="edit-map-file">Replace image (optional)</label>' +
     '<input type="file" id="edit-map-file" accept="image/*">' +
     '<div class="hint" style="margin-top:6px;">Replacing the image keeps this map\u2019s id, booths, and placement \u2014 but if its pixel size changes you\u2019ll want to Calibrate again afterward, since the scale is tied to the image size.</div>';
   wrap.appendChild(form);
@@ -3467,9 +3473,9 @@ function buildMapsAdminView() {
   const form = document.createElement('div');
   form.className = 'admin-form';
   form.innerHTML =
-    '<label>Name (shown on its tab)</label>' +
+    '<label for="new-map-label">Name (shown on its tab)</label>' +
     '<input type="text" id="new-map-label" placeholder="e.g. N100 \u2014 Annex">' +
-    '<label>Floor plan image</label>' +
+    '<label for="new-map-file">Floor plan image</label>' +
     '<input type="file" id="new-map-file" accept="image/*">' +
     '<div class="hint" style="margin-top:6px;">After upload, you\u2019ll calibrate its scale (pixels per foot) right here \u2014 just like the existing maps.</div>';
   wrap.appendChild(form);
@@ -3812,15 +3818,15 @@ function buildPackagesAdminView() {
   const form = document.createElement('div');
   form.className = 'admin-form';
   form.innerHTML =
-    '<label>Short code (e.g. E) \u2014 shown on booths without a name</label>' +
+    '<label for="pkg-key">Short code (e.g. E) \u2014 shown on booths without a name</label>' +
     '<input type="text" id="pkg-key" maxlength="6" value="' + (editing ? escapeHtml(editing.key) : '') + '"' + (editing ? ' disabled' : '') + '>' +
-    '<label>Package name</label>' +
+    '<label for="pkg-label">Package name</label>' +
     '<input type="text" id="pkg-label" value="' + (editing ? escapeHtml(editing.label) : '') + '">' +
     '<div class="row2">' +
-      '<div><label>Width (ft)</label><input type="number" id="pkg-width" min="1" step="0.5" value="' + (editing ? editing.widthFt : 10) + '"></div>' +
-      '<div><label>Depth (ft)</label><input type="number" id="pkg-depth" min="1" step="0.5" value="' + (editing ? editing.depthFt : 6) + '"></div>' +
+      '<div><label for="pkg-width">Width (ft)</label><input type="number" id="pkg-width" min="1" step="0.5" value="' + (editing ? editing.widthFt : 10) + '"></div>' +
+      '<div><label for="pkg-depth">Depth (ft)</label><input type="number" id="pkg-depth" min="1" step="0.5" value="' + (editing ? editing.depthFt : 6) + '"></div>' +
     '</div>' +
-    '<label>Color</label>' +
+    '<label for="pkg-color">Color</label>' +
     '<input type="color" id="pkg-color" value="' + (editing ? editing.color : '#2962FF') + '">';
   wrap.appendChild(form);
 
@@ -3952,6 +3958,16 @@ async function deletePackageAdmin(key) {
 // for an internal, unlisted-link planning tool. Don't put anything truly sensitive here.)
 
 const SPONSORS_TABLE = 'sponsors';
+function errDetail(error) {
+  // Supabase/Postgres errors carry a machine-readable code (e.g. 42501 = permission denied,
+  // PGRST205 = table not found) alongside the human message -- surfacing both means a
+  // failure can be diagnosed precisely from the error text alone, not guessed at.
+  if (!error) return 'unknown error';
+  const parts = [];
+  if (error.message) parts.push(error.message);
+  if (error.code) parts.push('code: ' + error.code);
+  return parts.length ? parts.join(', ') : 'unknown error';
+}
 let sponsors = [];
 let sponsorFilter = 'all';
 let sponsorSearch = '';
@@ -4055,21 +4071,21 @@ function toggleAdhocItem(id, idx, checked) {
   }
   if (!checked) item.delivered = false; // unchecking an item clears its delivery state too
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function toggleAdhocItemDelivered(id, idx, delivered) {
   const s = getSponsor(id); if (!s) return;
   if (!s.data.money.adhocItems) return;
   s.data.money.adhocItems[idx].delivered = delivered;
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function updateAdhocItemAmount(id, idx, value) {
   const s = getSponsor(id); if (!s) return;
   if (!s.data.money.adhocItems) s.data.money.adhocItems = defaultAdhocItems();
   s.data.money.adhocItems[idx].amount = value === '' ? null : Number(value);
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 
 function isSponsorMarkedPaid(s) {
@@ -4925,7 +4941,7 @@ async function loadSponsorsFromDb() {
   if (!sbClient) { sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); await backfillRegisteredDates(); await normalizeContactFormatting(); return; }
   try {
     const { data, error } = await sbClient.from(SPONSORS_TABLE).select('*').order('sort_order', { ascending: true });
-    if (error) { console.warn('Sponsors table not available, using local defaults:', error.message); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); await backfillRegisteredDates(); await normalizeContactFormatting(); return; }
+    if (error) { console.warn('Sponsors table not available, using local defaults:', errDetail(error)); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); await backfillRegisteredDates(); await normalizeContactFormatting(); return; }
     if (!data || data.length === 0) {
       const seed = DEFAULT_SPONSORS.map((s, i) => ({
         id: s.id, org: s.org, contact_name: s.contactName, contact_email: s.contactEmail,
@@ -4933,7 +4949,7 @@ async function loadSponsorsFromDb() {
         linked_booth_id: s.linkedBoothId, data: s.data, sort_order: i
       }));
       const { error: seedErr } = await sbClient.from(SPONSORS_TABLE).insert(seed);
-      if (seedErr) { console.warn('Could not seed sponsors table:', seedErr.message); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); return; }
+      if (seedErr) { console.warn('Could not seed sponsors table:', errDetail(seedErr)); sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } })); return; }
       sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } }));
       return;
     }
@@ -4993,7 +5009,10 @@ function pushSponsor(s) {
       updated_at: new Date().toISOString()
     };
     const { error } = await sbClient.from(SPONSORS_TABLE).upsert(row);
-    if (error) console.error('Sponsor save failed:', error);
+    if (error) {
+      console.error('Sponsor save failed:', error);
+      toast('Couldn\u2019t save that change to ' + (s.org || 'this sponsor') + ' \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+    }
   }, 300);
 }
 
@@ -5022,7 +5041,12 @@ function deleteSponsor(id) {
   if (!s) return;
   if (!confirm('Delete "' + s.org + '" from the sponsor tracker? This cannot be undone.')) return;
   sponsors = sponsors.filter(x => x.id !== id);
-  if (sbClient) sbClient.from(SPONSORS_TABLE).delete().eq('id', id).then(({ error }) => { if (error) console.error('Delete sponsor failed:', error); });
+  if (sbClient) sbClient.from(SPONSORS_TABLE).delete().eq('id', id).then(({ error }) => {
+    if (error) {
+      console.error('Delete sponsor failed:', error);
+      toast('Couldn\u2019t delete that sponsor \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
+    }
+  });
   openSponsorId = null;
   renderSponsorView();
 }
@@ -5293,9 +5317,43 @@ function sponsorAmountCell(s) {
   return parts.length ? escapeHtml(parts.join(' ')) : '\u2014';
 }
 
-function renderSponsorRows() {
+function buildSponsorRowPair(s, todayStr) {
+  const tr = document.createElement('tr');
+  tr.className = 'sp-row';
+  tr.dataset.id = s.id;
+  const pkg = s.package ? getPkg(s.package) : null;
+  const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
+  const overdue = isOverdue(s);
+  const dueCell = s.data.money.dueDate
+    ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${s.data.money.dueDate}</span>` : escapeHtml(s.data.money.dueDate))
+    : '—';
+  tr.innerHTML = `
+    <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">▸</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${(() => {
+      const openItems = (s.data.actionItems || []).filter(a => !a.done);
+      if (openItems.length === 0) return '';
+      const hasOverdue = openItems.some(a => a.dueDate && a.dueDate < todayStr);
+      return ` <span class="sp-task-badge ${hasOverdue ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}${hasOverdue ? ', at least one overdue' : ''}">📋${openItems.length}</span>`;
+    })()}</td>
+    <td class="sp-org">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
+    <td>${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
+    <td>${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '—'}</td>
+    <td>${sponsorAmountCell(s)}</td>
+    <td>${dueCell}</td>
+    <td><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${s.trackerStatus}</span></td>
+    <td>${linkedBooth ? escapeHtml((linkedBooth.spotName || '') + ' — ' + (MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '')) : '—'}</td>
+  `;
+  tr.addEventListener('click', () => toggleSponsorDetail(s.id));
+
+  const dtr = document.createElement('tr');
+  dtr.className = 'sp-detail-row' + (openSponsorId === s.id ? ' open' : '');
+  dtr.id = 'sp-detail-' + s.id;
+  dtr.innerHTML = `<td class="sp-detail-cell" colspan="8">${openSponsorId === s.id ? sponsorDetailHTML(s) : ''}</td>`;
+
+  return [tr, dtr];
+}
+
+function renderSponsorRows(dirtyId) {
   const tbody = document.getElementById('sp-rows');
-  tbody.innerHTML = '';
   const todayStr = new Date().toISOString().slice(0, 10);
   let filtered = sponsors.filter(s => {
     let matchesFilter;
@@ -5316,37 +5374,33 @@ function renderSponsorRows() {
     });
   }
 
-  filtered.forEach(s => {
-    const tr = document.createElement('tr');
-    tr.className = 'sp-row';
-    const pkg = s.package ? getPkg(s.package) : null;
-    const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
-    const overdue = isOverdue(s);
-    const dueCell = s.data.money.dueDate
-      ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${s.data.money.dueDate}</span>` : escapeHtml(s.data.money.dueDate))
-      : '—';
-    tr.innerHTML = `
-      <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">\u25B8</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${(() => {
-        const openItems = (s.data.actionItems || []).filter(a => !a.done);
-        if (openItems.length === 0) return '';
-        const hasOverdue = openItems.some(a => a.dueDate && a.dueDate < todayStr);
-        return ` <span class="sp-task-badge ${hasOverdue ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}${hasOverdue ? ', at least one overdue' : ''}">📋${openItems.length}</span>`;
-      })()}</td>
-      <td class="sp-org">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
-      <td>${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
-      <td>${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '—'}</td>
-      <td>${sponsorAmountCell(s)}</td>
-      <td>${dueCell}</td>
-      <td><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${s.trackerStatus}</span></td>
-      <td>${linkedBooth ? escapeHtml((linkedBooth.spotName || '') + ' \u2014 ' + (MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '')) : '\u2014'}</td>
-    `;
-    tr.addEventListener('click', () => toggleSponsorDetail(s.id));
-    tbody.appendChild(tr);
+  // Fast path: one sponsor's data changed (dirtyId) and the visible row set/order is
+  // otherwise identical to what's already on screen -- patch just that row pair instead of
+  // rebuilding every row (and re-running the open record's whole detail template) on every
+  // field edit. Any mismatch (filter/sort/membership changed) falls through to the full
+  // rebuild below, so this can never leave the table stale -- it only ever skips work that
+  // wasn't needed.
+  if (dirtyId) {
+    const existingIds = Array.from(tbody.children)
+      .filter(el => el.classList.contains('sp-row'))
+      .map(el => el.dataset.id);
+    const newIds = filtered.map(s => s.id);
+    const sameOrder = existingIds.length === newIds.length && existingIds.every((id, i) => id === newIds[i]);
+    const target = sameOrder ? filtered.find(s => s.id === dirtyId) : null;
+    const oldTr = target ? tbody.querySelector(`tr.sp-row[data-id="${dirtyId}"]`) : null;
+    if (oldTr) {
+      const oldDtr = document.getElementById('sp-detail-' + dirtyId);
+      const [tr, dtr] = buildSponsorRowPair(target, todayStr);
+      oldTr.replaceWith(tr);
+      if (oldDtr) oldDtr.replaceWith(dtr);
+      return;
+    }
+  }
 
-    const dtr = document.createElement('tr');
-    dtr.className = 'sp-detail-row' + (openSponsorId === s.id ? ' open' : '');
-    dtr.id = 'sp-detail-' + s.id;
-    dtr.innerHTML = `<td class="sp-detail-cell" colspan="8">${openSponsorId === s.id ? sponsorDetailHTML(s) : ''}</td>`;
+  tbody.innerHTML = '';
+  filtered.forEach(s => {
+    const [tr, dtr] = buildSponsorRowPair(s, todayStr);
+    tbody.appendChild(tr);
     tbody.appendChild(dtr);
   });
 }
@@ -5367,20 +5421,23 @@ function copySponsorEmail(id) {
 let sponsorActiveTab = 'overview';
 function setSponsorTab(tab) {
   sponsorActiveTab = tab;
-  renderSponsorRows();
+  renderSponsorRows(openSponsorId);
 }
 function sponsorCompleteness(s) {
   const checks = [];
   checks.push(!!s.contactEmail);
   checks.push(!!s.package);
-  checks.push(!!s.data.money.paymentStatus);
+  checks.push(/in-kind/i.test(s.trackerStatus) ? !!s.data.amountStatus : !!s.data.money.paymentStatus);
   checks.push(!s.data.program.type || (s.data.program.fulfilled && s.data.program.delivered));
   checks.push(!!s.linkedBoothId || !isActiveThisYear(s));
   const done = checks.filter(Boolean).length;
   return Math.round((done / checks.length) * 100);
 }
 function sponsorTabAlert(s, tab) {
-  if (tab === 'money') return !s.data.money.paymentStatus || s.data.money.paymentStatus === 'Not Paid';
+  if (tab === 'money') {
+    if (/in-kind/i.test(s.trackerStatus)) return !s.data.amountStatus;
+    return !s.data.money.paymentStatus || s.data.money.paymentStatus === 'Not Paid';
+  }
   if (tab === 'program') return !!s.data.program.type && !(s.data.program.fulfilled && s.data.program.delivered);
   return false;
 }
@@ -5447,15 +5504,11 @@ function sponsorDetailHTML(s) {
 
   return `
     <div class="sp-detail-inner">
-      <div class="sp-detail-close-row">
-        <button class="sp-mini-btn" onclick="toggleSponsorDetail('${s.id}')">\u25B4 Close</button>
-      </div>
-
       ${(() => {
         const completeness = sponsorCompleteness(s);
         const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
         const activeTab = sponsorActiveTab;
-        const tabs = [['overview', 'Overview'], ['money', 'Money'], ['program', 'Program & Logistics']];
+        const tabs = [['overview', 'Overview'], ['money', 'Financials'], ['program', 'Program & Logistics']];
         const tabBarHtml = tabs.map(([key, label]) => {
           const alert = sponsorTabAlert(s, key);
           return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''}" onclick="setSponsorTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
@@ -5464,53 +5517,60 @@ function sponsorDetailHTML(s) {
         <div class="sk-detail-header">
           <div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
           <span class="sp-sub">${completeness}% complete</span>
+          <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleSponsorDetail('${s.id}')">\u25B4 Close</button>
         </div>
         <div class="sk-tabs">${tabBarHtml}</div>
         `;
       })()}
 
-      <div class="sk-tab-panel" style="display:${sponsorActiveTab === 'overview' ? 'block' : 'none'};">
-        <div class="sp-detail-grid">
+      ${sponsorActiveTab !== 'overview' ? '' : `
+      <div class="sk-tab-panel">
+        <div class="sp-detail-grid sp-detail-2col">
         <fieldset class="sp-fieldset">
           <legend>Contact &amp; Booking</legend>
-          <div class="sp-field"><label>Organization</label><input type="text" value="${escapeHtml(s.org)}" onchange="updateSponsorSimple('${s.id}','org',this.value)"></div>
-          <div class="sp-field"><label>Contact name</label><input type="text" value="${escapeHtml(s.contactName)}" onchange="updateSponsorSimple('${s.id}','contactName',this.value)"></div>
-          <div class="sp-field"><label>Email</label>
+          <div class="sp-field-grid">
+          <div class="sp-field"><label for="sp-org-${s.id}">Organization</label><input id="sp-org-${s.id}" type="text" value="${escapeHtml(s.org)}" onchange="updateSponsorSimple('${s.id}','org',this.value)"></div>
+          <div class="sp-field"><label for="sp-contactname-${s.id}">Contact name</label><input id="sp-contactname-${s.id}" type="text" value="${escapeHtml(s.contactName)}" onchange="updateSponsorSimple('${s.id}','contactName',this.value)"></div>
+          <div class="sp-field" style="grid-column:1/-1;"><label for="sp-email-${s.id}">Email</label>
             <div class="sp-field-with-action">
-              <input type="email" value="${escapeHtml(s.contactEmail)}" onchange="updateSponsorSimple('${s.id}','contactEmail',this.value)">
+              <input id="sp-email-${s.id}" type="email" value="${escapeHtml(s.contactEmail)}" onchange="updateSponsorSimple('${s.id}','contactEmail',this.value)">
               <button class="sp-icon-btn" title="Copy email" onclick="copySponsorEmail('${s.id}')">${ICON_COPY}</button>
               <a class="sp-icon-btn" title="Compose email" href="mailto:${escapeHtml(s.contactEmail)}" style="text-decoration:none;">${ICON_MAIL}</a>
             </div>
           </div>
-          <div class="sp-field"><label>Phone</label><input type="text" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}','contactPhone',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"> \ud83d\udea9 Flag for review</div>
+          <div class="sp-field"><label for="sp-phone-${s.id}">Phone</label><input id="sp-phone-${s.id}" type="text" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}','contactPhone',this.value)"></div>
+          <div class="sp-check"><input id="sp-flagged-${s.id}" type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"><label for="sp-flagged-${s.id}"> \ud83d\udea9 Flag for review</label></div>
 
           <div class="sp-subhead">Package &amp; Status</div>
-          <div class="sp-field"><label>Package (floor plan tier)</label><select onchange="updateSponsorPackage('${s.id}',this.value)"><option value="">\u2014</option>${pkgOptions}</select></div>
-          <div class="sp-field"><label>Tracker status</label><select onchange="updateSponsorSimple('${s.id}','trackerStatus',this.value)">${statusOptions}</select></div>
-          <div class="sp-field"><label>Registered date</label><input type="date" value="${escapeHtml(s.data.registeredDate)}" onchange="updateSponsorData('${s.id}','registeredDate',this.value)"></div>
+          <div class="sp-field"><label for="sp-package-${s.id}">Package (floor plan tier)</label><select id="sp-package-${s.id}" onchange="updateSponsorPackage('${s.id}',this.value)"><option value="">\u2014</option>${pkgOptions}</select></div>
+          <div class="sp-field"><label for="sp-trackerstatus-${s.id}">Tracker status</label><select id="sp-trackerstatus-${s.id}" onchange="updateSponsorSimple('${s.id}','trackerStatus',this.value)">${statusOptions}</select></div>
+          <div class="sp-field"><label for="sp-registereddate-${s.id}">Registered date</label><input id="sp-registereddate-${s.id}" type="date" value="${escapeHtml(s.data.registeredDate)}" onchange="updateSponsorData('${s.id}','registeredDate',this.value)"></div>
           <div class="sp-check">
-            <input type="checkbox" ${isReturningSponsor(s) ? 'checked' : ''} onchange="updateSponsorReturningOverride('${s.id}',this.checked)">
-            Returning sponsor (was here last year)
+            <input id="sp-returning-${s.id}" type="checkbox" ${isReturningSponsor(s) ? 'checked' : ''} onchange="updateSponsorReturningOverride('${s.id}',this.checked)">
+            <label for="sp-returning-${s.id}">Returning sponsor (was here last year)</label>
           </div>
 
           <div class="sp-subhead">Linked Booth</div>
-          <div class="sp-field"><select onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
-          <div class="sp-linked-booth">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + escapeHtml(linkedBooth.spotName || getPkg(linkedBooth.type).label) : 'No booth linked yet \u2014 place their booth on the floor plan, then link it here.'}</div>
+          <div class="sp-field" style="grid-column:1/-1;"><label for="sp-linkedbooth-${s.id}" class="sr-only">Linked booth</label><select id="sp-linkedbooth-${s.id}" onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
+          <div class="sp-linked-booth" style="grid-column:1/-1;">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + escapeHtml(linkedBooth.spotName || getPkg(linkedBooth.type).label) : 'No booth linked yet \u2014 place their booth on the floor plan, then link it here.'}</div>
+          </div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
           <legend>Special Arrangement Notes</legend>
-          <textarea onchange="updateSponsorData('${s.id}','specialNotes',this.value)">${escapeHtml(s.data.specialNotes)}</textarea>
+          <textarea onchange="updateSponsorData('${s.id}','specialNotes',this.value)" style="min-height:120px;">${escapeHtml(s.data.specialNotes)}</textarea>
         </fieldset>
         </div>
       </div>
+      `}
 
-      <div class="sk-tab-panel" style="display:${sponsorActiveTab === 'money' ? 'block' : 'none'};">
-        <div class="sp-detail-grid">
+      ${sponsorActiveTab !== 'money' ? '' : `
+      <div class="sk-tab-panel">
+        <div class="sp-detail-grid sp-detail-1col">
         <fieldset class="sp-fieldset">
-          <legend>Money</legend>
-          <div class="sp-field"><label>Base package ($)</label><input type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
+          <legend>Financials</legend>
+          <div class="sp-field-grid">
+          <div class="sp-field"><label for="sp-basepkg-${s.id}">Base package ($)</label><input id="sp-basepkg-${s.id}" type="text" value="${escapeHtml(s.data.money.committed)}" onchange="updateSponsorNested('${s.id}','money','committed',this.value)"></div>
 
           <div class="sp-subhead">Ad-Hoc / Add-On Items</div>
           <div class="sp-adhoc-list">
@@ -5523,36 +5583,48 @@ function sponsorDetailHTML(s) {
             `).join('')}
           </div>
           <div class="sp-subhead">Custom / Other (one-off donations, upgrades, etc.)</div>
-          <div class="sp-field"><label>Custom ad-hoc amount ($)</label><input type="text" value="${escapeHtml(s.data.money.adhocAmount)}" onchange="updateSponsorNested('${s.id}','money','adhocAmount',this.value)"></div>
-          <div class="sp-field"><label>What it's for</label><input type="text" value="${escapeHtml(s.data.money.adhocDescription)}" placeholder="e.g. Double exhibit space upgrade, or a bespoke donation" onchange="updateSponsorNested('${s.id}','money','adhocDescription',this.value)"></div>
+          <div class="sp-field"><label for="sp-adhocamt-${s.id}">Custom ad-hoc amount ($)</label><input id="sp-adhocamt-${s.id}" type="text" value="${escapeHtml(s.data.money.adhocAmount)}" onchange="updateSponsorNested('${s.id}','money','adhocAmount',this.value)"></div>
+          <div class="sp-field"><label for="sp-adhocdesc-${s.id}">What it's for</label><input id="sp-adhocdesc-${s.id}" type="text" value="${escapeHtml(s.data.money.adhocDescription)}" placeholder="e.g. Double exhibit space upgrade, or a bespoke donation" onchange="updateSponsorNested('${s.id}','money','adhocDescription',this.value)"></div>
           <div class="sp-field"><label>Total ad-hoc committed</label><div class="bg-input bg-readonly" style="padding:7px 9px;">$${sponsorAdhocTotal(s).toLocaleString()}</div></div>
 
+          ${/in-kind/i.test(s.trackerStatus) ? `
+          <div class="sp-subhead">In-Kind Status</div>
+          <div class="sp-field"><label for="sp-inkindstatus-${s.id}">Comp status</label><select id="sp-inkindstatus-${s.id}" onchange="updateSponsorData('${s.id}','amountStatus',this.value)"><option value="" ${!s.data.amountStatus ? 'selected' : ''}>\u2014 not set \u2014</option><option value="Comp - confirmed" ${s.data.amountStatus === 'Comp - confirmed' ? 'selected' : ''}>Comp - Confirmed</option></select></div>
+          ` : `
           <div class="sp-subhead">Payment</div>
-          <div class="sp-field"><label>Payment status</label><select onchange="updateSponsorNested('${s.id}','money','paymentStatus',this.value)"><option value="" ${!s.data.money.paymentStatus ? 'selected' : ''}>\u2014 not set \u2014</option><option value="Not Paid" ${s.data.money.paymentStatus === 'Not Paid' ? 'selected' : ''}>Not Paid</option><option value="Partially Paid" ${s.data.money.paymentStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option><option value="Paid in Full" ${s.data.money.paymentStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option></select></div>
-          <div class="sp-field"><label>Amount paid ($)</label><input type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
-          <div class="sp-field"><label>Payment due date</label><input type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"> Invoice sent</div>
+          <div class="sp-field"><label for="sp-paystatus-${s.id}">Payment status</label><select id="sp-paystatus-${s.id}" onchange="updateSponsorNested('${s.id}','money','paymentStatus',this.value)"><option value="" ${!s.data.money.paymentStatus ? 'selected' : ''}>\u2014 not set \u2014</option><option value="Not Paid" ${s.data.money.paymentStatus === 'Not Paid' ? 'selected' : ''}>Not Paid</option><option value="Partially Paid" ${s.data.money.paymentStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option><option value="Paid in Full" ${s.data.money.paymentStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option></select></div>
+          <div class="sp-field"><label for="sp-amtpaid-${s.id}">Amount paid ($)</label><input id="sp-amtpaid-${s.id}" type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
+          <div class="sp-field"><label for="sp-paydue-${s.id}">Payment due date</label><input id="sp-paydue-${s.id}" type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
+          <div class="sp-check"><input id="sp-invoicesent-${s.id}" type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"><label for="sp-invoicesent-${s.id}"> Invoice sent</label></div>
+          `}
+          </div>
         </fieldset>
         </div>
       </div>
+      `}
 
-      <div class="sk-tab-panel" style="display:${sponsorActiveTab === 'program' ? 'block' : 'none'};">
-        <div class="sp-detail-grid">
+      ${sponsorActiveTab !== 'program' ? '' : `
+      <div class="sk-tab-panel">
+        <div class="sp-detail-grid sp-detail-2col">
         <fieldset class="sp-fieldset">
           <legend>Program &amp; Stage</legend>
-          <div class="sp-field"><label>Type (pick a suggestion or type your own)</label><input type="text" list="addon-type-list-${s.id}" value="${escapeHtml(s.data.program.type)}" onchange="updateSponsorNested('${s.id}','program','type',this.value)"><datalist id="addon-type-list-${s.id}">${ADDON_TYPE_SUGGESTIONS.map(o => `<option value="${escapeHtml(o)}">`).join('')}</datalist></div>
-          <div class="sp-field"><label>Track / session name</label><input type="text" value="${escapeHtml(s.data.program.track)}" onchange="updateSponsorNested('${s.id}','program','track',this.value)"></div>
-          <div class="sp-field"><label>Time slot</label><input type="text" value="${escapeHtml(s.data.program.timeSlot)}" onchange="updateSponsorNested('${s.id}','program','timeSlot',this.value)"></div>
-          <div class="sp-field"><label>Length (min)</label><input type="text" value="${escapeHtml(s.data.program.lengthMin)}" onchange="updateSponsorNested('${s.id}','program','lengthMin',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${s.data.program.fulfilled ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','fulfilled',this.checked)"> Materials received / confirmed <span class="sp-sub">(from sponsor)</span></div>
-          <div class="sp-check"><input type="checkbox" ${s.data.program.delivered ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','delivered',this.checked)"> We delivered on this commitment <span class="sp-sub">(to sponsor)</span></div>
+          <div class="sp-field-grid">
+          <div class="sp-field"><label for="sp-progtype-${s.id}">Type (pick a suggestion or type your own)</label><input id="sp-progtype-${s.id}" type="text" list="addon-type-list-${s.id}" value="${escapeHtml(s.data.program.type)}" onchange="updateSponsorNested('${s.id}','program','type',this.value)"><datalist id="addon-type-list-${s.id}">${ADDON_TYPE_SUGGESTIONS.map(o => `<option value="${escapeHtml(o)}">`).join('')}</datalist></div>
+          <div class="sp-field"><label for="sp-progtrack-${s.id}">Track / session name</label><input id="sp-progtrack-${s.id}" type="text" value="${escapeHtml(s.data.program.track)}" onchange="updateSponsorNested('${s.id}','program','track',this.value)"></div>
+          <div class="sp-field"><label for="sp-progtime-${s.id}">Time slot</label><input id="sp-progtime-${s.id}" type="text" value="${escapeHtml(s.data.program.timeSlot)}" onchange="updateSponsorNested('${s.id}','program','timeSlot',this.value)"></div>
+          <div class="sp-field"><label for="sp-proglength-${s.id}">Length (min)</label><input id="sp-proglength-${s.id}" type="text" value="${escapeHtml(s.data.program.lengthMin)}" onchange="updateSponsorNested('${s.id}','program','lengthMin',this.value)"></div>
+          <div class="sp-check"><input id="sp-progfulfilled-${s.id}" type="checkbox" ${s.data.program.fulfilled ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','fulfilled',this.checked)"><label for="sp-progfulfilled-${s.id}"> Materials received / confirmed <span class="sp-sub">(from sponsor)</span></label></div>
+          <div class="sp-check"><input id="sp-progdelivered-${s.id}" type="checkbox" ${s.data.program.delivered ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','program','delivered',this.checked)"><label for="sp-progdelivered-${s.id}"> We delivered on this commitment <span class="sp-sub">(to sponsor)</span></label></div>
+          </div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
           <legend>Logistics</legend>
-          <div class="sp-check"><input type="checkbox" ${s.data.logistics.power ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','power',this.checked)"> Power needed</div>
-          <div class="sp-check"><input type="checkbox" ${s.data.logistics.av ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','av',this.checked)"> AV needed</div>
-          <div class="sp-field"><label>Load-in time</label><input type="text" value="${escapeHtml(s.data.logistics.loadInTime)}" onchange="updateSponsorNested('${s.id}','logistics','loadInTime',this.value)"></div>
+          <div class="sp-field-grid">
+          <div class="sp-check"><input id="sp-power-${s.id}" type="checkbox" ${s.data.logistics.power ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','power',this.checked)"><label for="sp-power-${s.id}"> Power needed</label></div>
+          <div class="sp-check"><input id="sp-av-${s.id}" type="checkbox" ${s.data.logistics.av ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','av',this.checked)"><label for="sp-av-${s.id}"> AV needed</label></div>
+          <div class="sp-field"><label for="sp-loadin-${s.id}">Load-in time</label><input id="sp-loadin-${s.id}" type="text" value="${escapeHtml(s.data.logistics.loadInTime)}" onchange="updateSponsorNested('${s.id}','logistics','loadInTime',this.value)"></div>
+          <div class="sp-field"><label for="sp-shipping-${s.id}">Shipping / drayage notes</label><input id="sp-shipping-${s.id}" type="text" value="${escapeHtml(s.data.logistics.shipping)}" onchange="updateSponsorNested('${s.id}','logistics','shipping',this.value)"></div>
           <div class="sp-subhead">Badges</div>
           ${(s.data.logistics.badgeNames || []).map((name, i) => `
             <div class="sp-add-row" style="margin-bottom:4px;">
@@ -5561,10 +5633,11 @@ function sponsorDetailHTML(s) {
             </div>
           `).join('')}
           <button class="sp-mini-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add name</button>
-          <div class="sp-field"><label>Shipping / drayage notes</label><input type="text" value="${escapeHtml(s.data.logistics.shipping)}" onchange="updateSponsorNested('${s.id}','logistics','shipping',this.value)"></div>
+          </div>
         </fieldset>
         </div>
       </div>
+      `}
 
       <div class="sk-always-visible">
         <div class="sk-always-visible-label">Ongoing \u2014 always visible, regardless of tab</div>
@@ -5629,7 +5702,7 @@ function updateSponsorReturningOverride(id, checked) {
   const s = getSponsor(id); if (!s) return;
   s.data.returningOverride = checked;
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 
 function updateSponsorPackage(id, value) {
@@ -5642,7 +5715,7 @@ function updateSponsorPackage(id, value) {
     s.data.money.committed = String(PACKAGE_GUIDE_PRICES[value]);
   }
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 
 function updateSponsorSimple(id, field, value) {
@@ -5667,38 +5740,38 @@ function updateSponsorSimple(id, field, value) {
     }
   }
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function updateSponsorData(id, field, value) {
   const s = getSponsor(id); if (!s) return;
   s.data[field] = value;
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function addSponsorBadgeName(id) {
   const s = getSponsor(id); if (!s) return;
   if (!s.data.logistics.badgeNames) s.data.logistics.badgeNames = [];
   s.data.logistics.badgeNames.push('');
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function updateSponsorBadgeName(id, i, value) {
   const s = getSponsor(id); if (!s) return;
   s.data.logistics.badgeNames[i] = value;
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function removeSponsorBadgeName(id, i) {
   const s = getSponsor(id); if (!s) return;
   s.data.logistics.badgeNames.splice(i, 1);
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function updateSponsorNested(id, group, field, value) {
   const s = getSponsor(id); if (!s) return;
   s.data[group][field] = value;
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 
 function linkBoothToSponsor(sponsorId, boothId) {
@@ -5710,7 +5783,7 @@ function linkBoothToSponsor(sponsorId, boothId) {
     const claimedBy = sponsors.find(sp => sp.linkedBoothId === boothId && sp.id !== sponsorId);
     if (claimedBy) {
       toast('That booth is already linked to ' + claimedBy.org + ' \u2014 pick a different spot.');
-      renderSponsorRows(); // reset the dropdown back to its real state
+      renderSponsorRows(sponsorId); // reset the dropdown back to its real state
       return;
     }
   }
@@ -5718,7 +5791,7 @@ function linkBoothToSponsor(sponsorId, boothId) {
   // The booth's on-map label always shows its spot name (e.g. "Spot 4"), never the
   // sponsor org -- that pairing lives in the Spot Directory next to the map instead.
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(sponsorId);
   if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
 }
 
@@ -5731,7 +5804,7 @@ function addComm(id) {
   s.data.comms.push({ ts, note: val });
   input.value = '';
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 
 let expandedActionItems = new Set(); // tracks which action items have their comment thread open, keyed "sponsorId:index"
@@ -5740,13 +5813,13 @@ let speakerActiveTab = 'overview'; // shared tab state -- only one speaker recor
 
 function setSpeakerTab(tab) {
   speakerActiveTab = tab;
-  renderSpeakerRows();
+  renderSpeakerRows(openSpeakerId);
 }
 
 function toggleTransportAddForm(id) {
   if (openTransportAddForms.has(id)) openTransportAddForms.delete(id);
   else openTransportAddForms.add(id);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 
 function speakerCompleteness(sp) {
@@ -5795,13 +5868,13 @@ function addActionItem(id) {
   input.value = '';
   if (dueDateEl) dueDateEl.value = '';
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function toggleActionItemExpand(id, i) {
   const key = id + ':' + i;
   if (expandedActionItems.has(key)) expandedActionItems.delete(key);
   else expandedActionItems.add(key);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function addActionItemComment(id, i) {
   const input = document.getElementById('action-comment-input-' + id + '-' + i);
@@ -5813,19 +5886,19 @@ function addActionItemComment(id, i) {
   const ts = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   item.comments.push({ text: val, ts });
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function toggleActionItem(id, i) {
   const s = getSponsor(id);
   s.data.actionItems[i].done = !s.data.actionItems[i].done;
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function removeActionItem(id, i) {
   const s = getSponsor(id);
   s.data.actionItems.splice(i, 1);
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 
 function addQuestion(id) {
@@ -5838,19 +5911,19 @@ function addQuestion(id) {
   s.data.questions.push({ text: val, resolved: false, ts });
   input.value = '';
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function toggleQuestionResolved(id, i) {
   const s = getSponsor(id);
   s.data.questions[i].resolved = !s.data.questions[i].resolved;
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 function removeQuestion(id, i) {
   const s = getSponsor(id);
   s.data.questions.splice(i, 1);
   pushSponsor(s);
-  renderSponsorRows();
+  renderSponsorRows(id);
 }
 
 // ==================== Sponsorship Guide Reference ====================
@@ -5944,10 +6017,10 @@ async function loadBudgetFromDb() {
   if (!sbClient) { budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET)); return; }
   try {
     const { data, error } = await sbClient.from(BUDGET_TABLE).select('*').eq('id', BUDGET_ROW_ID).maybeSingle();
-    if (error) { console.warn('Budget table not available, using defaults:', error.message); budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET)); return; }
+    if (error) { console.warn('Budget table not available, using defaults:', errDetail(error)); budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET)); return; }
     if (!data) {
       const { error: seedErr } = await sbClient.from(BUDGET_TABLE).insert({ id: BUDGET_ROW_ID, data: DEFAULT_BUDGET });
-      if (seedErr) console.warn('Could not seed budget table:', seedErr.message);
+      if (seedErr) console.warn('Could not seed budget table:', errDetail(seedErr));
       budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET));
       return;
     }
@@ -5964,7 +6037,10 @@ function pushBudget() {
   clearTimeout(budgetPushTimer);
   budgetPushTimer = setTimeout(async () => {
     const { error } = await sbClient.from(BUDGET_TABLE).upsert({ id: BUDGET_ROW_ID, data: budgetData, updated_at: new Date().toISOString() });
-    if (error) console.error('Budget save failed:', error);
+    if (error) {
+      console.error('Budget save failed:', error);
+      toast('Couldn\u2019t save that budget change \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+    }
   }, 300);
 }
 
@@ -6372,9 +6448,9 @@ async function loadDriversAndHotels() {
       sbClient.from(HOTELS_TABLE).select('*').order('name', { ascending: true })
     ]);
     if (!driversRes.error) drivers = (driversRes.data || []).map(d => ({ id: d.id, name: d.name, phone: d.phone || '', seats: d.seats || '', notes: d.notes || '' }));
-    else console.warn('Drivers table not available:', driversRes.error.message);
+    else console.warn('Drivers table not available:', errDetail(driversRes.error));
     if (!hotelsRes.error) hotels = (hotelsRes.data || []).map(h => ({ id: h.id, name: h.name, address: h.address || '' }));
-    else console.warn('Hotels table not available:', hotelsRes.error.message);
+    else console.warn('Hotels table not available:', errDetail(hotelsRes.error));
   } catch (err) {
     console.warn('Drivers/hotels load failed:', err);
   }
@@ -6388,13 +6464,42 @@ function addDriver() {
   if (!name) { toast('Enter a name first.'); return; }
   const driver = { id: makeId(), name, phone: phoneInput.value.trim(), seats: seatsInput.value, notes: '' };
   drivers.push(driver);
-  if (sbClient) sbClient.from(DRIVERS_TABLE).upsert({ id: driver.id, name: driver.name, phone: driver.phone, seats: driver.seats, notes: driver.notes });
-  nameInput.value = ''; phoneInput.value = ''; seatsInput.value = '';
   renderTransportationView();
+  if (sbClient) {
+    sbClient.from(DRIVERS_TABLE).upsert({ id: driver.id, name: driver.name, phone: driver.phone, seats: driver.seats, notes: driver.notes }).then(({ error }) => {
+      if (error) {
+        console.error('Driver save failed:', error);
+        toast('Couldn\u2019t save that driver \u2014 it\u2019ll disappear next reload. (' + errDetail(error) + ')');
+      }
+    });
+  }
+  nameInput.value = ''; phoneInput.value = ''; seatsInput.value = '';
+}
+function editDriver(id) {
+  const d = drivers.find(x => x.id === id); if (!d) return;
+  const newName = prompt('Driver name:', d.name);
+  if (newName === null) return;
+  const newPhone = prompt('Phone:', d.phone);
+  if (newPhone === null) return;
+  const newSeats = prompt('Seats available:', d.seats);
+  if (newSeats === null) return;
+  d.name = newName.trim() || d.name;
+  d.phone = newPhone.trim();
+  d.seats = newSeats.trim();
+  renderTransportationView();
+  if (sbClient) {
+    sbClient.from(DRIVERS_TABLE).upsert({ id: d.id, name: d.name, phone: d.phone, seats: d.seats, notes: d.notes || '' }).then(({ error }) => {
+      if (error) {
+        console.error('Driver update failed:', error);
+        toast('Couldn\u2019t save that change \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+      } else {
+        toast('Driver updated.');
+      }
+    });
+  }
 }
 function removeDriver(id) {
   drivers = drivers.filter(d => d.id !== id);
-  if (sbClient) sbClient.from(DRIVERS_TABLE).delete().eq('id', id);
   // Unassign this driver from anything they were on
   speakers.forEach(sp => {
     let changed = false;
@@ -6402,6 +6507,14 @@ function removeDriver(id) {
     if (changed) pushSpeaker(sp);
   });
   renderTransportationView();
+  if (sbClient) {
+    sbClient.from(DRIVERS_TABLE).delete().eq('id', id).then(({ error }) => {
+      if (error) {
+        console.error('Driver delete failed:', error);
+        toast('Couldn\u2019t delete that driver \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
+      }
+    });
+  }
 }
 
 function addHotel() {
@@ -6411,14 +6524,48 @@ function addHotel() {
   if (!name) { toast('Enter a hotel name first.'); return; }
   const hotel = { id: makeId(), name, address: addrInput.value.trim() };
   hotels.push(hotel);
-  if (sbClient) sbClient.from(HOTELS_TABLE).upsert({ id: hotel.id, name: hotel.name, address: hotel.address });
-  nameInput.value = ''; addrInput.value = '';
   renderTransportationView();
+  if (sbClient) {
+    sbClient.from(HOTELS_TABLE).upsert({ id: hotel.id, name: hotel.name, address: hotel.address }).then(({ error }) => {
+      if (error) {
+        console.error('Hotel save failed:', error);
+        toast('Couldn\u2019t save that hotel \u2014 it\u2019ll disappear next reload. (' + errDetail(error) + ')');
+      }
+    });
+  }
+  nameInput.value = ''; addrInput.value = '';
+}
+function editHotel(id) {
+  const h = hotels.find(x => x.id === id); if (!h) return;
+  const newName = prompt('Hotel name:', h.name);
+  if (newName === null) return;
+  const newAddress = prompt('Address:', h.address);
+  if (newAddress === null) return;
+  h.name = newName.trim() || h.name;
+  h.address = newAddress.trim();
+  renderTransportationView();
+  if (sbClient) {
+    sbClient.from(HOTELS_TABLE).upsert({ id: h.id, name: h.name, address: h.address }).then(({ error }) => {
+      if (error) {
+        console.error('Hotel update failed:', error);
+        toast('Couldn\u2019t save that change \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+      } else {
+        toast('Hotel updated.');
+      }
+    });
+  }
 }
 function removeHotel(id) {
   hotels = hotels.filter(h => h.id !== id);
-  if (sbClient) sbClient.from(HOTELS_TABLE).delete().eq('id', id);
   renderTransportationView();
+  if (sbClient) {
+    sbClient.from(HOTELS_TABLE).delete().eq('id', id).then(({ error }) => {
+      if (error) {
+        console.error('Hotel delete failed:', error);
+        toast('Couldn\u2019t delete that hotel \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
+      }
+    });
+  }
 }
 
 const PRODUCTION_RIDER_PATH = '_conference/production-rider';
@@ -6428,7 +6575,7 @@ async function loadConferenceDocuments() {
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(CONFERENCE_DOCS_TABLE).select('*').eq('id', 'production-rider').maybeSingle();
-    if (error) { console.warn('Conference documents table not available:', error.message); return; }
+    if (error) { console.warn('Conference documents table not available:', errDetail(error)); return; }
     if (data) conferenceProductionRider = { label: data.label, fileName: data.file_name, url: data.url, uploadedAt: data.uploaded_at };
   } catch (err) {
     console.warn('Conference documents load failed:', err);
@@ -6457,9 +6604,14 @@ async function uploadProductionRider() {
   const uploadedAt = new Date().toISOString().slice(0, 10);
   conferenceProductionRider = { label, fileName: file.name, url: urlData.publicUrl, uploadedAt };
   if (sbClient) {
-    await sbClient.from(CONFERENCE_DOCS_TABLE).upsert({
+    const { error } = await sbClient.from(CONFERENCE_DOCS_TABLE).upsert({
       id: 'production-rider', label, file_name: file.name, url: urlData.publicUrl, uploaded_at: uploadedAt
     });
+    if (error) {
+      console.error('Rider metadata save failed:', error);
+      toast('The file uploaded, but saving its details failed \u2014 it may not show up after a reload. (' + errDetail(error) + ')');
+      return;
+    }
   }
   input.value = '';
   if (labelInput) labelInput.value = '';
@@ -6564,7 +6716,7 @@ async function loadSpeakersFromDb() {
   if (!sbClient) { speakers = []; return; }
   try {
     const { data, error } = await sbClient.from(SPEAKERS_TABLE).select('*').order('sort_order', { ascending: true });
-    if (error) { console.warn('Speakers table not available:', error.message); speakers = []; return; }
+    if (error) { console.warn('Speakers table not available:', errDetail(error)); speakers = []; return; }
     speakers = (data || []).map(rowToSpeaker);
   } catch (err) {
     console.warn('Speakers load failed:', err);
@@ -6583,7 +6735,10 @@ function pushSpeaker(sp) {
       tracker_status: sp.trackerStatus, data: sp.data, sort_order: sp.sortOrder,
       updated_at: new Date().toISOString()
     });
-    if (error) console.error('Speaker save failed:', error);
+    if (error) {
+      console.error('Speaker save failed:', error);
+      toast('Couldn\u2019t save that change to ' + (sp.name || 'this speaker') + ' \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+    }
   }, 300);
 }
 
@@ -6628,7 +6783,12 @@ function removeSpeaker(id) {
     if (paths.length) sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove(paths);
   }
   speakers = speakers.filter(s => s.id !== id);
-  if (sbClient) sbClient.from(SPEAKERS_TABLE).delete().eq('id', id).then(({ error }) => { if (error) console.error('Speaker delete failed:', error); });
+  if (sbClient) sbClient.from(SPEAKERS_TABLE).delete().eq('id', id).then(({ error }) => {
+    if (error) {
+      console.error('Speaker delete failed:', error);
+      toast('Couldn\u2019t delete that speaker/artist \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
+    }
+  });
   if (openSpeakerId === id) openSpeakerId = null;
   renderSpeakerView();
 }
@@ -6637,26 +6797,26 @@ function updateSpeakerSimple(id, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp[field] = value;
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function updateSpeakerNested(id, group, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data[group][field] = value;
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function updateSpeakerSessionDate(id, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.session.sessionDate = value;
   sp.data.session.day = fullWeekday(value); // auto-filled, not typed
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function updateSpeakerData(id, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data[field] = value;
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 
 // ---- File uploads (real Supabase Storage, not just links) ----
@@ -6689,7 +6849,7 @@ async function uploadSpeakerFile(id, kind) {
   pushSpeaker(sp);
   input.value = '';
   if (labelInput) labelInput.value = '';
-  renderSpeakerRows();
+  renderSpeakerRows(id);
   toast('Uploaded ' + file.name);
 }
 function uploadSpeakerMaterial(id) { return uploadSpeakerFile(id, 'materialsToShare'); }
@@ -6705,7 +6865,7 @@ async function removeSpeakerFile(id, kind, materialId) {
   }
   sp.data[kind] = sp.data[kind].filter(m => m.id !== materialId);
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function removeSpeakerMaterial(id, materialId) { return removeSpeakerFile(id, 'materialsToShare', materialId); }
 function removeSpeakerInternalDoc(id, materialId) { return removeSpeakerFile(id, 'internalDocuments', materialId); }
@@ -6762,19 +6922,19 @@ function addSpeakerBadgeName(id) {
   if (!sp.data.logistics.badgeNames) sp.data.logistics.badgeNames = [];
   sp.data.logistics.badgeNames.push('');
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function updateSpeakerBadgeName(id, i, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.logistics.badgeNames[i] = value;
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function removeSpeakerBadgeName(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.logistics.badgeNames.splice(i, 1);
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 
 const CHURCH_NAME = 'Hunter Street Baptist Church';
@@ -6848,13 +7008,13 @@ function addSpeakerTransportNeed(id) {
     seatsNeeded: partySizeForSpeaker(id) // defaults to the full party -- splitTransportNeed() can divide this across two bookings later
   });
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function removeSpeakerTransportNeed(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.logistics.transportNeeds.splice(i, 1);
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 
 function toggleSpeakerType(id, typeName, checked) {
@@ -6863,7 +7023,7 @@ function toggleSpeakerType(id, typeName, checked) {
   if (checked) { if (!sp.types.includes(typeName)) sp.types.push(typeName); }
   else { sp.types = sp.types.filter(t => t !== typeName); }
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 
 function renderSpeakerView() {
@@ -6879,10 +7039,43 @@ function renderSpeakerView() {
   renderSpeakerRows();
 }
 
-function renderSpeakerRows() {
+function buildSpeakerRowPair(sp, todayStr) {
+  const openItems = (sp.data.actionItems || []).filter(a => !a.done);
+  const hasOverdueAction = openItems.some(a => a.dueDate && a.dueDate < todayStr);
+  const hostCell = !sp.data.logistics.hostNeeded
+    ? '<span class="sp-sub">—</span>'
+    : (sp.data.logistics.hostName
+        ? escapeHtml(sp.data.logistics.hostName)
+        : '<span class="sp-task-badge sp-task-badge-overdue" title="A host is needed but nobody’s assigned yet">Needs host</span>');
+  const tr = document.createElement('tr');
+  tr.dataset.id = sp.id;
+  tr.innerHTML = `
+    <td><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}</td>
+    <td class="sp-org">${escapeHtml(sp.name)}<div class="sp-sub">${escapeHtml((sp.types || []).join(', '))}</div></td>
+    <td>${escapeHtml(sp.data.session.title || '—')}<div class="sp-sub">${escapeHtml([sp.data.session.day, sp.data.session.timeSlot].filter(Boolean).join(' · '))}</div></td>
+    <td>${escapeHtml(sp.contactName) || '—'}<div class="sp-sub">${escapeHtml(sp.contactEmail)}</div></td>
+    <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
+    <td>${(() => { const c = speakerCompleteness(sp); const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
+    <td>${hostCell}</td>
+  `;
+  tr.style.cursor = 'pointer';
+  tr.onclick = (e) => { if (e.target.tagName !== 'A') toggleSpeakerDetail(sp.id); };
+
+  let detailTr = null;
+  if (openSpeakerId === sp.id) {
+    detailTr = document.createElement('tr');
+    detailTr.id = 'sk-detail-' + sp.id;
+    const detailTd = document.createElement('td');
+    detailTd.colSpan = 7;
+    detailTd.innerHTML = speakerDetailHTML(sp);
+    detailTr.appendChild(detailTd);
+  }
+  return [tr, detailTr];
+}
+
+function renderSpeakerRows(dirtyId) {
   const tbody = document.getElementById('sk-rows');
   if (!tbody) return;
-  tbody.innerHTML = '';
   const todayStr = new Date().toISOString().slice(0, 10);
 
   let filtered = speakers.filter(sp => {
@@ -6903,43 +7096,43 @@ function renderSpeakerRows() {
     });
   }
 
+  // Fast path: same idea as renderSponsorRows -- if one speaker's data changed (dirtyId) and
+  // the visible row set/order hasn't moved, patch just that row pair instead of rebuilding
+  // the whole table on every field edit. Falls through to the full rebuild whenever that's
+  // not safely true, so it can never leave the table stale.
+  if (dirtyId) {
+    const existingIds = Array.from(tbody.children)
+      .filter(el => el.dataset && el.dataset.id)
+      .map(el => el.dataset.id);
+    const newIds = filtered.map(sp => sp.id);
+    const sameOrder = existingIds.length === newIds.length && existingIds.every((id, i) => id === newIds[i]);
+    const target = sameOrder ? filtered.find(sp => sp.id === dirtyId) : null;
+    const oldTr = target ? tbody.querySelector(`tr[data-id="${dirtyId}"]`) : null;
+    if (oldTr) {
+      const oldDetailTr = document.getElementById('sk-detail-' + dirtyId);
+      const [tr, detailTr] = buildSpeakerRowPair(target, todayStr);
+      oldTr.replaceWith(tr);
+      if (oldDetailTr) {
+        if (detailTr) oldDetailTr.replaceWith(detailTr);
+        else oldDetailTr.remove();
+      } else if (detailTr) {
+        tr.after(detailTr);
+      }
+      return;
+    }
+  }
+
+  tbody.innerHTML = '';
+
   if (filtered.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--ink-soft);">No speakers/artists match this view.</td></tr>';
     return;
   }
 
   filtered.forEach(sp => {
-    const mat = materialsNeededCount(sp);
-    const openItems = (sp.data.actionItems || []).filter(a => !a.done);
-    const hasOverdueAction = openItems.some(a => a.dueDate && a.dueDate < todayStr);
-    const hostCell = !sp.data.logistics.hostNeeded
-      ? '<span class="sp-sub">\u2014</span>'
-      : (sp.data.logistics.hostName
-          ? escapeHtml(sp.data.logistics.hostName)
-          : '<span class="sp-task-badge sp-task-badge-overdue" title="A host is needed but nobody\u2019s assigned yet">Needs host</span>');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">\u25B8</span>${sp.data.flagged ? ' <span title="Flagged for review">\ud83d\udea9</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">\ud83d\udccb${openItems.length}</span>` : ''}</td>
-      <td class="sp-org">${escapeHtml(sp.name)}<div class="sp-sub">${escapeHtml((sp.types || []).join(', '))}</div></td>
-      <td>${escapeHtml(sp.data.session.title || '\u2014')}<div class="sp-sub">${escapeHtml([sp.data.session.day, sp.data.session.timeSlot].filter(Boolean).join(' \u00b7 '))}</div></td>
-      <td>${escapeHtml(sp.contactName) || '\u2014'}<div class="sp-sub">${escapeHtml(sp.contactEmail)}</div></td>
-      <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
-      <td>${(() => { const c = speakerCompleteness(sp); const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
-      <td>${hostCell}</td>
-    `;
-    tr.style.cursor = 'pointer';
-    tr.onclick = (e) => { if (e.target.tagName !== 'A') toggleSpeakerDetail(sp.id); };
+    const [tr, detailTr] = buildSpeakerRowPair(sp, todayStr);
     tbody.appendChild(tr);
-
-    if (openSpeakerId === sp.id) {
-      const detailTr = document.createElement('tr');
-      detailTr.id = 'sk-detail-' + sp.id;
-      const detailTd = document.createElement('td');
-      detailTd.colSpan = 7;
-      detailTd.innerHTML = speakerDetailHTML(sp);
-      detailTr.appendChild(detailTd);
-      tbody.appendChild(detailTr);
-    }
+    if (detailTr) tbody.appendChild(detailTr);
   });
 }
 
@@ -7020,7 +7213,7 @@ function speakerDetailHTML(sp) {
   const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
   const activeTab = speakerActiveTab;
   const tabs = [
-    ['overview', 'Overview'], ['financial', 'Financial'], ['logistics', 'Logistics'],
+    ['overview', 'Overview'], ['financial', 'Financials'], ['logistics', 'Logistics'],
     ['production', 'Production'], ['files', 'Files']
   ];
   const tabBarHtml = tabs.map(([key, label]) => {
@@ -7033,32 +7226,34 @@ function speakerDetailHTML(sp) {
     <div class="sk-detail-header">
       <div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
       <span class="sp-sub">${completeness}% complete</span>
+      <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleSpeakerDetail('${sp.id}')">▴ Close</button>
     </div>
     <div class="sk-tabs">${tabBarHtml}</div>
 
-    <div class="sk-tab-panel" style="display:${activeTab === 'overview' ? 'block' : 'none'};">
+    ${activeTab !== 'overview' ? '' : `
+    <div class="sk-tab-panel">
       <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
           <legend>Contact &amp; Session</legend>
-          <div class="sp-field"><label>Name</label><input type="text" value="${escapeHtml(sp.name)}" onchange="updateSpeakerSimple('${sp.id}','name',this.value)"></div>
-          <div class="sp-field"><label>Type (check all that apply)</label><div>${typeCheckboxes}</div></div>
-          <div class="sp-field"><label>Contact name</label><input type="text" value="${escapeHtml(sp.contactName)}" onchange="updateSpeakerSimple('${sp.id}','contactName',this.value)"></div>
-          <div class="sp-field"><label>Contact email</label><input type="email" value="${escapeHtml(sp.contactEmail)}" onchange="updateSpeakerSimple('${sp.id}','contactEmail',this.value)"></div>
-          <div class="sp-field"><label>Contact phone</label><input type="text" value="${escapeHtml(sp.contactPhone)}" onchange="updateSpeakerSimple('${sp.id}','contactPhone',this.value)"></div>
-          <div class="sp-field"><label>Tracker status</label><select onchange="updateSpeakerSimple('${sp.id}','trackerStatus',this.value)">${statusOptions}</select></div>
-          <div class="sp-check"><input type="checkbox" ${sp.data.flagged ? 'checked' : ''} onchange="updateSpeakerData('${sp.id}','flagged',this.checked)"> Flag for review</div>
+          <div class="sp-field"><label for="sk-name-${sp.id}">Name</label><input id="sk-name-${sp.id}" type="text" value="${escapeHtml(sp.name)}" onchange="updateSpeakerSimple('${sp.id}','name',this.value)"></div>
+          <div class="sp-field"><label id="sk-typelabel-${sp.id}">Type (check all that apply)</label><div role="group" aria-labelledby="sk-typelabel-${sp.id}">${typeCheckboxes}</div></div>
+          <div class="sp-field"><label for="sk-contactname-${sp.id}">Contact name</label><input id="sk-contactname-${sp.id}" type="text" value="${escapeHtml(sp.contactName)}" onchange="updateSpeakerSimple('${sp.id}','contactName',this.value)"></div>
+          <div class="sp-field"><label for="sk-contactemail-${sp.id}">Contact email</label><input id="sk-contactemail-${sp.id}" type="email" value="${escapeHtml(sp.contactEmail)}" onchange="updateSpeakerSimple('${sp.id}','contactEmail',this.value)"></div>
+          <div class="sp-field"><label for="sk-contactphone-${sp.id}">Contact phone</label><input id="sk-contactphone-${sp.id}" type="text" value="${escapeHtml(sp.contactPhone)}" onchange="updateSpeakerSimple('${sp.id}','contactPhone',this.value)"></div>
+          <div class="sp-field"><label for="sk-trackerstatus-${sp.id}">Tracker status</label><select id="sk-trackerstatus-${sp.id}" onchange="updateSpeakerSimple('${sp.id}','trackerStatus',this.value)">${statusOptions}</select></div>
+          <div class="sp-check"><input id="sk-flagged-${sp.id}" type="checkbox" ${sp.data.flagged ? 'checked' : ''} onchange="updateSpeakerData('${sp.id}','flagged',this.checked)"><label for="sk-flagged-${sp.id}"> Flag for review</label></div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
           <legend>Session</legend>
-          <div class="sp-field"><label>Session title</label><input type="text" value="${escapeHtml(sp.data.session.title)}" onchange="updateSpeakerNested('${sp.id}','session','title',this.value)"></div>
-          <div class="sp-field"><label>Track</label><input type="text" value="${escapeHtml(sp.data.session.track)}" onchange="updateSpeakerNested('${sp.id}','session','track',this.value)"></div>
-          <div class="sp-field"><label>Session date</label><input type="date" min="2027-04-11" max="2027-04-14" value="${escapeHtml(sp.data.session.sessionDate)}" onchange="updateSpeakerSessionDate('${sp.id}', this.value)"></div>
-          <div class="sp-field"><label>Day</label><input type="text" readonly value="${sp.data.session.sessionDate ? escapeHtml(sp.data.session.day) : 'Pick a date above'}" style="background:var(--paper); color:var(--ink-soft);"></div>
-          <div class="sp-field"><label>Time slot</label><input type="text" placeholder="e.g. 10:00 AM" value="${escapeHtml(sp.data.session.timeSlot)}" onchange="updateSpeakerNested('${sp.id}','session','timeSlot',this.value)"></div>
-          <div class="sp-field"><label>Room</label><input type="text" value="${escapeHtml(sp.data.session.room)}" onchange="updateSpeakerNested('${sp.id}','session','room',this.value)"></div>
-          <div class="sp-field"><label>Length (min)</label><input type="number" value="${escapeHtml(sp.data.session.lengthMin)}" onchange="updateSpeakerNested('${sp.id}','session','lengthMin',this.value)"></div>
-          <div class="sp-field"><label>Description</label><textarea rows="2" onchange="updateSpeakerNested('${sp.id}','session','description',this.value)">${escapeHtml(sp.data.session.description)}</textarea></div>
+          <div class="sp-field"><label for="sk-sesstitle-${sp.id}">Session title</label><input id="sk-sesstitle-${sp.id}" type="text" value="${escapeHtml(sp.data.session.title)}" onchange="updateSpeakerNested('${sp.id}','session','title',this.value)"></div>
+          <div class="sp-field"><label for="sk-sesstrack-${sp.id}">Track</label><input id="sk-sesstrack-${sp.id}" type="text" value="${escapeHtml(sp.data.session.track)}" onchange="updateSpeakerNested('${sp.id}','session','track',this.value)"></div>
+          <div class="sp-field"><label for="sk-sessdate-${sp.id}">Session date</label><input id="sk-sessdate-${sp.id}" type="date" min="2027-04-11" max="2027-04-14" value="${escapeHtml(sp.data.session.sessionDate)}" onchange="updateSpeakerSessionDate('${sp.id}', this.value)"></div>
+          <div class="sp-field"><label for="sk-sessday-${sp.id}">Day</label><input id="sk-sessday-${sp.id}" type="text" readonly value="${sp.data.session.sessionDate ? escapeHtml(sp.data.session.day) : 'Pick a date above'}" style="background:var(--paper); color:var(--ink-soft);"></div>
+          <div class="sp-field"><label for="sk-sesstime-${sp.id}">Time slot</label><input id="sk-sesstime-${sp.id}" type="text" placeholder="e.g. 10:00 AM" value="${escapeHtml(sp.data.session.timeSlot)}" onchange="updateSpeakerNested('${sp.id}','session','timeSlot',this.value)"></div>
+          <div class="sp-field"><label for="sk-sessroom-${sp.id}">Room</label><input id="sk-sessroom-${sp.id}" type="text" value="${escapeHtml(sp.data.session.room)}" onchange="updateSpeakerNested('${sp.id}','session','room',this.value)"></div>
+          <div class="sp-field"><label for="sk-sesslength-${sp.id}">Length (min)</label><input id="sk-sesslength-${sp.id}" type="number" value="${escapeHtml(sp.data.session.lengthMin)}" onchange="updateSpeakerNested('${sp.id}','session','lengthMin',this.value)"></div>
+          <div class="sp-field"><label for="sk-sessdesc-${sp.id}">Description</label><textarea id="sk-sessdesc-${sp.id}" rows="2" onchange="updateSpeakerNested('${sp.id}','session','description',this.value)">${escapeHtml(sp.data.session.description)}</textarea></div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
@@ -7067,43 +7262,49 @@ function speakerDetailHTML(sp) {
         </fieldset>
       </div>
     </div>
+    `}
 
-    <div class="sk-tab-panel" style="display:${activeTab === 'financial' ? 'block' : 'none'};">
-      <div class="sp-detail-grid">
+    ${activeTab !== 'financial' ? '' : `
+    <div class="sk-tab-panel">
+      <div class="sp-detail-grid sp-detail-1col">
         <fieldset class="sp-fieldset">
-          <legend>Financial</legend>
-          <div class="sp-field"><label>Fee ($)</label><input type="text" value="${escapeHtml(sp.data.financial.fee)}" onchange="updateSpeakerNested('${sp.id}','financial','fee',this.value)"></div>
-          <div class="sp-field"><label>Fee status</label><select onchange="updateSpeakerNested('${sp.id}','financial','feeStatus',this.value)">
+          <legend>Financials</legend>
+          <div class="sp-field-grid">
+          <div class="sp-field"><label for="sk-fee-${sp.id}">Fee ($)</label><input id="sk-fee-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.fee)}" onchange="updateSpeakerNested('${sp.id}','financial','fee',this.value)"></div>
+          <div class="sp-field"><label for="sk-feestatus-${sp.id}">Fee status</label><select id="sk-feestatus-${sp.id}" onchange="updateSpeakerNested('${sp.id}','financial','feeStatus',this.value)">
             <option value="" ${!sp.data.financial.feeStatus ? 'selected' : ''}>\u2014 not set \u2014</option>
             <option value="Not Paid" ${sp.data.financial.feeStatus === 'Not Paid' ? 'selected' : ''}>Not Paid</option>
             <option value="Partially Paid" ${sp.data.financial.feeStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option>
             <option value="Paid in Full" ${sp.data.financial.feeStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option>
           </select></div>
-          <div class="sp-field"><label>Travel reimbursement ($)</label><input type="text" value="${escapeHtml(sp.data.financial.travelReimbursement)}" onchange="updateSpeakerNested('${sp.id}','financial','travelReimbursement',this.value)"></div>
-          <div class="sp-field"><label>Payment due date</label><input type="date" value="${escapeHtml(sp.data.financial.dueDate)}" onchange="updateSpeakerNested('${sp.id}','financial','dueDate',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${sp.data.financial.w9Received ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','w9Received',this.checked)"> W9 received</div>
-          <div class="sp-check"><input type="checkbox" ${sp.data.financial.invoiceSent ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','invoiceSent',this.checked)"> Invoice sent</div>
+          <div class="sp-field"><label for="sk-travelreimb-${sp.id}">Travel reimbursement ($)</label><input id="sk-travelreimb-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.travelReimbursement)}" onchange="updateSpeakerNested('${sp.id}','financial','travelReimbursement',this.value)"></div>
+          <div class="sp-field"><label for="sk-findue-${sp.id}">Payment due date</label><input id="sk-findue-${sp.id}" type="date" value="${escapeHtml(sp.data.financial.dueDate)}" onchange="updateSpeakerNested('${sp.id}','financial','dueDate',this.value)"></div>
+          <div class="sp-check"><input id="sk-w9-${sp.id}" type="checkbox" ${sp.data.financial.w9Received ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','w9Received',this.checked)"><label for="sk-w9-${sp.id}"> W9 received</label></div>
+          <div class="sp-check"><input id="sk-invoicesent-${sp.id}" type="checkbox" ${sp.data.financial.invoiceSent ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','invoiceSent',this.checked)"><label for="sk-invoicesent-${sp.id}"> Invoice sent</label></div>
+          </div>
         </fieldset>
       </div>
     </div>
+    `}
 
-    <div class="sk-tab-panel" style="display:${activeTab === 'logistics' ? 'block' : 'none'};">
+    ${activeTab !== 'logistics' ? '' : `
+    <div class="sk-tab-panel">
       <div class="sk-logistics-grid">
         <fieldset class="sp-fieldset">
           <legend>Travel</legend>
           <div class="sp-field-grid">
-          <div class="sp-field"><label>Party size (total headcount: artist + band/crew)</label><input type="number" value="${escapeHtml(sp.data.logistics.partySize)}" onchange="updateSpeakerNested('${sp.id}','logistics','partySize',this.value)"></div>
-          <div class="sp-field"><label>Travel method</label><select onchange="updateSpeakerNested('${sp.id}','logistics','travelMethod',this.value)">
+          <div class="sp-field"><label for="sk-partysize-${sp.id}">Party size (total headcount: artist + band/crew)</label><input id="sk-partysize-${sp.id}" type="number" value="${escapeHtml(sp.data.logistics.partySize)}" onchange="updateSpeakerNested('${sp.id}','logistics','partySize',this.value)"></div>
+          <div class="sp-field"><label for="sk-travelmethod-${sp.id}">Travel method</label><select id="sk-travelmethod-${sp.id}" onchange="updateSpeakerNested('${sp.id}','logistics','travelMethod',this.value)">
             <option value="" ${!sp.data.logistics.travelMethod ? 'selected' : ''}>\u2014 not set \u2014</option>
             <option value="Flying" ${sp.data.logistics.travelMethod === 'Flying' ? 'selected' : ''}>Flying</option>
             <option value="Driving" ${sp.data.logistics.travelMethod === 'Driving' ? 'selected' : ''}>Driving</option>
             <option value="Other" ${sp.data.logistics.travelMethod === 'Other' ? 'selected' : ''}>Other</option>
           </select></div>
-          <div class="sp-field"><label>Flight info (if flying)</label><input type="text" placeholder="Airline, flight #" value="${escapeHtml(sp.data.logistics.flightInfo)}" onchange="updateSpeakerNested('${sp.id}','logistics','flightInfo',this.value)"></div>
-          <div class="sp-field"><label>Arrival date</label><input type="date" value="${escapeHtml(sp.data.logistics.arrivalDate)}" onchange="updateSpeakerNested('${sp.id}','logistics','arrivalDate',this.value)"></div>
-          <div class="sp-field"><label>Arrival time</label><input type="time" value="${escapeHtml(sp.data.logistics.arrivalTime)}" onchange="updateSpeakerNested('${sp.id}','logistics','arrivalTime',this.value)"></div>
-          <div class="sp-field"><label>Departure date</label><input type="date" value="${escapeHtml(sp.data.logistics.departureDate)}" onchange="updateSpeakerNested('${sp.id}','logistics','departureDate',this.value)"></div>
-          <div class="sp-field"><label>Departure time</label><input type="time" value="${escapeHtml(sp.data.logistics.departureTime)}" onchange="updateSpeakerNested('${sp.id}','logistics','departureTime',this.value)"></div>
+          <div class="sp-field"><label for="sk-flightinfo-${sp.id}">Flight info (if flying)</label><input id="sk-flightinfo-${sp.id}" type="text" placeholder="Airline, flight #" value="${escapeHtml(sp.data.logistics.flightInfo)}" onchange="updateSpeakerNested('${sp.id}','logistics','flightInfo',this.value)"></div>
+          <div class="sp-field"><label for="sk-arrivaldate-${sp.id}">Arrival date</label><input id="sk-arrivaldate-${sp.id}" type="date" value="${escapeHtml(sp.data.logistics.arrivalDate)}" onchange="updateSpeakerNested('${sp.id}','logistics','arrivalDate',this.value)"></div>
+          <div class="sp-field"><label for="sk-arrivaltime-${sp.id}">Arrival time</label><input id="sk-arrivaltime-${sp.id}" type="time" value="${escapeHtml(sp.data.logistics.arrivalTime)}" onchange="updateSpeakerNested('${sp.id}','logistics','arrivalTime',this.value)"></div>
+          <div class="sp-field"><label for="sk-departdate-${sp.id}">Departure date</label><input id="sk-departdate-${sp.id}" type="date" value="${escapeHtml(sp.data.logistics.departureDate)}" onchange="updateSpeakerNested('${sp.id}','logistics','departureDate',this.value)"></div>
+          <div class="sp-field"><label for="sk-departtime-${sp.id}">Departure time</label><input id="sk-departtime-${sp.id}" type="time" value="${escapeHtml(sp.data.logistics.departureTime)}" onchange="updateSpeakerNested('${sp.id}','logistics','departureTime',this.value)"></div>
           </div>
         </fieldset>
 
@@ -7150,28 +7351,28 @@ function speakerDetailHTML(sp) {
           <legend>Lodging &amp; Meals</legend>
           <div class="sp-field-grid">
           <div class="sp-check"><input type="checkbox" ${sp.data.logistics.lodgingNeeded ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','lodgingNeeded',this.checked)"> Lodging needed</div>
-          <div class="sp-field"><label>Hotel</label><select onchange="updateSpeakerNested('${sp.id}','logistics','hotelId',this.value)">
+          <div class="sp-field"><label for="sk-hotel-${sp.id}">Hotel</label><select id="sk-hotel-${sp.id}" onchange="updateSpeakerNested('${sp.id}','logistics','hotelId',this.value)">
             <option value="" ${!sp.data.logistics.hotelId ? 'selected' : ''}>\u2014 not set \u2014</option>
             ${hotels.map(h => `<option value="${h.id}" ${sp.data.logistics.hotelId === h.id ? 'selected' : ''}>${escapeHtml(h.name)}</option>`).join('')}
           </select>${hotels.length === 0 ? ' <span class="sp-sub">No hotels added yet \u2014 add one on the Transportation tab.</span>' : ''}</div>
-          <div class="sp-field"><label>Nights needed</label><input type="number" value="${escapeHtml(sp.data.logistics.nightsNeeded)}" onchange="updateSpeakerNested('${sp.id}','logistics','nightsNeeded',this.value)"></div>
-          <div class="sp-field"><label>Rooms needed</label><input type="number" value="${escapeHtml(sp.data.logistics.roomsNeeded)}" onchange="updateSpeakerNested('${sp.id}','logistics','roomsNeeded',this.value)"></div>
-          <div class="sp-check"><input type="checkbox" ${sp.data.logistics.hotelConfirmed ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','hotelConfirmed',this.checked)"> Hotel confirmed</div>
-          <div class="sp-field"><label>Meal arrangement</label><select onchange="updateSpeakerNested('${sp.id}','logistics','mealsProvided',this.value)">
+          <div class="sp-field"><label for="sk-nights-${sp.id}">Nights needed</label><input id="sk-nights-${sp.id}" type="number" value="${escapeHtml(sp.data.logistics.nightsNeeded)}" onchange="updateSpeakerNested('${sp.id}','logistics','nightsNeeded',this.value)"></div>
+          <div class="sp-field"><label for="sk-rooms-${sp.id}">Rooms needed</label><input id="sk-rooms-${sp.id}" type="number" value="${escapeHtml(sp.data.logistics.roomsNeeded)}" onchange="updateSpeakerNested('${sp.id}','logistics','roomsNeeded',this.value)"></div>
+          <div class="sp-check"><input id="sk-hotelconfirmed-${sp.id}" type="checkbox" ${sp.data.logistics.hotelConfirmed ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','hotelConfirmed',this.checked)"><label for="sk-hotelconfirmed-${sp.id}"> Hotel confirmed</label></div>
+          <div class="sp-field"><label for="sk-meals-${sp.id}">Meal arrangement</label><select id="sk-meals-${sp.id}" onchange="updateSpeakerNested('${sp.id}','logistics','mealsProvided',this.value)">
             <option value="" ${!sp.data.logistics.mealsProvided ? 'selected' : ''}>\u2014 not set \u2014</option>
             <option value="All meals provided" ${sp.data.logistics.mealsProvided === 'All meals provided' ? 'selected' : ''}>All meals provided</option>
             <option value="Partial" ${sp.data.logistics.mealsProvided === 'Partial' ? 'selected' : ''}>Partial (some meals only)</option>
             <option value="On their own" ${sp.data.logistics.mealsProvided === 'On their own' ? 'selected' : ''}>On their own</option>
           </select></div>
-          <div class="sp-field"><label>Meal notes (dietary restrictions, specifics)</label><textarea rows="2" onchange="updateSpeakerNested('${sp.id}','logistics','mealNotes',this.value)">${escapeHtml(sp.data.logistics.mealNotes)}</textarea></div>
+          <div class="sp-field"><label for="sk-mealnotes-${sp.id}">Meal notes (dietary restrictions, specifics)</label><textarea id="sk-mealnotes-${sp.id}" rows="2" onchange="updateSpeakerNested('${sp.id}','logistics','mealNotes',this.value)">${escapeHtml(sp.data.logistics.mealNotes)}</textarea></div>
           </div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
           <legend>Host &amp; Badges</legend>
           <div class="sp-field-grid">
-          <div class="sp-check"><input type="checkbox" ${sp.data.logistics.hostNeeded ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','hostNeeded',this.checked)"> A host is needed</div>
-          <div class="sp-field"><label>Host name</label><input type="text" placeholder="Who's assigned" value="${escapeHtml(sp.data.logistics.hostName)}" onchange="updateSpeakerNested('${sp.id}','logistics','hostName',this.value)"></div>
+          <div class="sp-check"><input id="sk-hostneeded-${sp.id}" type="checkbox" ${sp.data.logistics.hostNeeded ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','hostNeeded',this.checked)"><label for="sk-hostneeded-${sp.id}"> A host is needed</label></div>
+          <div class="sp-field"><label for="sk-hostname-${sp.id}">Host name</label><input id="sk-hostname-${sp.id}" type="text" placeholder="Who's assigned" value="${escapeHtml(sp.data.logistics.hostName)}" onchange="updateSpeakerNested('${sp.id}','logistics','hostName',this.value)"></div>
           <div class="sp-sub" style="grid-column:1/-1;">Badges <span style="font-weight:400;">(assumes the full party needs one)</span></div>
           ${(sp.data.logistics.badgeNames || []).map((name, i) => `
             <div class="sp-add-row" style="margin-bottom:4px;">
@@ -7181,23 +7382,27 @@ function speakerDetailHTML(sp) {
           `).join('')}
           <div class="sp-sub" style="margin-bottom:4px;">${(sp.data.logistics.badgeNames || []).length} of ${sp.data.logistics.partySize || '?'} party members named</div>
           <button class="sp-mini-btn" onclick="addSpeakerBadgeName('${sp.id}')">+ Add name</button>
-          <div class="sp-field"><label>AV / tech needs</label><textarea rows="2" onchange="updateSpeakerNested('${sp.id}','logistics','avNeeds',this.value)">${escapeHtml(sp.data.logistics.avNeeds)}</textarea></div>
+          <div class="sp-field"><label for="sk-avneeds-${sp.id}">AV / tech needs</label><textarea id="sk-avneeds-${sp.id}" rows="2" onchange="updateSpeakerNested('${sp.id}','logistics','avNeeds',this.value)">${escapeHtml(sp.data.logistics.avNeeds)}</textarea></div>
           </div>
         </fieldset>
       </div>
     </div>
+    `}
 
-    <div class="sk-tab-panel" style="display:${activeTab === 'production' ? 'block' : 'none'};">
-      <div class="sp-detail-grid">
+    ${activeTab !== 'production' ? '' : `
+    <div class="sk-tab-panel">
+      <div class="sp-detail-grid sp-detail-2col">
         <fieldset class="sp-fieldset">
           <legend>Sound Check &amp; Production</legend>
-          <div class="sp-check"><input type="checkbox" ${sp.data.production.soundCheckScheduled ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','production','soundCheckScheduled',this.checked)"> Sound check scheduled</div>
-          <div class="sp-field"><label>Sound check time</label><input type="text" placeholder="e.g. Monday 2:00 PM" value="${escapeHtml(sp.data.production.soundCheckTime)}" onchange="updateSpeakerNested('${sp.id}','production','soundCheckTime',this.value)"></div>
-          <div class="sp-field"><label>Wireless (RF) mics needed</label><input type="number" value="${escapeHtml(sp.data.production.wirelessMics)}" onchange="updateSpeakerNested('${sp.id}','production','wirelessMics',this.value)"></div>
-          <div class="sp-field"><label>Wired mics needed</label><input type="number" value="${escapeHtml(sp.data.production.wiredMics)}" onchange="updateSpeakerNested('${sp.id}','production','wiredMics',this.value)"></div>
-          <div class="sp-field"><label>IEM / monitor mixes needed</label><input type="number" value="${escapeHtml(sp.data.production.iemMixes)}" onchange="updateSpeakerNested('${sp.id}','production','iemMixes',this.value)"></div>
-          <div class="sp-field"><label>DI / line inputs needed</label><input type="number" value="${escapeHtml(sp.data.production.diLines)}" onchange="updateSpeakerNested('${sp.id}','production','diLines',this.value)"></div>
-          <div class="sp-field"><label>Production notes (stage plot/input list refs, special requests)</label><textarea rows="3" onchange="updateSpeakerNested('${sp.id}','production','productionNotes',this.value)">${escapeHtml(sp.data.production.productionNotes)}</textarea></div>
+          <div class="sp-field-grid">
+          <div class="sp-check" style="grid-column:1/-1;"><input id="sk-soundcheckscheduled-${sp.id}" type="checkbox" ${sp.data.production.soundCheckScheduled ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','production','soundCheckScheduled',this.checked)"><label for="sk-soundcheckscheduled-${sp.id}"> Sound check scheduled</label></div>
+          <div class="sp-field"><label for="sk-soundcheck-${sp.id}">Sound check time</label><input id="sk-soundcheck-${sp.id}" type="text" placeholder="e.g. Monday 2:00 PM" value="${escapeHtml(sp.data.production.soundCheckTime)}" onchange="updateSpeakerNested('${sp.id}','production','soundCheckTime',this.value)"></div>
+          <div class="sp-field"><label for="sk-wirelessmics-${sp.id}">Wireless (RF) mics needed</label><input id="sk-wirelessmics-${sp.id}" type="number" value="${escapeHtml(sp.data.production.wirelessMics)}" onchange="updateSpeakerNested('${sp.id}','production','wirelessMics',this.value)"></div>
+          <div class="sp-field"><label for="sk-wiredmics-${sp.id}">Wired mics needed</label><input id="sk-wiredmics-${sp.id}" type="number" value="${escapeHtml(sp.data.production.wiredMics)}" onchange="updateSpeakerNested('${sp.id}','production','wiredMics',this.value)"></div>
+          <div class="sp-field"><label for="sk-iemmixes-${sp.id}">IEM / monitor mixes needed</label><input id="sk-iemmixes-${sp.id}" type="number" value="${escapeHtml(sp.data.production.iemMixes)}" onchange="updateSpeakerNested('${sp.id}','production','iemMixes',this.value)"></div>
+          <div class="sp-field"><label for="sk-dilines-${sp.id}">DI / line inputs needed</label><input id="sk-dilines-${sp.id}" type="number" value="${escapeHtml(sp.data.production.diLines)}" onchange="updateSpeakerNested('${sp.id}','production','diLines',this.value)"></div>
+          <div class="sp-field" style="grid-column:1/-1;"><label for="sk-prodnotes-${sp.id}">Production notes (stage plot/input list refs, special requests)</label><textarea id="sk-prodnotes-${sp.id}" rows="3" onchange="updateSpeakerNested('${sp.id}','production','productionNotes',this.value)">${escapeHtml(sp.data.production.productionNotes)}</textarea></div>
+          </div>
         </fieldset>
         <fieldset class="sp-fieldset">
           <legend>Materials We Need From Them</legend>
@@ -7205,9 +7410,11 @@ function speakerDetailHTML(sp) {
         </fieldset>
       </div>
     </div>
+    `}
 
-    <div class="sk-tab-panel" style="display:${activeTab === 'files' ? 'block' : 'none'};">
-      <div class="sp-detail-grid">
+    ${activeTab !== 'files' ? '' : `
+    <div class="sk-tab-panel">
+      <div class="sp-detail-grid sp-detail-2col">
         <fieldset class="sp-fieldset">
           <legend>Materials They Want Shared With Attendees</legend>
           ${filesHtml}
@@ -7231,9 +7438,7 @@ function speakerDetailHTML(sp) {
         </fieldset>
       </div>
     </div>
-
-      </div>
-    </div>
+    `}
 
     <div class="sk-always-visible">
       <div class="sk-always-visible-label">Ongoing \u2014 always visible, regardless of tab</div>
@@ -7285,7 +7490,7 @@ function addSpeakerComm(id) {
   sp.data.comms.push({ note: val, ts });
   input.value = '';
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function addSpeakerActionItem(id) {
   const input = document.getElementById('sk-action-input-' + id);
@@ -7299,25 +7504,25 @@ function addSpeakerActionItem(id) {
   input.value = '';
   if (dueDateEl) dueDateEl.value = '';
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function toggleSpeakerActionItem(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.actionItems[i].done = !sp.data.actionItems[i].done;
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function removeSpeakerActionItem(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.actionItems.splice(i, 1);
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function toggleSpeakerActionItemExpand(id, i) {
   const key = 'sk:' + id + ':' + i;
   if (expandedActionItems.has(key)) expandedActionItems.delete(key);
   else expandedActionItems.add(key);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function addSpeakerActionItemComment(id, i) {
   const input = document.getElementById('sk-action-comment-input-' + id + '-' + i);
@@ -7329,7 +7534,7 @@ function addSpeakerActionItemComment(id, i) {
   const ts = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   item.comments.push({ text: val, ts });
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 
 function addSpeakerQuestion(id) {
@@ -7340,19 +7545,19 @@ function addSpeakerQuestion(id) {
   sp.data.questions.push({ text: val, resolved: false });
   input.value = '';
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function toggleSpeakerQuestion(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.questions[i].resolved = !sp.data.questions[i].resolved;
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 function removeSpeakerQuestion(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.questions.splice(i, 1);
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(id);
 }
 
 function timeToMinutes(t) {
@@ -7425,7 +7630,7 @@ function splitTransportNeed(speakerId, idx) {
   const secondHalf = Object.assign({}, need, { id: makeId(), seatsNeeded: n2, driverId: '' });
   sp.data.logistics.transportNeeds.splice(idx + 1, 0, secondHalf);
   pushSpeaker(sp);
-  renderSpeakerRows();
+  renderSpeakerRows(speakerId);
   if (typeof renderTransportationView === 'function') renderTransportationView();
   toast('Split into ' + n1 + ' + ' + n2 + ' \u2014 assign a driver to each below.');
 }
@@ -7537,6 +7742,7 @@ function renderTransportationView() {
   const driversHtml = drivers.map(d => `
     <div class="sk-file-row">
       <span><b>${escapeHtml(d.name)}</b>${d.phone ? ' \u2014 ' + escapeHtml(d.phone) : ''}${d.seats ? ' \u2014 ' + escapeHtml(String(d.seats)) + ' seat' + (Number(d.seats) === 1 ? '' : 's') : ''}</span>
+      <button class="sp-mini-btn" onclick="editDriver('${d.id}')">Edit</button>
       <button class="sp-mini-btn" onclick="removeDriver('${d.id}')">&times;</button>
     </div>
   `).join('') || '<div class="sp-sub">No drivers added yet.</div>';
@@ -7544,6 +7750,7 @@ function renderTransportationView() {
   const hotelsHtml = hotels.map(h => `
     <div class="sk-file-row">
       <span><b>${escapeHtml(h.name)}</b>${h.address ? ' \u2014 ' + escapeHtml(h.address) : ''}</span>
+      <button class="sp-mini-btn" onclick="editHotel('${h.id}')">Edit</button>
       <button class="sp-mini-btn" onclick="removeHotel('${h.id}')">&times;</button>
     </div>
   `).join('') || '<div class="sp-sub">No hotels added yet.</div>';
