@@ -491,13 +491,13 @@
   font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft);
   font-weight: 700; margin-bottom: 8px;
 }
-.sp-filter-btn, .sk-filter-btn {
+.sp-filter-btn, .sk-filter-btn, .sk-type-filter-btn {
   text-align: left; padding: 8px 12px; border-radius: 8px; border: 1px solid transparent;
   background: transparent; font-size: 12.5px; cursor: pointer; color: var(--ink-soft);
   transition: background 0.15s, color 0.15s; border-left: 3px solid transparent;
 }
-.sp-filter-btn:hover, .sk-filter-btn:hover { background: rgba(255,255,255,0.6); }
-.sp-filter-btn.active, .sk-filter-btn.active { background: var(--panel); border-color: var(--line); border-left: 3px solid var(--gold); font-weight: 700; color: var(--ink); }
+.sp-filter-btn:hover, .sk-filter-btn:hover, .sk-type-filter-btn:hover { background: rgba(255,255,255,0.6); }
+.sp-filter-btn.active, .sk-filter-btn.active, .sk-type-filter-btn.active { background: var(--panel); border-color: var(--line); border-left: 3px solid var(--gold); font-weight: 700; color: var(--ink); }
 .sk-rider-box { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 4px; }
 .sk-file-row {
   display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 12.5px;
@@ -653,6 +653,26 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-collapsible-body.collapsed { display: none !important; }
 .sp-add-row input, .sp-add-row select { flex: 1; min-width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .sp-linked-booth { font-size: 12px; padding: 9px 11px; background: #fff; border: 1px dashed var(--line); border-radius: 7px; color: var(--ink-soft); }
+.sp-linked-group-box { font-size: 12px; padding: 11px 14px; background: #fff; border: 1px dashed var(--line); border-radius: 8px; color: var(--ink-soft); margin-bottom: 16px; }
+.sp-linked-group-box select { width: 100%; margin-top: 5px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; box-sizing: border-box; }
+.sp-linked-group-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--teal-pale); border-radius: 999px; font-size: 10.5px; font-weight: 600; color: var(--teal-deep); margin-left: 6px; cursor: pointer; }
+.sp-linked-group-chip:hover { background: var(--teal); color: #fff; }
+
+/* ==== Quick-add modal (new sponsor/speaker) ==== */
+.qa-modal-overlay { position: fixed; inset: 0; z-index: 9998; background: rgba(20,30,34,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.qa-modal-card { background: var(--panel); border-radius: 14px; padding: 28px 26px; width: 100%; max-width: 420px; box-shadow: 0 24px 70px rgba(0,0,0,0.4); border-top: 3px solid var(--gold); }
+.qa-modal-card h3 { font-family: var(--font-display); font-size: 19px; margin: 0 0 4px; color: var(--teal-deep); }
+.qa-modal-sub { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 18px; }
+.qa-modal-field { margin-bottom: 14px; }
+.qa-modal-field label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); margin-bottom: 5px; }
+.qa-modal-field input, .qa-modal-field select { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+.qa-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.qa-modal-actions button { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.qa-modal-done { background: var(--teal-deep); color: #fff; border: none; }
+.qa-modal-done:hover { background: var(--teal); }
+
+@keyframes rowFlash { 0%,100% { background: transparent; } 30%,70% { background: rgba(197,161,84,0.32); } }
+.sp-row-flash { animation: rowFlash 1.4s ease; }
 
 /* ==== Dashboard ==== */
 .db-wrap { max-width: 1040px; margin: 0 auto; padding: 0 0 60px; }
@@ -936,6 +956,71 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
   .db-opportunity-section:last-of-type { margin-bottom: 0 !important; }
 }
 
+/* ==== Schedule tab ==== */
+.sch-view-toggle { display: flex; gap: 6px; }
+.sch-toggle-btn { padding: 8px 16px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--ink-soft); }
+.sch-toggle-btn.active { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+.sch-conflicts-empty { font-size: 12.5px; color: var(--ink-soft); padding: 10px 2px; }
+.sch-conflict-row { cursor: pointer; }
+.sch-conflict-row:hover { background: var(--teal-pale); }
+
+.sch-roster-strip { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; background: var(--panel); }
+.sch-roster-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.sch-roster-header input { flex: 1; max-width: 260px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 12.5px; }
+.sch-roster-chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 108px; overflow-y: auto; }
+.sch-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 999px; font-size: 12px; cursor: grab; user-select: none; }
+.sch-chip:active { cursor: grabbing; }
+
+.sch-grid-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+table.sch-grid { border-collapse: collapse; width: 100%; min-width: 900px; background: var(--panel); }
+table.sch-grid th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-soft); background: var(--teal-pale); padding: 8px 10px; position: sticky; top: 0; }
+table.sch-grid th.sch-track-col { position: sticky; left: 0; z-index: 2; min-width: 190px; }
+table.sch-grid td.sch-track-label { position: sticky; left: 0; background: var(--paper); font-size: 12.5px; font-weight: 600; color: var(--teal-deep); padding: 8px 10px; border-right: 1px solid var(--line); z-index: 1; min-width: 190px; }
+table.sch-grid td { border: 1px solid var(--line); padding: 0; vertical-align: top; }
+.sch-cell { min-height: 56px; min-width: 150px; padding: 6px 8px; box-sizing: border-box; transition: background 0.12s; display: flex; flex-direction: column; gap: 5px; }
+.sch-cell-empty { align-items: center; justify-content: center; color: var(--ink-soft); font-size: 11.5px; }
+.sch-cell-add { border: 1px dashed var(--line); border-radius: 6px; padding: 4px 6px; font-size: 11px; color: var(--ink-soft); background: transparent; cursor: pointer; }
+.sch-cell-add:hover { border-color: var(--teal); color: var(--teal-deep); }
+.sch-cell:not(.sch-cell-empty) .sch-cell-add { width: 100%; box-sizing: border-box; margin-top: 2px; }
+.sch-cell-hover { background: rgba(197,161,84,0.22) !important; }
+.sch-card { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 7px; padding: 6px 22px 8px 8px; font-size: 12px; cursor: grab; position: relative; }
+.sch-card:active { cursor: grabbing; }
+.sch-card .sch-card-name { font-weight: 700; color: var(--teal-deep); }
+.sch-card .sch-card-title { color: var(--ink-soft); font-size: 11px; }
+.sch-card .sch-card-x { position: absolute; top: 3px; right: 5px; cursor: pointer; color: var(--ink-soft); font-size: 12px; line-height: 1; }
+.sch-card .sch-card-x:hover { color: #a52620; }
+.sch-card .sch-card-edit { position: absolute; bottom: 4px; right: 5px; cursor: pointer; color: var(--ink-soft); font-size: 10px; opacity: 0.55; }
+.sch-card .sch-card-edit:hover { opacity: 1; color: var(--teal-deep); }
+.sch-card.sch-conflict { border-color: #c0392b; box-shadow: 0 0 0 1px #c0392b inset; }
+.sch-card .sch-conflict-icon { position: absolute; top: 3px; left: 5px; font-size: 11px; }
+
+.sch-timeline-day { margin-bottom: 22px; }
+.sch-timeline-day-title { font-family: var(--font-display); font-size: 15px; color: var(--teal-deep); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--gold); }
+.sch-timeline-row { display: flex; align-items: center; gap: 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.sch-timeline-row:last-child { border-bottom: none; }
+.sch-timeline-time { width: 130px; flex-shrink: 0; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.sch-timeline-label { flex: 1; display: flex; align-items: center; gap: 6px; }
+.sch-edit-icon { cursor: pointer; color: var(--ink-soft); font-size: 11px; opacity: 0.6; }
+.sch-edit-icon:hover { opacity: 1; color: var(--teal-deep); }
+.sch-timeline-kind { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; margin-left: 8px; }
+.sch-timeline-kind-select { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 999px; margin-left: 8px; border: none; cursor: pointer; font-weight: 600; }
+.sch-kind-keynote { background: #E7D6B0; color: #6b4f16; }
+.sch-kind-breakout { background: var(--teal-pale); color: var(--teal-deep); }
+.sch-kind-panel { background: #F3D9CC; color: #8a4a1f; }
+.sch-kind-meal { background: #E6EEE8; color: #2E6B47; }
+.sch-kind-business { background: #EBE6F2; color: #5B3E96; }
+.sch-kind-other { background: #EEEEEE; color: #666; }
+.sch-timeline-assign { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sch-timeline-assign select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; max-width: 180px; }
+.sch-chip-sm { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 999px; font-size: 11px; cursor: pointer; }
+.sch-chip-sm:hover { background: var(--teal); color: #fff; }
+.sch-chip-sm:hover .sch-chip-x { color: #fff; }
+.sch-chip-x { cursor: pointer; color: var(--ink-soft); font-size: 11px; }
+.sch-chip-x:hover { color: #a52620; }
+.sch-slot-editor { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 16px; }
+.sch-slot-add-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sch-slot-add-row input, .sch-slot-add-row select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -954,6 +1039,8 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
     <div class="gate-error" id="gate-error"></div>
   </div>
 </div>
+
+<div id="qa-modal-root"></div>
 
 <div id="driver-public-view" style="display:none;">
   <div class="dv-header">
@@ -1030,6 +1117,7 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
   <button class="top-nav-btn active" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
   <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker</button>
   <button class="top-nav-btn" id="nav-speakers-btn" onclick="switchTopView('speakers')">Speakers/Artists</button>
+  <button class="top-nav-btn" id="nav-schedule-btn" onclick="switchTopView('schedule')">Schedule</button>
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
   <!-- Budget tab disabled for now, per request -- code is intact below, just re-enable this button to bring it back
@@ -1123,7 +1211,7 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
         </div>
       </div>
       <div>
-        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-filter" onclick="toggleSidebarSection('sk-filter')"><span class="sp-chevron">▸</span>Filter</div>
+        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-filter" onclick="toggleSidebarSection('sk-filter')"><span class="sp-chevron">▸</span>Status</div>
         <div class="sp-collapsible-body" data-section-key="sk-filter" style="display:flex; flex-direction:column; gap:3px;">
           <button class="sk-filter-btn active" data-f="all" onclick="setSpeakerFilter('all')">All</button>
           <button class="sk-filter-btn" data-f="Invited" onclick="setSpeakerFilter('Invited')">Invited</button>
@@ -1134,6 +1222,10 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
           <button class="sk-filter-btn" data-f="Cancelled" onclick="setSpeakerFilter('Cancelled')">Cancelled</button>
           <button class="sk-filter-btn" data-f="__flagged__" onclick="setSpeakerFilter('__flagged__')">🚩 Flagged</button>
         </div>
+      </div>
+      <div>
+        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-typefilter" onclick="toggleSidebarSection('sk-typefilter')"><span class="sp-chevron">▸</span>Type</div>
+        <div class="sp-collapsible-body" data-section-key="sk-typefilter" id="sk-type-filter-body" style="display:flex; flex-direction:column; gap:3px;"></div>
       </div>
       <div class="hint">Click any speaker or artist to open their full record: session details, financial and logistics, a checklist of what you still need from them, and a place to upload the materials they want shared with attendees.</div>
       <div class="sk-rider-box">
@@ -1209,6 +1301,21 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
   </div>
   <p class="hint" style="margin-bottom: 18px;">Drivers, hotels, and every transportation need across all speakers/artists in one chronological view. Trips of the same type within a 90-minute window are suggested for grouping under one driver automatically. Use the link above to share a read-only version of this schedule with drivers — no password needed, and they can't edit anything.</p>
   <div id="transport-view-body"></div>
+</div>
+
+<div id="schedule-view" style="display:none; padding: 22px 26px;">
+  <div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <h2 style="font-family: var(--font-display); color: var(--teal-deep); margin: 0 0 6px;">Conference Schedule</h2>
+    <div class="sch-view-toggle">
+      <button class="sch-toggle-btn active" id="sch-toggle-grid" onclick="setScheduleSubview('grid')">Breakout Grid</button>
+      <button class="sch-toggle-btn" id="sch-toggle-timeline" onclick="setScheduleSubview('timeline')">Timeline</button>
+    </div>
+  </div>
+  <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, or see the full Sunday–Wednesday agenda. This reads and writes the same session data as the Speakers/Artists tab — editing here updates their record, and editing their record updates here.</p>
+
+  <div id="sch-conflicts-body"></div>
+  <div id="sch-grid-body"></div>
+  <div id="sch-timeline-body" style="display:none;"></div>
 </div>
 
 <div id="dashboard-view">
@@ -2654,7 +2761,8 @@ async function initSupabase() {
       (typeof loadSpeakersFromDb === 'function' ? loadSpeakersFromDb() : Promise.resolve()),
       (typeof loadConferenceDocuments === 'function' ? loadConferenceDocuments() : Promise.resolve()),
       (typeof loadDriversAndHotels === 'function' ? loadDriversAndHotels() : Promise.resolve()),
-      (typeof loadSessionRoomsAndTracks === 'function' ? loadSessionRoomsAndTracks() : Promise.resolve())
+      (typeof loadSessionRoomsAndTracks === 'function' ? loadSessionRoomsAndTracks() : Promise.resolve()),
+      (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve())
     ]);
     rebuildMapRegistry();
     renderPackageSidebar();
@@ -3142,6 +3250,117 @@ function toast(msg) {
   // Longer messages (e.g. save-failure errors) need more time to read than a quick "Saved" blip.
   const duration = Math.min(7000, Math.max(1400, msg.length * 60));
   t._timer = setTimeout(() => { t.style.opacity = '0'; }, duration);
+}
+
+// --- quick-add modal: shown right after "+ Add sponsor"/"+ Add speaker/artist" so the new
+// record is never silently appended off-screen -- fill the essentials here, then Done clears
+// any filter/search that would hide it and scrolls/flashes the row so it's unmistakable.
+const SPONSOR_STATUS_PRESETS_QA = ['Prospective Sponsor', 'Committed, Not Registered', 'Registered, Not Paid', 'Registered, Paid', 'In-Kind - Not Registered', 'In-Kind - Registered'];
+let quickAddModal = null; // { kind: 'sponsor'|'speaker', id: string }
+
+function openQuickAddModal(kind, id) {
+  quickAddModal = { kind, id };
+  renderQuickAddModal();
+}
+
+function renderQuickAddModal() {
+  const root = document.getElementById('qa-modal-root');
+  if (!quickAddModal) { root.innerHTML = ''; return; }
+  const { kind, id } = quickAddModal;
+  const isSponsor = kind === 'sponsor';
+  const record = isSponsor ? getSponsor(id) : getSpeaker(id);
+  if (!record) { quickAddModal = null; root.innerHTML = ''; return; }
+  const statusOptions = (isSponsor ? SPONSOR_STATUS_PRESETS_QA : SPEAKER_STATUS_PRESETS)
+    .map(st => `<option value="${escapeHtml(st)}" ${st === record.trackerStatus ? 'selected' : ''}>${escapeHtml(st)}</option>`).join('');
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeQuickAddModal();">
+      <div class="qa-modal-card">
+        <h3>${isSponsor ? 'New sponsor' : 'New speaker/artist'}</h3>
+        <p class="qa-modal-sub">Fill in the essentials now — everything else can be added from the full record.</p>
+        <div class="qa-modal-field">
+          <label for="qa-name">${isSponsor ? 'Organization' : 'Name'}</label>
+          <input id="qa-name" type="text" value="${escapeHtml(isSponsor ? record.org : record.name)}" placeholder="${isSponsor ? 'e.g. Brentwood Benson' : 'e.g. Keith Getty'}" autofocus>
+        </div>
+        <div class="qa-modal-field">
+          <label for="qa-contact">Contact name</label>
+          <input id="qa-contact" type="text" value="${escapeHtml(record.contactName)}" placeholder="Optional">
+        </div>
+        <div class="qa-modal-field">
+          <label for="qa-status">Status</label>
+          <select id="qa-status">${statusOptions}</select>
+        </div>
+        <div class="qa-modal-actions">
+          <button class="qa-modal-done" onclick="closeQuickAddModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('qa-name').focus();
+  const commit = () => {
+    if (!quickAddModal) return;
+    const nameVal = document.getElementById('qa-name').value;
+    const contactVal = document.getElementById('qa-contact').value;
+    const statusVal = document.getElementById('qa-status').value;
+    if (isSponsor) {
+      updateSponsorSimple(id, 'org', nameVal || 'New Sponsor');
+      updateSponsorSimple(id, 'contactName', contactVal);
+      updateSponsorSimple(id, 'trackerStatus', statusVal);
+    } else {
+      updateSpeakerSimple(id, 'name', nameVal || 'New Speaker');
+      updateSpeakerSimple(id, 'contactName', contactVal);
+      updateSpeakerSimple(id, 'trackerStatus', statusVal);
+    }
+  };
+  ['qa-name', 'qa-contact'].forEach(fid => document.getElementById(fid).addEventListener('change', commit));
+  document.getElementById('qa-status').addEventListener('change', commit);
+  document.getElementById('qa-name').addEventListener('keydown', e => { if (e.key === 'Enter') { commit(); closeQuickAddModal(); } });
+}
+
+function closeQuickAddModal() {
+  if (!quickAddModal) return;
+  // Commit whatever's currently in the fields (covers Enter/click-Done without a prior blur).
+  const { kind, id } = quickAddModal;
+  const isSponsor = kind === 'sponsor';
+  const nameEl = document.getElementById('qa-name');
+  if (nameEl) {
+    const contactVal = document.getElementById('qa-contact').value;
+    const statusVal = document.getElementById('qa-status').value;
+    if (isSponsor) {
+      updateSponsorSimple(id, 'org', nameEl.value || 'New Sponsor');
+      updateSponsorSimple(id, 'contactName', contactVal);
+      updateSponsorSimple(id, 'trackerStatus', statusVal);
+    } else {
+      updateSpeakerSimple(id, 'name', nameEl.value || 'New Speaker');
+      updateSpeakerSimple(id, 'contactName', contactVal);
+      updateSpeakerSimple(id, 'trackerStatus', statusVal);
+    }
+  }
+  quickAddModal = null;
+  document.getElementById('qa-modal-root').innerHTML = '';
+  if (isSponsor) {
+    sponsorFilter = 'all'; sponsorSearch = '';
+    const searchEl = document.getElementById('sp-search'); if (searchEl) searchEl.value = '';
+    document.querySelectorAll('.sp-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === 'all'));
+    renderSponsorRows();
+  } else {
+    speakerFilter = 'all'; speakerTypeFilter = 'all'; speakerSearch = '';
+    const searchEl = document.getElementById('sk-search'); if (searchEl) searchEl.value = '';
+    document.querySelectorAll('.sk-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === 'all'));
+    document.querySelectorAll('.sk-type-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.tf === 'all'));
+    renderSpeakerRows();
+  }
+  flashNewRecordRow(isSponsor ? 'sp' : 'sk', id);
+}
+
+function flashNewRecordRow(prefix, id) {
+  setTimeout(() => {
+    const tbody = document.getElementById(prefix === 'sp' ? 'sp-rows' : 'sk-rows');
+    const row = tbody && tbody.querySelector(`tr[data-id="${id}"]`);
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('sp-row-flash');
+    setTimeout(() => row.classList.remove('sp-row-flash'), 1400);
+  }, 60);
 }
 
 function isTypingContext() {
@@ -4112,6 +4331,8 @@ function switchTopView(view) {
   if (speakerViewEl) speakerViewEl.style.display = view === 'speakers' ? 'block' : 'none';
   const transportViewEl = document.getElementById('transport-view');
   if (transportViewEl) transportViewEl.style.display = view === 'transport' ? 'block' : 'none';
+  const scheduleViewEl = document.getElementById('schedule-view');
+  if (scheduleViewEl) scheduleViewEl.style.display = view === 'schedule' ? 'block' : 'none';
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
   document.getElementById('nav-sponsors-btn').classList.toggle('active', view === 'sponsors');
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
@@ -4121,11 +4342,14 @@ function switchTopView(view) {
   if (speakerBtnEl) speakerBtnEl.classList.toggle('active', view === 'speakers');
   const transportBtnEl = document.getElementById('nav-transport-btn');
   if (transportBtnEl) transportBtnEl.classList.toggle('active', view === 'transport');
+  const scheduleBtnEl = document.getElementById('nav-schedule-btn');
+  if (scheduleBtnEl) scheduleBtnEl.classList.toggle('active', view === 'schedule');
   if (view === 'sponsors') renderSponsorView();
   if (view === 'dashboard') renderDashboard();
   if (view === 'budget' && typeof renderBudget === 'function' && budgetViewEl) renderBudget();
   if (view === 'speakers' && typeof renderSpeakerView === 'function' && speakerViewEl) renderSpeakerView();
   if (view === 'transport' && typeof renderTransportationView === 'function' && transportViewEl) renderTransportationView();
+  if (view === 'schedule' && typeof renderScheduleView === 'function' && scheduleViewEl) renderScheduleView();
   if (view === 'floorplan') {
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
     // The map only just became visible (was display:none), so its container had zero
@@ -5147,6 +5371,7 @@ function addSponsor() {
   pushSponsor(s);
   openSponsorId = s.id;
   renderSponsorView();
+  openQuickAddModal('sponsor', s.id);
 }
 
 function deleteSponsor(id) {
@@ -6574,6 +6799,25 @@ const HOTELS_TABLE = 'conference_hotels';
 const SESSION_ROOMS_TABLE = 'session_rooms';
 const SESSION_TRACKS_TABLE = 'session_tracks';
 
+// Master conference schedule (Schedule tab): every named block of time across all four days --
+// keynotes/concerts, breakouts, meals, business meetings -- editable the same way rooms/tracks
+// are. Breakout sessions "belong" to a slot purely by sessionDate+timeSlot matching that slot's
+// slot_date/start_time exactly (see findSlotForSession), so no schema change was needed on the
+// speaker sessions themselves. Requires its own table:
+//   create table if not exists schedule_slots (
+//     id text primary key, slot_date date not null, label text not null,
+//     start_time text not null, end_time text not null,
+//     kind text not null default 'other', notes text default '', sort_order int default 0
+//   );
+//   alter table schedule_slots enable row level security;
+//   create policy "public read schedule_slots" on schedule_slots for select using (true);
+//   create policy "public write schedule_slots" on schedule_slots for insert with check (true);
+//   create policy "public update schedule_slots" on schedule_slots for update using (true);
+//   create policy "public delete schedule_slots" on schedule_slots for delete using (true);
+// Until that table exists, the Schedule tab still works off the in-code seed below, same
+// graceful-degradation behavior as session rooms/tracks.
+const SCHEDULE_SLOTS_TABLE = 'schedule_slots';
+
 async function loadDriversAndHotels() {
   if (!sbClient) return;
   try {
@@ -6756,6 +7000,7 @@ async function uploadProductionRider() {
 let speakers = [];
 let openSpeakerId = null;
 let speakerFilter = 'all';
+let speakerTypeFilter = 'all';
 let speakerSearch = '';
 let speakerSortKey = null;
 let speakerSortDir = 1;
@@ -6805,9 +7050,10 @@ function defaultSpeakerData() {
   return {
     // Someone can lead more than one breakout/session -- this is a list, empty until
     // "+ Add a session" is clicked, same pattern as badgeNames/transportNeeds below.
-    sessions: [], // [{id, title, track, sessionDate, day, timeSlot, room, lengthMin, description}]
+    sessions: [], // [{id, title, track, slotId, sessionDate, day, timeSlot, room, lengthMin, description}] -- slotId (optional) links to a Schedule tab master slot; unset for freeform manual entries
     financial: { fee: '', feeStatus: '', travelReimbursement: '', w9Received: false, invoiceSent: false, dueDate: '' },
     logistics: {
+      linkedGroupId: '', // set when this person is also counted in another record's party (badges/meals/travel) -- keeps them from being double-counted
       partySize: '', // total headcount traveling: artist + band + tour manager + crew, etc.
       badgeNames: [], // names of everyone who needs a badge -- assumed to be the full party, not tracked as a separate count
       travelMethod: '', flightInfo: '', // airline/flight # notes -- only relevant if flying, but always available
@@ -6909,10 +7155,7 @@ function addSpeaker() {
   pushSpeaker(sp);
   openSpeakerId = id;
   renderSpeakerView();
-  setTimeout(() => {
-    const row = document.getElementById('sk-detail-' + id);
-    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 50);
+  openQuickAddModal('speaker', id);
 }
 
 function removeSpeaker(id) {
@@ -7060,6 +7303,11 @@ function fmtFileSize(bytes) {
 function setSpeakerFilter(f) {
   speakerFilter = f;
   document.querySelectorAll('.sk-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderSpeakerRows();
+}
+function setSpeakerTypeFilter(t) {
+  speakerTypeFilter = t;
+  document.querySelectorAll('.sk-type-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.tf === t));
   renderSpeakerRows();
 }
 function setSpeakerSearch(v) { speakerSearch = v; renderSpeakerRows(); }
@@ -7226,9 +7474,22 @@ function editSessionTrack(id) {
   const t = sessionTracks.find(x => x.id === id); if (!t) return;
   const newName = prompt('Track name:', t.name);
   if (newName === null || !newName.trim()) return;
+  const oldName = t.name;
   t.name = newName.trim();
+  // Every existing session filed under the old track name follows the rename -- otherwise
+  // they'd silently fall off the Breakout Grid (which matches sessions to tracks by name).
+  if (oldName !== t.name) {
+    speakers.forEach(sp => {
+      let changed = false;
+      (sp.data.sessions || []).forEach(sess => {
+        if (sess.track === oldName) { sess.track = t.name; changed = true; }
+      });
+      if (changed) pushSpeaker(sp);
+    });
+  }
   renderSpeakerView();
   renderSpeakerRows();
+  if (typeof renderScheduleView === 'function' && document.getElementById('schedule-view') && document.getElementById('schedule-view').style.display !== 'none') renderScheduleView();
   if (sbClient) {
     sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: t.id, name: t.name }).then(({ error }) => {
       if (error) { console.error('Track update failed:', error); toast('Couldn’t save that change — it’ll revert next reload. (' + errDetail(error) + ')'); }
@@ -7243,6 +7504,446 @@ function removeSessionTrack(id) {
       if (error) { console.error('Track delete failed:', error); toast('Couldn’t delete that track — it’ll reappear next reload. (' + errDetail(error) + ')'); }
     });
   }
+}
+
+// Seed schedule, derived from the "schedule blocking" planning sheet -- Sun 4/11 through Wed
+// 4/14, 2027 (the same conference dates already used as the sessionDate min/max above). Each
+// entry: [date, label, start, end, kind]. 'kind' drives how the Schedule tab renders/edits it:
+// 'breakout' rows are the 5 slots the Breakout Grid plugs into; everything else appears only
+// in the Timeline view.
+const DEFAULT_SCHEDULE_SLOTS = [
+  ['2027-04-11', 'Vendor & Sponsorship Check-in', '13:00', '15:00', 'other'],
+  ['2027-04-11', 'Attendee Registration', '15:00', '19:00', 'other'],
+  ['2027-04-11', 'Evening Concert A — Liberty University & Kirk Kirkland', '19:00', '20:30', 'keynote'],
+  ['2027-04-11', 'Reception / Exhibits', '20:30', '21:30', 'other'],
+  ['2027-04-12', 'Gathering', '08:00', '08:30', 'other'],
+  ['2027-04-12', 'Morning Worship — Samford WC / Zac Hicks', '08:30', '09:30', 'keynote'],
+  ['2027-04-12', 'Wor Concert A — Fernando Ortega', '09:45', '10:45', 'keynote'],
+  ['2027-04-12', 'Breakout 1', '11:15', '12:00', 'breakout'],
+  ['2027-04-12', 'Lunch (rotation A/B)', '12:00', '13:30', 'meal'],
+  ['2027-04-12', 'Panel on AI and the future of worship ministry', '12:00', '13:30', 'panel'],
+  ['2027-04-12', 'Wor Concert B — Lee University Singers', '13:45', '14:45', 'keynote'],
+  ['2027-04-12', 'Breakout 2', '15:00', '15:45', 'breakout'],
+  ['2027-04-12', 'Wor Concert C — CityAlight?', '16:00', '16:45', 'keynote'],
+  ['2027-04-12', 'Dinner break', '17:00', '18:30', 'meal'],
+  ['2027-04-12', 'Evening Concert B — WI / SBC Worship Night & Mass Choir?', '19:00', '20:30', 'keynote'],
+  ['2027-04-12', 'Reception / Exhibits', '20:30', '21:30', 'other'],
+  ['2027-04-13', 'Gathering', '08:00', '08:30', 'other'],
+  ['2027-04-13', 'Morning Worship B — Shelley Johnson & Jeff Iorg', '08:30', '09:30', 'keynote'],
+  ['2027-04-13', 'Songwriting Workshop (Chapel) & Wor Concert D — Southwestern A Cappella', '09:45', '10:45', 'keynote'],
+  ['2027-04-13', 'Breakout 3 — Charleston Southern in the Chapel', '11:15', '12:00', 'breakout'],
+  ['2027-04-13', 'Lunch (rotation A/B)', '12:00', '13:15', 'meal'],
+  ['2027-04-13', 'Panel — Legacy Leadership', '12:00', '13:15', 'panel'],
+  ['2027-04-13', 'Wor Concert E — Matt Papa?', '13:30', '14:30', 'keynote'],
+  ['2027-04-13', 'Breakout 4 — Bonus: Conference Lecture', '14:45', '15:30', 'breakout'],
+  ['2027-04-13', 'SBCMC Business', '15:45', '17:00', 'business'],
+  ['2027-04-13', 'Dinner break — Past President’s Reception', '17:00', '18:30', 'meal'],
+  ['2027-04-13', 'Evening Concert C — Dwan Hill & Travis Cottrell and Collegiate Collective', '19:00', '20:30', 'keynote'],
+  ['2027-04-13', 'Reception / Exhibits', '20:30', '21:30', 'other'],
+  ['2027-04-14', 'Gathering', '08:00', '08:30', 'other'],
+  ['2027-04-14', 'Morning Worship C — Gettys', '08:30', '09:30', 'keynote'],
+  ['2027-04-14', 'Breakout 5', '09:45', '10:30', 'breakout'],
+  ['2027-04-14', 'Wor Concert F — Hymn Sing with the Gettys', '11:00', '12:00', 'keynote'],
+  ['2027-04-14', 'Closing', '12:00', '12:15', 'other'],
+  ['2027-04-14', 'E.C. Lunch', '12:30', '13:00', 'meal'],
+  ['2027-04-14', 'E.C. Transition Meeting', '13:00', '15:30', 'business']
+];
+const SCHEDULE_SLOT_KINDS = ['breakout', 'keynote', 'panel', 'meal', 'business', 'other'];
+let scheduleSlots = DEFAULT_SCHEDULE_SLOTS.map(([date, label, start, end, kind], i) => ({
+  id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i
+}));
+
+async function loadScheduleSlots() {
+  if (!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from(SCHEDULE_SLOTS_TABLE).select('*').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
+    if (!error && data && data.length) {
+      scheduleSlots = data.map((r, i) => ({ id: r.id, date: r.slot_date, label: r.label, start: r.start_time, end: r.end_time, kind: r.kind, notes: r.notes || '', sortOrder: r.sort_order != null ? r.sort_order : i }));
+    } else if (error) {
+      console.warn('Schedule slots table not available:', errDetail(error));
+    }
+  } catch (err) {
+    console.warn('Schedule slots load failed:', err);
+  }
+}
+
+function pushScheduleSlot(slot) {
+  if (!sbClient) return;
+  sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({
+    id: slot.id, slot_date: slot.date, label: slot.label, start_time: slot.start, end_time: slot.end,
+    kind: slot.kind, notes: slot.notes || '', sort_order: slot.sortOrder
+  }).then(({ error }) => {
+    if (error) { console.error('Schedule slot save failed:', error); toast('Couldn’t save that schedule change — it’ll revert next reload. (' + errDetail(error) + ')'); }
+  });
+}
+
+function addScheduleSlot() {
+  const dateEl = document.getElementById('sch-slot-date'), labelEl = document.getElementById('sch-slot-label'),
+    startEl = document.getElementById('sch-slot-start'), endEl = document.getElementById('sch-slot-end'), kindEl = document.getElementById('sch-slot-kind');
+  const label = labelEl.value.trim();
+  if (!label || !dateEl.value || !startEl.value || !endEl.value) { toast('Enter a date, label, start and end time first.'); return; }
+  const slot = { id: makeId(), date: dateEl.value, label, start: startEl.value, end: endEl.value, kind: kindEl.value, notes: '', sortOrder: scheduleSlots.length };
+  scheduleSlots.push(slot);
+  pushScheduleSlot(slot);
+  renderScheduleView();
+  labelEl.value = '';
+}
+function removeScheduleSlot(id) {
+  if (!confirm('Remove this slot from the schedule? Any sessions already assigned to it will just become unscheduled, not deleted.')) return;
+  scheduleSlots = scheduleSlots.filter(s => s.id !== id);
+  renderScheduleView();
+  if (sbClient) {
+    sbClient.from(SCHEDULE_SLOTS_TABLE).delete().eq('id', id).then(({ error }) => {
+      if (error) { console.error('Schedule slot delete failed:', error); toast('Couldn’t delete that slot — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+}
+
+function findSlotForSession(sess) {
+  if (!sess) return null;
+  // Prefer the explicit link (set whenever a session is created via the grid/timeline) --
+  // falls back to date+time matching only for older/freeform entries that predate slotId,
+  // since two slots (e.g. a lunch and its concurrent panel) can now share the same date+time.
+  if (sess.slotId) {
+    const bySlotId = scheduleSlots.find(s => s.id === sess.slotId);
+    if (bySlotId) return bySlotId;
+  }
+  if (!sess.sessionDate || !sess.timeSlot) return null;
+  return scheduleSlots.find(s => s.date === sess.sessionDate && s.start === sess.timeSlot) || null;
+}
+function breakoutNumberForSlot(slot) {
+  const m = slot && slot.label.match(/Breakout (\d+)/);
+  return m ? m[1] : null;
+}
+
+// ==== Schedule tab: Conflicts panel + Breakout Grid + Timeline ====
+// Everything below reads/writes speakers[].data.sessions directly (via pushSpeaker), the same
+// objects the Speakers/Artists detail panel edits -- there's no separate sync step because
+// there's only one copy of the data to begin with.
+let scheduleSubview = 'grid';
+let scheduleRosterSearch = '';
+
+function setScheduleSubview(v) { scheduleSubview = v; renderScheduleView(); }
+
+function renderScheduleView() {
+  renderScheduleConflicts();
+  const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline');
+  if (gridBtn) gridBtn.classList.toggle('active', scheduleSubview === 'grid');
+  if (timelineBtn) timelineBtn.classList.toggle('active', scheduleSubview === 'timeline');
+  const gridBody = document.getElementById('sch-grid-body'), timelineBody = document.getElementById('sch-timeline-body');
+  if (gridBody) gridBody.style.display = scheduleSubview === 'grid' ? 'block' : 'none';
+  if (timelineBody) timelineBody.style.display = scheduleSubview === 'timeline' ? 'block' : 'none';
+  if (scheduleSubview === 'grid') renderBreakoutGrid(); else renderScheduleTimeline();
+}
+
+function computeScheduleConflicts() {
+  const conflicts = [];
+  speakers.forEach(sp => {
+    const sessions = (sp.data.sessions || []).filter(s => s.sessionDate && s.timeSlot);
+    // Double-booking: two of this speaker's own sessions land on the exact same date+time.
+    for (let i = 0; i < sessions.length; i++) {
+      for (let j = i + 1; j < sessions.length; j++) {
+        if (sessions[i].sessionDate === sessions[j].sessionDate && sessions[i].timeSlot === sessions[j].timeSlot) {
+          conflicts.push({
+            speakerId: sp.id, icon: '⚠️',
+            message: `${sp.name} is booked in both "${sessions[i].track || sessions[i].title || 'a session'}" and "${sessions[j].track || sessions[j].title || 'another session'}" at the same time — ${friendlyDate(sessions[i].sessionDate)}, ${friendlyTime(sessions[i].timeSlot)}.`
+          });
+        }
+      }
+    }
+    // Flight timing, using the structured arrival/departure fields already on the Transportation tab.
+    const lg = sp.data.logistics || {};
+    sessions.forEach(sess => {
+      const slot = findSlotForSession(sess);
+      const endTime = slot ? slot.end : sess.timeSlot;
+      if (lg.arrivalDate && lg.arrivalTime) {
+        const sessStart = new Date(sess.sessionDate + 'T' + sess.timeSlot);
+        const arrival = new Date(lg.arrivalDate + 'T' + lg.arrivalTime);
+        if (!isNaN(sessStart) && !isNaN(arrival) && sessStart < arrival) {
+          conflicts.push({ speakerId: sp.id, icon: '🛑', message: `${sp.name}'s "${sess.title || sess.track || 'session'}" (${friendlyDate(sess.sessionDate)}, ${friendlyTime(sess.timeSlot)}) starts before their arrival (${friendlyDate(lg.arrivalDate)}, ${friendlyTime(lg.arrivalTime)}).` });
+        }
+      }
+      if (lg.departureDate && lg.departureTime) {
+        const sessEnd = new Date(sess.sessionDate + 'T' + endTime);
+        const departure = new Date(lg.departureDate + 'T' + lg.departureTime);
+        if (!isNaN(sessEnd) && !isNaN(departure)) {
+          const hoursDiff = (departure - sessEnd) / 3600000;
+          if (hoursDiff < 0) {
+            conflicts.push({ speakerId: sp.id, icon: '🛑', message: `${sp.name} is scheduled for "${sess.title || sess.track || 'a session'}" (ends ${friendlyTime(endTime)}, ${friendlyDate(sess.sessionDate)}) after their departure (${friendlyDate(lg.departureDate)}, ${friendlyTime(lg.departureTime)}) — one of these needs to change.` });
+          } else if (hoursDiff < 2) {
+            conflicts.push({ speakerId: sp.id, icon: '⚠️', message: `${sp.name}'s flight departs only ${hoursDiff.toFixed(1)} hr after "${sess.title || sess.track || 'session'}" ends (departs ${friendlyDate(lg.departureDate)}, ${friendlyTime(lg.departureTime)}).` });
+          }
+        }
+      }
+    });
+  });
+  return conflicts;
+}
+
+function jumpToSpeaker(speakerId) {
+  openSpeakerId = speakerId;
+  speakerActiveTab = 'overview';
+  switchTopView('speakers');
+  setTimeout(() => {
+    const row = document.getElementById('sk-detail-' + speakerId);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+}
+
+function renderScheduleConflicts() {
+  const body = document.getElementById('sch-conflicts-body');
+  if (!body) return;
+  const conflicts = computeScheduleConflicts();
+  if (!conflicts.length) {
+    body.innerHTML = `<div class="db-section"><div class="db-section-title">Conflicts</div><div class="sch-conflicts-empty">None detected — nothing double-booked, and no flight-timing issues found.</div></div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div class="db-section">
+      <div class="db-section-title">Conflicts (${conflicts.length})</div>
+      <div class="sp-table-wrap"><table class="dv-table"><tbody>
+        ${conflicts.map(c => `<tr class="sch-conflict-row" onclick="jumpToSpeaker('${c.speakerId}')"><td style="width:26px;">${c.icon}</td><td>${escapeHtml(c.message)}</td></tr>`).join('')}
+      </tbody></table></div>
+    </div>
+  `;
+}
+
+function lastNameOf(fullName) {
+  const parts = (fullName || '').trim().split(/\s+/);
+  return parts[parts.length - 1] || '';
+}
+function sortByLastName(list) {
+  return list.slice().sort((a, b) => lastNameOf(a.name).localeCompare(lastNameOf(b.name)));
+}
+
+function buildScheduleRosterChipsHtml() {
+  const filtered = speakers.filter(sp => !scheduleRosterSearch || sp.name.toLowerCase().includes(scheduleRosterSearch.toLowerCase()));
+  if (!filtered.length) return '<span class="sp-sub">No speakers match.</span>';
+  return sortByLastName(filtered).map(sp => `<div class="sch-chip" draggable="true" ondragstart="schDragStart(event, {type:'speaker', speakerId:'${sp.id}'})">${escapeHtml(sp.name)}</div>`).join('');
+}
+
+function assignSpeakerToBreakoutCell(speakerId, trackId, slotId) {
+  if (!speakerId) return;
+  const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
+  const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  if (!sp.data.sessions) sp.data.sessions = [];
+  sp.data.sessions.push({ id: makeId(), title: '', track: track.name, slotId: slot.id, sessionDate: slot.date, day: fullWeekday(slot.date), timeSlot: slot.start, room: '', lengthMin: '', description: '' });
+  pushSpeaker(sp);
+  renderScheduleView();
+}
+function setScheduleRosterSearch(v) {
+  scheduleRosterSearch = v;
+  const chipsEl = document.getElementById('sch-roster-chips-list');
+  if (chipsEl) chipsEl.innerHTML = buildScheduleRosterChipsHtml();
+}
+
+function renderBreakoutGrid() {
+  const body = document.getElementById('sch-grid-body');
+  if (!body) return;
+  const breakoutSlots = scheduleSlots.filter(s => s.kind === 'breakout').sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  const index = {}; // key: trackName + '|' + slotId -> array of {speakerId, sessionIndex, sess} -- a cell can hold more than one person
+  speakers.forEach(sp => {
+    (sp.data.sessions || []).forEach((sess, i) => {
+      if (!sess.track) return;
+      const slot = findSlotForSession(sess);
+      if (!slot || slot.kind !== 'breakout') return;
+      const key = sess.track + '|' + slot.id;
+      (index[key] = index[key] || []).push({ speakerId: sp.id, sessionIndex: i, sess });
+    });
+  });
+  const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
+
+  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<span class="sch-edit-icon" style="margin-left:4px;" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename this breakout slot">✎</span><div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
+
+  const sortedSpeakers = sortByLastName(speakers);
+  const rows = sessionTracks.map(track => {
+    const cells = breakoutSlots.map(slot => {
+      const occs = index[track.name + '|' + slot.id] || [];
+      const cards = occs.map(occ => {
+        const occSp = getSpeaker(occ.speakerId);
+        const isConflict = conflictSpeakerIds.has(occ.speakerId);
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" draggable="true" ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record — drag to move to another cell">
+          ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
+          <span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Unschedule">×</span>
+          <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
+          <div class="sch-card-title">${escapeHtml(occ.sess.title || '')}</div>
+          <span class="sch-card-edit" onclick="event.stopPropagation(); schEditSessionTitle('${occ.speakerId}', ${occ.sessionIndex})" title="Edit title">✎</span>
+        </div>`;
+      }).join('');
+      const occupantIds = new Set(occs.map(o => o.speakerId));
+      const addOptions = sortedSpeakers.filter(sp => !occupantIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
+      const addSelect = `<select class="sch-cell-add" onchange="assignSpeakerToBreakoutCell(this.value,'${track.id}','${slot.id}'); this.value='';" onclick="event.stopPropagation();"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>`;
+      const cls = occs.length ? 'sch-cell' : 'sch-cell sch-cell-empty';
+      return `<td><div class="${cls}" ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schDrop(event,'${track.id}','${slot.id}')">${cards}${addSelect}</div></td>`;
+    }).join('');
+    return `<tr><td class="sch-track-label">${escapeHtml(track.name)}<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span></td>${cells}</tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="sch-roster-strip">
+      <div class="sch-roster-header">
+        <strong style="font-size:12.5px; color:var(--teal-deep);">Speaker/artist roster — drag one or more names onto a cell to assign</strong>
+        <input type="text" id="sch-roster-search-input" placeholder="Search…" value="${escapeHtml(scheduleRosterSearch)}" oninput="setScheduleRosterSearch(this.value)">
+      </div>
+      <div class="sch-roster-chips" id="sch-roster-chips-list">${buildScheduleRosterChipsHtml()}</div>
+    </div>
+    ${breakoutSlots.length === 0 ? '<div class="sch-conflicts-empty">No breakout slots defined yet — add one from the Timeline view below.</div>' : `
+    <div class="sch-grid-wrap">
+      <table class="sch-grid">
+        <thead><tr><th class="sch-track-col">Track</th>${headerCells}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+let schDragPayload = null;
+function schDragStart(e, payload) {
+  schDragPayload = payload;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', ''); } catch (err) { /* some browsers require a call here even if unused */ }
+  }
+}
+function schDragOver(e) { e.preventDefault(); if (e.currentTarget) e.currentTarget.classList.add('sch-cell-hover'); }
+function schDragLeave(e) { if (e.currentTarget) e.currentTarget.classList.remove('sch-cell-hover'); }
+function schDrop(e, trackId, slotId) {
+  e.preventDefault();
+  if (e.currentTarget) e.currentTarget.classList.remove('sch-cell-hover');
+  const payload = schDragPayload; schDragPayload = null;
+  if (!payload) return;
+  const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
+  const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
+
+  if (payload.type === 'speaker') {
+    // Always adds -- a cell can hold more than one person, so dropping another name onto an
+    // already-occupied cell just joins them rather than replacing anyone.
+    assignSpeakerToBreakoutCell(payload.speakerId, trackId, slotId);
+    return;
+  }
+  if (payload.type === 'session') {
+    // Relocates that one session to the target cell -- doesn't touch whoever's already there.
+    const fromSp = getSpeaker(payload.speakerId); if (!fromSp) return;
+    const fromSess = fromSp.data.sessions && fromSp.data.sessions[payload.sessionIndex]; if (!fromSess) return;
+    fromSess.track = track.name; fromSess.slotId = slot.id; fromSess.sessionDate = slot.date; fromSess.timeSlot = slot.start; fromSess.day = fullWeekday(slot.date);
+    pushSpeaker(fromSp);
+    renderScheduleView();
+  }
+}
+function schUnscheduleSession(speakerId, sessionIndex) {
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  const sess = sp.data.sessions && sp.data.sessions[sessionIndex]; if (!sess) return;
+  sess.track = ''; sess.sessionDate = ''; sess.timeSlot = ''; sess.day = '';
+  pushSpeaker(sp);
+  renderScheduleView();
+}
+function schEditSessionTitle(speakerId, sessionIndex) {
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  const sess = sp.data.sessions && sp.data.sessions[sessionIndex]; if (!sess) return;
+  const newTitle = prompt('Session title:', sess.title || '');
+  if (newTitle === null) return;
+  sess.title = newTitle.trim();
+  pushSpeaker(sp);
+  renderScheduleView();
+}
+
+function schTimelineAddAssignment(slotId, speakerId) {
+  const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  if (!sp.data.sessions) sp.data.sessions = [];
+  // A slot-assigned (non-breakout) session is identified by its slotId (or, for older entries
+  // that predate that field, empty track + matching date/time) -- breakout assignments (which
+  // do have a track) are only ever touched via the grid above. slotId is what lets two slots
+  // (e.g. a lunch and its concurrent panel) share the same date/time without colliding.
+  const already = sp.data.sessions.some(s => s.slotId === slot.id || (!s.slotId && !s.track && s.sessionDate === slot.date && s.timeSlot === slot.start));
+  if (already) return;
+  sp.data.sessions.push({ id: makeId(), title: slot.label, track: '', slotId: slot.id, sessionDate: slot.date, day: fullWeekday(slot.date), timeSlot: slot.start, room: '', lengthMin: '', description: '' });
+  pushSpeaker(sp);
+  renderScheduleView();
+}
+function schTimelineRemoveAssignment(slotId, speakerId) {
+  const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  const idx = (sp.data.sessions || []).findIndex(s => s.slotId === slot.id || (!s.slotId && !s.track && s.sessionDate === slot.date && s.timeSlot === slot.start));
+  if (idx === -1) return;
+  const sess = sp.data.sessions[idx];
+  sess.sessionDate = ''; sess.timeSlot = ''; sess.day = ''; sess.slotId = '';
+  pushSpeaker(sp);
+  renderScheduleView();
+}
+
+function editScheduleSlotLabel(id) {
+  const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
+  const newLabel = prompt('Name/title for this scheduled item:', slot.label);
+  if (newLabel === null || !newLabel.trim()) return;
+  slot.label = newLabel.trim();
+  pushScheduleSlot(slot);
+  renderScheduleView();
+}
+function updateScheduleSlotKind(id, kind) {
+  const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
+  slot.kind = kind;
+  pushScheduleSlot(slot);
+  renderScheduleView();
+}
+
+function renderScheduleTimeline() {
+  const body = document.getElementById('sch-timeline-body');
+  if (!body) return;
+  const days = {};
+  scheduleSlots.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).forEach(slot => {
+    (days[slot.date] = days[slot.date] || []).push(slot);
+  });
+  const dateKeys = Object.keys(days).sort();
+  const speakerOptions = sortByLastName(speakers);
+
+  const kindSelect = (slot) => `<select class="sch-timeline-kind-select sch-kind-${slot.kind}" onchange="updateScheduleSlotKind('${slot.id}', this.value)">${SCHEDULE_SLOT_KINDS.map(k => `<option value="${k}" ${k === slot.kind ? 'selected' : ''}>${k.charAt(0).toUpperCase() + k.slice(1)}</option>`).join('')}</select>`;
+  const labelWithEdit = (slot, extra) => `<div class="sch-timeline-label">${escapeHtml(slot.label)}<span class="sch-edit-icon" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename">✎</span>${extra || ''}</div>`;
+
+  const dayBlocks = dateKeys.map(date => {
+    const rows = days[date].map(slot => {
+      if (slot.kind === 'breakout') {
+        return `<div class="sch-timeline-row">
+          <div class="sch-timeline-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
+          ${labelWithEdit(slot, ' <span class="sp-sub">— see Breakout Grid above</span>')}
+          ${kindSelect(slot)}
+          <span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>
+        </div>`;
+      }
+      const assignedSpeakers = [];
+      speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
+        if (sess.slotId === slot.id || (!sess.slotId && !sess.track && sess.sessionDate === slot.date && sess.timeSlot === slot.start)) assignedSpeakers.push(sp);
+      }));
+      const assignedIds = new Set(assignedSpeakers.map(sp => sp.id));
+      const addOptions = `<option value="">+ add person…</option>` + speakerOptions.filter(sp => !assignedIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
+      const chips = assignedSpeakers.map(sp => `<span class="sch-chip-sm" onclick="jumpToSpeaker('${sp.id}')" title="Click to open ${escapeHtml(sp.name)}'s full record">${escapeHtml(sp.name)}<span class="sch-chip-x" onclick="event.stopPropagation(); schTimelineRemoveAssignment('${slot.id}','${sp.id}')" title="Remove">×</span></span>`).join('');
+      const canAssign = slot.kind === 'keynote' || slot.kind === 'panel';
+      return `<div class="sch-timeline-row">
+        <div class="sch-timeline-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
+        ${labelWithEdit(slot)}
+        ${kindSelect(slot)}
+        ${canAssign ? `<div class="sch-timeline-assign">${chips}<select onchange="if(this.value){schTimelineAddAssignment('${slot.id}', this.value); this.value='';}">${addOptions}</select></div>` : ''}
+        <span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>
+      </div>`;
+    }).join('');
+    return `<div class="sch-timeline-day"><div class="sch-timeline-day-title">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}</div>`;
+  }).join('');
+
+  body.innerHTML = `
+    ${dayBlocks || '<div class="sch-conflicts-empty">No schedule slots yet — add the first one below.</div>'}
+    <div class="sch-slot-editor">
+      <div class="db-section-title">Add a schedule slot</div>
+      <div class="sch-slot-add-row">
+        <input type="date" id="sch-slot-date" min="2027-04-11" max="2027-04-14">
+        <input type="text" id="sch-slot-label" placeholder="Label">
+        <input type="time" id="sch-slot-start">
+        <input type="time" id="sch-slot-end">
+        <select id="sch-slot-kind">${SCHEDULE_SLOT_KINDS.map(k => `<option value="${k}">${k.charAt(0).toUpperCase() + k.slice(1)}</option>`).join('')}</select>
+        <button class="sp-mini-btn" onclick="addScheduleSlot()">+ Add</button>
+      </div>
+    </div>
+  `;
 }
 
 function autofillTransportLocations(id, label) {
@@ -7357,6 +8058,12 @@ function renderSpeakerView() {
       </div>
     `).join('') || '<div class="sp-sub">No tracks added yet.</div>';
   }
+  const typeFilterEl = document.getElementById('sk-type-filter-body');
+  if (typeFilterEl) {
+    typeFilterEl.innerHTML = `<button class="sk-type-filter-btn ${speakerTypeFilter === 'all' ? 'active' : ''}" data-tf="all" onclick="setSpeakerTypeFilter('all')">All</button>`
+      + SPEAKER_TYPES.map(t => `<button class="sk-type-filter-btn ${speakerTypeFilter === t ? 'active' : ''}" data-tf="${escapeHtml(t)}" onclick="setSpeakerTypeFilter('${t}')">${escapeHtml(t)}</button>`).join('')
+      + `<button class="sk-type-filter-btn ${speakerTypeFilter === '__none__' ? 'active' : ''}" data-tf="__none__" onclick="setSpeakerTypeFilter('__none__')">— none set —</button>`;
+  }
   renderSpeakerRows();
 }
 
@@ -7372,7 +8079,10 @@ function buildSpeakerRowPair(sp, todayStr) {
   tr.dataset.id = sp.id;
   tr.innerHTML = `
     <td><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}</td>
-    <td class="sp-org">${escapeHtml(sp.name)}<div class="sp-sub">${escapeHtml((sp.types || []).join(', '))}</div></td>
+    <td class="sp-org">${escapeHtml(sp.name)}${(() => {
+      const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
+      return linkedGroup ? `<a href="#" class="sp-linked-group-chip" title="Badges/meals/travel counted under ${escapeHtml(linkedGroup.name)} -- click to open that record" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">👥 ${escapeHtml(linkedGroup.name)}</a>` : '';
+    })()}<div class="sp-sub">${escapeHtml((sp.types || []).join(', '))}</div></td>
     <td>${(() => {
       const sessions = sp.data.sessions || [];
       const first = earliestSpeakerSession(sp);
@@ -7411,8 +8121,12 @@ function renderSpeakerRows(dirtyId) {
     if (speakerFilter === 'all') matchesFilter = true;
     else if (speakerFilter === '__flagged__') matchesFilter = !!sp.data.flagged;
     else matchesFilter = sp.trackerStatus === speakerFilter;
+    let matchesTypeFilter;
+    if (speakerTypeFilter === 'all') matchesTypeFilter = true;
+    else if (speakerTypeFilter === '__none__') matchesTypeFilter = !(sp.types || []).length;
+    else matchesTypeFilter = (sp.types || []).includes(speakerTypeFilter);
     const matchesSearch = !speakerSearch || speakerSearchHaystack(sp).includes(speakerSearch.toLowerCase());
-    return matchesFilter && matchesSearch;
+    return matchesFilter && matchesTypeFilter && matchesSearch;
   });
 
   if (speakerSortKey) {
@@ -7634,6 +8348,22 @@ function speakerDetailHTML(sp) {
 
     ${activeTab !== 'logistics' ? '' : `
     <div class="sk-tab-panel">
+      ${(() => {
+        const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
+        const otherOptions = sortByLastName(speakers.filter(s => s.id !== sp.id))
+          .map(s => `<option value="${s.id}" ${sp.data.logistics.linkedGroupId === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+        return `
+        <div class="sp-linked-group-box">
+          <div class="sp-field" style="margin-bottom:0;">
+            <label for="sk-linkedgroup-${sp.id}">Part of another group/act already tracked here?</label>
+            <select id="sk-linkedgroup-${sp.id}" onchange="updateSpeakerNested('${sp.id}','logistics','linkedGroupId',this.value)">
+              <option value="">— No, tracked individually —</option>
+              ${otherOptions}
+            </select>
+          </div>
+          ${linkedGroup ? `<div class="sp-sub" style="margin-top:8px;"><span style="color:var(--teal-deep); font-weight:600;">👥 Counted under <a href="#" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">${escapeHtml(linkedGroup.name)}</a>'s badges, meals, and travel.</span> Leave the Travel/Meals fields below blank for this record to avoid double-counting.</div>` : ''}
+        </div>`;
+      })()}
       <div class="sk-logistics-grid">
         <fieldset class="sp-fieldset">
           <legend>Travel</legend>
@@ -8289,7 +9019,7 @@ function exportSpeakersCSV() {
     'Name', 'Type', 'Contact Name', 'Contact Email', 'Contact Phone', 'Tracker Status', 'Flagged',
     'Session Title', 'Track', 'Day', 'Time Slot', 'Room', 'Length (min)',
     'Fee', 'Fee Status', 'Travel Reimbursement', 'W9 Received', 'Invoice Sent', 'Payment Due Date',
-    'Party Size', 'Badge Names', 'Travel Method', 'Flight Info', 'Arrival Date', 'Arrival Time', 'Departure Date', 'Departure Time',
+    'Linked Group (badges/meals/travel counted there instead)', 'Party Size', 'Badge Names', 'Travel Method', 'Flight Info', 'Arrival Date', 'Arrival Time', 'Departure Date', 'Departure Time',
     'Transportation Needs', 'Lodging Needed', 'Nights Needed', 'Rooms Needed', 'Hotel Confirmed',
     'Meals Arrangement', 'Meal Notes', 'Host Needed', 'Host Name',
     'Materials Needed (done/total)', 'Attendee Materials Uploaded', 'Internal Documents Uploaded', 'Special Notes'
@@ -8299,11 +9029,15 @@ function exportSpeakersCSV() {
     const mat = materialsNeededCount(sp);
     const sessions = sp.data.sessions || [];
     const sessJoin = field => sessions.map(s => s[field] || '').join(' | ');
+    const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
     const row = [
       sp.name, (sp.types || []).join(' | '), sp.contactName, sp.contactEmail, sp.contactPhone, sp.trackerStatus, sp.data.flagged ? 'Yes' : 'No',
       sessJoin('title'), sessJoin('track'), sessJoin('day'), sessions.map(s => friendlyTime(s.timeSlot)).join(' | '), sessJoin('room'), sessJoin('lengthMin'),
       sp.data.financial.fee, sp.data.financial.feeStatus, sp.data.financial.travelReimbursement, sp.data.financial.w9Received ? 'Yes' : 'No', sp.data.financial.invoiceSent ? 'Yes' : 'No', sp.data.financial.dueDate,
-      sp.data.logistics.partySize, (sp.data.logistics.badgeNames || []).filter(Boolean).join(' | '), sp.data.logistics.travelMethod, sp.data.logistics.flightInfo,
+      linkedGroup ? linkedGroup.name : '',
+      linkedGroup ? '0 (see ' + linkedGroup.name + ')' : sp.data.logistics.partySize,
+      linkedGroup ? '(counted under ' + linkedGroup.name + ')' : (sp.data.logistics.badgeNames || []).filter(Boolean).join(' | '),
+      sp.data.logistics.travelMethod, sp.data.logistics.flightInfo,
       sp.data.logistics.arrivalDate, sp.data.logistics.arrivalTime, sp.data.logistics.departureDate, sp.data.logistics.departureTime,
       (sp.data.logistics.transportNeeds || []).map(t => t.label + ': pickup ' + [t.pickupLocation, t.pickupTime].filter(Boolean).join(' @ ') + ' -> dropoff ' + [t.dropoffLocation, t.dropoffTime].filter(Boolean).join(' @ ')).join(' | '),
       sp.data.logistics.lodgingNeeded ? 'Yes' : 'No', sp.data.logistics.nightsNeeded, sp.data.logistics.roomsNeeded, sp.data.logistics.hotelConfirmed ? 'Yes' : 'No',
