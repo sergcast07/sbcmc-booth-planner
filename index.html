@@ -376,6 +376,7 @@
   @media (max-width: 860px) {
     .app { flex-direction: column; }
     .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
+    .sidebar.collapsed { width: 100%; height: auto; padding: 10px 14px; }
   }
 
   /* ==== Access Gate ==== */
@@ -456,7 +457,32 @@
 .sp-side {
   width: 260px; flex-shrink: 0; background: var(--teal-pale); border-right: 1px solid var(--line);
   padding: 22px 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto;
+  position: relative; transition: width 0.15s ease;
 }
+.sp-side.collapsed, .sidebar.collapsed { width: 40px; padding: 22px 6px; overflow: hidden; align-items: center; }
+.sp-side.collapsed > *:not(.sp-side-section), .sidebar.collapsed > *:not(.sp-side-section) { display: none; }
+.sp-side.collapsed .sp-side-section > *:not(.sp-side-label-row), .sidebar.collapsed .sp-side-section > *:not(.sp-side-label-row) { display: none; }
+.sp-side.collapsed .sp-side-label-row > *:not(.sp-side-toolbar), .sidebar.collapsed .sp-side-label-row > *:not(.sp-side-toolbar) { display: none; }
+.sidebar { transition: width 0.15s ease; }
+.sp-side-label-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sp-side-label-row > *:first-child { flex: 1; min-width: 0; }
+.sp-side-label-row .sp-side-label { margin-bottom: 0; }
+.collapsed .sp-side-label-row { justify-content: center; }
+.sp-side-toolbar-compact .sp-side-toggle { padding: 8px; border-radius: 50%; }
+.sp-side-toolbar-compact .sp-side-toggle-label { display: none; }
+.sp-side-toolbar { display: flex; justify-content: flex-end; flex-shrink: 0; }
+.sp-side-toggle {
+  display: flex; align-items: center; gap: 5px; border-radius: 14px; padding: 6px 11px 6px 9px;
+  background: var(--panel); border: 1px solid var(--line); cursor: pointer; color: var(--ink-soft);
+  font-size: 11px; font-weight: 700; letter-spacing: .01em; white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sp-side-toggle:hover { background: var(--teal-pale); color: var(--teal-deep); border-color: var(--teal); }
+.sp-side-toggle svg { width: 14px; height: 14px; flex-shrink: 0; pointer-events: none; }
+.sp-side-toggle .toggle-chevron { transition: transform 0.15s ease; transform: rotate(0deg); }
+.collapsed .sp-side-toggle .toggle-chevron { transform: rotate(180deg); }
+.collapsed .sp-side-toggle { padding: 8px; border-radius: 50%; }
+.collapsed .sp-side-toggle .sp-side-toggle-label { display: none; }
 .sp-stat-block { background: var(--panel); border-radius: 10px; padding: 4px 14px; border: 1px solid var(--line); }
 .sp-stat { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--ink-soft); }
 .sp-stat:last-child { border-bottom: none; }
@@ -566,6 +592,11 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   padding: 0 6px 4px 0; border-bottom: 2px solid var(--gold); margin-bottom: 6px;
 }
 .sp-subhead { font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft); font-weight: 700; margin: 14px 0 7px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.sp-session-card { border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 10px; }
+.sp-session-card-first { border-top: none; padding-top: 0; margin-top: 0; }
+.sp-session-summary { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.sp-session-summary-text { flex: 1; font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-session-summary-text b { font-weight: 700; }
 .sp-adhoc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 4px; }
 .sp-adhoc-row { display: flex; align-items: center; gap: 8px; }
 .sp-adhoc-row .sp-check { flex: 1; font-size: 12px; }
@@ -618,6 +649,8 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 }
 .sp-chevron.open { transform: rotate(90deg); color: var(--teal-deep); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.sp-collapsible-label { cursor: pointer; display: flex; align-items: center; gap: 5px; user-select: none; }
+.sp-collapsible-body.collapsed { display: none !important; }
 .sp-add-row input, .sp-add-row select { flex: 1; min-width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .sp-linked-booth { font-size: 12px; padding: 9px 11px; background: #fff; border: 1px dashed var(--line); border-radius: 7px; color: var(--ink-soft); }
 
@@ -724,6 +757,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 
   .sp-wrap { flex-direction: column; min-height: auto; }
   .sp-side { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
+  .sp-side.collapsed { width: 100%; height: auto; padding: 10px 14px; }
   .sp-main { padding: 14px; }
   .sp-topbar { flex-wrap: wrap; }
   .sp-search { max-width: none; width: 100%; }
@@ -1005,18 +1039,23 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 <div id="sponsor-view">
   <div class="sp-wrap">
     <div class="sp-side">
-      <div>
-        <div class="sp-side-label">Overview</div>
+      <div class="sp-side-section">
+        <div class="sp-side-label-row">
+          <div class="sp-side-label sp-collapsible-label" data-section-toggle="sp-overview" onclick="toggleSidebarSection('sp-overview')"><span class="sp-chevron">▸</span>Overview</div>
+          <div class="sp-side-toolbar"><button class="sp-side-toggle" onclick="toggleSidebar()" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line><rect x="4.3" y="5.3" width="3.4" height="13.4" rx="0.8" fill="currentColor" stroke="none" opacity="0.45"></rect><path class="toggle-chevron" d="M14 9l-3 3 3 3" stroke-width="2"></path></svg><span class="sp-side-toggle-label">Collapse</span></button></div>
+        </div>
+        <div class="sp-collapsible-body" data-section-key="sp-overview">
         <div class="sp-stat-block">
           <div class="sp-stat"><span>Tracked</span><b id="sp-stat-total">0</b></div>
           <div class="sp-stat"><span>Registered</span><b id="sp-stat-reg">0</b></div>
           <div class="sp-stat"><span>In-kind (any)</span><b id="sp-stat-inkind">0</b></div>
           <div class="sp-stat"><span>To pursue</span><b id="sp-stat-pursue">0</b></div>
         </div>
+        </div>
       </div>
       <div>
-        <div class="sp-side-label">Filter</div>
-        <div style="display:flex; flex-direction:column; gap:3px;">
+        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sp-filter" onclick="toggleSidebarSection('sp-filter')"><span class="sp-chevron">▸</span>Filter</div>
+        <div class="sp-collapsible-body" data-section-key="sp-filter" style="display:flex; flex-direction:column; gap:3px;">
           <button class="sp-filter-btn active" data-f="all" onclick="setSponsorFilter('all')">All</button>
           <button class="sp-filter-btn" data-f="Registered, Paid" onclick="setSponsorFilter('Registered, Paid')">Registered, Paid</button>
           <button class="sp-filter-btn" data-f="Registered, Not Paid" onclick="setSponsorFilter('Registered, Not Paid')">Registered, Not Paid</button>
@@ -1072,15 +1111,20 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 <div id="speaker-view" style="display:none;">
   <div class="sp-wrap">
     <div class="sp-side">
-      <div>
-        <div class="sp-side-label">Overview</div>
+      <div class="sp-side-section">
+        <div class="sp-side-label-row">
+          <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-overview" onclick="toggleSidebarSection('sk-overview')"><span class="sp-chevron">▸</span>Overview</div>
+          <div class="sp-side-toolbar"><button class="sp-side-toggle" onclick="toggleSidebar()" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line><rect x="4.3" y="5.3" width="3.4" height="13.4" rx="0.8" fill="currentColor" stroke="none" opacity="0.45"></rect><path class="toggle-chevron" d="M14 9l-3 3 3 3" stroke-width="2"></path></svg><span class="sp-side-toggle-label">Collapse</span></button></div>
+        </div>
+        <div class="sp-collapsible-body" data-section-key="sk-overview">
         <div class="sp-stat-block">
           <div class="sp-stat"><span>Tracked</span><b id="sk-stat-total">0</b></div>
         </div>
+        </div>
       </div>
       <div>
-        <div class="sp-side-label">Filter</div>
-        <div style="display:flex; flex-direction:column; gap:3px;">
+        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-filter" onclick="toggleSidebarSection('sk-filter')"><span class="sp-chevron">▸</span>Filter</div>
+        <div class="sp-collapsible-body" data-section-key="sk-filter" style="display:flex; flex-direction:column; gap:3px;">
           <button class="sk-filter-btn active" data-f="all" onclick="setSpeakerFilter('all')">All</button>
           <button class="sk-filter-btn" data-f="Invited" onclick="setSpeakerFilter('Invited')">Invited</button>
           <button class="sk-filter-btn" data-f="Confirmed" onclick="setSpeakerFilter('Confirmed')">Confirmed</button>
@@ -1093,12 +1137,36 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
       </div>
       <div class="hint">Click any speaker or artist to open their full record: session details, financial and logistics, a checklist of what you still need from them, and a place to upload the materials they want shared with attendees.</div>
       <div class="sk-rider-box">
-        <div class="sp-side-label">Production Rider (whole conference)</div>
+        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-rider" onclick="toggleSidebarSection('sk-rider')"><span class="sp-chevron">▸</span>Production Rider (whole conference)</div>
+        <div class="sp-collapsible-body" data-section-key="sk-rider">
         <div id="sk-rider-current"></div>
         <input type="text" id="sk-rider-label" placeholder="Label (e.g. 'SBCMC 2027 Production Rider')" style="width:100%; margin-bottom:6px;">
         <input type="file" id="sk-rider-input" style="width:100%; margin-bottom:6px;">
         <button class="sp-mini-btn" style="width:100%;" onclick="uploadProductionRider()">Upload / Replace</button>
         <div class="sp-sub" style="margin-top:6px;">One document for the whole event — linked automatically in every personalized email below.</div>
+        </div>
+      </div>
+      <div class="sk-rider-box">
+        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-rooms" onclick="toggleSidebarSection('sk-rooms')"><span class="sp-chevron">▸</span>Session Rooms</div>
+        <div class="sp-collapsible-body" data-section-key="sk-rooms">
+        <div id="sk-rooms-current"></div>
+        <div class="sp-add-row">
+          <input type="text" id="sk-room-name" placeholder="Room name">
+          <button class="sp-mini-btn" onclick="addSessionRoom()">+ Add</button>
+        </div>
+        <div class="sp-sub" style="margin-top:6px;">Placeholders until the real room list is final — rename or add to these anytime; they feed the Room dropdown on every session below.</div>
+        </div>
+      </div>
+      <div class="sk-rider-box">
+        <div class="sp-side-label sp-collapsible-label" data-section-toggle="sk-tracks" onclick="toggleSidebarSection('sk-tracks')"><span class="sp-chevron">▸</span>Session Tracks</div>
+        <div class="sp-collapsible-body" data-section-key="sk-tracks">
+        <div id="sk-tracks-current"></div>
+        <div class="sp-add-row">
+          <input type="text" id="sk-track-name" placeholder="Track name">
+          <button class="sp-mini-btn" onclick="addSessionTrack()">+ Add</button>
+        </div>
+        <div class="sp-sub" style="margin-top:6px;">Seeded from the 2027 conference site's Equipping Tracks — edit anytime; feeds the Track dropdown on every session below.</div>
+        </div>
       </div>
     </div>
     <div class="sp-main">
@@ -1268,10 +1336,11 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 
 <div class="app" style="display:none;">
   <div class="sidebar">
-    <div class="brand">
-      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;">
+    <div class="brand sp-side-section">
+      <div class="sp-side-label-row">
         <span>SBCMC Booth Layout Planner</span>
         <button class="admin-link" onclick="openAdminPanel()" title="Admin: manage floor plans and packages">Admin</button>
+        <div class="sp-side-toolbar sp-side-toolbar-compact"><button class="sp-side-toggle" onclick="toggleSidebar()" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line><rect x="4.3" y="5.3" width="3.4" height="13.4" rx="0.8" fill="currentColor" stroke="none" opacity="0.45"></rect><path class="toggle-chevron" d="M14 9l-3 3 3 3" stroke-width="2"></path></svg><span class="sp-side-toggle-label">Collapse</span></button></div>
       </div>
       <span class="sub">Hunter Street campus &mdash; five levels. Drag boxes to plan booth placement; sizes are proportional to each map's own confirmed scale (see note under the map).</span>
     </div>
@@ -2584,7 +2653,8 @@ async function initSupabase() {
       (typeof loadSponsorsFromDb === 'function' ? loadSponsorsFromDb() : Promise.resolve()),
       (typeof loadSpeakersFromDb === 'function' ? loadSpeakersFromDb() : Promise.resolve()),
       (typeof loadConferenceDocuments === 'function' ? loadConferenceDocuments() : Promise.resolve()),
-      (typeof loadDriversAndHotels === 'function' ? loadDriversAndHotels() : Promise.resolve())
+      (typeof loadDriversAndHotels === 'function' ? loadDriversAndHotels() : Promise.resolve()),
+      (typeof loadSessionRoomsAndTracks === 'function' ? loadSessionRoomsAndTracks() : Promise.resolve())
     ]);
     rebuildMapRegistry();
     renderPackageSidebar();
@@ -3989,6 +4059,49 @@ function printDashboardReport() {
   setTimeout(() => window.print(), 50); // small delay so the render above has painted
 }
 
+// Sidebar collapse -- one shared preference across Sponsor Tracker, Speakers/Artists, and the
+// Floor Plan's booth-editing sidebar, remembered across visits like the gate password. The
+// toggle chevron's direction (pointing at the sidebar vs. away from it) flips via CSS off the
+// .collapsed class, so this only needs to set that class and keep the tooltip in sync.
+let sidebarCollapsed = false;
+try { sidebarCollapsed = localStorage.getItem('sbcmcSidebarCollapsed') === '1'; } catch (e) { /* private browsing, etc */ }
+
+function applySidebarCollapsedState() {
+  document.querySelectorAll('.sp-side, .sidebar').forEach(el => el.classList.toggle('collapsed', sidebarCollapsed));
+  document.querySelectorAll('.sp-side-toggle').forEach(btn => {
+    btn.title = sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  });
+}
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  try { localStorage.setItem('sbcmcSidebarCollapsed', sidebarCollapsed ? '1' : '0'); } catch (e) { /* private browsing, etc */ }
+  applySidebarCollapsedState();
+}
+applySidebarCollapsedState();
+
+// Individual sidebar sections (Overview, Filter, Session Rooms, etc.) each collapse
+// independently, on top of the whole-sidebar collapse above -- same remembered-across-visits
+// approach, just keyed per section instead of one flag for the whole panel.
+let collapsedSidebarSections = new Set();
+try { collapsedSidebarSections = new Set(JSON.parse(localStorage.getItem('sbcmcCollapsedSections') || '[]')); } catch (e) { /* private browsing, etc */ }
+
+function applyCollapsedSectionsState() {
+  document.querySelectorAll('[data-section-key]').forEach(body => {
+    body.classList.toggle('collapsed', collapsedSidebarSections.has(body.dataset.sectionKey));
+  });
+  document.querySelectorAll('[data-section-toggle]').forEach(label => {
+    const chevron = label.querySelector('.sp-chevron');
+    if (chevron) chevron.classList.toggle('open', !collapsedSidebarSections.has(label.dataset.sectionToggle));
+  });
+}
+function toggleSidebarSection(key) {
+  if (collapsedSidebarSections.has(key)) collapsedSidebarSections.delete(key);
+  else collapsedSidebarSections.add(key);
+  try { localStorage.setItem('sbcmcCollapsedSections', JSON.stringify(Array.from(collapsedSidebarSections))); } catch (e) { /* private browsing, etc */ }
+  applyCollapsedSectionsState();
+}
+applyCollapsedSectionsState();
+
 function switchTopView(view) {
   document.querySelector('.app').style.display = view === 'floorplan' ? 'flex' : 'none';
   document.getElementById('sponsor-view').style.display = view === 'sponsors' ? 'block' : 'none';
@@ -5325,7 +5438,7 @@ function buildSponsorRowPair(s, todayStr) {
   const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
   const overdue = isOverdue(s);
   const dueCell = s.data.money.dueDate
-    ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${s.data.money.dueDate}</span>` : escapeHtml(s.data.money.dueDate))
+    ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${friendlyDate(s.data.money.dueDate)}</span>` : escapeHtml(friendlyDate(s.data.money.dueDate)))
     : '—';
   tr.innerHTML = `
     <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">▸</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${(() => {
@@ -5809,6 +5922,7 @@ function addComm(id) {
 
 let expandedActionItems = new Set(); // tracks which action items have their comment thread open, keyed "sponsorId:index"
 let openTransportAddForms = new Set(); // which speakers currently have the "add a trip" form expanded
+let expandedSpeakerSessions = new Set(); // which session cards are showing full fields vs. just a summary line, keyed "speakerId:index"
 let speakerActiveTab = 'overview'; // shared tab state -- only one speaker record is ever expanded at a time
 
 function setSpeakerTab(tab) {
@@ -5828,7 +5942,7 @@ function speakerCompleteness(sp) {
   const checks = [];
   checks.push(!!sp.contactEmail);
   checks.push((sp.types || []).length > 0);
-  checks.push(!!sp.data.session.title);
+  checks.push((sp.data.sessions || []).some(s => s.title));
   checks.push(!!sp.data.financial.feeStatus);
   const mat = materialsForTypes(sp.types);
   const mn = sp.data.materialsNeeded || {};
@@ -6440,6 +6554,26 @@ const CONFERENCE_DOCS_TABLE = 'conference_documents';
 const DRIVERS_TABLE = 'conference_drivers';
 const HOTELS_TABLE = 'conference_hotels';
 
+// Session rooms/tracks: the real room list isn't finalized and the real track list is (as of
+// this writing) still subject to change, so both are editable from the Speakers/Artists
+// sidebar rather than hardcoded into the Room/Track dropdowns. Requires its own tables:
+//   create table if not exists session_rooms (id text primary key, name text not null);
+//   create table if not exists session_tracks (id text primary key, name text not null);
+//   alter table session_rooms enable row level security;
+//   alter table session_tracks enable row level security;
+//   create policy "public read session_rooms" on session_rooms for select using (true);
+//   create policy "public write session_rooms" on session_rooms for insert with check (true);
+//   create policy "public update session_rooms" on session_rooms for update using (true);
+//   create policy "public delete session_rooms" on session_rooms for delete using (true);
+//   create policy "public read session_tracks" on session_tracks for select using (true);
+//   create policy "public write session_tracks" on session_tracks for insert with check (true);
+//   create policy "public update session_tracks" on session_tracks for update using (true);
+//   create policy "public delete session_tracks" on session_tracks for delete using (true);
+// Until that table exists, changes made here still work for the current session but won't
+// persist across a reload (same graceful-degradation behavior as everything else in this app).
+const SESSION_ROOMS_TABLE = 'session_rooms';
+const SESSION_TRACKS_TABLE = 'session_tracks';
+
 async function loadDriversAndHotels() {
   if (!sbClient) return;
   try {
@@ -6669,7 +6803,9 @@ function speakerBadgeClass(status) {
 
 function defaultSpeakerData() {
   return {
-    session: { title: '', track: '', sessionDate: '', day: '', timeSlot: '', room: '', lengthMin: '', description: '' },
+    // Someone can lead more than one breakout/session -- this is a list, empty until
+    // "+ Add a session" is clicked, same pattern as badgeNames/transportNeeds below.
+    sessions: [], // [{id, title, track, sessionDate, day, timeSlot, room, lengthMin, description}]
     financial: { fee: '', feeStatus: '', travelReimbursement: '', w9Received: false, invoiceSent: false, dueDate: '' },
     logistics: {
       partySize: '', // total headcount traveling: artist + band + tour manager + crew, etc.
@@ -6703,12 +6839,21 @@ function rowToSpeaker(row) {
   // for any records saved before that merge -- de-duplicated, since someone could have had both.
   types = types.map(t => (t === 'Worship Artist' || t === 'Headliner') ? 'Musician' : t);
   types = Array.from(new Set(types));
+  const data = Object.assign(defaultSpeakerData(), row.data || {});
+  // Migrate the old single-session shape (before a speaker could lead more than one
+  // breakout) into the new sessions array, once, for any record saved before this change.
+  if (row.data && row.data.session && !row.data.sessions) {
+    const legacy = row.data.session;
+    const hasContent = legacy.title || legacy.track || legacy.sessionDate || legacy.timeSlot || legacy.room || legacy.lengthMin || legacy.description;
+    data.sessions = hasContent ? [Object.assign({ id: makeId() }, legacy)] : [];
+  }
+  delete data.session; // drop the old singular key either way so it doesn't linger in memory or get re-saved
   return {
     id: row.id, name: row.name || '',
     types,
     contactName: row.contact_name || '', contactEmail: row.contact_email || '', contactPhone: row.contact_phone || '',
     trackerStatus: row.tracker_status || 'Invited', sortOrder: row.sort_order || 0,
-    data: Object.assign(defaultSpeakerData(), row.data || {})
+    data
   };
 }
 
@@ -6805,12 +6950,47 @@ function updateSpeakerNested(id, group, field, value) {
   pushSpeaker(sp);
   renderSpeakerRows(id);
 }
-function updateSpeakerSessionDate(id, value) {
+function addSpeakerSession(id) {
   const sp = getSpeaker(id); if (!sp) return;
-  sp.data.session.sessionDate = value;
-  sp.data.session.day = fullWeekday(value); // auto-filled, not typed
+  if (!sp.data.sessions) sp.data.sessions = [];
+  sp.data.sessions.push({ id: makeId(), title: '', track: '', sessionDate: '', day: '', timeSlot: '', room: '', lengthMin: '', description: '' });
+  expandedSpeakerSessions.add(id + ':' + (sp.data.sessions.length - 1)); // new session starts expanded so you can fill it in right away
   pushSpeaker(sp);
   renderSpeakerRows(id);
+}
+function removeSpeakerSession(id, i) {
+  const sp = getSpeaker(id); if (!sp || !sp.data.sessions) return;
+  sp.data.sessions.splice(i, 1);
+  // Indices shift after a removal -- simplest to collapse everything for this speaker rather
+  // than risk an expanded flag now pointing at a different session than the one it was set on.
+  Array.from(expandedSpeakerSessions).forEach(key => { if (key.startsWith(id + ':')) expandedSpeakerSessions.delete(key); });
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+}
+function toggleSpeakerSessionExpand(id, i) {
+  const key = id + ':' + i;
+  if (expandedSpeakerSessions.has(key)) expandedSpeakerSessions.delete(key);
+  else expandedSpeakerSessions.add(key);
+  renderSpeakerRows(id);
+}
+function updateSpeakerSessionField(id, i, field, value) {
+  const sp = getSpeaker(id); if (!sp || !sp.data.sessions || !sp.data.sessions[i]) return;
+  sp.data.sessions[i][field] = value;
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+}
+function updateSpeakerSessionDate(id, i, value) {
+  const sp = getSpeaker(id); if (!sp || !sp.data.sessions || !sp.data.sessions[i]) return;
+  sp.data.sessions[i].sessionDate = value;
+  sp.data.sessions[i].day = fullWeekday(value); // auto-filled, not typed
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+}
+function sessionTrackOptionsHtml(selected) {
+  return '<option value="">— not set —</option>' + sessionTracks.map(t => `<option value="${escapeHtml(t.name)}" ${t.name === selected ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+}
+function sessionRoomOptionsHtml(selected) {
+  return '<option value="">— not set —</option>' + sessionRooms.map(r => `<option value="${escapeHtml(r.name)}" ${r.name === selected ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('');
 }
 function updateSpeakerData(id, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
@@ -6885,7 +7065,8 @@ function setSpeakerFilter(f) {
 function setSpeakerSearch(v) { speakerSearch = v; renderSpeakerRows(); }
 function speakerSearchHaystack(sp) {
   const parts = [
-    sp.name, sp.contactName, sp.contactEmail, ...(sp.types || []), sp.data.session.title, sp.data.session.track,
+    sp.name, sp.contactName, sp.contactEmail, ...(sp.types || []),
+    ...(sp.data.sessions || []).flatMap(s => [s.title, s.track, s.room]),
     sp.data.specialNotes, ...(sp.data.comms || []).map(c => c.note),
     ...(sp.data.questions || []).map(q => q.text), ...(sp.data.actionItems || []).map(a => a.text)
   ];
@@ -6906,8 +7087,23 @@ function setSpeakerSortFromDropdown(value) {
 function speakerSortValue(sp, key) {
   if (key === 'name') return (sp.name || '').toLowerCase();
   if (key === 'status') return (sp.trackerStatus || '').toLowerCase();
-  if (key === 'day') return (sp.data.session.day || '') + (sp.data.session.timeSlot || '');
+  if (key === 'day') {
+    const s = earliestSpeakerSession(sp);
+    return s ? (s.sessionDate || '') + (s.timeSlot || '') : '';
+  }
   return '';
+}
+
+// A speaker can have multiple sessions now -- this picks whichever is chronologically
+// first (by date, then time slot), used anywhere the UI only has room for one at a glance.
+function earliestSpeakerSession(sp) {
+  const sessions = sp.data.sessions || [];
+  if (sessions.length === 0) return null;
+  return sessions.slice().sort((a, b) => {
+    const aKey = (a.sessionDate || '9999-99-99') + (a.timeSlot || '99:99');
+    const bKey = (b.sessionDate || '9999-99-99') + (b.timeSlot || '99:99');
+    return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
+  })[0];
 }
 
 function materialsNeededCount(sp) {
@@ -6943,6 +7139,111 @@ const AIRPORT_NAME = 'Birmingham-Shuttlesworth International Airport (BHM)';
 const AIRPORT_ADDRESS = '5900 Messer Airport Highway, Birmingham, AL 35212';
 let hotels = []; // [{id, name, address}] -- added later; drives the location datalist below
 let drivers = []; // [{id, name, phone, notes}]
+
+// Placeholder rooms -- the real room list isn't finalized yet. Editable from the
+// Speakers/Artists sidebar; rename/add/remove anytime, no code change needed.
+const DEFAULT_SESSION_ROOMS = ['Room A', 'Room B', 'Room C', 'Room D', 'Main Hall'];
+// The real 2027 "Equipping Tracks" breakout list, from https://sbcmc.org/2027-conference/.
+// Also editable from the sidebar in case the final program adds, removes, or renames any.
+const DEFAULT_SESSION_TRACKS = [
+  'Songwriting & Arranging', 'Kids Worship', 'Student Worship', 'Revive the Choir',
+  'Vocal Technique', 'Technology & Production', 'Lifeway Worship',
+  'Worship Leader Refuel & Renew', 'Worship Planning and Leadership',
+  'Next Gen / Calling Out the Called', 'Women in Worship', 'SBC Worship / Worship Initiative',
+  'Worship Theology', 'Academic Papers', 'Instrumental Ministry',
+  'Choral Publishers — Reading Sessions'
+];
+let sessionRooms = DEFAULT_SESSION_ROOMS.map((name, i) => ({ id: 'room_default_' + i, name }));
+let sessionTracks = DEFAULT_SESSION_TRACKS.map((name, i) => ({ id: 'track_default_' + i, name }));
+
+async function loadSessionRoomsAndTracks() {
+  if (!sbClient) return;
+  try {
+    const [roomsRes, tracksRes] = await Promise.all([
+      sbClient.from(SESSION_ROOMS_TABLE).select('*').order('name', { ascending: true }),
+      sbClient.from(SESSION_TRACKS_TABLE).select('*').order('name', { ascending: true })
+    ]);
+    if (!roomsRes.error && roomsRes.data && roomsRes.data.length) sessionRooms = roomsRes.data.map(r => ({ id: r.id, name: r.name }));
+    else if (roomsRes.error) console.warn('Session rooms table not available:', errDetail(roomsRes.error));
+    if (!tracksRes.error && tracksRes.data && tracksRes.data.length) sessionTracks = tracksRes.data.map(t => ({ id: t.id, name: t.name }));
+    else if (tracksRes.error) console.warn('Session tracks table not available:', errDetail(tracksRes.error));
+  } catch (err) {
+    console.warn('Session rooms/tracks load failed:', err);
+  }
+}
+
+function addSessionRoom() {
+  const input = document.getElementById('sk-room-name');
+  const name = input.value.trim();
+  if (!name) { toast('Enter a room name first.'); return; }
+  const room = { id: makeId(), name };
+  sessionRooms.push(room);
+  renderSpeakerView();
+  if (sbClient) {
+    sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: room.id, name: room.name }).then(({ error }) => {
+      if (error) { console.error('Room save failed:', error); toast('Couldn’t save that room — it’ll disappear next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+  input.value = '';
+}
+function editSessionRoom(id) {
+  const r = sessionRooms.find(x => x.id === id); if (!r) return;
+  const newName = prompt('Room name:', r.name);
+  if (newName === null || !newName.trim()) return;
+  r.name = newName.trim();
+  renderSpeakerView();
+  renderSpeakerRows();
+  if (sbClient) {
+    sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: r.id, name: r.name }).then(({ error }) => {
+      if (error) { console.error('Room update failed:', error); toast('Couldn’t save that change — it’ll revert next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+}
+function removeSessionRoom(id) {
+  sessionRooms = sessionRooms.filter(r => r.id !== id);
+  renderSpeakerView();
+  if (sbClient) {
+    sbClient.from(SESSION_ROOMS_TABLE).delete().eq('id', id).then(({ error }) => {
+      if (error) { console.error('Room delete failed:', error); toast('Couldn’t delete that room — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+}
+function addSessionTrack() {
+  const input = document.getElementById('sk-track-name');
+  const name = input.value.trim();
+  if (!name) { toast('Enter a track name first.'); return; }
+  const track = { id: makeId(), name };
+  sessionTracks.push(track);
+  renderSpeakerView();
+  if (sbClient) {
+    sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: track.id, name: track.name }).then(({ error }) => {
+      if (error) { console.error('Track save failed:', error); toast('Couldn’t save that track — it’ll disappear next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+  input.value = '';
+}
+function editSessionTrack(id) {
+  const t = sessionTracks.find(x => x.id === id); if (!t) return;
+  const newName = prompt('Track name:', t.name);
+  if (newName === null || !newName.trim()) return;
+  t.name = newName.trim();
+  renderSpeakerView();
+  renderSpeakerRows();
+  if (sbClient) {
+    sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: t.id, name: t.name }).then(({ error }) => {
+      if (error) { console.error('Track update failed:', error); toast('Couldn’t save that change — it’ll revert next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+}
+function removeSessionTrack(id) {
+  sessionTracks = sessionTracks.filter(t => t.id !== id);
+  renderSpeakerView();
+  if (sbClient) {
+    sbClient.from(SESSION_TRACKS_TABLE).delete().eq('id', id).then(({ error }) => {
+      if (error) { console.error('Track delete failed:', error); toast('Couldn’t delete that track — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+}
 
 function autofillTransportLocations(id, label) {
   // Fills in whatever we already know for this leg -- flight date/time for airport legs,
@@ -7036,6 +7337,26 @@ function renderSpeakerView() {
       ? `<div class="sk-file-row"><a href="${escapeHtml(conferenceProductionRider.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(conferenceProductionRider.label)}</a><span class="sp-sub">${escapeHtml(conferenceProductionRider.fileName)} \u00b7 ${escapeHtml(conferenceProductionRider.uploadedAt)}</span></div>`
       : '<div class="sp-sub" style="margin-bottom:6px;">No rider uploaded yet.</div>';
   }
+  const roomsEl = document.getElementById('sk-rooms-current');
+  if (roomsEl) {
+    roomsEl.innerHTML = sessionRooms.map(r => `
+      <div class="sk-file-row">
+        <span>${escapeHtml(r.name)}</span>
+        <button class="sp-mini-btn" onclick="editSessionRoom('${r.id}')">Edit</button>
+        <button class="sp-mini-btn" onclick="removeSessionRoom('${r.id}')">&times;</button>
+      </div>
+    `).join('') || '<div class="sp-sub">No rooms added yet.</div>';
+  }
+  const tracksEl = document.getElementById('sk-tracks-current');
+  if (tracksEl) {
+    tracksEl.innerHTML = sessionTracks.map(t => `
+      <div class="sk-file-row">
+        <span>${escapeHtml(t.name)}</span>
+        <button class="sp-mini-btn" onclick="editSessionTrack('${t.id}')">Edit</button>
+        <button class="sp-mini-btn" onclick="removeSessionTrack('${t.id}')">&times;</button>
+      </div>
+    `).join('') || '<div class="sp-sub">No tracks added yet.</div>';
+  }
   renderSpeakerRows();
 }
 
@@ -7052,7 +7373,14 @@ function buildSpeakerRowPair(sp, todayStr) {
   tr.innerHTML = `
     <td><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}</td>
     <td class="sp-org">${escapeHtml(sp.name)}<div class="sp-sub">${escapeHtml((sp.types || []).join(', '))}</div></td>
-    <td>${escapeHtml(sp.data.session.title || '—')}<div class="sp-sub">${escapeHtml([sp.data.session.day, sp.data.session.timeSlot].filter(Boolean).join(' · '))}</div></td>
+    <td>${(() => {
+      const sessions = sp.data.sessions || [];
+      const first = earliestSpeakerSession(sp);
+      if (!first) return '—';
+      const extra = sessions.length > 1 ? ` <span class="sp-sub">+${sessions.length - 1} more</span>` : '';
+      const when = [first.day, friendlyTime(first.timeSlot)].filter(Boolean).join(' · ');
+      return `${escapeHtml(first.title || 'Untitled session')}${extra}<div class="sp-sub">${escapeHtml(when)}</div>`;
+    })()}</td>
     <td>${escapeHtml(sp.contactName) || '—'}<div class="sp-sub">${escapeHtml(sp.contactEmail)}</div></td>
     <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
     <td>${(() => { const c = speakerCompleteness(sp); const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
@@ -7232,7 +7560,7 @@ function speakerDetailHTML(sp) {
 
     ${activeTab !== 'overview' ? '' : `
     <div class="sk-tab-panel">
-      <div class="sp-detail-grid">
+      <div class="sp-detail-grid sp-detail-2col">
         <fieldset class="sp-fieldset">
           <legend>Contact &amp; Session</legend>
           <div class="sp-field"><label for="sk-name-${sp.id}">Name</label><input id="sk-name-${sp.id}" type="text" value="${escapeHtml(sp.name)}" onchange="updateSpeakerSimple('${sp.id}','name',this.value)"></div>
@@ -7245,20 +7573,37 @@ function speakerDetailHTML(sp) {
         </fieldset>
 
         <fieldset class="sp-fieldset">
-          <legend>Session</legend>
-          <div class="sp-field"><label for="sk-sesstitle-${sp.id}">Session title</label><input id="sk-sesstitle-${sp.id}" type="text" value="${escapeHtml(sp.data.session.title)}" onchange="updateSpeakerNested('${sp.id}','session','title',this.value)"></div>
-          <div class="sp-field"><label for="sk-sesstrack-${sp.id}">Track</label><input id="sk-sesstrack-${sp.id}" type="text" value="${escapeHtml(sp.data.session.track)}" onchange="updateSpeakerNested('${sp.id}','session','track',this.value)"></div>
-          <div class="sp-field"><label for="sk-sessdate-${sp.id}">Session date</label><input id="sk-sessdate-${sp.id}" type="date" min="2027-04-11" max="2027-04-14" value="${escapeHtml(sp.data.session.sessionDate)}" onchange="updateSpeakerSessionDate('${sp.id}', this.value)"></div>
-          <div class="sp-field"><label for="sk-sessday-${sp.id}">Day</label><input id="sk-sessday-${sp.id}" type="text" readonly value="${sp.data.session.sessionDate ? escapeHtml(sp.data.session.day) : 'Pick a date above'}" style="background:var(--paper); color:var(--ink-soft);"></div>
-          <div class="sp-field"><label for="sk-sesstime-${sp.id}">Time slot</label><input id="sk-sesstime-${sp.id}" type="text" placeholder="e.g. 10:00 AM" value="${escapeHtml(sp.data.session.timeSlot)}" onchange="updateSpeakerNested('${sp.id}','session','timeSlot',this.value)"></div>
-          <div class="sp-field"><label for="sk-sessroom-${sp.id}">Room</label><input id="sk-sessroom-${sp.id}" type="text" value="${escapeHtml(sp.data.session.room)}" onchange="updateSpeakerNested('${sp.id}','session','room',this.value)"></div>
-          <div class="sp-field"><label for="sk-sesslength-${sp.id}">Length (min)</label><input id="sk-sesslength-${sp.id}" type="number" value="${escapeHtml(sp.data.session.lengthMin)}" onchange="updateSpeakerNested('${sp.id}','session','lengthMin',this.value)"></div>
-          <div class="sp-field"><label for="sk-sessdesc-${sp.id}">Description</label><textarea id="sk-sessdesc-${sp.id}" rows="2" onchange="updateSpeakerNested('${sp.id}','session','description',this.value)">${escapeHtml(sp.data.session.description)}</textarea></div>
-        </fieldset>
-
-        <fieldset class="sp-fieldset">
           <legend>Notes</legend>
           <textarea rows="3" onchange="updateSpeakerData('${sp.id}','specialNotes',this.value)">${escapeHtml(sp.data.specialNotes)}</textarea>
+        </fieldset>
+
+        <fieldset class="sp-fieldset" style="grid-column:1/-1;">
+          <legend>Sessions</legend>
+          ${(sp.data.sessions || []).map((sess, i) => {
+            const isExpanded = expandedSpeakerSessions.has(sp.id + ':' + i);
+            const summaryBits = [sess.track, [sess.day, friendlyTime(sess.timeSlot)].filter(Boolean).join(' · '), sess.room].filter(Boolean).join(' — ');
+            return `
+            <div class="sp-session-card${i === 0 ? ' sp-session-card-first' : ''}">
+              <div class="sp-session-summary" onclick="toggleSpeakerSessionExpand('${sp.id}',${i})">
+                <span class="sp-chevron ${isExpanded ? 'open' : ''}">▸</span>
+                <span class="sp-session-summary-text"><b>${escapeHtml(sess.title) || 'Session ' + (i + 1)}</b>${summaryBits ? ' — ' + escapeHtml(summaryBits) : ''}</span>
+                <button class="sp-mini-btn" onclick="event.stopPropagation(); removeSpeakerSession('${sp.id}',${i})">&times; Remove</button>
+              </div>
+              ${!isExpanded ? '' : `
+              <div class="sp-field-grid" style="margin-top:10px;">
+                <div class="sp-field"><label for="sk-sesstitle-${sp.id}-${i}">Session title</label><input id="sk-sesstitle-${sp.id}-${i}" type="text" value="${escapeHtml(sess.title)}" onchange="updateSpeakerSessionField('${sp.id}',${i},'title',this.value)"></div>
+                <div class="sp-field"><label for="sk-sesstrack-${sp.id}-${i}">Track</label><select id="sk-sesstrack-${sp.id}-${i}" onchange="updateSpeakerSessionField('${sp.id}',${i},'track',this.value)">${sessionTrackOptionsHtml(sess.track)}</select></div>
+                <div class="sp-field"><label for="sk-sessdate-${sp.id}-${i}">Session date</label><input id="sk-sessdate-${sp.id}-${i}" type="date" min="2027-04-11" max="2027-04-14" value="${escapeHtml(sess.sessionDate)}" onchange="updateSpeakerSessionDate('${sp.id}',${i},this.value)"></div>
+                <div class="sp-field"><label for="sk-sessday-${sp.id}-${i}">Day</label><input id="sk-sessday-${sp.id}-${i}" type="text" readonly value="${sess.sessionDate ? escapeHtml(sess.day) : 'Pick a date above'}" style="background:var(--paper); color:var(--ink-soft);"></div>
+                <div class="sp-field"><label for="sk-sesstime-${sp.id}-${i}">Time slot</label><input id="sk-sesstime-${sp.id}-${i}" type="time" value="${escapeHtml(sess.timeSlot)}" onchange="updateSpeakerSessionField('${sp.id}',${i},'timeSlot',this.value)"></div>
+                <div class="sp-field"><label for="sk-sessroom-${sp.id}-${i}">Room</label><select id="sk-sessroom-${sp.id}-${i}" onchange="updateSpeakerSessionField('${sp.id}',${i},'room',this.value)">${sessionRoomOptionsHtml(sess.room)}</select></div>
+                <div class="sp-field"><label for="sk-sesslength-${sp.id}-${i}">Length (min)</label><input id="sk-sesslength-${sp.id}-${i}" type="number" value="${escapeHtml(sess.lengthMin)}" onchange="updateSpeakerSessionField('${sp.id}',${i},'lengthMin',this.value)"></div>
+                <div class="sp-field" style="grid-column:1/-1;"><label for="sk-sessdesc-${sp.id}-${i}">Description</label><textarea id="sk-sessdesc-${sp.id}-${i}" rows="2" onchange="updateSpeakerSessionField('${sp.id}',${i},'description',this.value)">${escapeHtml(sess.description)}</textarea></div>
+              </div>
+              `}
+            </div>
+          `; }).join('') || '<div class="sp-sub">No sessions added yet.</div>'}
+          <button class="sp-mini-btn" style="margin-top:10px;" onclick="addSpeakerSession('${sp.id}')">+ Add a session</button>
         </fieldset>
       </div>
     </div>
@@ -7860,11 +8205,14 @@ function emailSpeakerSummary(id) {
   lines.push("Here's where things stand for SBCMC 2027 \u2014 take a look and let us know if anything needs correcting or if you have special requests.");
   lines.push('');
 
-  if (sp.data.session.title || sp.data.session.day) {
-    lines.push('SESSION');
-    if (sp.data.session.title) lines.push('  ' + sp.data.session.title);
-    const when = [sp.data.session.day, sp.data.session.timeSlot].filter(Boolean).join(' at ');
-    if (when) lines.push('  ' + when + (sp.data.session.room ? ' \u2014 ' + sp.data.session.room : ''));
+  const sessions = sp.data.sessions || [];
+  if (sessions.length) {
+    lines.push(sessions.length === 1 ? 'SESSION' : 'SESSIONS');
+    sessions.forEach(sess => {
+      if (sess.title) lines.push('  ' + sess.title);
+      const when = [sess.day, friendlyTime(sess.timeSlot)].filter(Boolean).join(' at ');
+      if (when) lines.push('  ' + when + (sess.room ? ' \u2014 ' + sess.room : ''));
+    });
     lines.push('');
   }
 
@@ -7949,9 +8297,11 @@ function exportSpeakersCSV() {
   const lines = [headers.map(csvEscape).join(',')];
   rows.forEach(sp => {
     const mat = materialsNeededCount(sp);
+    const sessions = sp.data.sessions || [];
+    const sessJoin = field => sessions.map(s => s[field] || '').join(' | ');
     const row = [
       sp.name, (sp.types || []).join(' | '), sp.contactName, sp.contactEmail, sp.contactPhone, sp.trackerStatus, sp.data.flagged ? 'Yes' : 'No',
-      sp.data.session.title, sp.data.session.track, sp.data.session.day, sp.data.session.timeSlot, sp.data.session.room, sp.data.session.lengthMin,
+      sessJoin('title'), sessJoin('track'), sessJoin('day'), sessions.map(s => friendlyTime(s.timeSlot)).join(' | '), sessJoin('room'), sessJoin('lengthMin'),
       sp.data.financial.fee, sp.data.financial.feeStatus, sp.data.financial.travelReimbursement, sp.data.financial.w9Received ? 'Yes' : 'No', sp.data.financial.invoiceSent ? 'Yes' : 'No', sp.data.financial.dueDate,
       sp.data.logistics.partySize, (sp.data.logistics.badgeNames || []).filter(Boolean).join(' | '), sp.data.logistics.travelMethod, sp.data.logistics.flightInfo,
       sp.data.logistics.arrivalDate, sp.data.logistics.arrivalTime, sp.data.logistics.departureDate, sp.data.logistics.departureTime,
