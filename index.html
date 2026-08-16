@@ -977,13 +977,21 @@ table.sch-grid th { text-align: left; font-size: 10.5px; text-transform: upperca
 table.sch-grid th.sch-track-col { position: sticky; left: 0; z-index: 2; min-width: 190px; }
 table.sch-grid td.sch-track-label { position: sticky; left: 0; background: var(--paper); font-size: 12.5px; font-weight: 600; color: var(--teal-deep); padding: 8px 10px; border-right: 1px solid var(--line); z-index: 1; min-width: 190px; }
 table.sch-grid td { border: 1px solid var(--line); padding: 0; vertical-align: top; }
+/* Zebra-striping: alternates every other track row so the eye can follow one row across all
+   five breakout columns. Pure CSS (nth-child) so it stays correct automatically as tracks are
+   added, removed, or reordered -- no per-row bookkeeping needed. */
+table.sch-grid tbody tr:nth-child(even) td.sch-track-label { background: #EFF4F5; }
+table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
+.sch-track-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; flex-shrink: 0; }
 .sch-cell { min-height: 56px; min-width: 150px; padding: 6px 8px; box-sizing: border-box; transition: background 0.12s; display: flex; flex-direction: column; gap: 5px; }
 .sch-cell-empty { align-items: center; justify-content: center; color: var(--ink-soft); font-size: 11.5px; }
 .sch-cell-add { border: 1px dashed var(--line); border-radius: 6px; padding: 4px 6px; font-size: 11px; color: var(--ink-soft); background: transparent; cursor: pointer; }
 .sch-cell-add:hover { border-color: var(--teal); color: var(--teal-deep); }
 .sch-cell:not(.sch-cell-empty) .sch-cell-add { width: 100%; box-sizing: border-box; margin-top: 2px; }
 .sch-cell-hover { background: rgba(197,161,84,0.22) !important; }
-.sch-card { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 7px; padding: 6px 22px 8px 8px; font-size: 12px; cursor: grab; position: relative; }
+/* Track accent stripe: each row's cards carry a left-edge color (set inline per-row from
+   TRACK_COLOR_PALETTE) so a track is identifiable across all five breakouts at a glance. */
+.sch-card { background: var(--teal-pale); border: 1px solid var(--line); border-left-width: 4px; border-left-style: solid; border-radius: 7px; padding: 6px 22px 8px 8px; font-size: 12px; cursor: grab; position: relative; }
 .sch-card:active { cursor: grabbing; }
 .sch-card .sch-card-name { font-weight: 700; color: var(--teal-deep); }
 .sch-card .sch-card-title { color: var(--ink-soft); font-size: 11px; }
@@ -991,8 +999,8 @@ table.sch-grid td { border: 1px solid var(--line); padding: 0; vertical-align: t
 .sch-card .sch-card-x:hover { color: #a52620; }
 .sch-card .sch-card-edit { position: absolute; bottom: 4px; right: 5px; cursor: pointer; color: var(--ink-soft); font-size: 10px; opacity: 0.55; }
 .sch-card .sch-card-edit:hover { opacity: 1; color: var(--teal-deep); }
-.sch-card.sch-conflict { border-color: #c0392b; box-shadow: 0 0 0 1px #c0392b inset; }
-.sch-card .sch-conflict-icon { position: absolute; top: 3px; left: 5px; font-size: 11px; }
+.sch-card.sch-conflict { border-color: #c0392b; box-shadow: 0 0 0 1px #c0392b inset; padding-right: 26px; }
+.sch-card .sch-conflict-icon { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 11px; }
 
 .sch-timeline-day { margin-bottom: 22px; }
 .sch-timeline-day-title { font-family: var(--font-display); font-size: 15px; color: var(--teal-deep); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--gold); }
@@ -1207,6 +1215,9 @@ table.sch-grid td { border: 1px solid var(--line); padding: 0; vertical-align: t
         <div class="sp-collapsible-body" data-section-key="sk-overview">
         <div class="sp-stat-block">
           <div class="sp-stat"><span>Tracked</span><b id="sk-stat-total">0</b></div>
+          <div class="sp-stat"><span>Fees owed</span><b id="sk-stat-fees-total">$0</b></div>
+          <div class="sp-stat"><span>Fees paid</span><b id="sk-stat-fees-paid">$0</b></div>
+          <div class="sp-stat"><span>Fees outstanding</span><b id="sk-stat-fees-outstanding">$0</b></div>
         </div>
         </div>
       </div>
@@ -1307,15 +1318,15 @@ table.sch-grid td { border: 1px solid var(--line); padding: 0; vertical-align: t
   <div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px;">
     <h2 style="font-family: var(--font-display); color: var(--teal-deep); margin: 0 0 6px;">Conference Schedule</h2>
     <div class="sch-view-toggle">
-      <button class="sch-toggle-btn active" id="sch-toggle-grid" onclick="setScheduleSubview('grid')">Breakout Grid</button>
-      <button class="sch-toggle-btn" id="sch-toggle-timeline" onclick="setScheduleSubview('timeline')">Timeline</button>
+      <button class="sch-toggle-btn" id="sch-toggle-grid" onclick="setScheduleSubview('grid')">Breakout Grid</button>
+      <button class="sch-toggle-btn active" id="sch-toggle-timeline" onclick="setScheduleSubview('timeline')">Timeline</button>
     </div>
   </div>
   <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, or see the full Sunday–Wednesday agenda. This reads and writes the same session data as the Speakers/Artists tab — editing here updates their record, and editing their record updates here.</p>
 
   <div id="sch-conflicts-body"></div>
-  <div id="sch-grid-body"></div>
-  <div id="sch-timeline-body" style="display:none;"></div>
+  <div id="sch-grid-body" style="display:none;"></div>
+  <div id="sch-timeline-body"></div>
 </div>
 
 <div id="dashboard-view">
@@ -1329,10 +1340,10 @@ table.sch-grid td { border: 1px solid var(--line); padding: 0; vertical-align: t
         <line x1="0" y1="160" x2="320" y2="140" stroke="white" stroke-width="1.5"/>
       </svg>
       <div class="db-header">
-        <h2>Sponsorship Progress</h2>
+        <h2>Conference Dashboard</h2>
         <button class="db-print-btn no-print" onclick="printDashboardReport()">🖨 Print Report</button>
       </div>
-      <p class="print-only db-print-header">SBCMC 2027 &mdash; Sponsorship Report<br><span id="db-print-date"></span></p>
+      <p class="print-only db-print-header">SBCMC 2027 &mdash; Conference Report<br><span id="db-print-date"></span></p>
     </div>
 
     <div class="db-body">
@@ -4474,7 +4485,56 @@ function sponsorsForDashboardKey(key) {
   return [];
 }
 
+function speakerFeeTotals() {
+  // Only sponsor-provided speakers are excluded here -- their "fee" is covered by the
+  // sponsorship, not paid by us. Local speakers are still included: being local means no
+  // travel is arranged for them, not that they're unpaid -- some local speakers are paid a
+  // fee like anyone else, so their Financials tab (and this total) stays fully live.
+  let committed = 0, paid = 0;
+  speakers.forEach(sp => {
+    if (sp.data.arrangement === 'sponsor') return;
+    const fee = parseMoneyNum(sp.data.financial.fee);
+    if (!fee) return;
+    committed += fee;
+    if (sp.data.financial.feeStatus === 'Paid in Full') paid += fee;
+  });
+  return { committed, paid, outstanding: committed - paid };
+}
+function speakersForFeeDrillKey(key) {
+  const relevant = speakers.filter(sp => sp.data.arrangement !== 'sponsor' && parseMoneyNum(sp.data.financial.fee) > 0);
+  if (key === 'speakerFee:total') return relevant;
+  if (key === 'speakerFee:paid') return relevant.filter(sp => sp.data.financial.feeStatus === 'Paid in Full');
+  if (key === 'speakerFee:outstanding') return relevant.filter(sp => sp.data.financial.feeStatus !== 'Paid in Full');
+  return [];
+}
+function openSpeakerFeeDrill(key, title) {
+  const list = speakersForFeeDrillKey(key);
+  document.getElementById('dashboard-drill-title').textContent = title;
+  const body = document.getElementById('dashboard-drill-body');
+  if (list.length === 0) {
+    body.innerHTML = '<div class="dd-empty">Nothing here yet.</div>';
+    document.getElementById('dashboard-drill-overlay').style.display = 'flex';
+    return;
+  }
+  const rows = list.slice().sort((a, b) => a.name.localeCompare(b.name)).map(sp => `<tr>
+    <td><div class="dd-org">${escapeHtml(sp.name)}</div>${sp.data.specialNotes ? `<div class="dd-sub">${escapeHtml(sp.data.specialNotes)}</div>` : ''}</td>
+    <td>${escapeHtml(sp.contactName) || '—'}${sp.contactEmail ? `<div class="dd-sub">${escapeHtml(sp.contactEmail)}</div>` : ''}</td>
+    <td>${fmt(parseMoneyNum(sp.data.financial.fee))}</td>
+    <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
+    <td>${sp.data.financial.feeStatus ? escapeHtml(sp.data.financial.feeStatus) : '— not set —'}</td>
+  </tr>`).join('');
+  body.innerHTML = `
+    <div class="dd-count">${list.length} speaker${list.length === 1 ? '' : 's'}</div>
+    <table class="dd-table">
+      <thead><tr><th>Name</th><th>Contact</th><th>Fee</th><th>Tracker Status</th><th>Fee Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  document.getElementById('dashboard-drill-overlay').style.display = 'flex';
+}
+
 function openDashboardDrill(key, title) {
+  if (key.indexOf('speakerFee:') === 0) { openSpeakerFeeDrill(key, title); return; }
   const list = sponsorsForDashboardKey(key);
   document.getElementById('dashboard-drill-title').textContent = title;
   const body = document.getElementById('dashboard-drill-body');
@@ -4633,6 +4693,23 @@ function renderPackageDualAxisChart(pkgTotals, pkgCounts) {
   });
 }
 
+// Shared dashboard stat-card building blocks -- used by both the sponsor cards up top and the
+// Speakers/Artists fee cards further down, so they look and behave identically (including the
+// click-to-drill-down behavior).
+const ICON_USERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>';
+const ICON_DOLLAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>';
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+const ICON_GIFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>';
+function dbCard(icon, iconColor, label, value, sub, valueColor, drillKey, drillTitle) {
+  return `<div class="db-card" onclick="openDashboardDrill('${drillKey}', '${escapeHtml(drillTitle)}')" style="cursor:pointer;">
+    <div style="width:30px; height:30px; border-radius:8px; background:${iconColor}18; color:${iconColor}; display:flex; align-items:center; justify-content:center; margin-bottom:10px;"><span style="width:16px; height:16px; display:block;">${icon}</span></div>
+    <div class="db-card-label">${label}</div>
+    <div class="db-card-value" ${valueColor ? `style="color:${valueColor};"` : ''}>${value}</div>
+    <div class="db-card-sub">${sub}</div>
+  </div>`;
+}
+
 function renderDashboard() {
   // "Active" sponsors = the ones the totals on this page are scoped to: Registered (cash)
   // and In-Kind. Prospective/lapsed/declined sponsors are tracked elsewhere in the app but
@@ -4673,26 +4750,17 @@ function renderDashboard() {
   const totalOutstanding = totalCommitted - totalCollected;
 
   // Top cards
+  const speakerFees = speakerFeeTotals();
   const cardsEl = document.getElementById('db-cards');
-  const ICON_USERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>';
-  const ICON_DOLLAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>';
-  const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
-  const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
-  const ICON_GIFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>';
-  function dbCard(icon, iconColor, label, value, sub, valueColor, drillKey, drillTitle) {
-    return `<div class="db-card" onclick="openDashboardDrill('${drillKey}', '${escapeHtml(drillTitle)}')" style="cursor:pointer;">
-      <div style="width:30px; height:30px; border-radius:8px; background:${iconColor}18; color:${iconColor}; display:flex; align-items:center; justify-content:center; margin-bottom:10px;"><span style="width:16px; height:16px; display:block;">${icon}</span></div>
-      <div class="db-card-label">${label}</div>
-      <div class="db-card-value" ${valueColor ? `style="color:${valueColor};"` : ''}>${value}</div>
-      <div class="db-card-sub">${sub}</div>
-    </div>`;
-  }
   cardsEl.innerHTML =
     dbCard(ICON_USERS, '#5C879C', 'Total Confirmed Exhibitors', activeSponsors.length, 'registered + committed +<br>in-kind', null, 'active', 'Registered, Committed, and In-Kind Sponsors') +
     dbCard(ICON_DOLLAR, '#A17A26', 'Cash Committed', fmt(totalCommitted), cashSponsors.length + ' cash sponsor' + (cashSponsors.length === 1 ? '' : 's') + `<div class="db-card-breakdown">Booths ${fmt(boothTotal)} &middot; Gifts ${fmt(giftTotal)} &middot; Other ${fmt(otherAdhocTotal)}</div>`, null, 'cash', 'Cash Committed Sponsors') +
     dbCard(ICON_CHECK, '#2E8B57', 'Collected', fmt(totalCollected), 'marked as Paid', '#2E8B57', 'collected', 'Collected (Paid in Full)') +
     dbCard(ICON_CLOCK, '#a52620', 'Outstanding', fmt(totalOutstanding), 'committed, not yet collected', '#a52620', 'outstanding', 'Outstanding Payments') +
-    dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades', null, 'inkind', 'In-Kind Sponsors');
+    dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades', null, 'inkind', 'In-Kind Sponsors') +
+    dbCard(ICON_DOLLAR, '#A17A26', 'Speaker &amp; Artist Fees Owed', fmt(speakerFees.committed), 'excludes sponsor-provided entries', null, 'speakerFee:total', 'Speaker & Artist Fees (Owed)') +
+    dbCard(ICON_CHECK, '#2E8B57', 'Speaker &amp; Artist Fees Paid', fmt(speakerFees.paid), 'marked Paid in Full', '#2E8B57', 'speakerFee:paid', 'Speaker & Artist Fees — Paid in Full') +
+    dbCard(ICON_CLOCK, '#a52620', 'Speaker &amp; Artist Fees Outstanding', fmt(speakerFees.outstanding), 'not yet marked paid in full', '#a52620', 'speakerFee:outstanding', 'Speaker & Artist Fees — Outstanding');
 
   // Progress bar
   const pct = totalCommitted > 0 ? Math.min(100, (totalCollected / totalCommitted) * 100) : 0;
@@ -6161,18 +6229,44 @@ function toggleTransportAddForm(id) {
   renderSpeakerRows(id);
 }
 
+function speakerLogisticsArrangementNote(sp) {
+  // Explains why the Logistics tab is collapsed -- both 'local' and 'sponsor' arrangements
+  // skip travel tracking (nobody here is arranging their trip), regardless of whether a fee
+  // is still owed.
+  if (sp.data.arrangement === 'local') {
+    return 'This speaker is local — no travel arrangements are tracked here. (They may still be paid a fee — see the Financials tab.) Switch "Speaker arrangement" back to Standard on the Overview tab if that changes.';
+  }
+  if (sp.data.arrangement === 'sponsor') {
+    const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
+    return sponsor
+      ? `Presenting as part of <a href="#" onclick="event.preventDefault(); jumpToSponsorById('${sponsor.id}')">${escapeHtml(sponsor.org)}</a>'s sponsorship — no travel arrangement tracked here.`
+      : 'Presenting as part of a sponsorship — pick the linked sponsor on the Overview tab. No travel arrangement tracked here.';
+  }
+  return '';
+}
+function speakerFinancialArrangementNote(sp) {
+  // Only 'sponsor' arrangement skips fee tracking -- a local speaker may still be paid, so
+  // their Financials tab stays fully open (see speakerFeeTotals/speakerCompleteness below).
+  const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
+  return sponsor
+    ? `Presenting as part of <a href="#" onclick="event.preventDefault(); jumpToSponsorById('${sponsor.id}')">${escapeHtml(sponsor.org)}</a>'s sponsorship — no separate fee tracked here.`
+    : 'Presenting as part of a sponsorship — pick the linked sponsor on the Overview tab. No separate fee tracked here.';
+}
+
 function speakerCompleteness(sp) {
   // A rough "how filled-in is this record" score -- lets the coordinator spot who needs
   // attention without opening every single record to check.
+  const skipFee = sp.data.arrangement === 'sponsor'; // sponsor-provided has no fee; local may still be paid
+  const skipTravel = !!sp.data.arrangement; // local and sponsor both skip travel tracking
   const checks = [];
   checks.push(!!sp.contactEmail);
   checks.push((sp.types || []).length > 0);
   checks.push((sp.data.sessions || []).some(s => s.title));
-  checks.push(!!sp.data.financial.feeStatus);
+  if (!skipFee) checks.push(!!sp.data.financial.feeStatus);
   const mat = materialsForTypes(sp.types);
   const mn = sp.data.materialsNeeded || {};
   checks.push(mat.length === 0 || mat.every(k => mn[k]));
-  checks.push(!!sp.data.logistics.travelMethod);
+  if (!skipTravel) checks.push(!!sp.data.logistics.travelMethod);
   const done = checks.filter(Boolean).length;
   return Math.round((done / checks.length) * 100);
 }
@@ -6180,6 +6274,8 @@ function speakerCompleteness(sp) {
 function speakerTabAlert(sp, tab) {
   // A small marker on a tab when something in it needs attention, so you know where to
   // look before you've clicked into every tab.
+  if (sp.data.arrangement === 'sponsor' && tab === 'financial') return false; // collapsed to a note, nothing to flag
+  if (sp.data.arrangement && tab === 'logistics') return false; // collapsed to a note, nothing to flag
   if (tab === 'production') {
     const mat = materialsForTypes(sp.types);
     const mn = sp.data.materialsNeeded || {};
@@ -7073,6 +7169,11 @@ function defaultSpeakerData() {
     materialsToShare: [], // [{id, label, fileName, filePath, fileSize, uploadedAt}] -- for attendees
     internalDocuments: [], // same shape, but internal-only (rider, contract, W9) -- never shown to attendees
     specialNotes: '', flagged: false,
+    // '' (standard: paid + travel arranged), 'local' (no fee/travel needed), or 'sponsor'
+    // (presenting as part of a sponsorship -- see linkedSponsorId). Collapses the Financials
+    // and most of the Logistics tab to a one-line note for 'local'/'sponsor', and is excluded
+    // from the completeness score so those records don't sit at a permanently low percentage.
+    arrangement: '', linkedSponsorId: '',
     comms: [], actionItems: [], questions: []
   };
 }
@@ -7549,6 +7650,14 @@ const DEFAULT_SCHEDULE_SLOTS = [
   ['2027-04-14', 'E.C. Transition Meeting', '13:00', '15:30', 'business']
 ];
 const SCHEDULE_SLOT_KINDS = ['breakout', 'keynote', 'panel', 'meal', 'business', 'other'];
+// Muted, harmonious per-track colors for the Breakout Grid -- cycles by row position (not by
+// name) so it stays correct no matter how tracks get renamed/added/removed. 12 is enough that
+// a repeat only ever lands 12 rows away from its twin, never visually adjacent.
+const TRACK_COLOR_PALETTE = [
+  '#24404A', '#A17A26', '#8B5A6E', '#6B7F4F', '#A0623A', '#5C6E96',
+  '#4A7A5C', '#9B6B9E', '#7A8B99', '#B08550', '#5C879C', '#8A6A4A'
+];
+function trackColorForIndex(i) { return TRACK_COLOR_PALETTE[i % TRACK_COLOR_PALETTE.length]; }
 let scheduleSlots = DEFAULT_SCHEDULE_SLOTS.map(([date, label, start, end, kind], i) => ({
   id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i
 }));
@@ -7620,7 +7729,7 @@ function breakoutNumberForSlot(slot) {
 // Everything below reads/writes speakers[].data.sessions directly (via pushSpeaker), the same
 // objects the Speakers/Artists detail panel edits -- there's no separate sync step because
 // there's only one copy of the data to begin with.
-let scheduleSubview = 'grid';
+let scheduleSubview = 'timeline';
 let scheduleRosterSearch = '';
 
 function setScheduleSubview(v) { scheduleSubview = v; renderScheduleView(); }
@@ -7757,13 +7866,14 @@ function renderBreakoutGrid() {
   const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<span class="sch-edit-icon" style="margin-left:4px;" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename this breakout slot">✎</span><div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
 
   const sortedSpeakers = sortByLastName(speakers);
-  const rows = sessionTracks.map(track => {
+  const rows = sessionTracks.map((track, trackIdx) => {
+    const trackColor = trackColorForIndex(trackIdx);
     const cells = breakoutSlots.map(slot => {
       const occs = index[track.name + '|' + slot.id] || [];
       const cards = occs.map(occ => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
-        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" draggable="true" ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record — drag to move to another cell">
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="true" ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record — drag to move to another cell">
           ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
           <span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Unschedule">×</span>
           <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
@@ -7777,7 +7887,7 @@ function renderBreakoutGrid() {
       const cls = occs.length ? 'sch-cell' : 'sch-cell sch-cell-empty';
       return `<td><div class="${cls}" ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schDrop(event,'${track.id}','${slot.id}')">${cards}${addSelect}</div></td>`;
     }).join('');
-    return `<tr><td class="sch-track-label">${escapeHtml(track.name)}<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span></td>${cells}</tr>`;
+    return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span></td>${cells}</tr>`;
   }).join('');
 
   body.innerHTML = `
@@ -8032,6 +8142,13 @@ function renderSpeakerView() {
   const stats = { total: speakers.length };
   const el = document.getElementById('sk-stat-total');
   if (el) el.textContent = stats.total;
+  const fees = speakerFeeTotals();
+  const feesTotalEl = document.getElementById('sk-stat-fees-total');
+  if (feesTotalEl) feesTotalEl.textContent = fmt(fees.committed);
+  const feesPaidEl = document.getElementById('sk-stat-fees-paid');
+  if (feesPaidEl) feesPaidEl.textContent = fmt(fees.paid);
+  const feesOutstandingEl = document.getElementById('sk-stat-fees-outstanding');
+  if (feesOutstandingEl) feesOutstandingEl.textContent = fmt(fees.outstanding);
   const riderEl = document.getElementById('sk-rider-current');
   if (riderEl) {
     riderEl.innerHTML = conferenceProductionRider
@@ -8082,6 +8199,15 @@ function buildSpeakerRowPair(sp, todayStr) {
     <td class="sp-org">${escapeHtml(sp.name)}${(() => {
       const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
       return linkedGroup ? `<a href="#" class="sp-linked-group-chip" title="Badges/meals/travel counted under ${escapeHtml(linkedGroup.name)} -- click to open that record" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">👥 ${escapeHtml(linkedGroup.name)}</a>` : '';
+    })()}${(() => {
+      if (sp.data.arrangement === 'local') return `<span class="sp-linked-group-chip" style="background:#EEE; color:#666;" title="Local — no fee or travel tracked">📍 Local</span>`;
+      if (sp.data.arrangement === 'sponsor') {
+        const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
+        return sponsor
+          ? `<a href="#" class="sp-linked-group-chip" style="background:#F3D9CC; color:#8a4a1f;" title="Presenting via ${escapeHtml(sponsor.org)}'s sponsorship -- click to open that sponsor record" onclick="event.preventDefault(); jumpToSponsorById('${sponsor.id}')">🤝 ${escapeHtml(sponsor.org)}</a>`
+          : `<span class="sp-linked-group-chip" style="background:#F3D9CC; color:#8a4a1f;" title="Sponsor-provided — pick the linked sponsor on this record">🤝 Sponsor-provided</span>`;
+      }
+      return '';
     })()}<div class="sp-sub">${escapeHtml((sp.types || []).join(', '))}</div></td>
     <td>${(() => {
       const sessions = sp.data.sessions || [];
@@ -8283,6 +8409,16 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label for="sk-contactemail-${sp.id}">Contact email</label><input id="sk-contactemail-${sp.id}" type="email" value="${escapeHtml(sp.contactEmail)}" onchange="updateSpeakerSimple('${sp.id}','contactEmail',this.value)"></div>
           <div class="sp-field"><label for="sk-contactphone-${sp.id}">Contact phone</label><input id="sk-contactphone-${sp.id}" type="text" value="${escapeHtml(sp.contactPhone)}" onchange="updateSpeakerSimple('${sp.id}','contactPhone',this.value)"></div>
           <div class="sp-field"><label for="sk-trackerstatus-${sp.id}">Tracker status</label><select id="sk-trackerstatus-${sp.id}" onchange="updateSpeakerSimple('${sp.id}','trackerStatus',this.value)">${statusOptions}</select></div>
+          <div class="sp-field"><label for="sk-arrangement-${sp.id}">Speaker arrangement</label><select id="sk-arrangement-${sp.id}" onchange="updateSpeakerData('${sp.id}','arrangement',this.value)">
+            <option value="" ${!sp.data.arrangement ? 'selected' : ''}>Standard (fee + travel as needed)</option>
+            <option value="local" ${sp.data.arrangement === 'local' ? 'selected' : ''}>Local (no fee or travel needed)</option>
+            <option value="sponsor" ${sp.data.arrangement === 'sponsor' ? 'selected' : ''}>Sponsor-provided (part of a sponsorship)</option>
+          </select></div>
+          ${sp.data.arrangement === 'sponsor' ? `
+          <div class="sp-field"><label for="sk-linkedsponsor-${sp.id}">Linked sponsor</label><select id="sk-linkedsponsor-${sp.id}" onchange="updateSpeakerData('${sp.id}','linkedSponsorId',this.value)">
+            <option value="">— pick the sponsor —</option>
+            ${sponsors.slice().sort((a, b) => a.org.localeCompare(b.org)).map(s => `<option value="${s.id}" ${sp.data.linkedSponsorId === s.id ? 'selected' : ''}>${escapeHtml(s.org)}</option>`).join('')}
+          </select></div>` : ''}
           <div class="sp-check"><input id="sk-flagged-${sp.id}" type="checkbox" ${sp.data.flagged ? 'checked' : ''} onchange="updateSpeakerData('${sp.id}','flagged',this.checked)"><label for="sk-flagged-${sp.id}"> Flag for review</label></div>
         </fieldset>
 
@@ -8325,6 +8461,7 @@ function speakerDetailHTML(sp) {
 
     ${activeTab !== 'financial' ? '' : `
     <div class="sk-tab-panel">
+      ${sp.data.arrangement === 'sponsor' ? `<div class="sp-linked-group-box">${speakerFinancialArrangementNote(sp)}</div>` : `
       <div class="sp-detail-grid sp-detail-1col">
         <fieldset class="sp-fieldset">
           <legend>Financials</legend>
@@ -8342,7 +8479,7 @@ function speakerDetailHTML(sp) {
           <div class="sp-check"><input id="sk-invoicesent-${sp.id}" type="checkbox" ${sp.data.financial.invoiceSent ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','invoiceSent',this.checked)"><label for="sk-invoicesent-${sp.id}"> Invoice sent</label></div>
           </div>
         </fieldset>
-      </div>
+      </div>`}
     </div>
     `}
 
@@ -8364,7 +8501,9 @@ function speakerDetailHTML(sp) {
           ${linkedGroup ? `<div class="sp-sub" style="margin-top:8px;"><span style="color:var(--teal-deep); font-weight:600;">👥 Counted under <a href="#" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">${escapeHtml(linkedGroup.name)}</a>'s badges, meals, and travel.</span> Leave the Travel/Meals fields below blank for this record to avoid double-counting.</div>` : ''}
         </div>`;
       })()}
+      ${sp.data.arrangement ? `<div class="sp-linked-group-box">${speakerLogisticsArrangementNote(sp)}</div>` : ''}
       <div class="sk-logistics-grid">
+        ${sp.data.arrangement ? '' : `
         <fieldset class="sp-fieldset">
           <legend>Travel</legend>
           <div class="sp-field-grid">
@@ -8442,6 +8581,7 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label for="sk-mealnotes-${sp.id}">Meal notes (dietary restrictions, specifics)</label><textarea id="sk-mealnotes-${sp.id}" rows="2" onchange="updateSpeakerNested('${sp.id}','logistics','mealNotes',this.value)">${escapeHtml(sp.data.logistics.mealNotes)}</textarea></div>
           </div>
         </fieldset>
+        `}
 
         <fieldset class="sp-fieldset">
           <legend>Host &amp; Badges</legend>
