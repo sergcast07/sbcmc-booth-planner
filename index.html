@@ -7840,8 +7840,23 @@ async function loadScheduleAudiences() {
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(SCHEDULE_AUDIENCES_TABLE).select('*');
-    if (!error && data && data.length) scheduleAudiences = data.map(a => ({ id: a.id, name: a.name }));
-    else if (error) console.warn('Schedule audiences table not available:', errDetail(error));
+    if (!error && data && data.length) {
+      scheduleAudiences = data.map(a => ({ id: a.id, name: a.name }));
+      // Main Conference is a reserved id the default filter and every untagged slot fall back
+      // to. If the table has rows for other groups but never picked up one for this id (e.g.
+      // it was only ever a synthesized default that nobody explicitly saved), restore it and
+      // persist it -- otherwise it silently vanishes from the list, and the filter/every slot
+      // still pointing at the reserved id ends up referring to a chip that no longer exists.
+      if (!scheduleAudiences.some(a => a.id === MAIN_AUDIENCE_ID)) {
+        const mainAud = { id: MAIN_AUDIENCE_ID, name: 'Main Conference' };
+        scheduleAudiences.unshift(mainAud);
+        sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert(mainAud).then(({ error: err2 }) => {
+          if (err2) console.warn('Could not restore the Main Conference row:', errDetail(err2));
+        });
+      }
+    } else if (error) {
+      console.warn('Schedule audiences table not available:', errDetail(error));
+    }
   } catch (err) {
     console.warn('Schedule audiences load failed:', err);
   }
@@ -7850,6 +7865,8 @@ function addScheduleAudience() {
   const input = document.getElementById('sch-audience-name');
   const name = input.value.trim();
   if (!name) { toast('Enter a group name first.'); return; }
+  const dupe = scheduleAudiences.find(a => a.name.toLowerCase() === name.toLowerCase());
+  if (dupe) { toast(`"${dupe.name}" already exists — toggle it in the filter bar instead of adding a duplicate.`); return; }
   const aud = { id: makeId(), name };
   scheduleAudiences.push(aud);
   scheduleAudienceFilter.add(aud.id);
