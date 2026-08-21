@@ -698,7 +698,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .db-nr-pct-sep { color: var(--line); margin: 0 6px; font-weight: 400; }
 .db-row-pct { color: var(--ink-soft); font-weight: 400; font-size: 11px; }
 .db-body { padding: 0 24px; }
-.db-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 32px; }
+.db-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 32px; }
 .db-card {
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px;
   transition: transform 0.15s, box-shadow 0.15s; border-top: 3px solid var(--gold);
@@ -897,17 +897,17 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
   .db-body { padding: 0 !important; }
 
   /* ==== KPI cards: real breathing room, not crammed ==== */
-  .db-cards { grid-template-columns: repeat(3, 1fr) !important; gap: 12px !important; margin-bottom: 22px !important; }
+  .db-cards { grid-template-columns: repeat(4, 1fr) !important; gap: 10px !important; margin-bottom: 22px !important; }
   .db-card {
-    padding: 12px 14px !important; box-shadow: none !important; border-top-width: 2px !important;
+    padding: 10px 11px !important; box-shadow: none !important; border-top-width: 2px !important;
     break-inside: avoid; page-break-inside: avoid;
   }
   .db-card:hover { transform: none !important; box-shadow: none !important; }
-  .db-card > div:first-child { width: 22px !important; height: 22px !important; margin-bottom: 6px !important; }
-  .db-card-label { font-size: 9px !important; margin-bottom: 4px !important; }
-  .db-card-value { font-size: 21px !important; }
-  .db-card-sub { font-size: 10px !important; margin-top: 3px !important; }
-  .db-card-breakdown { font-size: 9.5px !important; margin-top: 3px !important; line-height: 1.4 !important; }
+  .db-card > div:first-child { width: 20px !important; height: 20px !important; margin-bottom: 5px !important; }
+  .db-card-label { font-size: 8.5px !important; margin-bottom: 3px !important; }
+  .db-card-value { font-size: 18px !important; }
+  .db-card-sub { font-size: 9px !important; margin-top: 2px !important; }
+  .db-card-breakdown { font-size: 9px !important; margin-top: 3px !important; line-height: 1.35 !important; }
 
   /* ==== Section rhythm ==== */
   .db-section, .db-opportunity-section { margin-bottom: 22px !important; }
@@ -989,6 +989,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-cell-add:hover { border-color: var(--teal); color: var(--teal-deep); }
 .sch-cell:not(.sch-cell-empty) .sch-cell-add { width: 100%; box-sizing: border-box; margin-top: 2px; }
 .sch-cell-hover { background: rgba(197,161,84,0.22) !important; }
+.sch-card-drop-hover { outline: 2px dashed var(--teal); outline-offset: -2px; }
 /* Track accent stripe: each row's cards carry a left-edge color (set inline per-row from
    TRACK_COLOR_PALETTE) so a track is identifiable across all five breakouts at a glance. */
 .sch-card { background: var(--teal-pale); border: 1px solid var(--line); border-left-width: 4px; border-left-style: solid; border-radius: 7px; padding: 6px 22px 8px 8px; font-size: 12px; cursor: grab; position: relative; }
@@ -1004,9 +1005,13 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 .sch-timeline-day { margin-bottom: 22px; }
 .sch-timeline-day-title { font-family: var(--font-display); font-size: 15px; color: var(--teal-deep); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--gold); }
-.sch-timeline-row { display: flex; align-items: center; gap: 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.sch-timeline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
 .sch-timeline-row:last-child { border-bottom: none; }
 .sch-timeline-time { width: 130px; flex-shrink: 0; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.sch-timeline-time-edit { width: 175px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; color: var(--ink-soft); }
+.sch-timeline-time-input { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ink); border: 1px solid transparent; border-radius: 5px; padding: 2px 3px; background: transparent; width: 80px; }
+.sch-timeline-time-input:hover { border-color: var(--line); background: #fff; }
+.sch-timeline-time-input:focus { border-color: var(--teal); background: #fff; outline: none; }
 .sch-timeline-label { flex: 1; display: flex; align-items: center; gap: 6px; }
 .sch-edit-icon { cursor: pointer; color: var(--ink-soft); font-size: 11px; opacity: 0.6; }
 .sch-edit-icon:hover { opacity: 1; color: var(--teal-deep); }
@@ -1026,8 +1031,47 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-chip-x { cursor: pointer; color: var(--ink-soft); font-size: 11px; }
 .sch-chip-x:hover { color: #a52620; }
 .sch-slot-editor { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 16px; }
-.sch-slot-add-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sch-slot-add-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
 .sch-slot-add-row input, .sch-slot-add-row select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+.sch-slot-add-row select[multiple] { min-width: 150px; height: 58px; }
+
+/* ==== Schedule audiences: facet filter bar + per-row tags + itinerary ==== */
+.sch-aud-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.sch-aud-bar-label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); }
+.sch-aud-facet {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; padding: 6px 12px 6px 10px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); cursor: pointer;
+}
+.sch-aud-facet.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.sch-aud-facet .sch-aud-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--dot-color); }
+.sch-aud-manage { font-size: 10px; opacity: 0.65; cursor: pointer; }
+.sch-aud-manage:hover { opacity: 1; }
+.sch-aud-add { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; }
+.sch-aud-add input { padding: 6px 9px; border: 1px dashed var(--line); border-radius: 999px; font-size: 12px; width: 140px; }
+/* Per-row audience marks -- a small ring of dots instead of spelling every group name out on
+   every single row. Filled = tagged, hollow = not; click to toggle. Color ties back to the
+   swatch next to that group's name in the filter bar above. */
+.sch-row-aud-dots { display: flex; align-items: center; gap: 5px; }
+.sch-aud-dot { width: 11px; height: 11px; border-radius: 50%; cursor: pointer; border: 1.5px solid var(--dot-color); background: transparent; box-sizing: border-box; }
+.sch-aud-dot.on { background: var(--dot-color); }
+.sch-aud-dot.off { opacity: 0.4; }
+.sch-aud-dot.off:hover { opacity: 0.8; }
+
+.sch-itin-picker { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.sch-itin-picker select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; }
+.sch-itin-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; max-width: 680px; }
+.sch-itin-header { background: var(--teal-deep); color: #fff; padding: 16px 22px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sch-itin-header h4 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0; }
+.sch-itin-header span { font-size: 11px; opacity: 0.85; }
+.sch-itin-body { padding: 4px 22px 16px; }
+.sch-itin-day { font-family: var(--font-display); font-style: italic; font-size: 13px; color: var(--teal); margin: 16px 0 4px; }
+.sch-itin-day:first-child { margin-top: 4px; }
+.sch-itin-row { display: flex; gap: 16px; padding: 6px 0; border-bottom: 1px dotted var(--line); font-size: 12.5px; align-items: baseline; }
+.sch-itin-row:last-child { border-bottom: none; }
+.sch-itin-time { width: 150px; flex-shrink: 0; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.sch-itin-row.shared .sch-itin-time::before { content: '◆ '; color: var(--teal); font-size: 9px; }
+.sch-itin-foot { padding: 10px 22px 14px; font-size: 10.5px; color: var(--ink-soft); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
+.sch-itin-key-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); display: inline-block; }
 
 </style>
 
@@ -1049,6 +1093,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 </div>
 
 <div id="qa-modal-root"></div>
+<div id="exp-sort-modal-root"></div>
 
 <div id="driver-public-view" style="display:none;">
   <div class="dv-header">
@@ -1183,7 +1228,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
           <option value="status-desc">Tracker Status (Z–A)</option>
         </select>
         <button class="sp-add-btn" onclick="addSponsor()">+ Add sponsor</button>
-        <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="exportSponsorsCSV()">Export CSV</button>
+        <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('sponsors')">Export CSV</button>
       </div>
       <div class="sp-table-wrap">
       <table class="sp-table" id="sp-table">
@@ -1283,19 +1328,19 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
           <option value="day-asc">Session Day/Time</option>
         </select>
         <button class="sp-add-btn" onclick="addSpeaker()">+ Add speaker/artist</button>
-        <button class="sp-add-btn" onclick="exportSpeakersCSV()" style="background:var(--ink-soft);">Export CSV</button>
+        <button class="sp-add-btn" onclick="openExportSortModal('speakers')" style="background:var(--ink-soft);">Export CSV</button>
       </div>
       <div class="sp-table-wrap">
       <table class="sp-table">
         <thead>
-          <tr>
-            <th style="width:60px;"></th>
-            <th onclick="setSpeakerSort('name')" style="cursor:pointer;">Name</th>
-            <th>Session</th>
-            <th>Contact</th>
-            <th onclick="setSpeakerSort('status')" style="cursor:pointer;">Tracker Status</th>
-            <th>Complete</th>
-            <th>Host</th>
+          <tr id="sk-thead-row">
+            <th data-col="0" style="width:60px;"></th>
+            <th data-col="1" style="width:170px; cursor:pointer;" onclick="setSpeakerSort('name')">Name<span class="sp-col-resize" data-colidx="1"></span></th>
+            <th data-col="2" style="width:220px;">Session<span class="sp-col-resize" data-colidx="2"></span></th>
+            <th data-col="3" style="width:160px;">Contact<span class="sp-col-resize" data-colidx="3"></span></th>
+            <th data-col="4" style="width:140px; cursor:pointer;" onclick="setSpeakerSort('status')">Tracker Status<span class="sp-col-resize" data-colidx="4"></span></th>
+            <th data-col="5" style="width:90px;">Complete<span class="sp-col-resize" data-colidx="5"></span></th>
+            <th data-col="6" style="width:110px;">Host<span class="sp-col-resize" data-colidx="6"></span></th>
           </tr>
         </thead>
         <tbody id="sk-rows"></tbody>
@@ -1320,13 +1365,16 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     <div class="sch-view-toggle">
       <button class="sch-toggle-btn" id="sch-toggle-grid" onclick="setScheduleSubview('grid')">Breakout Grid</button>
       <button class="sch-toggle-btn active" id="sch-toggle-timeline" onclick="setScheduleSubview('timeline')">Timeline</button>
+      <button class="sch-toggle-btn" id="sch-toggle-itinerary" onclick="setScheduleSubview('itinerary')">Itinerary</button>
+      <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('schedule')">Export CSV</button>
     </div>
   </div>
-  <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, or see the full Sunday–Wednesday agenda. This reads and writes the same session data as the Speakers/Artists tab — editing here updates their record, and editing their record updates here.</p>
+  <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, see the full Sunday–Wednesday agenda, or pull one group's own itinerary. This reads and writes the same session data as the Speakers/Artists tab — editing here updates their record, and editing their record updates here.</p>
 
   <div id="sch-conflicts-body"></div>
   <div id="sch-grid-body" style="display:none;"></div>
   <div id="sch-timeline-body"></div>
+  <div id="sch-itinerary-body" style="display:none;"></div>
 </div>
 
 <div id="dashboard-view">
@@ -2773,7 +2821,9 @@ async function initSupabase() {
       (typeof loadConferenceDocuments === 'function' ? loadConferenceDocuments() : Promise.resolve()),
       (typeof loadDriversAndHotels === 'function' ? loadDriversAndHotels() : Promise.resolve()),
       (typeof loadSessionRoomsAndTracks === 'function' ? loadSessionRoomsAndTracks() : Promise.resolve()),
-      (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve())
+      (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
+      (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
+      (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve())
     ]);
     rebuildMapRegistry();
     renderPackageSidebar();
@@ -5065,16 +5115,61 @@ function renderOpportunitySection(totalCommitted) {
   `;
 }
 
-const FUNDRAISING_GOAL_KEY = 'sbcmcFundraisingGoal';
-function getFundraisingGoal() {
-  try { const v = localStorage.getItem(FUNDRAISING_GOAL_KEY); return v ? Number(v) : null; }
-  catch (e) { return null; }
+// Fundraising goal: shared across everyone via conference_settings (a small generic key/value
+// table -- reusable for any other single conference-wide setting later), not per-browser.
+// Requires its own table:
+//   create table if not exists conference_settings (id text primary key, value text default '');
+//   alter table conference_settings enable row level security;
+//   create policy "public read conference_settings" on conference_settings for select using (true);
+//   create policy "public write conference_settings" on conference_settings for insert with check (true);
+//   create policy "public update conference_settings" on conference_settings for update using (true);
+// Until that table exists, the goal still works but only persists in this browser (localStorage),
+// same graceful-degradation behavior as everything else in this app.
+const CONFERENCE_SETTINGS_TABLE = 'conference_settings';
+const FUNDRAISING_GOAL_KEY = 'sbcmcFundraisingGoal'; // legacy local-only key, kept as a fallback/migration source
+let fundraisingGoal = null;
+let fundraisingGoalPushTimer = null;
+
+function getFundraisingGoal() { return fundraisingGoal; }
+
+async function loadFundraisingGoal() {
+  let localFallback = null;
+  try { const v = localStorage.getItem(FUNDRAISING_GOAL_KEY); localFallback = v ? Number(v) : null; } catch (e) { /* private browsing, etc */ }
+  if (!sbClient) { fundraisingGoal = localFallback; return; }
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'fundraising_goal').maybeSingle();
+    if (error) { console.warn('Conference settings table not available:', errDetail(error)); fundraisingGoal = localFallback; return; }
+    if (data && data.value) {
+      fundraisingGoal = Number(data.value);
+    } else if (localFallback != null) {
+      // Nothing shared yet, but this browser already had a goal saved the old (local-only) way
+      // -- carry it over as the shared value instead of silently losing it.
+      fundraisingGoal = localFallback;
+      pushFundraisingGoal(fundraisingGoal);
+    }
+  } catch (err) {
+    console.warn('Fundraising goal load failed:', err);
+    fundraisingGoal = localFallback;
+  }
 }
+
+function pushFundraisingGoal(val) {
+  if (!sbClient) return;
+  clearTimeout(fundraisingGoalPushTimer);
+  fundraisingGoalPushTimer = setTimeout(() => {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'fundraising_goal', value: val == null ? '' : String(val) }).then(({ error }) => {
+      if (error) { console.error('Fundraising goal save failed:', error); toast('Couldn’t save the fundraising goal — it’ll revert next reload. (' + errDetail(error) + ')'); }
+    });
+  }, 400);
+}
+
 function setFundraisingGoal(val) {
+  fundraisingGoal = val ? Number(val) : null;
   try {
     if (!val) { localStorage.removeItem(FUNDRAISING_GOAL_KEY); }
     else { localStorage.setItem(FUNDRAISING_GOAL_KEY, val); }
-  } catch (e) { /* private browsing, etc -- goal just won't persist */ }
+  } catch (e) { /* private browsing, etc -- local fallback just won't persist */ }
+  pushFundraisingGoal(fundraisingGoal);
   renderTimelineChart();
 }
 
@@ -5588,8 +5683,103 @@ function currentFilteredSponsors() {
   return filtered;
 }
 
-function exportSponsorsCSV() {
-  const rows = currentFilteredSponsors();
+const EXPORT_SORT_OPTIONS = {
+  sponsors: {
+    title: 'Export Sponsors CSV',
+    defaultValue: '',
+    options: [
+      { value: '', label: 'Same as table’s current sort' },
+      { value: 'org-asc', label: 'Organization (A–Z)' },
+      { value: 'org-desc', label: 'Organization (Z–A)' },
+      { value: 'amount-desc', label: 'Amount (high to low)' },
+      { value: 'amount-asc', label: 'Amount (low to high)' },
+      { value: 'due-asc', label: 'Payment due date (soonest)' },
+      { value: 'due-desc', label: 'Payment due date (latest)' },
+      { value: 'status-asc', label: 'Tracker Status (A–Z)' },
+      { value: 'status-desc', label: 'Tracker Status (Z–A)' }
+    ]
+  },
+  speakers: {
+    title: 'Export Speakers/Artists CSV',
+    defaultValue: '',
+    options: [
+      { value: '', label: 'Table order (unsorted)' },
+      { value: 'name-asc', label: 'Name (A–Z)' },
+      { value: 'name-desc', label: 'Name (Z–A)' },
+      { value: 'status-asc', label: 'Status (A–Z)' },
+      { value: 'status-desc', label: 'Status (Z–A)' },
+      { value: 'day-asc', label: 'Session Day/Time (earliest first)' },
+      { value: 'day-desc', label: 'Session Day/Time (latest first)' }
+    ]
+  },
+  schedule: {
+    title: 'Export Schedule CSV',
+    defaultValue: 'datetime-asc',
+    options: [
+      { value: 'datetime-asc', label: 'Date/Time (default)' },
+      { value: 'track-asc', label: 'Track (A–Z)' },
+      { value: 'track-desc', label: 'Track (Z–A)' },
+      { value: 'label-asc', label: 'Session Label (A–Z)' },
+      { value: 'label-desc', label: 'Session Label (Z–A)' },
+      { value: 'speaker-asc', label: 'Speaker/Artist Name (A–Z)' },
+      { value: 'speaker-desc', label: 'Speaker/Artist Name (Z–A)' }
+    ]
+  }
+};
+let exportSortModalTab = null; // 'sponsors' | 'speakers' | 'schedule' | null
+
+function openExportSortModal(tab) {
+  exportSortModalTab = tab;
+  renderExportSortModal();
+}
+function closeExportSortModal() {
+  exportSortModalTab = null;
+  document.getElementById('exp-sort-modal-root').innerHTML = '';
+}
+function renderExportSortModal() {
+  const root = document.getElementById('exp-sort-modal-root');
+  if (!exportSortModalTab) { root.innerHTML = ''; return; }
+  const cfg = EXPORT_SORT_OPTIONS[exportSortModalTab];
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeExportSortModal();">
+      <div class="qa-modal-card">
+        <h3>${cfg.title}</h3>
+        <p class="qa-modal-sub">Choose how the exported rows should be ordered.</p>
+        <div class="qa-modal-field">
+          <label for="exp-sort-select">Sort by</label>
+          <select id="exp-sort-select">
+            ${cfg.options.map(o => `<option value="${escapeHtml(o.value)}" ${o.value === cfg.defaultValue ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="qa-modal-actions">
+          <button class="sp-mini-btn" onclick="closeExportSortModal()">Cancel</button>
+          <button class="qa-modal-done" onclick="confirmExportSortModal()">Export CSV</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function confirmExportSortModal() {
+  const tab = exportSortModalTab;
+  const sortValue = document.getElementById('exp-sort-select').value;
+  closeExportSortModal();
+  if (tab === 'sponsors') exportSponsorsCSV(sortValue);
+  else if (tab === 'speakers') exportSpeakersCSV(sortValue);
+  else if (tab === 'schedule') exportScheduleCSV(sortValue);
+}
+
+function exportSponsorsCSV(sortValue) {
+  let rows = currentFilteredSponsors();
+  if (sortValue) {
+    const [key, dir] = sortValue.split('-');
+    const dirMul = dir === 'desc' ? -1 : 1;
+    rows = rows.slice().sort((a, b) => {
+      const va = sponsorSortValue(a, key), vb = sponsorSortValue(b, key);
+      if (va < vb) return -1 * dirMul;
+      if (va > vb) return 1 * dirMul;
+      return 0;
+    });
+  }
   const headers = [
     'Organization', 'Contact Name', 'Contact Email', 'Contact Phone', 'Package',
     'Tracker Status', 'Flagged for Review', 'Base Amount', 'Checked Ad-Hoc Items', 'Custom Ad-hoc Amount', 'Custom Ad-hoc Description', 'Total Ad-Hoc $',
@@ -6903,16 +7093,40 @@ const SESSION_TRACKS_TABLE = 'session_tracks';
 //   create table if not exists schedule_slots (
 //     id text primary key, slot_date date not null, label text not null,
 //     start_time text not null, end_time text not null,
-//     kind text not null default 'other', notes text default '', sort_order int default 0
+//     kind text not null default 'other', notes text default '', sort_order int default 0,
+//     audiences jsonb not null default '["aud_default_0"]'::jsonb
 //   );
 //   alter table schedule_slots enable row level security;
 //   create policy "public read schedule_slots" on schedule_slots for select using (true);
 //   create policy "public write schedule_slots" on schedule_slots for insert with check (true);
 //   create policy "public update schedule_slots" on schedule_slots for update using (true);
 //   create policy "public delete schedule_slots" on schedule_slots for delete using (true);
-// Until that table exists, the Schedule tab still works off the in-code seed below, same
-// graceful-degradation behavior as session rooms/tracks.
+// If schedule_slots already exists from before "audiences" was added, just run:
+//   alter table schedule_slots add column if not exists audiences jsonb not null default '["aud_default_0"]'::jsonb;
+// Until that column exists, pushScheduleSlot() below falls back to saving every other field
+// and only the audience tag silently fails to persist -- same graceful-degradation behavior
+// as everything else in this app.
 const SCHEDULE_SLOTS_TABLE = 'schedule_slots';
+
+// Named groups a schedule slot can be tagged with -- "Main Conference" plus whatever cohort
+// schedules get added (Conference Leadership, High School Summit, College Collective, ...).
+// Same editable-list pattern as session rooms/tracks above. Requires its own table:
+//   create table if not exists schedule_audiences (id text primary key, name text not null);
+//   alter table schedule_audiences enable row level security;
+//   create policy "public read schedule_audiences" on schedule_audiences for select using (true);
+//   create policy "public write schedule_audiences" on schedule_audiences for insert with check (true);
+//   create policy "public update schedule_audiences" on schedule_audiences for update using (true);
+//   create policy "public delete schedule_audiences" on schedule_audiences for delete using (true);
+const SCHEDULE_AUDIENCES_TABLE = 'schedule_audiences';
+// aud_default_0 is the reserved id for "Main Conference" -- new/legacy slots default to just
+// this one, and it's what the audience filter starts on, so the default view is unchanged from
+// before this feature existed.
+const MAIN_AUDIENCE_ID = 'aud_default_0';
+const DEFAULT_SCHEDULE_AUDIENCES = ['Main Conference', 'Conference Leadership', 'High School Summit', 'College Collective'];
+// Cycles by row position (not by name), same reasoning as TRACK_COLOR_PALETTE -- stays correct
+// no matter how groups get renamed/added later. Main Conference lands on the app's own teal.
+const AUDIENCE_COLOR_PALETTE = ['#24404A', '#8B5A6E', '#A0623A', '#5C6E96', '#6B7F4F', '#9B6B9E', '#4A7A5C', '#B08550'];
+function audienceColorForIndex(i) { return AUDIENCE_COLOR_PALETTE[i % AUDIENCE_COLOR_PALETTE.length]; }
 
 async function loadDriversAndHotels() {
   if (!sbClient) return;
@@ -7443,16 +7657,29 @@ function speakerSortValue(sp, key) {
   return '';
 }
 
+// Sessions without a date/time sort last, not first -- an unscheduled session shouldn't
+// jump to the top just because its fields are blank.
+function sessionChronoKey(sess) {
+  return (sess.sessionDate || '9999-99-99') + (sess.timeSlot || '99:99');
+}
+function compareSessionsChrono(a, b) {
+  const ka = sessionChronoKey(a), kb = sessionChronoKey(b);
+  return ka < kb ? -1 : ka > kb ? 1 : 0;
+}
+// Returns the original sp.data.sessions indices, reordered chronologically -- callers that
+// need to mutate a specific session (edit/delete/expand-state) still address it by this
+// original index, so nothing about persistence or the array itself needs to change.
+function chronoSessionIndices(sp) {
+  const sessions = sp.data.sessions || [];
+  return sessions.map((_, i) => i).sort((ia, ib) => compareSessionsChrono(sessions[ia], sessions[ib]));
+}
+
 // A speaker can have multiple sessions now -- this picks whichever is chronologically
 // first (by date, then time slot), used anywhere the UI only has room for one at a glance.
 function earliestSpeakerSession(sp) {
   const sessions = sp.data.sessions || [];
   if (sessions.length === 0) return null;
-  return sessions.slice().sort((a, b) => {
-    const aKey = (a.sessionDate || '9999-99-99') + (a.timeSlot || '99:99');
-    const bKey = (b.sessionDate || '9999-99-99') + (b.timeSlot || '99:99');
-    return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
-  })[0];
+  return sessions.slice().sort(compareSessionsChrono)[0];
 }
 
 function materialsNeededCount(sp) {
@@ -7607,6 +7834,66 @@ function removeSessionTrack(id) {
   }
 }
 
+let scheduleAudiences = DEFAULT_SCHEDULE_AUDIENCES.map((name, i) => ({ id: 'aud_default_' + i, name }));
+
+async function loadScheduleAudiences() {
+  if (!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from(SCHEDULE_AUDIENCES_TABLE).select('*');
+    if (!error && data && data.length) scheduleAudiences = data.map(a => ({ id: a.id, name: a.name }));
+    else if (error) console.warn('Schedule audiences table not available:', errDetail(error));
+  } catch (err) {
+    console.warn('Schedule audiences load failed:', err);
+  }
+}
+function addScheduleAudience() {
+  const input = document.getElementById('sch-audience-name');
+  const name = input.value.trim();
+  if (!name) { toast('Enter a group name first.'); return; }
+  const aud = { id: makeId(), name };
+  scheduleAudiences.push(aud);
+  scheduleAudienceFilter.add(aud.id);
+  renderScheduleView();
+  if (sbClient) {
+    sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ id: aud.id, name: aud.name }).then(({ error }) => {
+      if (error) { console.error('Audience save failed:', error); toast('Couldn’t save that group — it’ll disappear next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+  input.value = '';
+}
+function editScheduleAudience(id) {
+  const aud = scheduleAudiences.find(a => a.id === id); if (!aud) return;
+  const newName = prompt('Group name:', aud.name);
+  if (newName === null || !newName.trim()) return;
+  aud.name = newName.trim();
+  renderScheduleView();
+  if (sbClient) {
+    sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ id: aud.id, name: aud.name }).then(({ error }) => {
+      if (error) { console.error('Audience update failed:', error); toast('Couldn’t save that change — it’ll revert next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+}
+function removeScheduleAudience(id) {
+  if (id === MAIN_AUDIENCE_ID) { toast('Main Conference can’t be removed — it’s the default group every slot falls back to.'); return; }
+  const aud = scheduleAudiences.find(a => a.id === id); if (!aud) return;
+  if (!confirm(`Remove "${aud.name}"? Any slot tagged only with this group will fall back to Main Conference.`)) return;
+  scheduleAudiences = scheduleAudiences.filter(a => a.id !== id);
+  scheduleAudienceFilter.delete(id);
+  if (scheduleAudienceFilter.size === 0) scheduleAudienceFilter.add(MAIN_AUDIENCE_ID);
+  scheduleSlots.forEach(slot => {
+    if (!slot.audiences || !slot.audiences.includes(id)) return;
+    const remaining = slot.audiences.filter(a => a !== id);
+    slot.audiences = remaining.length ? remaining : [MAIN_AUDIENCE_ID];
+    pushScheduleSlot(slot);
+  });
+  renderScheduleView();
+  if (sbClient) {
+    sbClient.from(SCHEDULE_AUDIENCES_TABLE).delete().eq('id', id).then(({ error }) => {
+      if (error) { console.error('Audience delete failed:', error); toast('Couldn’t delete that group — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+    });
+  }
+}
+
 // Seed schedule, derived from the "schedule blocking" planning sheet -- Sun 4/11 through Wed
 // 4/14, 2027 (the same conference dates already used as the sessionDate min/max above). Each
 // entry: [date, label, start, end, kind]. 'kind' drives how the Schedule tab renders/edits it:
@@ -7659,7 +7946,7 @@ const TRACK_COLOR_PALETTE = [
 ];
 function trackColorForIndex(i) { return TRACK_COLOR_PALETTE[i % TRACK_COLOR_PALETTE.length]; }
 let scheduleSlots = DEFAULT_SCHEDULE_SLOTS.map(([date, label, start, end, kind], i) => ({
-  id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i
+  id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i, audiences: [MAIN_AUDIENCE_ID]
 }));
 
 async function loadScheduleSlots() {
@@ -7667,7 +7954,11 @@ async function loadScheduleSlots() {
   try {
     const { data, error } = await sbClient.from(SCHEDULE_SLOTS_TABLE).select('*').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
     if (!error && data && data.length) {
-      scheduleSlots = data.map((r, i) => ({ id: r.id, date: r.slot_date, label: r.label, start: r.start_time, end: r.end_time, kind: r.kind, notes: r.notes || '', sortOrder: r.sort_order != null ? r.sort_order : i }));
+      scheduleSlots = data.map((r, i) => ({
+        id: r.id, date: r.slot_date, label: r.label, start: r.start_time, end: r.end_time, kind: r.kind,
+        notes: r.notes || '', sortOrder: r.sort_order != null ? r.sort_order : i,
+        audiences: Array.isArray(r.audiences) && r.audiences.length ? r.audiences : [MAIN_AUDIENCE_ID]
+      }));
     } else if (error) {
       console.warn('Schedule slots table not available:', errDetail(error));
     }
@@ -7678,28 +7969,62 @@ async function loadScheduleSlots() {
 
 function pushScheduleSlot(slot) {
   if (!sbClient) return;
-  sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({
+  const base = {
     id: slot.id, slot_date: slot.date, label: slot.label, start_time: slot.start, end_time: slot.end,
     kind: slot.kind, notes: slot.notes || '', sort_order: slot.sortOrder
-  }).then(({ error }) => {
-    if (error) { console.error('Schedule slot save failed:', error); toast('Couldn’t save that schedule change — it’ll revert next reload. (' + errDetail(error) + ')'); }
+  };
+  const audiences = slot.audiences && slot.audiences.length ? slot.audiences : [MAIN_AUDIENCE_ID];
+  sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({ ...base, audiences }).then(({ error }) => {
+    if (!error) return;
+    // Older schema without the "audiences" column yet -- retry without it so the fields that
+    // already worked (time, label, kind) keep saving; the audience tag just won't persist
+    // until that column is added (see the SQL comment above SCHEDULE_SLOTS_TABLE).
+    sbClient.from(SCHEDULE_SLOTS_TABLE).upsert(base).then(({ error: err2 }) => {
+      if (err2) { console.error('Schedule slot save failed:', err2); toast('Couldn’t save that schedule change — it’ll revert next reload. (' + errDetail(err2) + ')'); }
+      else console.warn('Audience tag didn’t save — "schedule_slots.audiences" column may be missing. (' + errDetail(error) + ')');
+    });
   });
 }
 
 function addScheduleSlot() {
   const dateEl = document.getElementById('sch-slot-date'), labelEl = document.getElementById('sch-slot-label'),
-    startEl = document.getElementById('sch-slot-start'), endEl = document.getElementById('sch-slot-end'), kindEl = document.getElementById('sch-slot-kind');
+    startEl = document.getElementById('sch-slot-start'), endEl = document.getElementById('sch-slot-end'), kindEl = document.getElementById('sch-slot-kind'),
+    audEl = document.getElementById('sch-slot-audiences');
   const label = labelEl.value.trim();
   if (!label || !dateEl.value || !startEl.value || !endEl.value) { toast('Enter a date, label, start and end time first.'); return; }
-  const slot = { id: makeId(), date: dateEl.value, label, start: startEl.value, end: endEl.value, kind: kindEl.value, notes: '', sortOrder: scheduleSlots.length };
+  const pickedAudiences = audEl ? Array.from(audEl.selectedOptions).map(o => o.value) : [];
+  const slot = {
+    id: makeId(), date: dateEl.value, label, start: startEl.value, end: endEl.value, kind: kindEl.value,
+    notes: '', sortOrder: scheduleSlots.length, audiences: pickedAudiences.length ? pickedAudiences : [MAIN_AUDIENCE_ID]
+  };
   scheduleSlots.push(slot);
   pushScheduleSlot(slot);
   renderScheduleView();
   labelEl.value = '';
 }
 function removeScheduleSlot(id) {
-  if (!confirm('Remove this slot from the schedule? Any sessions already assigned to it will just become unscheduled, not deleted.')) return;
+  if (!confirm('Remove this slot from the schedule? Anyone already assigned to it will be deleted from it too — not left as a dangling, still-conflicting entry.')) return;
+  const slot = scheduleSlots.find(s => s.id === id);
   scheduleSlots = scheduleSlots.filter(s => s.id !== id);
+  // A session's own sessionDate/timeSlot are a cached copy of the slot's, kept independent of
+  // the slot record so a speaker's page can show them without a lookup. If the slot disappears
+  // without also clearing these, the cached copy lives on unchanged -- still "scheduled" as far
+  // as conflict detection and the speaker's own record are concerned, even though the thing it
+  // pointed to is gone.
+  if (slot) {
+    speakers.forEach(sp => {
+      const sessions = sp.data.sessions || [];
+      const kept = sessions.filter(sess => {
+        const linkedToThisSlot = sess.slotId === slot.id || (!sess.slotId && sess.sessionDate === slot.date && sess.timeSlot === slot.start);
+        return !linkedToThisSlot;
+      });
+      if (kept.length !== sessions.length) {
+        sp.data.sessions = kept;
+        Array.from(expandedSpeakerSessions).forEach(key => { if (key.startsWith(sp.id + ':')) expandedSpeakerSessions.delete(key); });
+        pushSpeaker(sp);
+      }
+    });
+  }
   renderScheduleView();
   if (sbClient) {
     sbClient.from(SCHEDULE_SLOTS_TABLE).delete().eq('id', id).then(({ error }) => {
@@ -7731,18 +8056,49 @@ function breakoutNumberForSlot(slot) {
 // there's only one copy of the data to begin with.
 let scheduleSubview = 'timeline';
 let scheduleRosterSearch = '';
+// Which audience(s) the Timeline is currently showing -- starts on just Main Conference, so
+// the default view is exactly what it was before this feature existed. A slot renders only
+// when at least one of its tags is in this set; deselecting everything is allowed and just
+// shows an empty state, same as any other faceted filter.
+let scheduleAudienceFilter = new Set([MAIN_AUDIENCE_ID]);
+// Which single cohort the Itinerary view is built for (always merged with Main Conference).
+let scheduleItineraryAudienceId = null;
 
 function setScheduleSubview(v) { scheduleSubview = v; renderScheduleView(); }
+function toggleScheduleAudienceFilter(audId) {
+  if (scheduleAudienceFilter.has(audId)) scheduleAudienceFilter.delete(audId);
+  else scheduleAudienceFilter.add(audId);
+  renderScheduleView();
+}
+function slotAudiences(slot) { return slot.audiences && slot.audiences.length ? slot.audiences : [MAIN_AUDIENCE_ID]; }
+function toggleSlotAudience(slotId, audId) {
+  const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
+  const current = new Set(slotAudiences(slot));
+  if (current.has(audId)) {
+    if (current.size === 1) { toast('A session needs at least one group — add another before removing this one.'); return; }
+    current.delete(audId);
+  } else {
+    current.add(audId);
+  }
+  slot.audiences = Array.from(current);
+  pushScheduleSlot(slot);
+  renderScheduleView();
+}
+function setScheduleItineraryAudience(id) { scheduleItineraryAudienceId = id || null; renderScheduleItinerary(); }
 
 function renderScheduleView() {
   renderScheduleConflicts();
-  const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline');
+  const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline'), itinBtn = document.getElementById('sch-toggle-itinerary');
   if (gridBtn) gridBtn.classList.toggle('active', scheduleSubview === 'grid');
   if (timelineBtn) timelineBtn.classList.toggle('active', scheduleSubview === 'timeline');
-  const gridBody = document.getElementById('sch-grid-body'), timelineBody = document.getElementById('sch-timeline-body');
+  if (itinBtn) itinBtn.classList.toggle('active', scheduleSubview === 'itinerary');
+  const gridBody = document.getElementById('sch-grid-body'), timelineBody = document.getElementById('sch-timeline-body'), itinBody = document.getElementById('sch-itinerary-body');
   if (gridBody) gridBody.style.display = scheduleSubview === 'grid' ? 'block' : 'none';
   if (timelineBody) timelineBody.style.display = scheduleSubview === 'timeline' ? 'block' : 'none';
-  if (scheduleSubview === 'grid') renderBreakoutGrid(); else renderScheduleTimeline();
+  if (itinBody) itinBody.style.display = scheduleSubview === 'itinerary' ? 'block' : 'none';
+  if (scheduleSubview === 'grid') renderBreakoutGrid();
+  else if (scheduleSubview === 'itinerary') renderScheduleItinerary();
+  else renderScheduleTimeline();
 }
 
 function computeScheduleConflicts() {
@@ -7831,6 +8187,18 @@ function buildScheduleRosterChipsHtml() {
   return sortByLastName(filtered).map(sp => `<div class="sch-chip" draggable="true" ondragstart="schDragStart(event, {type:'speaker', speakerId:'${sp.id}'})">${escapeHtml(sp.name)}</div>`).join('');
 }
 
+function sortCellOccupants(occs) {
+  // Sorts by the explicit cellOrder set by dragging within a cell; occupants that have never
+  // been manually reordered fall back to their natural (stable) insertion order.
+  occs.sort((a, b) => {
+    const ao = a.sess.cellOrder, bo = b.sess.cellOrder;
+    if (ao != null && bo != null) return ao - bo;
+    if (ao != null) return -1;
+    if (bo != null) return 1;
+    return 0;
+  });
+}
+
 function assignSpeakerToBreakoutCell(speakerId, trackId, slotId) {
   if (!speakerId) return;
   const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
@@ -7869,15 +8237,23 @@ function renderBreakoutGrid() {
   const rows = sessionTracks.map((track, trackIdx) => {
     const trackColor = trackColorForIndex(trackIdx);
     const cells = breakoutSlots.map(slot => {
-      const occs = index[track.name + '|' + slot.id] || [];
-      const cards = occs.map(occ => {
+      const occs = (index[track.name + '|' + slot.id] || []).slice();
+      sortCellOccupants(occs);
+      // When everyone in the cell shares the exact same (non-blank) session title -- a group
+      // co-presenting one breakout -- showing that title on every card is just repetition.
+      // Show it once, on the first card, and just the name for the rest. Drag a card onto
+      // another one in the same cell to change who's "first" (and reorder generally).
+      const titlesMatch = occs.length > 1 && !!occs[0].sess.title && occs.every(o => o.sess.title === occs[0].sess.title);
+      const canReorder = occs.length > 1;
+      const cards = occs.map((occ, occIdx) => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
-        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="true" ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record — drag to move to another cell">
+        const showTitle = !titlesMatch || occIdx === 0;
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="true" ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" ${canReorder ? `ondragover="schCardDragOver(event)" ondragleave="schCardDragLeave(event)" ondrop="schCardDrop(event,'${track.id}','${slot.id}',${occIdx})"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record — drag to move to another cell${canReorder ? ', or drag onto a neighbor here to reorder' : ''}">
           ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
-          <span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Unschedule">×</span>
+          <span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Delete this session">×</span>
           <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
-          <div class="sch-card-title">${escapeHtml(occ.sess.title || '')}</div>
+          ${showTitle ? `<div class="sch-card-title">${escapeHtml(occ.sess.title || '')}</div>` : ''}
           <span class="sch-card-edit" onclick="event.stopPropagation(); schEditSessionTitle('${occ.speakerId}', ${occ.sessionIndex})" title="Edit title">✎</span>
         </div>`;
       }).join('');
@@ -7918,7 +8294,14 @@ function schDragStart(e, payload) {
 }
 function schDragOver(e) { e.preventDefault(); if (e.currentTarget) e.currentTarget.classList.add('sch-cell-hover'); }
 function schDragLeave(e) { if (e.currentTarget) e.currentTarget.classList.remove('sch-cell-hover'); }
-function schDrop(e, trackId, slotId) {
+function schCardDragOver(e) { e.preventDefault(); e.stopPropagation(); if (e.currentTarget) e.currentTarget.classList.add('sch-card-drop-hover'); }
+function schCardDragLeave(e) { if (e.currentTarget) e.currentTarget.classList.remove('sch-card-drop-hover'); }
+function schCardDrop(e, trackId, slotId, targetOccIdx) {
+  e.stopPropagation();
+  if (e.currentTarget) e.currentTarget.classList.remove('sch-card-drop-hover');
+  schDrop(e, trackId, slotId, targetOccIdx);
+}
+function schDrop(e, trackId, slotId, targetOccIdx) {
   e.preventDefault();
   if (e.currentTarget) e.currentTarget.classList.remove('sch-cell-hover');
   const payload = schDragPayload; schDragPayload = null;
@@ -7933,18 +8316,54 @@ function schDrop(e, trackId, slotId) {
     return;
   }
   if (payload.type === 'session') {
-    // Relocates that one session to the target cell -- doesn't touch whoever's already there.
     const fromSp = getSpeaker(payload.speakerId); if (!fromSp) return;
     const fromSess = fromSp.data.sessions && fromSp.data.sessions[payload.sessionIndex]; if (!fromSess) return;
+    const fromSlot = findSlotForSession(fromSess);
+    const sameCell = fromSlot && fromSlot.id === slot.id && fromSess.track === track.name;
+    if (sameCell) {
+      // Dropped within the cell it's already in -- reorder rather than "move".
+      reorderSessionWithinCell(track.name, slot.id, payload.speakerId, payload.sessionIndex, targetOccIdx);
+      return;
+    }
+    // Relocates that one session to the target cell -- doesn't touch whoever's already there.
     fromSess.track = track.name; fromSess.slotId = slot.id; fromSess.sessionDate = slot.date; fromSess.timeSlot = slot.start; fromSess.day = fullWeekday(slot.date);
+    delete fromSess.cellOrder; // old cell's position is meaningless in the new cell
     pushSpeaker(fromSp);
     renderScheduleView();
   }
 }
+function reorderSessionWithinCell(trackName, slotId, speakerId, sessionIndex, targetOccIdx) {
+  const occs = [];
+  speakers.forEach(sp => {
+    (sp.data.sessions || []).forEach((sess, i) => {
+      if (sess.track !== trackName) return;
+      const slot = findSlotForSession(sess);
+      if (!slot || slot.id !== slotId) return;
+      occs.push({ speakerId: sp.id, sessionIndex: i, sess });
+    });
+  });
+  sortCellOccupants(occs);
+  const origKey = occs.map(o => o.speakerId + ':' + o.sessionIndex).join(',');
+  const fromIdx = occs.findIndex(o => o.speakerId === speakerId && o.sessionIndex === sessionIndex);
+  if (fromIdx === -1) return;
+  const [moved] = occs.splice(fromIdx, 1);
+  let insertAt = (targetOccIdx == null) ? occs.length : (targetOccIdx > fromIdx ? targetOccIdx - 1 : targetOccIdx);
+  insertAt = Math.max(0, Math.min(insertAt, occs.length));
+  occs.splice(insertAt, 0, moved);
+  const newKey = occs.map(o => o.speakerId + ':' + o.sessionIndex).join(',');
+  if (newKey === origKey || occs.length < 2) return;
+  occs.forEach((o, idx) => { o.sess.cellOrder = idx; });
+  const touchedIds = new Set(occs.map(o => o.speakerId));
+  touchedIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
+  renderScheduleView();
+}
 function schUnscheduleSession(speakerId, sessionIndex) {
-  const sp = getSpeaker(speakerId); if (!sp) return;
-  const sess = sp.data.sessions && sp.data.sessions[sessionIndex]; if (!sess) return;
-  sess.track = ''; sess.sessionDate = ''; sess.timeSlot = ''; sess.day = '';
+  const sp = getSpeaker(speakerId); if (!sp || !sp.data.sessions) return;
+  if (!sp.data.sessions[sessionIndex]) return;
+  sp.data.sessions.splice(sessionIndex, 1);
+  // Indices shift after a removal -- simplest to collapse this speaker's expand-state rather
+  // than risk a stale flag now pointing at a different session (mirrors removeSpeakerSession).
+  Array.from(expandedSpeakerSessions).forEach(key => { if (key.startsWith(speakerId + ':')) expandedSpeakerSessions.delete(key); });
   pushSpeaker(sp);
   renderScheduleView();
 }
@@ -7977,8 +8396,8 @@ function schTimelineRemoveAssignment(slotId, speakerId) {
   const sp = getSpeaker(speakerId); if (!sp) return;
   const idx = (sp.data.sessions || []).findIndex(s => s.slotId === slot.id || (!s.slotId && !s.track && s.sessionDate === slot.date && s.timeSlot === slot.start));
   if (idx === -1) return;
-  const sess = sp.data.sessions[idx];
-  sess.sessionDate = ''; sess.timeSlot = ''; sess.day = ''; sess.slotId = '';
+  sp.data.sessions.splice(idx, 1);
+  Array.from(expandedSpeakerSessions).forEach(key => { if (key.startsWith(speakerId + ':')) expandedSpeakerSessions.delete(key); });
   pushSpeaker(sp);
   renderScheduleView();
 }
@@ -7987,7 +8406,23 @@ function editScheduleSlotLabel(id) {
   const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
   const newLabel = prompt('Name/title for this scheduled item:', slot.label);
   if (newLabel === null || !newLabel.trim()) return;
+  const oldLabel = slot.label;
   slot.label = newLabel.trim();
+  // A keynote/panel session's title starts out as a copy of the slot's label at assignment
+  // time (see schTimelineAddAssignment) -- if it still matches that original label (i.e. nobody
+  // retitled it since), follow the rename here too, so the speaker's own record stays in sync
+  // with the schedule instead of showing a stale name. Sessions already given a custom title
+  // are left alone on purpose.
+  if (oldLabel !== slot.label) {
+    speakers.forEach(sp => {
+      let changed = false;
+      (sp.data.sessions || []).forEach(sess => {
+        const linkedToThisSlot = sess.slotId === slot.id || (!sess.slotId && sess.sessionDate === slot.date && sess.timeSlot === slot.start);
+        if (linkedToThisSlot && sess.title === oldLabel) { sess.title = slot.label; changed = true; }
+      });
+      if (changed) pushSpeaker(sp);
+    });
+  }
   pushScheduleSlot(slot);
   renderScheduleView();
 }
@@ -7997,12 +8432,56 @@ function updateScheduleSlotKind(id, kind) {
   pushScheduleSlot(slot);
   renderScheduleView();
 }
+function updateScheduleSlotTime(id, field, value) {
+  const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
+  if (!value) { renderScheduleView(); return; } // ignore a cleared/incomplete time input
+  const nextStart = field === 'start' ? value : slot.start;
+  const nextEnd = field === 'end' ? value : slot.end;
+  if (nextStart >= nextEnd) {
+    alert('Start time must be before the end time.');
+    renderScheduleView(); // reset the input back to the last valid value
+    return;
+  }
+  slot[field] = value;
+  // Sessions cache the slot's start time (see assignSpeakerToBreakoutCell etc.) so a speaker's
+  // own record can show it without looking the slot up -- keep that cache in sync with
+  // slotId-linked sessions, same as editScheduleSlotLabel already does for the title.
+  if (field === 'start') {
+    speakers.forEach(sp => {
+      let changed = false;
+      (sp.data.sessions || []).forEach(sess => {
+        if (sess.slotId === slot.id && sess.timeSlot !== slot.start) { sess.timeSlot = slot.start; changed = true; }
+      });
+      if (changed) pushSpeaker(sp);
+    });
+  }
+  pushScheduleSlot(slot);
+  renderScheduleView();
+}
+
+function audienceFacetBarHtml() {
+  const chips = scheduleAudiences.map((a, i) => {
+    const on = scheduleAudienceFilter.has(a.id);
+    return `<span class="sch-aud-facet ${on ? 'on' : ''}" onclick="toggleScheduleAudienceFilter('${a.id}')" title="${on ? 'Hide' : 'Show'} ${escapeHtml(a.name)}">
+      <span class="sch-aud-swatch" style="--dot-color:${audienceColorForIndex(i)};"></span>
+      ${escapeHtml(a.name)}
+      ${a.id === MAIN_AUDIENCE_ID ? '' : `<span class="sch-aud-manage" onclick="event.stopPropagation(); editScheduleAudience('${a.id}')" title="Rename">✎</span><span class="sch-aud-manage" onclick="event.stopPropagation(); removeScheduleAudience('${a.id}')" title="Remove group">×</span>`}
+    </span>`;
+  }).join('');
+  return `
+    <div class="sch-aud-bar">
+      <span class="sch-aud-bar-label">Show:</span>
+      ${chips}
+      <span class="sch-aud-add"><input type="text" id="sch-audience-name" placeholder="+ Add a group…" onkeydown="if(event.key==='Enter') addScheduleAudience();"><button class="sp-mini-btn" onclick="addScheduleAudience()">Add</button></span>
+    </div>`;
+}
 
 function renderScheduleTimeline() {
   const body = document.getElementById('sch-timeline-body');
   if (!body) return;
+  const visibleSlots = scheduleSlots.filter(slot => slotAudiences(slot).some(a => scheduleAudienceFilter.has(a)));
   const days = {};
-  scheduleSlots.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).forEach(slot => {
+  visibleSlots.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).forEach(slot => {
     (days[slot.date] = days[slot.date] || []).push(slot);
   });
   const dateKeys = Object.keys(days).sort();
@@ -8010,14 +8489,24 @@ function renderScheduleTimeline() {
 
   const kindSelect = (slot) => `<select class="sch-timeline-kind-select sch-kind-${slot.kind}" onchange="updateScheduleSlotKind('${slot.id}', this.value)">${SCHEDULE_SLOT_KINDS.map(k => `<option value="${k}" ${k === slot.kind ? 'selected' : ''}>${k.charAt(0).toUpperCase() + k.slice(1)}</option>`).join('')}</select>`;
   const labelWithEdit = (slot, extra) => `<div class="sch-timeline-label">${escapeHtml(slot.label)}<span class="sch-edit-icon" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename">✎</span>${extra || ''}</div>`;
+  const timeInputs = (slot) => `<div class="sch-timeline-time-edit">
+    <input type="time" class="sch-timeline-time-input" value="${slot.start}" onchange="updateScheduleSlotTime('${slot.id}','start',this.value)" title="Start time">
+    <span>–</span>
+    <input type="time" class="sch-timeline-time-input" value="${slot.end}" onchange="updateScheduleSlotTime('${slot.id}','end',this.value)" title="End time">
+  </div>`;
+  const audienceTags = (slot) => {
+    const current = new Set(slotAudiences(slot));
+    return `<div class="sch-row-aud-dots">${scheduleAudiences.map((a, i) => `<span class="sch-aud-dot ${current.has(a.id) ? 'on' : 'off'}" style="--dot-color:${audienceColorForIndex(i)};" onclick="toggleSlotAudience('${slot.id}','${a.id}')" title="${current.has(a.id) ? 'Remove' : 'Add'} ${escapeHtml(a.name)}"></span>`).join('')}</div>`;
+  };
 
   const dayBlocks = dateKeys.map(date => {
     const rows = days[date].map(slot => {
       if (slot.kind === 'breakout') {
         return `<div class="sch-timeline-row">
-          <div class="sch-timeline-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
+          ${timeInputs(slot)}
           ${labelWithEdit(slot, ' <span class="sp-sub">— see Breakout Grid above</span>')}
           ${kindSelect(slot)}
+          ${audienceTags(slot)}
           <span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>
         </div>`;
       }
@@ -8030,18 +8519,26 @@ function renderScheduleTimeline() {
       const chips = assignedSpeakers.map(sp => `<span class="sch-chip-sm" onclick="jumpToSpeaker('${sp.id}')" title="Click to open ${escapeHtml(sp.name)}'s full record">${escapeHtml(sp.name)}<span class="sch-chip-x" onclick="event.stopPropagation(); schTimelineRemoveAssignment('${slot.id}','${sp.id}')" title="Remove">×</span></span>`).join('');
       const canAssign = slot.kind === 'keynote' || slot.kind === 'panel';
       return `<div class="sch-timeline-row">
-        <div class="sch-timeline-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
+        ${timeInputs(slot)}
         ${labelWithEdit(slot)}
         ${kindSelect(slot)}
         ${canAssign ? `<div class="sch-timeline-assign">${chips}<select onchange="if(this.value){schTimelineAddAssignment('${slot.id}', this.value); this.value='';}">${addOptions}</select></div>` : ''}
+        ${audienceTags(slot)}
         <span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>
       </div>`;
     }).join('');
     return `<div class="sch-timeline-day"><div class="sch-timeline-day-title">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}</div>`;
   }).join('');
 
+  const emptyMsg = scheduleSlots.length === 0
+    ? 'No schedule slots yet — add the first one below.'
+    : 'No sessions in the group(s) currently selected above — toggle a group on to see its schedule.';
+
+  const audienceOptions = scheduleAudiences.map(a => `<option value="${a.id}" ${a.id === MAIN_AUDIENCE_ID ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('');
+
   body.innerHTML = `
-    ${dayBlocks || '<div class="sch-conflicts-empty">No schedule slots yet — add the first one below.</div>'}
+    ${audienceFacetBarHtml()}
+    ${dayBlocks || `<div class="sch-conflicts-empty">${emptyMsg}</div>`}
     <div class="sch-slot-editor">
       <div class="db-section-title">Add a schedule slot</div>
       <div class="sch-slot-add-row">
@@ -8050,8 +8547,69 @@ function renderScheduleTimeline() {
         <input type="time" id="sch-slot-start">
         <input type="time" id="sch-slot-end">
         <select id="sch-slot-kind">${SCHEDULE_SLOT_KINDS.map(k => `<option value="${k}">${k.charAt(0).toUpperCase() + k.slice(1)}</option>`).join('')}</select>
+        <select id="sch-slot-audiences" multiple title="Which group(s) is this for? Cmd/Ctrl-click to pick more than one — defaults to Main Conference.">${audienceOptions}</select>
         <button class="sp-mini-btn" onclick="addScheduleSlot()">+ Add</button>
       </div>
+    </div>
+  `;
+}
+
+// A clean, single-cohort read of the schedule -- every Main Conference slot plus whatever the
+// chosen group has of its own, merged into one chronological line-up. This is the "handout"
+// view (mirrors the kind of PDF/doc a group leader would print and pass out), separate from the
+// Timeline above, which is where slots actually get tagged and edited.
+function renderScheduleItinerary() {
+  const body = document.getElementById('sch-itinerary-body');
+  if (!body) return;
+  const otherAudiences = scheduleAudiences.filter(a => a.id !== MAIN_AUDIENCE_ID);
+  if (!scheduleItineraryAudienceId && otherAudiences.length) scheduleItineraryAudienceId = otherAudiences[0].id;
+
+  const picker = `
+    <div class="sch-itin-picker">
+      <span class="sch-aud-bar-label">Itinerary for:</span>
+      <select onchange="setScheduleItineraryAudience(this.value)">
+        ${otherAudiences.length ? otherAudiences.map(a => `<option value="${a.id}" ${a.id === scheduleItineraryAudienceId ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('') : `<option>${escapeHtml('Main Conference')}</option>`}
+      </select>
+    </div>`;
+
+  if (!otherAudiences.length) {
+    body.innerHTML = `${picker}<div class="sch-conflicts-empty">No groups besides Main Conference exist yet — add one from the Timeline view above (e.g. "College Collective"), tag a few slots with it, then come back here for its itinerary.</div>`;
+    return;
+  }
+
+  const cohort = scheduleAudiences.find(a => a.id === scheduleItineraryAudienceId);
+  const relevant = scheduleSlots.filter(slot => {
+    const auds = slotAudiences(slot);
+    return auds.includes(MAIN_AUDIENCE_ID) || auds.includes(scheduleItineraryAudienceId);
+  }).slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+  if (!relevant.length) {
+    body.innerHTML = `${picker}<div class="sch-conflicts-empty">Nothing tagged for ${escapeHtml(cohort ? cohort.name : 'this group')} yet.</div>`;
+    return;
+  }
+
+  const days = {};
+  relevant.forEach(slot => (days[slot.date] = days[slot.date] || []).push(slot));
+  const dayBlocks = Object.keys(days).sort().map(date => {
+    const rows = days[date].map(slot => {
+      const shared = slotAudiences(slot).includes(MAIN_AUDIENCE_ID);
+      return `<div class="sch-itin-row ${shared ? 'shared' : ''}">
+        <div class="sch-itin-time">${friendlyTime(slot.start)} – ${friendlyTime(slot.end)}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b></div>
+      </div>`;
+    }).join('');
+    return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}`;
+  }).join('');
+
+  body.innerHTML = `
+    ${picker}
+    <div class="sch-itin-card">
+      <div class="sch-itin-header">
+        <h4>${escapeHtml(cohort ? cohort.name : '')} — Itinerary</h4>
+        <span>Generated from the live conference schedule</span>
+      </div>
+      <div class="sch-itin-body">${dayBlocks}</div>
+      <div class="sch-itin-foot"><span class="sch-itin-key-dot"></span> ◆ = shared session, also on the Main Conference schedule</div>
     </div>
   `;
 }
@@ -8182,6 +8740,66 @@ function renderSpeakerView() {
       + `<button class="sk-type-filter-btn ${speakerTypeFilter === '__none__' ? 'active' : ''}" data-tf="__none__" onclick="setSpeakerTypeFilter('__none__')">— none set —</button>`;
   }
   renderSpeakerRows();
+  initSpeakerColumnResize();
+}
+
+const SPEAKER_COL_WIDTHS_KEY = 'sbcmcSpeakerColWidths';
+let speakerColResizeInit = false;
+
+function loadSpeakerColWidths() {
+  try { return JSON.parse(localStorage.getItem(SPEAKER_COL_WIDTHS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveSpeakerColWidths(widths) {
+  try { localStorage.setItem(SPEAKER_COL_WIDTHS_KEY, JSON.stringify(widths)); }
+  catch (e) { /* localStorage unavailable, resizing just won't persist */ }
+}
+function applySavedSpeakerColWidths() {
+  const widths = loadSpeakerColWidths();
+  document.querySelectorAll('#sk-thead-row th[data-col]').forEach(th => {
+    const idx = th.dataset.col;
+    if (widths[idx]) th.style.width = widths[idx] + 'px';
+  });
+}
+
+function initSpeakerColumnResize() {
+  if (speakerColResizeInit) return;
+  const handles = document.querySelectorAll('#sk-thead-row .sp-col-resize');
+  if (handles.length === 0) return; // header not in DOM yet
+  speakerColResizeInit = true;
+  applySavedSpeakerColWidths();
+
+  handles.forEach(handle => {
+    let startX = 0, startWidth = 0, th = null;
+    function onDown(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      th = handle.closest('th');
+      startX = e.clientX;
+      startWidth = th.getBoundingClientRect().width;
+      handle.classList.add('resizing');
+      handle.setPointerCapture(e.pointerId);
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+    }
+    function onMove(e) {
+      const newWidth = Math.max(40, startWidth + (e.clientX - startX));
+      th.style.width = newWidth + 'px';
+    }
+    function onUp() {
+      handle.classList.remove('resizing');
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      const widths = loadSpeakerColWidths();
+      document.querySelectorAll('#sk-thead-row th[data-col]').forEach(t => {
+        widths[t.dataset.col] = Math.round(t.getBoundingClientRect().width);
+      });
+      saveSpeakerColWidths(widths);
+    }
+    handle.addEventListener('pointerdown', onDown);
+    // prevent the sort-click handler on the <th> from firing when starting a drag
+    handle.addEventListener('click', e => e.stopPropagation());
+  });
 }
 
 function buildSpeakerRowPair(sp, todayStr) {
@@ -8429,14 +9047,15 @@ function speakerDetailHTML(sp) {
 
         <fieldset class="sp-fieldset" style="grid-column:1/-1;">
           <legend>Sessions</legend>
-          ${(sp.data.sessions || []).map((sess, i) => {
+          ${chronoSessionIndices(sp).map((i, displayIdx) => {
+            const sess = sp.data.sessions[i];
             const isExpanded = expandedSpeakerSessions.has(sp.id + ':' + i);
             const summaryBits = [sess.track, [sess.day, friendlyTime(sess.timeSlot)].filter(Boolean).join(' · '), sess.room].filter(Boolean).join(' — ');
             return `
-            <div class="sp-session-card${i === 0 ? ' sp-session-card-first' : ''}">
+            <div class="sp-session-card${displayIdx === 0 ? ' sp-session-card-first' : ''}">
               <div class="sp-session-summary" onclick="toggleSpeakerSessionExpand('${sp.id}',${i})">
                 <span class="sp-chevron ${isExpanded ? 'open' : ''}">▸</span>
-                <span class="sp-session-summary-text"><b>${escapeHtml(sess.title) || 'Session ' + (i + 1)}</b>${summaryBits ? ' — ' + escapeHtml(summaryBits) : ''}</span>
+                <span class="sp-session-summary-text"><b>${escapeHtml(sess.title) || 'Session ' + (displayIdx + 1)}</b>${summaryBits ? ' — ' + escapeHtml(summaryBits) : ''}</span>
                 <button class="sp-mini-btn" onclick="event.stopPropagation(); removeSpeakerSession('${sp.id}',${i})">&times; Remove</button>
               </div>
               ${!isExpanded ? '' : `
@@ -9078,7 +9697,7 @@ function emailSpeakerSummary(id) {
   const sessions = sp.data.sessions || [];
   if (sessions.length) {
     lines.push(sessions.length === 1 ? 'SESSION' : 'SESSIONS');
-    sessions.forEach(sess => {
+    sessions.slice().sort(compareSessionsChrono).forEach(sess => {
       if (sess.title) lines.push('  ' + sess.title);
       const when = [sess.day, friendlyTime(sess.timeSlot)].filter(Boolean).join(' at ');
       if (when) lines.push('  ' + when + (sess.room ? ' \u2014 ' + sess.room : ''));
@@ -9153,8 +9772,72 @@ function emailSpeakerSummary(id) {
   window.open(mailtoUrl, '_blank');
 }
 
-function exportSpeakersCSV() {
-  const rows = speakers;
+function scheduleExportRowValue(row, key) {
+  if (key === 'datetime') return row.slot.date + row.slot.start;
+  if (key === 'track') return ((row.sess && row.sess.track) || '').toLowerCase();
+  if (key === 'label') return (row.slot.label || '').toLowerCase();
+  if (key === 'speaker') return (row.sp ? row.sp.name : '').toLowerCase();
+  return '';
+}
+function exportScheduleCSV(sortValue) {
+  const headers = ['Date', 'Day', 'Start Time', 'End Time', 'Label', 'Kind', 'Track', 'Assigned Speaker/Artist', 'Contact Email', 'Session Title', 'Description'];
+
+  // Same resolution logic the grid/timeline use (slotId first, date+time fallback for older
+  // entries) -- so the export always matches what's actually shown on screen. Built as a flat
+  // list of rows (one per slot, or per occupant of a slot) so any of the sort options below can
+  // reorder rows directly, not just the slots they came from.
+  const rows = [];
+  scheduleSlots.forEach(slot => {
+    const occupants = [];
+    speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
+      if (findSlotForSession(sess) === slot) occupants.push({ sp, sess });
+    }));
+    if (occupants.length === 0) rows.push({ slot, sp: null, sess: null });
+    else occupants.forEach(({ sp, sess }) => rows.push({ slot, sp, sess }));
+  });
+
+  const [sortKey, sortDir] = (sortValue || 'datetime-asc').split('-');
+  const dirMul = sortDir === 'desc' ? -1 : 1;
+  rows.sort((a, b) => {
+    const va = scheduleExportRowValue(a, sortKey), vb = scheduleExportRowValue(b, sortKey);
+    if (va < vb) return -1 * dirMul;
+    if (va > vb) return 1 * dirMul;
+    // Tie-break chronologically so rows sharing a sort value (e.g. same track) still read
+    // in a sensible order within that group.
+    const ta = a.slot.date + a.slot.start, tb = b.slot.date + b.slot.start;
+    return ta < tb ? -1 : ta > tb ? 1 : 0;
+  });
+
+  const lines = [headers.map(csvEscape).join(',')];
+  rows.forEach(({ slot, sp, sess }) => {
+    if (!sp) {
+      lines.push([slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, slot.kind, '', '', '', '', ''].map(csvEscape).join(','));
+    } else {
+      lines.push([slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, slot.kind, sess.track || '', sp.name, sp.contactEmail || '', sess.title || '', sess.description || ''].map(csvEscape).join(','));
+    }
+  });
+  const csv = lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'conference-schedule.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Exported ' + rows.length + ' schedule row' + (rows.length === 1 ? '' : 's') + ' to CSV.');
+}
+
+function exportSpeakersCSV(sortValue) {
+  const rows = speakers.slice();
+  if (sortValue) {
+    const [key, dir] = sortValue.split('-');
+    const dirMul = dir === 'desc' ? -1 : 1;
+    rows.sort((a, b) => {
+      const va = speakerSortValue(a, key), vb = speakerSortValue(b, key);
+      if (va < vb) return -1 * dirMul;
+      if (va > vb) return 1 * dirMul;
+      return 0;
+    });
+  }
   const headers = [
     'Name', 'Type', 'Contact Name', 'Contact Email', 'Contact Phone', 'Tracker Status', 'Flagged',
     'Session Title', 'Track', 'Day', 'Time Slot', 'Room', 'Length (min)',
