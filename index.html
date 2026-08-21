@@ -1044,6 +1044,9 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 }
 .sch-aud-facet.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
 .sch-aud-facet .sch-aud-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--dot-color); }
+.sch-aud-facet { cursor: grab; }
+.sch-aud-facet:active { cursor: grabbing; }
+.sch-aud-facet-drop { outline: 2px dashed var(--gold); outline-offset: 2px; }
 .sch-aud-manage { font-size: 10px; opacity: 0.65; cursor: pointer; }
 .sch-aud-manage:hover { opacity: 1; }
 .sch-aud-add { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; }
@@ -7111,12 +7114,16 @@ const SCHEDULE_SLOTS_TABLE = 'schedule_slots';
 // Named groups a schedule slot can be tagged with -- "Main Conference" plus whatever cohort
 // schedules get added (Conference Leadership, High School Summit, College Collective, ...).
 // Same editable-list pattern as session rooms/tracks above. Requires its own table:
-//   create table if not exists schedule_audiences (id text primary key, name text not null);
+//   create table if not exists schedule_audiences (
+//     id text primary key, name text not null, sort_order int not null default 0
+//   );
 //   alter table schedule_audiences enable row level security;
 //   create policy "public read schedule_audiences" on schedule_audiences for select using (true);
 //   create policy "public write schedule_audiences" on schedule_audiences for insert with check (true);
 //   create policy "public update schedule_audiences" on schedule_audiences for update using (true);
 //   create policy "public delete schedule_audiences" on schedule_audiences for delete using (true);
+// If schedule_audiences already exists from before "sort_order" was added, just run:
+//   alter table schedule_audiences add column if not exists sort_order int not null default 0;
 const SCHEDULE_AUDIENCES_TABLE = 'schedule_audiences';
 // aud_default_0 is the reserved id for "Main Conference" -- new/legacy slots default to just
 // this one, and it's what the audience filter starts on, so the default view is unchanged from
@@ -7126,7 +7133,14 @@ const DEFAULT_SCHEDULE_AUDIENCES = ['Main Conference', 'Conference Leadership', 
 // Cycles by row position (not by name), same reasoning as TRACK_COLOR_PALETTE -- stays correct
 // no matter how groups get renamed/added later. Main Conference lands on the app's own teal.
 const AUDIENCE_COLOR_PALETTE = ['#24404A', '#8B5A6E', '#A0623A', '#5C6E96', '#6B7F4F', '#9B6B9E', '#4A7A5C', '#B08550'];
-function audienceColorForIndex(i) { return AUDIENCE_COLOR_PALETTE[i % AUDIENCE_COLOR_PALETTE.length]; }
+// Keyed off the id itself, not display position -- so dragging pills into a new order changes
+// where they sit, never what color means "this group" (Main Conference always lands here too,
+// since it's a fixed string).
+function audienceColorForId(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return AUDIENCE_COLOR_PALETTE[hash % AUDIENCE_COLOR_PALETTE.length];
+}
 
 async function loadDriversAndHotels() {
   if (!sbClient) return;
@@ -7834,25 +7848,24 @@ function removeSessionTrack(id) {
   }
 }
 
-let scheduleAudiences = DEFAULT_SCHEDULE_AUDIENCES.map((name, i) => ({ id: 'aud_default_' + i, name }));
+let scheduleAudiences = DEFAULT_SCHEDULE_AUDIENCES.map((name, i) => ({ id: 'aud_default_' + i, name, sortOrder: i }));
+function orderedScheduleAudiences() { return scheduleAudiences.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)); }
 
 async function loadScheduleAudiences() {
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(SCHEDULE_AUDIENCES_TABLE).select('*');
     if (!error && data && data.length) {
-      scheduleAudiences = data.map(a => ({ id: a.id, name: a.name }));
+      scheduleAudiences = data.map((a, i) => ({ id: a.id, name: a.name, sortOrder: a.sort_order != null ? a.sort_order : i }));
       // Main Conference is a reserved id the default filter and every untagged slot fall back
       // to. If the table has rows for other groups but never picked up one for this id (e.g.
       // it was only ever a synthesized default that nobody explicitly saved), restore it and
       // persist it -- otherwise it silently vanishes from the list, and the filter/every slot
       // still pointing at the reserved id ends up referring to a chip that no longer exists.
       if (!scheduleAudiences.some(a => a.id === MAIN_AUDIENCE_ID)) {
-        const mainAud = { id: MAIN_AUDIENCE_ID, name: 'Main Conference' };
+        const mainAud = { id: MAIN_AUDIENCE_ID, name: 'Main Conference', sortOrder: -1 };
         scheduleAudiences.unshift(mainAud);
-        sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert(mainAud).then(({ error: err2 }) => {
-          if (err2) console.warn('Could not restore the Main Conference row:', errDetail(err2));
-        });
+        pushScheduleAudience(mainAud);
       }
     } else if (error) {
       console.warn('Schedule audiences table not available:', errDetail(error));
@@ -7861,21 +7874,30 @@ async function loadScheduleAudiences() {
     console.warn('Schedule audiences load failed:', err);
   }
 }
+function pushScheduleAudience(aud) {
+  if (!sbClient) return;
+  const base = { id: aud.id, name: aud.name };
+  sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ ...base, sort_order: aud.sortOrder || 0 }).then(({ error }) => {
+    if (!error) return;
+    // Older schema without a sort_order column yet -- retry without it so the name/id still
+    // save; order just won't persist until that column exists.
+    sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert(base).then(({ error: err2 }) => {
+      if (err2) { console.error('Audience save failed:', err2); toast('Couldn’t save that group — it’ll revert next reload. (' + errDetail(err2) + ')'); }
+      else console.warn('Group order didn’t save — "schedule_audiences.sort_order" column may be missing. (' + errDetail(error) + ')');
+    });
+  });
+}
 function addScheduleAudience() {
   const input = document.getElementById('sch-audience-name');
   const name = input.value.trim();
   if (!name) { toast('Enter a group name first.'); return; }
   const dupe = scheduleAudiences.find(a => a.name.toLowerCase() === name.toLowerCase());
   if (dupe) { toast(`"${dupe.name}" already exists — toggle it in the filter bar instead of adding a duplicate.`); return; }
-  const aud = { id: makeId(), name };
+  const aud = { id: makeId(), name, sortOrder: scheduleAudiences.length };
   scheduleAudiences.push(aud);
   scheduleAudienceFilter.add(aud.id);
   renderScheduleView();
-  if (sbClient) {
-    sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ id: aud.id, name: aud.name }).then(({ error }) => {
-      if (error) { console.error('Audience save failed:', error); toast('Couldn’t save that group — it’ll disappear next reload. (' + errDetail(error) + ')'); }
-    });
-  }
+  pushScheduleAudience(aud);
   input.value = '';
 }
 function editScheduleAudience(id) {
@@ -7884,11 +7906,30 @@ function editScheduleAudience(id) {
   if (newName === null || !newName.trim()) return;
   aud.name = newName.trim();
   renderScheduleView();
-  if (sbClient) {
-    sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ id: aud.id, name: aud.name }).then(({ error }) => {
-      if (error) { console.error('Audience update failed:', error); toast('Couldn’t save that change — it’ll revert next reload. (' + errDetail(error) + ')'); }
-    });
-  }
+  pushScheduleAudience(aud);
+}
+// Drag one facet pill onto another to reorder the whole row -- mirrors the breakout grid's
+// card-reorder mechanic (same drag/drop event shape, same "renumber everyone, persist" finish).
+let schAudDragId = null;
+function schAudDragStart(e, id) {
+  schAudDragId = id;
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', ''); } catch (err) { /* Firefox needs the call even if unused */ } }
+}
+function schAudDragOver(e) { e.preventDefault(); e.stopPropagation(); if (e.currentTarget) e.currentTarget.classList.add('sch-aud-facet-drop'); }
+function schAudDragLeave(e) { if (e.currentTarget) e.currentTarget.classList.remove('sch-aud-facet-drop'); }
+function schAudDrop(e, targetId) {
+  e.preventDefault(); e.stopPropagation();
+  if (e.currentTarget) e.currentTarget.classList.remove('sch-aud-facet-drop');
+  const dragId = schAudDragId; schAudDragId = null;
+  if (!dragId || dragId === targetId) return;
+  const ordered = orderedScheduleAudiences();
+  const fromIdx = ordered.findIndex(a => a.id === dragId);
+  const toIdx = ordered.findIndex(a => a.id === targetId);
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [moved] = ordered.splice(fromIdx, 1);
+  ordered.splice(toIdx, 0, moved);
+  ordered.forEach((a, i) => { a.sortOrder = i; pushScheduleAudience(a); });
+  renderScheduleView();
 }
 function removeScheduleAudience(id) {
   if (id === MAIN_AUDIENCE_ID) { toast('Main Conference can’t be removed — it’s the default group every slot falls back to.'); return; }
@@ -8477,10 +8518,12 @@ function updateScheduleSlotTime(id, field, value) {
 }
 
 function audienceFacetBarHtml() {
-  const chips = scheduleAudiences.map((a, i) => {
+  const chips = orderedScheduleAudiences().map(a => {
     const on = scheduleAudienceFilter.has(a.id);
-    return `<span class="sch-aud-facet ${on ? 'on' : ''}" onclick="toggleScheduleAudienceFilter('${a.id}')" title="${on ? 'Hide' : 'Show'} ${escapeHtml(a.name)}">
-      <span class="sch-aud-swatch" style="--dot-color:${audienceColorForIndex(i)};"></span>
+    return `<span class="sch-aud-facet ${on ? 'on' : ''}" draggable="true"
+      ondragstart="schAudDragStart(event,'${a.id}')" ondragover="schAudDragOver(event)" ondragleave="schAudDragLeave(event)" ondrop="schAudDrop(event,'${a.id}')"
+      onclick="toggleScheduleAudienceFilter('${a.id}')" title="${on ? 'Hide' : 'Show'} ${escapeHtml(a.name)} — drag to reorder">
+      <span class="sch-aud-swatch" style="--dot-color:${audienceColorForId(a.id)};"></span>
       ${escapeHtml(a.name)}
       ${a.id === MAIN_AUDIENCE_ID ? '' : `<span class="sch-aud-manage" onclick="event.stopPropagation(); editScheduleAudience('${a.id}')" title="Rename">✎</span><span class="sch-aud-manage" onclick="event.stopPropagation(); removeScheduleAudience('${a.id}')" title="Remove group">×</span>`}
     </span>`;
@@ -8513,7 +8556,7 @@ function renderScheduleTimeline() {
   </div>`;
   const audienceTags = (slot) => {
     const current = new Set(slotAudiences(slot));
-    return `<div class="sch-row-aud-dots">${scheduleAudiences.map((a, i) => `<span class="sch-aud-dot ${current.has(a.id) ? 'on' : 'off'}" style="--dot-color:${audienceColorForIndex(i)};" onclick="toggleSlotAudience('${slot.id}','${a.id}')" title="${current.has(a.id) ? 'Remove' : 'Add'} ${escapeHtml(a.name)}"></span>`).join('')}</div>`;
+    return `<div class="sch-row-aud-dots">${orderedScheduleAudiences().map(a => `<span class="sch-aud-dot ${current.has(a.id) ? 'on' : 'off'}" style="--dot-color:${audienceColorForId(a.id)};" onclick="toggleSlotAudience('${slot.id}','${a.id}')" title="${current.has(a.id) ? 'Remove' : 'Add'} ${escapeHtml(a.name)}"></span>`).join('')}</div>`;
   };
 
   const dayBlocks = dateKeys.map(date => {
@@ -8551,7 +8594,7 @@ function renderScheduleTimeline() {
     ? 'No schedule slots yet — add the first one below.'
     : 'No sessions in the group(s) currently selected above — toggle a group on to see its schedule.';
 
-  const audienceOptions = scheduleAudiences.map(a => `<option value="${a.id}" ${a.id === MAIN_AUDIENCE_ID ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('');
+  const audienceOptions = orderedScheduleAudiences().map(a => `<option value="${a.id}" ${a.id === MAIN_AUDIENCE_ID ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('');
 
   body.innerHTML = `
     ${audienceFacetBarHtml()}
@@ -8578,7 +8621,7 @@ function renderScheduleTimeline() {
 function renderScheduleItinerary() {
   const body = document.getElementById('sch-itinerary-body');
   if (!body) return;
-  const otherAudiences = scheduleAudiences.filter(a => a.id !== MAIN_AUDIENCE_ID);
+  const otherAudiences = orderedScheduleAudiences().filter(a => a.id !== MAIN_AUDIENCE_ID);
   if (!scheduleItineraryAudienceId && otherAudiences.length) scheduleItineraryAudienceId = otherAudiences[0].id;
 
   const picker = `
