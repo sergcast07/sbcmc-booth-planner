@@ -435,6 +435,8 @@
   .dv-unassigned { color: #a52620; font-weight: 600; }
   body.gate-locked > *:not(#access-gate) { display: none !important; }
   body.driver-view-mode > *:not(#driver-public-view) { display: none !important; }
+  body.schedule-view-mode > *:not(#schedule-public-view) { display: none !important; }
+  #schedule-public-view { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
 
 /* ==== Sponsor Tracker ==== */
 .top-nav {
@@ -1107,6 +1109,16 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     <div class="dv-loading">Loading the current plan&hellip;</div>
   </div>
 </div>
+
+<div id="schedule-public-view" style="display:none;">
+  <div class="dv-header">
+    <h1>SBCMC 2027 &mdash; Conference Schedule</h1>
+    <p id="sv-updated"></p>
+  </div>
+  <div id="sv-body" class="dv-body">
+    <div class="dv-loading">Loading the current schedule&hellip;</div>
+  </div>
+</div>
 <script>
 // Shared-password gate, like a locked spreadsheet: one password for the whole team,
 // entered once per browser (stored via localStorage so it persists across visits).
@@ -1115,10 +1127,12 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 // in this page grants direct API access independent of this gate. It stops a random
 // person who stumbles on the link; it will not stop someone specifically targeting this site.
 (function() {
-  // Driver-view links (?view=drivers) skip the gate entirely -- see initDriverPublicView(),
-  // called separately at the bottom of the page once the rest of the app has loaded.
+  // Driver-view and schedule-view links (?view=drivers / ?view=schedule) skip the gate
+  // entirely -- see initDriverPublicView()/initSchedulePublicView(), called separately at
+  // the bottom of the page once the rest of the app has loaded.
   try {
-    if (new URLSearchParams(window.location.search).get('view') === 'drivers') return;
+    const publicView = new URLSearchParams(window.location.search).get('view');
+    if (publicView === 'drivers' || publicView === 'schedule') return;
   } catch (e) {}
 
   var GATE_HASH = '72f98362bb1cbc378e36035e1af9121832cc7e7f1d12a80364e840aa6e8ba77c';
@@ -1369,6 +1383,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
       <button class="sch-toggle-btn" id="sch-toggle-grid" onclick="setScheduleSubview('grid')">Breakout Grid</button>
       <button class="sch-toggle-btn active" id="sch-toggle-timeline" onclick="setScheduleSubview('timeline')">Timeline</button>
       <button class="sch-toggle-btn" id="sch-toggle-itinerary" onclick="setScheduleSubview('itinerary')">Itinerary</button>
+      <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="copyScheduleViewLink()">🔗 Copy Schedule-Only Link</button>
       <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('schedule')">Export CSV</button>
     </div>
   </div>
@@ -2785,6 +2800,213 @@ function copyDriverViewLink() {
     toast('Driver schedule link copied \u2014 paste it anywhere. No password needed to open it.');
   }).catch(() => {
     prompt('Copy this link to share with drivers:', url);
+  });
+}
+
+// ==================== Schedule Public View ====================
+// A separate, read-only, no-login-required view of the conference schedule -- Breakout Grid,
+// Timeline, and per-group Itinerary, exactly like the real Schedule tab shows internally, but
+// with every edit affordance stripped out (no drag, no rename, no remove, no assign). This is
+// deliberately its OWN render path rather than reusing the internal renderBreakoutGrid() /
+// renderScheduleTimeline() -- those are built around onclick handlers that write straight to
+// Supabase, and a public no-password link is exactly the wrong place to risk one slipping
+// through. Group filter toggles here are local to the viewer's own screen only; nothing here
+// ever calls pushScheduleSlot/pushScheduleAudience or any other write. Reached via
+// ?view=schedule, same one-link-not-a-second-site approach as the driver view above.
+function isScheduleViewMode() {
+  try { return new URLSearchParams(window.location.search).get('view') === 'schedule'; }
+  catch (e) { return false; }
+}
+
+let svPublicSubview = 'timeline';
+let svPublicAudienceFilter = null;
+let svPublicItineraryAudienceId = null;
+
+async function initSchedulePublicView() {
+  document.body.classList.add('schedule-view-mode');
+  document.getElementById('schedule-public-view').style.display = 'block';
+
+  if (!isSupabaseConfigured()) {
+    document.getElementById('sv-body').innerHTML = '<div class="dv-loading">Not connected to shared data.</div>';
+    return;
+  }
+  try {
+    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    // Only what Breakout Grid/Timeline/Itinerary actually need -- no sponsors, packages,
+    // booths, drivers, or hotels.
+    await Promise.all([
+      loadSpeakersFromDb(),
+      loadScheduleSlots(),
+      loadScheduleAudiences(),
+      loadSessionRoomsAndTracks()
+    ]);
+    svPublicAudienceFilter = new Set([MAIN_AUDIENCE_ID]);
+    renderSchedulePublicView();
+
+    sbClient.channel('schedule-view-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: SPEAKERS_TABLE }, () => { loadSpeakersFromDb().then(renderSchedulePublicView); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: SCHEDULE_SLOTS_TABLE }, () => { loadScheduleSlots().then(renderSchedulePublicView); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: SCHEDULE_AUDIENCES_TABLE }, () => { loadScheduleAudiences().then(renderSchedulePublicView); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: SESSION_TRACKS_TABLE }, () => { loadSessionRoomsAndTracks().then(renderSchedulePublicView); })
+      .subscribe();
+  } catch (err) {
+    console.error('Schedule view load failed:', err);
+    document.getElementById('sv-body').innerHTML = '<div class="dv-loading">Couldn\u2019t load the schedule \u2014 try refreshing.</div>';
+  }
+}
+
+function setSvPublicSubview(v) { svPublicSubview = v; renderSchedulePublicView(); }
+function toggleSvPublicAudienceFilter(id) {
+  if (svPublicAudienceFilter.has(id)) svPublicAudienceFilter.delete(id);
+  else svPublicAudienceFilter.add(id);
+  renderSchedulePublicView();
+}
+function setSvPublicItineraryAudience(id) { svPublicItineraryAudienceId = id || null; renderSchedulePublicView(); }
+
+function renderSchedulePublicView() {
+  document.getElementById('sv-updated').textContent = 'Updated ' + new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const nav = `
+    <div class="sch-view-toggle" style="margin-bottom:18px;">
+      <button class="sch-toggle-btn ${svPublicSubview === 'grid' ? 'active' : ''}" onclick="setSvPublicSubview('grid')">Breakout Grid</button>
+      <button class="sch-toggle-btn ${svPublicSubview === 'timeline' ? 'active' : ''}" onclick="setSvPublicSubview('timeline')">Timeline</button>
+      <button class="sch-toggle-btn ${svPublicSubview === 'itinerary' ? 'active' : ''}" onclick="setSvPublicSubview('itinerary')">Itinerary</button>
+    </div>`;
+  let content;
+  if (svPublicSubview === 'grid') content = renderSvPublicGrid();
+  else if (svPublicSubview === 'itinerary') content = renderSvPublicItinerary();
+  else content = renderSvPublicTimeline();
+  document.getElementById('sv-body').innerHTML = nav + content;
+}
+
+function renderSvPublicAudienceBar() {
+  const chips = orderedScheduleAudiences().map(a => {
+    const on = svPublicAudienceFilter.has(a.id);
+    return `<span class="sch-aud-facet ${on ? 'on' : ''}" onclick="toggleSvPublicAudienceFilter('${a.id}')" title="${on ? 'Hide' : 'Show'} ${escapeHtml(a.name)}">
+      <span class="sch-aud-swatch" style="--dot-color:${audienceColorForId(a.id)};"></span>
+      ${escapeHtml(a.name)}
+    </span>`;
+  }).join('');
+  return `<div class="sch-aud-bar">
+    <span class="sch-aud-bar-label">Show:</span>
+    ${chips}
+  </div>`;
+}
+
+function renderSvPublicGrid() {
+  const breakoutSlots = scheduleSlots.filter(s => s.kind === 'breakout').sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  if (!breakoutSlots.length) return '<div class="dv-loading">No breakout slots yet.</div>';
+  const index = {};
+  speakers.forEach(sp => (sp.data.sessions || []).forEach((sess, i) => {
+    if (!sess.track) return;
+    const slot = findSlotForSession(sess);
+    if (!slot || slot.kind !== 'breakout') return;
+    const key = sess.track + '|' + slot.id;
+    (index[key] = index[key] || []).push({ speakerId: sp.id, sess });
+  }));
+  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}\u2013${friendlyTime(slot.end)}</div></th>`).join('');
+  const rows = sessionTracks.map((track, trackIdx) => {
+    const trackColor = trackColorForIndex(trackIdx);
+    const cells = breakoutSlots.map(slot => {
+      const occs = (index[track.name + '|' + slot.id] || []).slice();
+      sortCellOccupants(occs);
+      const titlesMatch = occs.length > 1 && !!occs[0].sess.title && occs.every(o => o.sess.title === occs[0].sess.title);
+      const cards = occs.map((occ, occIdx) => {
+        const occSp = getSpeaker(occ.speakerId);
+        const showTitle = !titlesMatch || occIdx === 0;
+        return `<div class="sch-card" style="border-left-color:${trackColor}; cursor:default;">
+          <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
+          ${showTitle ? `<div class="sch-card-title">${escapeHtml(occ.sess.title || '')}</div>` : ''}
+        </div>`;
+      }).join('');
+      return `<td><div class="sch-cell ${occs.length ? '' : 'sch-cell-empty'}">${cards || '<span class="sp-sub">\u2014</span>'}</div></td>`;
+    }).join('');
+    return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}</td>${cells}</tr>`;
+  }).join('');
+  return `<div class="sch-grid-wrap"><table class="sch-grid"><thead><tr><th class="sch-track-col">Track</th>${headerCells}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderSvPublicTimeline() {
+  const visibleSlots = scheduleSlots.filter(slot => slotAudiences(slot).some(a => svPublicAudienceFilter.has(a)));
+  const days = {};
+  visibleSlots.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).forEach(slot => {
+    (days[slot.date] = days[slot.date] || []).push(slot);
+  });
+  const dateKeys = Object.keys(days).sort();
+  const dayBlocks = dateKeys.map(date => {
+    const rows = days[date].map(slot => {
+      let peopleHtml = '';
+      if (slot.kind === 'keynote' || slot.kind === 'panel') {
+        const names = [];
+        speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
+          if (sess.slotId === slot.id || (!sess.slotId && !sess.track && sess.sessionDate === slot.date && sess.timeSlot === slot.start)) names.push(sp.name);
+        }));
+        if (names.length) peopleHtml = `<div class="sp-sub">${escapeHtml(names.join(', '))}</div>`;
+      } else if (slot.kind === 'breakout') {
+        peopleHtml = '<div class="sp-sub">See Breakout Grid tab above</div>';
+      }
+      return `<div class="sch-timeline-row">
+        <div class="sch-timeline-time">${friendlyTime(slot.start)}\u2013${friendlyTime(slot.end)}</div>
+        <div class="sch-timeline-label" style="flex-direction:column; align-items:flex-start; gap:2px;">
+          <div>${escapeHtml(slot.label)}</div>${peopleHtml}
+        </div>
+        <span class="sch-timeline-kind sch-kind-${slot.kind}">${slot.kind.charAt(0).toUpperCase() + slot.kind.slice(1)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="sch-timeline-day"><div class="sch-timeline-day-title">${fullWeekday(date)} \u2014 ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}</div>`;
+  }).join('');
+  return renderSvPublicAudienceBar() + (dayBlocks || '<div class="dv-loading">Nothing to show for the group(s) selected above.</div>');
+}
+
+function renderSvPublicItinerary() {
+  const otherAudiences = orderedScheduleAudiences().filter(a => a.id !== MAIN_AUDIENCE_ID);
+  if (!otherAudiences.length) return '<div class="dv-loading">No groups besides Main Conference have been set up yet.</div>';
+  if (!svPublicItineraryAudienceId) svPublicItineraryAudienceId = otherAudiences[0].id;
+  const cohort = scheduleAudiences.find(a => a.id === svPublicItineraryAudienceId);
+
+  const picker = `<div class="sch-itin-picker">
+    <span class="sch-aud-bar-label">Itinerary for:</span>
+    <select onchange="setSvPublicItineraryAudience(this.value)">
+      ${otherAudiences.map(a => `<option value="${a.id}" ${a.id === svPublicItineraryAudienceId ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}
+    </select>
+  </div>`;
+
+  const relevant = scheduleSlots.filter(slot => {
+    const auds = slotAudiences(slot);
+    return auds.includes(MAIN_AUDIENCE_ID) || auds.includes(svPublicItineraryAudienceId);
+  }).slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+  if (!relevant.length) return `${picker}<div class="dv-loading">Nothing tagged for ${escapeHtml(cohort ? cohort.name : 'this group')} yet.</div>`;
+
+  const days = {};
+  relevant.forEach(slot => (days[slot.date] = days[slot.date] || []).push(slot));
+  const dayBlocks = Object.keys(days).sort().map(date => {
+    const rows = days[date].map(slot => {
+      const shared = slotAudiences(slot).includes(MAIN_AUDIENCE_ID);
+      return `<div class="sch-itin-row ${shared ? 'shared' : ''}">
+        <div class="sch-itin-time">${friendlyTime(slot.start)} \u2013 ${friendlyTime(slot.end)}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b></div>
+      </div>`;
+    }).join('');
+    return `<div class="sch-itin-day">${fullWeekday(date)} \u2014 ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}`;
+  }).join('');
+
+  return `
+    ${picker}
+    <div class="sch-itin-card">
+      <div class="sch-itin-header">
+        <h4>${escapeHtml(cohort ? cohort.name : '')} \u2014 Itinerary</h4>
+      </div>
+      <div class="sch-itin-body">${dayBlocks}</div>
+      <div class="sch-itin-foot"><span class="sch-itin-key-dot"></span> \u25c6 = shared session, also on the Main Conference schedule</div>
+    </div>`;
+}
+
+function copyScheduleViewLink() {
+  const url = window.location.origin + window.location.pathname + '?view=schedule';
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Schedule link copied \u2014 paste it anywhere. No password needed, and it can\u2019t be edited from there.');
+  }).catch(() => {
+    prompt('Copy this link to share the schedule:', url);
   });
 }
 
@@ -9946,6 +10168,10 @@ if (isDriverViewMode()) {
   // Read-only driver schedule link -- skip the entire main app (no floor plan, no
   // sponsor/speaker data loading, no package sidebar) and go straight to that one view.
   initDriverPublicView();
+} else if (isScheduleViewMode()) {
+  // Read-only conference schedule link -- same idea, but for the Breakout Grid, Timeline,
+  // and per-group Itinerary. No edit controls anywhere on this path.
+  initSchedulePublicView();
 } else {
   renderPackageSidebar();
   buildTabs();
