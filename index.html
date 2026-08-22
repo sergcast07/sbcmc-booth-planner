@@ -1062,12 +1062,9 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-aud-dot.off { opacity: 0.4; }
 .sch-aud-dot.off:hover { opacity: 0.8; }
 
-.sch-itin-picker { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.sch-itin-picker select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; }
-.sch-itin-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; max-width: 680px; }
-.sch-itin-header { background: var(--teal-deep); color: #fff; padding: 16px 22px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sch-itin-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; max-width: 680px; margin-top: 16px; }
+.sch-itin-header { background: var(--teal-deep); color: #fff; padding: 16px 22px; }
 .sch-itin-header h4 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0; }
-.sch-itin-header span { font-size: 11px; opacity: 0.85; }
 .sch-itin-body { padding: 4px 22px 16px; }
 .sch-itin-day { font-family: var(--font-display); font-style: italic; font-size: 13px; color: var(--teal); margin: 16px 0 4px; }
 .sch-itin-day:first-child { margin-top: 4px; }
@@ -2820,7 +2817,6 @@ function isScheduleViewMode() {
 
 let svPublicSubview = 'timeline';
 let svPublicAudienceFilter = null;
-let svPublicItineraryAudienceId = null;
 
 async function initSchedulePublicView() {
   document.body.classList.add('schedule-view-mode');
@@ -2861,8 +2857,6 @@ function toggleSvPublicAudienceFilter(id) {
   else svPublicAudienceFilter.add(id);
   renderSchedulePublicView();
 }
-function setSvPublicItineraryAudience(id) { svPublicItineraryAudienceId = id || null; renderSchedulePublicView(); }
-
 function renderSchedulePublicView() {
   document.getElementById('sv-updated').textContent = 'Updated ' + new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const nav = `
@@ -2958,24 +2952,20 @@ function renderSvPublicTimeline() {
 }
 
 function renderSvPublicItinerary() {
-  const otherAudiences = orderedScheduleAudiences().filter(a => a.id !== MAIN_AUDIENCE_ID);
-  if (!otherAudiences.length) return '<div class="dv-loading">No groups besides Main Conference have been set up yet.</div>';
-  if (!svPublicItineraryAudienceId) svPublicItineraryAudienceId = otherAudiences[0].id;
-  const cohort = scheduleAudiences.find(a => a.id === svPublicItineraryAudienceId);
+  // Driven by the same audience filter as the Timeline tab (svPublicAudienceFilter) --
+  // previously this had its own separate picker, which could silently disagree with whatever
+  // the viewer had filtered the Timeline to.
+  const activeAudiences = orderedScheduleAudiences().filter(a => svPublicAudienceFilter.has(a.id));
+  const headerTitle = activeAudiences.length ? activeAudiences.map(a => a.name).join(' + ') : '';
 
-  const picker = `<div class="sch-itin-picker">
-    <span class="sch-aud-bar-label">Itinerary for:</span>
-    <select onchange="setSvPublicItineraryAudience(this.value)">
-      ${otherAudiences.map(a => `<option value="${a.id}" ${a.id === svPublicItineraryAudienceId ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}
-    </select>
-  </div>`;
+  if (!svPublicAudienceFilter.size) {
+    return `${renderSvPublicAudienceBar()}<div class="dv-loading">No groups selected above \u2014 toggle at least one to see its itinerary.</div>`;
+  }
 
-  const relevant = scheduleSlots.filter(slot => {
-    const auds = slotAudiences(slot);
-    return auds.includes(MAIN_AUDIENCE_ID) || auds.includes(svPublicItineraryAudienceId);
-  }).slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  const relevant = scheduleSlots.filter(slot => slotAudiences(slot).some(a => svPublicAudienceFilter.has(a)))
+    .slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
-  if (!relevant.length) return `${picker}<div class="dv-loading">Nothing tagged for ${escapeHtml(cohort ? cohort.name : 'this group')} yet.</div>`;
+  if (!relevant.length) return `${renderSvPublicAudienceBar()}<div class="dv-loading">Nothing tagged for ${escapeHtml(headerTitle)} yet.</div>`;
 
   const days = {};
   relevant.forEach(slot => (days[slot.date] = days[slot.date] || []).push(slot));
@@ -2991,10 +2981,10 @@ function renderSvPublicItinerary() {
   }).join('');
 
   return `
-    ${picker}
+    ${renderSvPublicAudienceBar()}
     <div class="sch-itin-card">
       <div class="sch-itin-header">
-        <h4>${escapeHtml(cohort ? cohort.name : '')} \u2014 Itinerary</h4>
+        <h4>${escapeHtml(headerTitle)} \u2014 Itinerary</h4>
       </div>
       <div class="sch-itin-body">${dayBlocks}</div>
       <div class="sch-itin-foot"><span class="sch-itin-key-dot"></span> \u25c6 = shared session, also on the Main Conference schedule</div>
@@ -8341,8 +8331,6 @@ let scheduleRosterSearch = '';
 // when at least one of its tags is in this set; deselecting everything is allowed and just
 // shows an empty state, same as any other faceted filter.
 let scheduleAudienceFilter = new Set([MAIN_AUDIENCE_ID]);
-// Which single cohort the Itinerary view is built for (always merged with Main Conference).
-let scheduleItineraryAudienceId = null;
 
 function setScheduleSubview(v) { scheduleSubview = v; renderScheduleView(); }
 function toggleScheduleAudienceFilter(audId) {
@@ -8364,8 +8352,6 @@ function toggleSlotAudience(slotId, audId) {
   pushScheduleSlot(slot);
   renderScheduleView();
 }
-function setScheduleItineraryAudience(id) { scheduleItineraryAudienceId = id || null; renderScheduleItinerary(); }
-
 function renderScheduleView() {
   renderScheduleConflicts();
   const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline'), itinBtn = document.getElementById('sch-toggle-itinerary');
@@ -8376,9 +8362,22 @@ function renderScheduleView() {
   if (gridBody) gridBody.style.display = scheduleSubview === 'grid' ? 'block' : 'none';
   if (timelineBody) timelineBody.style.display = scheduleSubview === 'timeline' ? 'block' : 'none';
   if (itinBody) itinBody.style.display = scheduleSubview === 'itinerary' ? 'block' : 'none';
-  if (scheduleSubview === 'grid') renderBreakoutGrid();
-  else if (scheduleSubview === 'itinerary') renderScheduleItinerary();
-  else renderScheduleTimeline();
+  // Timeline and Itinerary both render an audience filter bar, including a fixed-id "+ Add a
+  // group" input -- clearing whichever containers aren't active keeps a stale, hidden copy of
+  // that id from ever sitting in the DOM alongside the live one.
+  if (scheduleSubview === 'grid') {
+    renderBreakoutGrid();
+    if (timelineBody) timelineBody.innerHTML = '';
+    if (itinBody) itinBody.innerHTML = '';
+  } else if (scheduleSubview === 'itinerary') {
+    renderScheduleItinerary();
+    if (gridBody) gridBody.innerHTML = '';
+    if (timelineBody) timelineBody.innerHTML = '';
+  } else {
+    renderScheduleTimeline();
+    if (gridBody) gridBody.innerHTML = '';
+    if (itinBody) itinBody.innerHTML = '';
+  }
 }
 
 function computeScheduleConflicts() {
@@ -8843,30 +8842,22 @@ function renderScheduleTimeline() {
 function renderScheduleItinerary() {
   const body = document.getElementById('sch-itinerary-body');
   if (!body) return;
-  const otherAudiences = orderedScheduleAudiences().filter(a => a.id !== MAIN_AUDIENCE_ID);
-  if (!scheduleItineraryAudienceId && otherAudiences.length) scheduleItineraryAudienceId = otherAudiences[0].id;
+  // Driven by the exact same "Show:" filter as the Timeline (scheduleAudienceFilter) --
+  // previously this had its own separate dropdown, which meant the group you'd filtered the
+  // Timeline down to and the group the Itinerary showed could silently disagree.
+  const activeAudiences = orderedScheduleAudiences().filter(a => scheduleAudienceFilter.has(a.id));
+  const headerTitle = activeAudiences.length ? activeAudiences.map(a => a.name).join(' + ') : '';
 
-  const picker = `
-    <div class="sch-itin-picker">
-      <span class="sch-aud-bar-label">Itinerary for:</span>
-      <select onchange="setScheduleItineraryAudience(this.value)">
-        ${otherAudiences.length ? otherAudiences.map(a => `<option value="${a.id}" ${a.id === scheduleItineraryAudienceId ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('') : `<option>${escapeHtml('Main Conference')}</option>`}
-      </select>
-    </div>`;
-
-  if (!otherAudiences.length) {
-    body.innerHTML = `${picker}<div class="sch-conflicts-empty">No groups besides Main Conference exist yet — add one from the Timeline view above (e.g. "College Collective"), tag a few slots with it, then come back here for its itinerary.</div>`;
+  if (!scheduleAudienceFilter.size) {
+    body.innerHTML = `${audienceFacetBarHtml()}<div class="sch-conflicts-empty">No groups selected above — toggle at least one to see its itinerary.</div>`;
     return;
   }
 
-  const cohort = scheduleAudiences.find(a => a.id === scheduleItineraryAudienceId);
-  const relevant = scheduleSlots.filter(slot => {
-    const auds = slotAudiences(slot);
-    return auds.includes(MAIN_AUDIENCE_ID) || auds.includes(scheduleItineraryAudienceId);
-  }).slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  const relevant = scheduleSlots.filter(slot => slotAudiences(slot).some(a => scheduleAudienceFilter.has(a)))
+    .slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
   if (!relevant.length) {
-    body.innerHTML = `${picker}<div class="sch-conflicts-empty">Nothing tagged for ${escapeHtml(cohort ? cohort.name : 'this group')} yet.</div>`;
+    body.innerHTML = `${audienceFacetBarHtml()}<div class="sch-conflicts-empty">Nothing tagged for ${escapeHtml(headerTitle)} yet.</div>`;
     return;
   }
 
@@ -8884,11 +8875,10 @@ function renderScheduleItinerary() {
   }).join('');
 
   body.innerHTML = `
-    ${picker}
+    ${audienceFacetBarHtml()}
     <div class="sch-itin-card">
       <div class="sch-itin-header">
-        <h4>${escapeHtml(cohort ? cohort.name : '')} — Itinerary</h4>
-        <span>Generated from the live conference schedule</span>
+        <h4>${escapeHtml(headerTitle)} — Itinerary</h4>
       </div>
       <div class="sch-itin-body">${dayBlocks}</div>
       <div class="sch-itin-foot"><span class="sch-itin-key-dot"></span> ◆ = shared session, also on the Main Conference schedule</div>
