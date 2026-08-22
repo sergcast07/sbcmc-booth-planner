@@ -4762,6 +4762,7 @@ function speakerFeeTotals() {
     if (!fee) return;
     committed += fee;
     if (sp.data.financial.feeStatus === 'Paid in Full') paid += fee;
+    else if (sp.data.financial.feeStatus === 'Partially Paid') paid += Math.min(parseMoneyNum(sp.data.financial.paid), fee);
   });
   return { committed, paid, outstanding: committed - paid };
 }
@@ -7594,7 +7595,7 @@ function defaultSpeakerData() {
     // Someone can lead more than one breakout/session -- this is a list, empty until
     // "+ Add a session" is clicked, same pattern as badgeNames/transportNeeds below.
     sessions: [], // [{id, title, track, slotId, sessionDate, day, timeSlot, room, lengthMin, description}] -- slotId (optional) links to a Schedule tab master slot; unset for freeform manual entries
-    financial: { fee: '', feeStatus: '', travelReimbursement: '', w9Received: false, invoiceSent: false, dueDate: '' },
+    financial: { fee: '', feeStatus: '', paid: '', travelReimbursement: '', w9Received: false, invoiceSent: false, dueDate: '' },
     logistics: {
       linkedGroupId: '', // set when this person is also counted in another record's party (badges/meals/travel) -- keeps them from being double-counted
       partySize: '', // total headcount traveling: artist + band + tour manager + crew, etc.
@@ -9442,6 +9443,7 @@ function speakerDetailHTML(sp) {
             <option value="Partially Paid" ${sp.data.financial.feeStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option>
             <option value="Paid in Full" ${sp.data.financial.feeStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option>
           </select></div>
+          <div class="sp-field"><label for="sk-feepaid-${sp.id}">Amount paid ($)</label><input id="sk-feepaid-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.paid)}" onchange="updateSpeakerNested('${sp.id}','financial','paid',this.value)"></div>
           <div class="sp-field"><label for="sk-travelreimb-${sp.id}">Travel reimbursement ($)</label><input id="sk-travelreimb-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.travelReimbursement)}" onchange="updateSpeakerNested('${sp.id}','financial','travelReimbursement',this.value)"></div>
           <div class="sp-field"><label for="sk-findue-${sp.id}">Payment due date</label><input id="sk-findue-${sp.id}" type="date" value="${escapeHtml(sp.data.financial.dueDate)}" onchange="updateSpeakerNested('${sp.id}','financial','dueDate',this.value)"></div>
           <div class="sp-check"><input id="sk-w9-${sp.id}" type="checkbox" ${sp.data.financial.w9Received ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','w9Received',this.checked)"><label for="sk-w9-${sp.id}"> W9 received</label></div>
@@ -10191,7 +10193,7 @@ function exportSpeakersCSV(sortValue) {
   const headers = [
     'Name', 'Type', 'Contact Name', 'Contact Email', 'Contact Phone', 'Tracker Status', 'Flagged',
     'Session Title', 'Track', 'Day', 'Time Slot', 'Room', 'Length (min)',
-    'Fee', 'Fee Status', 'Travel Reimbursement', 'W9 Received', 'Invoice Sent', 'Payment Due Date',
+    'Fee', 'Fee Status', 'Amount Paid', 'Travel Reimbursement', 'W9 Received', 'Invoice Sent', 'Payment Due Date',
     'Linked Group (badges/meals/travel counted there instead)', 'Party Size', 'Badge Names', 'Travel Method', 'Flight Info', 'Arrival Date', 'Arrival Time', 'Departure Date', 'Departure Time',
     'Transportation Needs', 'Lodging Needed', 'Nights Needed', 'Rooms Needed', 'Hotel Confirmed',
     'Meals Arrangement', 'Meal Notes', 'Host Needed', 'Host Name',
@@ -10206,7 +10208,7 @@ function exportSpeakersCSV(sortValue) {
     const row = [
       sp.name, (sp.types || []).join(' | '), sp.contactName, sp.contactEmail, sp.contactPhone, sp.trackerStatus, sp.data.flagged ? 'Yes' : 'No',
       sessJoin('title'), sessJoin('track'), sessJoin('day'), sessions.map(s => friendlyTime(s.timeSlot)).join(' | '), sessJoin('room'), sessJoin('lengthMin'),
-      sp.data.financial.fee, sp.data.financial.feeStatus, sp.data.financial.travelReimbursement, sp.data.financial.w9Received ? 'Yes' : 'No', sp.data.financial.invoiceSent ? 'Yes' : 'No', sp.data.financial.dueDate,
+      sp.data.financial.fee, sp.data.financial.feeStatus, sp.data.financial.paid, sp.data.financial.travelReimbursement, sp.data.financial.w9Received ? 'Yes' : 'No', sp.data.financial.invoiceSent ? 'Yes' : 'No', sp.data.financial.dueDate,
       linkedGroup ? linkedGroup.name : '',
       linkedGroup ? '0 (see ' + linkedGroup.name + ')' : sp.data.logistics.partySize,
       linkedGroup ? '(counted under ' + linkedGroup.name + ')' : (sp.data.logistics.badgeNames || []).filter(Boolean).join(' | '),
