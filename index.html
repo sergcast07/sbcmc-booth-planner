@@ -5445,26 +5445,43 @@ function renderTimelineChart() {
   const goal = getFundraisingGoal();
   if (goalInput && document.activeElement !== goalInput) goalInput.value = goal || '';
 
-  // Only cash (Registered) sponsors with a real registration date go into this timeline --
-  // in-kind, lapsed, and prospective records don't have a genuine registration date to plot.
-  const dated = sponsors.filter(s => isCashCommitted(s) && s.data.registeredDate);
-  if (dated.length === 0) {
-    container.innerHTML = '<div class="db-timeline-empty">No dated registrations yet to chart. This fills in automatically as sponsors register through the checkout form.</div>';
+  // Every cash (Registered/Committed) sponsor counts toward this chart -- in-kind, lapsed, and
+  // prospective records don't. Ones with a real registration date get plotted day-by-day; ones
+  // without one (e.g. "Committed, Not Registered") still count toward the running total, folded
+  // in as of today rather than silently dropped -- otherwise the chart's total quietly stops
+  // matching the dashboard's own Cash Committed figure, which is confusing (asked more than
+  // once: "shouldn't this be $X, not $Y?").
+  const cashSponsors = sponsors.filter(isCashCommitted);
+  const dated = cashSponsors.filter(s => s.data.registeredDate);
+  const undated = cashSponsors.filter(s => !s.data.registeredDate);
+  if (dated.length === 0 && undated.length === 0) {
+    container.innerHTML = '<div class="db-timeline-empty">No cash-committed sponsors yet to chart. This fills in automatically as sponsors register or commit.</div>';
     return;
   }
 
+  const sponsorAmt = s => parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
+
   // Group same-day amounts, then build a cumulative series sorted by date.
   const byDate = {};
-  dated.forEach(s => {
-    const amt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
-    byDate[s.data.registeredDate] = (byDate[s.data.registeredDate] || 0) + amt;
-  });
+  dated.forEach(s => { byDate[s.data.registeredDate] = (byDate[s.data.registeredDate] || 0) + sponsorAmt(s); });
+  const undatedTotal = undated.reduce((sum, s) => sum + sponsorAmt(s), 0);
+
   const sortedDates = Object.keys(byDate).sort();
   let running = 0;
   const points = sortedDates.map(d => { running += byDate[d]; return { date: d, cum: running }; });
-  // Extend a flat line to today so the chart reads as "where things stand right now."
+
+  // Fold the undated total in at today -- either as the only point (no dated sponsors at all),
+  // stacked onto today's point if a dated sponsor also registered today, or as a new point that
+  // steps up from the last dated total. If there's no undated total, this is exactly the old
+  // "extend a flat line to today" behavior.
   const todayStr = new Date().toISOString().slice(0, 10);
-  if (todayStr > points[points.length - 1].date) points.push({ date: todayStr, cum: running });
+  if (points.length === 0) {
+    points.push({ date: todayStr, cum: undatedTotal });
+  } else {
+    const last = points[points.length - 1];
+    if (last.date === todayStr) last.cum += undatedTotal;
+    else if (undatedTotal > 0 || todayStr > last.date) { running += undatedTotal; points.push({ date: todayStr, cum: running }); }
+  }
 
   const totalCum = points[points.length - 1].cum;
   const yMax = Math.max(totalCum, goal || 0) * 1.15 || 100;
@@ -5497,7 +5514,13 @@ function renderTimelineChart() {
     <text x="${W - padR}" y="${yFor(goal) - 6}" text-anchor="end" font-size="10.5" fill="var(--gold)" font-weight="700">Goal: $${goal.toLocaleString()}</text>
   ` : '';
 
-  const dots = points.map(p => `<circle cx="${xFor(p.date)}" cy="${yFor(p.cum)}" r="3" fill="var(--teal-deep)"/>`).join('');
+  const dots = points.map((p, i) => {
+    const isUndatedLump = undatedTotal > 0 && i === points.length - 1;
+    return `<circle cx="${xFor(p.date)}" cy="${yFor(p.cum)}" r="${isUndatedLump ? 4 : 3}" fill="${isUndatedLump ? 'var(--gold)' : 'var(--teal-deep)'}"/>`;
+  }).join('');
+  const undatedAnnotation = undatedTotal > 0 ? `
+    <text x="${(xFor(points[points.length - 1].date) - 6).toFixed(1)}" y="${(yFor(points[points.length - 1].cum) - 10).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--gold)" font-weight="700">+$${Math.round(undatedTotal).toLocaleString()} undated</text>
+  ` : '';
 
   container.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; max-height:260px;">
@@ -5512,17 +5535,21 @@ function renderTimelineChart() {
       <path d="${areaPath}" fill="url(#db-area-fill)"/>
       <path d="${linePath}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>
       ${dots}
+      ${undatedAnnotation}
       ${xLabels}
     </svg>
   `;
 
+  const undatedSuffix = undatedTotal > 0
+    ? ` \u2014 $${Math.round(undatedTotal).toLocaleString()} of that (${undated.length} sponsor${undated.length === 1 ? '' : 's'}) has no exact commitment date, so it's shown as of today (gold dot) instead of on the actual day it came in`
+    : '';
   const caption = goal
     ? (() => {
         const committedPct = Math.min(100, Math.round((totalCum / goal) * 100));
         const neededPct = Math.max(0, 100 - committedPct);
-        return `$${Math.round(totalCum).toLocaleString()} committed (${committedPct}%) of your $${goal.toLocaleString()} goal \u2014 $${Math.max(0, Math.round(goal - totalCum)).toLocaleString()} still needed (${neededPct}%)`;
+        return `$${Math.round(totalCum).toLocaleString()} committed (${committedPct}%) of your $${goal.toLocaleString()} goal \u2014 $${Math.max(0, Math.round(goal - totalCum)).toLocaleString()} still needed (${neededPct}%)${undatedSuffix}`;
       })()
-    : `$${Math.round(totalCum).toLocaleString()} committed as of today, based on ${dated.length} dated registration${dated.length === 1 ? '' : 's'}. Set a goal above to track what's still needed.`;
+    : `$${Math.round(totalCum).toLocaleString()} committed as of today, based on ${dated.length} dated registration${dated.length === 1 ? '' : 's'}${undatedSuffix}. Set a goal above to track what's still needed.`;
   const captionEl = document.createElement('div');
   captionEl.className = 'db-timeline-caption';
   captionEl.textContent = caption;
