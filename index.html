@@ -7309,18 +7309,25 @@ const SESSION_TRACKS_TABLE = 'session_tracks';
 //     id text primary key, slot_date date not null, label text not null,
 //     start_time text not null, end_time text not null,
 //     kind text not null default 'other', notes text default '', sort_order int default 0,
-//     audiences jsonb not null default '["aud_default_0"]'::jsonb
+//     audiences jsonb not null default '["aud_default_0"]'::jsonb,
+//     sub_options jsonb not null default '[]'::jsonb
 //   );
 //   alter table schedule_slots enable row level security;
 //   create policy "public read schedule_slots" on schedule_slots for select using (true);
 //   create policy "public write schedule_slots" on schedule_slots for insert with check (true);
 //   create policy "public update schedule_slots" on schedule_slots for update using (true);
 //   create policy "public delete schedule_slots" on schedule_slots for delete using (true);
-// If schedule_slots already exists from before "audiences" was added, just run:
+// If schedule_slots already exists from before "audiences"/"sub_options" were added, just run:
 //   alter table schedule_slots add column if not exists audiences jsonb not null default '["aud_default_0"]'::jsonb;
-// Until that column exists, pushScheduleSlot() below falls back to saving every other field
-// and only the audience tag silently fails to persist -- same graceful-degradation behavior
+//   alter table schedule_slots add column if not exists sub_options jsonb not null default '[]'::jsonb;
+// Until those columns exist, pushScheduleSlot() below falls back to saving every other field
+// and only the missing one(s) silently fail to persist -- same graceful-degradation behavior
 // as everything else in this app.
+// sub_options: a slot with a non-empty list gets its own small breakout grid rendered below
+// the main one (see renderSecondaryBreakoutGrids) -- rows are these option names crossed with
+// just that one slot, for a breakout track that's independent of the main sessionTracks list
+// (e.g. a student-only breakout with its own 2-3 options that shouldn't show up as rows on
+// every main breakout column).
 const SCHEDULE_SLOTS_TABLE = 'schedule_slots';
 
 // Named groups a schedule slot can be tagged with -- "Main Conference" plus whatever cohort
@@ -8216,7 +8223,7 @@ const TRACK_COLOR_PALETTE = [
 ];
 function trackColorForIndex(i) { return TRACK_COLOR_PALETTE[i % TRACK_COLOR_PALETTE.length]; }
 let scheduleSlots = DEFAULT_SCHEDULE_SLOTS.map(([date, label, start, end, kind], i) => ({
-  id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i, audiences: [MAIN_AUDIENCE_ID]
+  id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i, audiences: [MAIN_AUDIENCE_ID], subOptions: []
 }));
 
 async function loadScheduleSlots() {
@@ -8227,7 +8234,8 @@ async function loadScheduleSlots() {
       scheduleSlots = data.map((r, i) => ({
         id: r.id, date: r.slot_date, label: r.label, start: r.start_time, end: r.end_time, kind: r.kind,
         notes: r.notes || '', sortOrder: r.sort_order != null ? r.sort_order : i,
-        audiences: Array.isArray(r.audiences) && r.audiences.length ? r.audiences : [MAIN_AUDIENCE_ID]
+        audiences: Array.isArray(r.audiences) && r.audiences.length ? r.audiences : [MAIN_AUDIENCE_ID],
+        subOptions: Array.isArray(r.sub_options) ? r.sub_options : []
       }));
     } else if (error) {
       console.warn('Schedule slots table not available:', errDetail(error));
@@ -8244,14 +8252,18 @@ function pushScheduleSlot(slot) {
     kind: slot.kind, notes: slot.notes || '', sort_order: slot.sortOrder
   };
   const audiences = slot.audiences && slot.audiences.length ? slot.audiences : [MAIN_AUDIENCE_ID];
-  sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({ ...base, audiences }).then(({ error }) => {
+  const subOptions = slot.subOptions || [];
+  sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({ ...base, audiences, sub_options: subOptions }).then(({ error }) => {
     if (!error) return;
-    // Older schema without the "audiences" column yet -- retry without it so the fields that
-    // already worked (time, label, kind) keep saving; the audience tag just won't persist
-    // until that column is added (see the SQL comment above SCHEDULE_SLOTS_TABLE).
-    sbClient.from(SCHEDULE_SLOTS_TABLE).upsert(base).then(({ error: err2 }) => {
-      if (err2) { console.error('Schedule slot save failed:', err2); toast('Couldn’t save that schedule change — it’ll revert next reload. (' + errDetail(err2) + ')'); }
-      else console.warn('Audience tag didn’t save — "schedule_slots.audiences" column may be missing. (' + errDetail(error) + ')');
+    // Older schema missing one or both of "audiences"/"sub_options" -- retry with just
+    // audiences (the more established of the two), then with neither, so core fields (time,
+    // label, kind) always save while a migration is pending.
+    sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({ ...base, audiences }).then(({ error: err2 }) => {
+      if (!err2) { console.warn('Sub-options didn’t save — "schedule_slots.sub_options" column may be missing. (' + errDetail(error) + ')'); return; }
+      sbClient.from(SCHEDULE_SLOTS_TABLE).upsert(base).then(({ error: err3 }) => {
+        if (err3) { console.error('Schedule slot save failed:', err3); toast('Couldn’t save that schedule change — it’ll revert next reload. (' + errDetail(err3) + ')'); }
+        else console.warn('Audience tag and sub-options didn’t save — columns may be missing. (' + errDetail(error) + ')');
+      });
     });
   });
 }
@@ -8560,7 +8572,73 @@ function renderBreakoutGrid() {
         <tbody>${rows}</tbody>
       </table>
     </div>`}
+    ${secondaryBreakoutGridsHtml()}
   `;
+}
+
+// A JS-string-literal-safe version of a value for embedding inside a single-quoted argument
+// in an inline onclick -- option names are free text (unlike track/slot ids), so this guards
+// against a stray quote in one breaking the handler.
+function jsAttrString(str) { return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function assignSpeakerToSubOption(speakerId, slotId, optionName) {
+  if (!speakerId) return;
+  const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  if (!sp.data.sessions) sp.data.sessions = [];
+  sp.data.sessions.push({ id: makeId(), title: '', track: optionName, slotId: slot.id, sessionDate: slot.date, day: fullWeekday(slot.date), timeSlot: slot.start, room: '', lengthMin: '', description: '' });
+  pushSpeaker(sp);
+  renderScheduleView();
+}
+
+// Any slot with a non-empty subOptions list gets its own small grid here, below the main one --
+// rows are those option names crossed with just that one slot/column. Separate from
+// sessionTracks entirely, so a student-only breakout's options never show up as rows on the
+// main grid's other columns. Assignment is dropdown-only here (no drag/drop) since with a
+// single column there's nothing to drag between.
+function secondaryBreakoutGridsHtml() {
+  const slotsWithOptions = scheduleSlots.filter(s => s.subOptions && s.subOptions.length);
+  if (!slotsWithOptions.length) return '';
+  const sortedSpeakers = sortByLastName(speakers);
+  const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
+
+  return slotsWithOptions.map(slot => {
+    const rows = slot.subOptions.map((optionName, idx) => {
+      const trackColor = trackColorForIndex(idx);
+      const occs = [];
+      speakers.forEach(sp => (sp.data.sessions || []).forEach((sess, i) => {
+        if (sess.track === optionName && sess.slotId === slot.id) occs.push({ speakerId: sp.id, sessionIndex: i, sess });
+      }));
+      sortCellOccupants(occs);
+      const titlesMatch = occs.length > 1 && !!occs[0].sess.title && occs.every(o => o.sess.title === occs[0].sess.title);
+      const cards = occs.map((occ, occIdx) => {
+        const occSp = getSpeaker(occ.speakerId);
+        const isConflict = conflictSpeakerIds.has(occ.speakerId);
+        const showTitle = !titlesMatch || occIdx === 0;
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record">
+          ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
+          <span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Delete this session">×</span>
+          <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
+          ${showTitle ? `<div class="sch-card-title">${escapeHtml(occ.sess.title || '')}</div>` : ''}
+          <span class="sch-card-edit" onclick="event.stopPropagation(); schEditSessionTitle('${occ.speakerId}', ${occ.sessionIndex})" title="Edit title">✎</span>
+        </div>`;
+      }).join('');
+      const occupantIds = new Set(occs.map(o => o.speakerId));
+      const addOptions = sortedSpeakers.filter(sp => !occupantIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
+      const addSelect = `<select class="sch-cell-add" onchange="assignSpeakerToSubOption(this.value,'${slot.id}','${jsAttrString(optionName)}'); this.value='';"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>`;
+      const cls = occs.length ? 'sch-cell' : 'sch-cell sch-cell-empty';
+      return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(optionName)}</td><td><div class="${cls}">${cards}${addSelect}</div></td></tr>`;
+    }).join('');
+
+    return `
+    <div class="db-section-title" style="margin-top:26px;">${escapeHtml(slot.label)}</div>
+    <div class="sch-grid-wrap">
+      <table class="sch-grid">
+        <thead><tr><th class="sch-track-col">Option</th><th>${escapeHtml(slot.label)}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
 }
 
 let schDragPayload = null;
