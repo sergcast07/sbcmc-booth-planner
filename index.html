@@ -4750,24 +4750,30 @@ function sponsorsForDashboardKey(key) {
   return [];
 }
 
+// Fee plus travel reimbursement together -- travel is only *arranged* (Logistics tab open) for
+// the 'travel' arrangement, but the reimbursement dollar figure is a Financials-tab field open
+// to every fee-paid arrangement, so it always counts toward what a speaker actually costs.
+function speakerTotalCost(sp) {
+  return parseMoneyNum(sp.data.financial.fee) + parseMoneyNum(sp.data.financial.travelReimbursement);
+}
 function speakerFeeTotals() {
-  // Only sponsor-provided speakers are excluded here -- their "fee" is covered by the
-  // sponsorship, not paid by us. Local speakers are still included: being local means no
-  // travel is arranged for them, not that they're unpaid -- some local speakers are paid a
-  // fee like anyone else, so their Financials tab (and this total) stays fully live.
+  // Only sponsor-provided speakers are excluded here -- their fee (and any travel) is covered
+  // by the sponsorship, not paid by us. Every other arrangement (Standard, Local, Fee + Travel)
+  // stays included: which one just changes whether travel is *arranged* here, not whether its
+  // cost counts.
   let committed = 0, paid = 0;
   speakers.forEach(sp => {
     if (sp.data.arrangement === 'sponsor') return;
-    const fee = parseMoneyNum(sp.data.financial.fee);
-    if (!fee) return;
-    committed += fee;
-    if (sp.data.financial.feeStatus === 'Paid in Full') paid += fee;
-    else if (sp.data.financial.feeStatus === 'Partially Paid') paid += Math.min(parseMoneyNum(sp.data.financial.paid), fee);
+    const total = speakerTotalCost(sp);
+    if (!total) return;
+    committed += total;
+    if (sp.data.financial.feeStatus === 'Paid in Full') paid += total;
+    else if (sp.data.financial.feeStatus === 'Partially Paid') paid += Math.min(parseMoneyNum(sp.data.financial.paid), total);
   });
   return { committed, paid, outstanding: committed - paid };
 }
 function speakersForFeeDrillKey(key) {
-  const relevant = speakers.filter(sp => sp.data.arrangement !== 'sponsor' && parseMoneyNum(sp.data.financial.fee) > 0);
+  const relevant = speakers.filter(sp => sp.data.arrangement !== 'sponsor' && speakerTotalCost(sp) > 0);
   if (key === 'speakerFee:total') return relevant;
   if (key === 'speakerFee:paid') return relevant.filter(sp => sp.data.financial.feeStatus === 'Paid in Full');
   if (key === 'speakerFee:outstanding') return relevant.filter(sp => sp.data.financial.feeStatus !== 'Paid in Full');
@@ -4785,14 +4791,14 @@ function openSpeakerFeeDrill(key, title) {
   const rows = list.slice().sort((a, b) => a.name.localeCompare(b.name)).map(sp => `<tr>
     <td><div class="dd-org">${escapeHtml(sp.name)}</div>${sp.data.specialNotes ? `<div class="dd-sub">${escapeHtml(sp.data.specialNotes)}</div>` : ''}</td>
     <td>${escapeHtml(sp.contactName) || '—'}${sp.contactEmail ? `<div class="dd-sub">${escapeHtml(sp.contactEmail)}</div>` : ''}</td>
-    <td>${fmt(parseMoneyNum(sp.data.financial.fee))}</td>
+    <td>${fmt(speakerTotalCost(sp))}</td>
     <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
     <td>${sp.data.financial.feeStatus ? escapeHtml(sp.data.financial.feeStatus) : '— not set —'}</td>
   </tr>`).join('');
   body.innerHTML = `
     <div class="dd-count">${list.length} speaker${list.length === 1 ? '' : 's'}</div>
     <table class="dd-table">
-      <thead><tr><th>Name</th><th>Contact</th><th>Fee</th><th>Tracker Status</th><th>Fee Status</th></tr></thead>
+      <thead><tr><th>Name</th><th>Contact</th><th>Total Cost</th><th>Tracker Status</th><th>Fee Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -5024,7 +5030,7 @@ function renderDashboard() {
     dbCard(ICON_CHECK, '#2E8B57', 'Collected', fmt(totalCollected), 'marked as Paid', '#2E8B57', 'collected', 'Collected (Paid in Full)') +
     dbCard(ICON_CLOCK, '#a52620', 'Outstanding', fmt(totalOutstanding), 'committed, not yet collected', '#a52620', 'outstanding', 'Outstanding Payments') +
     dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades', null, 'inkind', 'In-Kind Sponsors') +
-    dbCard(ICON_DOLLAR, '#A17A26', 'Speaker &amp; Artist Fees Owed', fmt(speakerFees.committed), 'excludes sponsor-provided entries', null, 'speakerFee:total', 'Speaker & Artist Fees (Owed)') +
+    dbCard(ICON_DOLLAR, '#A17A26', 'Speaker &amp; Artist Fees Owed', fmt(speakerFees.committed), 'fee + travel · excludes sponsor-provided', null, 'speakerFee:total', 'Speaker & Artist Fees (Owed)') +
     dbCard(ICON_CHECK, '#2E8B57', 'Speaker &amp; Artist Fees Paid', fmt(speakerFees.paid), 'marked Paid in Full', '#2E8B57', 'speakerFee:paid', 'Speaker & Artist Fees — Paid in Full') +
     dbCard(ICON_CLOCK, '#a52620', 'Speaker &amp; Artist Fees Outstanding', fmt(speakerFees.outstanding), 'not yet marked paid in full', '#a52620', 'speakerFee:outstanding', 'Speaker & Artist Fees — Outstanding');
 
@@ -6636,11 +6642,12 @@ function toggleTransportAddForm(id) {
 }
 
 function speakerLogisticsArrangementNote(sp) {
-  // Explains why the Logistics tab is collapsed -- both 'local' and 'sponsor' arrangements
-  // skip travel tracking (nobody here is arranging their trip), regardless of whether a fee
-  // is still owed.
+  // Explains why the Logistics tab is collapsed. Travel is only arranged/tracked here for the
+  // 'travel' arrangement -- Standard, Local, and Sponsor-provided all skip it (Standard now
+  // means flat fee with no travel arranged; 'travel' is the exception that includes it).
+  if (sp.data.arrangement === 'travel') return ''; // travel IS tracked here -- nothing to explain
   if (sp.data.arrangement === 'local') {
-    return 'This speaker is local — no travel arrangements are tracked here. (They may still be paid a fee — see the Financials tab.) Switch "Speaker arrangement" back to Standard on the Overview tab if that changes.';
+    return 'This speaker is local — no travel arrangements are tracked here. (They may still be paid a fee — see the Financials tab.) Switch "Speaker arrangement" to Fee + Travel on the Overview tab if that changes.';
   }
   if (sp.data.arrangement === 'sponsor') {
     const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
@@ -6648,11 +6655,12 @@ function speakerLogisticsArrangementNote(sp) {
       ? `Presenting as part of <a href="#" onclick="event.preventDefault(); jumpToSponsorById('${sponsor.id}')">${escapeHtml(sponsor.org)}</a>'s sponsorship — no travel arrangement tracked here.`
       : 'Presenting as part of a sponsorship — pick the linked sponsor on the Overview tab. No travel arrangement tracked here.';
   }
-  return '';
+  // Standard (arrangement === '')
+  return 'Standard arrangement — flat fee, no travel arranged here. (A one-off travel reimbursement can still be entered on the Financials tab.) Switch "Speaker arrangement" to Fee + Travel on the Overview tab if the conference is arranging their trip.';
 }
 function speakerFinancialArrangementNote(sp) {
-  // Only 'sponsor' arrangement skips fee tracking -- a local speaker may still be paid, so
-  // their Financials tab stays fully open (see speakerFeeTotals/speakerCompleteness below).
+  // Only 'sponsor' arrangement skips fee tracking -- every other arrangement still gets paid a
+  // fee (Standard/Local/Fee+Travel just differ on whether travel is separately arranged).
   const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
   return sponsor
     ? `Presenting as part of <a href="#" onclick="event.preventDefault(); jumpToSponsorById('${sponsor.id}')">${escapeHtml(sponsor.org)}</a>'s sponsorship — no separate fee tracked here.`
@@ -6662,8 +6670,8 @@ function speakerFinancialArrangementNote(sp) {
 function speakerCompleteness(sp) {
   // A rough "how filled-in is this record" score -- lets the coordinator spot who needs
   // attention without opening every single record to check.
-  const skipFee = sp.data.arrangement === 'sponsor'; // sponsor-provided has no fee; local may still be paid
-  const skipTravel = !!sp.data.arrangement; // local and sponsor both skip travel tracking
+  const skipFee = sp.data.arrangement === 'sponsor'; // sponsor-provided has no fee
+  const skipTravel = sp.data.arrangement !== 'travel'; // travel is only tracked for the 'travel' arrangement
   const checks = [];
   checks.push(!!sp.contactEmail);
   checks.push((sp.types || []).length > 0);
@@ -6681,7 +6689,7 @@ function speakerTabAlert(sp, tab) {
   // A small marker on a tab when something in it needs attention, so you know where to
   // look before you've clicked into every tab.
   if (sp.data.arrangement === 'sponsor' && tab === 'financial') return false; // collapsed to a note, nothing to flag
-  if (sp.data.arrangement && tab === 'logistics') return false; // collapsed to a note, nothing to flag
+  if (sp.data.arrangement !== 'travel' && tab === 'logistics') return false; // collapsed to a note, nothing to flag
   if (tab === 'production') {
     const mat = materialsForTypes(sp.types);
     const mn = sp.data.materialsNeeded || {};
@@ -9169,7 +9177,8 @@ function buildSpeakerRowPair(sp, todayStr) {
       const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
       return linkedGroup ? `<a href="#" class="sp-linked-group-chip" title="Badges/meals/travel counted under ${escapeHtml(linkedGroup.name)} -- click to open that record" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">👥 ${escapeHtml(linkedGroup.name)}</a>` : '';
     })()}${(() => {
-      if (sp.data.arrangement === 'local') return `<span class="sp-linked-group-chip" style="background:#EEE; color:#666;" title="Local — no fee or travel tracked">📍 Local</span>`;
+      if (sp.data.arrangement === 'local') return `<span class="sp-linked-group-chip" style="background:#EEE; color:#666;" title="Local — no travel tracked (may still be paid a fee)">📍 Local</span>`;
+      if (sp.data.arrangement === 'travel') return `<span class="sp-linked-group-chip" style="background:#E6EEE8; color:#2E6B47;" title="Fee + travel — travel is arranged and tracked here">✈️ Fee + Travel</span>`;
       if (sp.data.arrangement === 'sponsor') {
         const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
         return sponsor
@@ -9379,8 +9388,9 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label for="sk-contactphone-${sp.id}">Contact phone</label><input id="sk-contactphone-${sp.id}" type="text" value="${escapeHtml(sp.contactPhone)}" onchange="updateSpeakerSimple('${sp.id}','contactPhone',this.value)"></div>
           <div class="sp-field"><label for="sk-trackerstatus-${sp.id}">Tracker status</label><select id="sk-trackerstatus-${sp.id}" onchange="updateSpeakerSimple('${sp.id}','trackerStatus',this.value)">${statusOptions}</select></div>
           <div class="sp-field"><label for="sk-arrangement-${sp.id}">Speaker arrangement</label><select id="sk-arrangement-${sp.id}" onchange="updateSpeakerData('${sp.id}','arrangement',this.value)">
-            <option value="" ${!sp.data.arrangement ? 'selected' : ''}>Standard (fee + travel as needed)</option>
-            <option value="local" ${sp.data.arrangement === 'local' ? 'selected' : ''}>Local (no fee or travel needed)</option>
+            <option value="" ${!sp.data.arrangement ? 'selected' : ''}>Standard (flat fee, no travel arranged)</option>
+            <option value="travel" ${sp.data.arrangement === 'travel' ? 'selected' : ''}>Fee + Travel (travel arranged and paid)</option>
+            <option value="local" ${sp.data.arrangement === 'local' ? 'selected' : ''}>Local (no travel needed)</option>
             <option value="sponsor" ${sp.data.arrangement === 'sponsor' ? 'selected' : ''}>Sponsor-provided (part of a sponsorship)</option>
           </select></div>
           ${sp.data.arrangement === 'sponsor' ? `
@@ -9443,7 +9453,7 @@ function speakerDetailHTML(sp) {
             <option value="Partially Paid" ${sp.data.financial.feeStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option>
             <option value="Paid in Full" ${sp.data.financial.feeStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option>
           </select></div>
-          <div class="sp-field"><label for="sk-feepaid-${sp.id}">Amount paid ($)</label><input id="sk-feepaid-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.paid)}" onchange="updateSpeakerNested('${sp.id}','financial','paid',this.value)"></div>
+          <div class="sp-field"><label for="sk-feepaid-${sp.id}">Amount paid ($) <span class="sp-sub" style="font-weight:400;">— fee + travel combined</span></label><input id="sk-feepaid-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.paid)}" onchange="updateSpeakerNested('${sp.id}','financial','paid',this.value)"></div>
           <div class="sp-field"><label for="sk-travelreimb-${sp.id}">Travel reimbursement ($)</label><input id="sk-travelreimb-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.travelReimbursement)}" onchange="updateSpeakerNested('${sp.id}','financial','travelReimbursement',this.value)"></div>
           <div class="sp-field"><label for="sk-findue-${sp.id}">Payment due date</label><input id="sk-findue-${sp.id}" type="date" value="${escapeHtml(sp.data.financial.dueDate)}" onchange="updateSpeakerNested('${sp.id}','financial','dueDate',this.value)"></div>
           <div class="sp-check"><input id="sk-w9-${sp.id}" type="checkbox" ${sp.data.financial.w9Received ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','w9Received',this.checked)"><label for="sk-w9-${sp.id}"> W9 received</label></div>
@@ -9472,9 +9482,9 @@ function speakerDetailHTML(sp) {
           ${linkedGroup ? `<div class="sp-sub" style="margin-top:8px;"><span style="color:var(--teal-deep); font-weight:600;">👥 Counted under <a href="#" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">${escapeHtml(linkedGroup.name)}</a>'s badges, meals, and travel.</span> Leave the Travel/Meals fields below blank for this record to avoid double-counting.</div>` : ''}
         </div>`;
       })()}
-      ${sp.data.arrangement ? `<div class="sp-linked-group-box">${speakerLogisticsArrangementNote(sp)}</div>` : ''}
+      ${sp.data.arrangement !== 'travel' ? `<div class="sp-linked-group-box">${speakerLogisticsArrangementNote(sp)}</div>` : ''}
       <div class="sk-logistics-grid">
-        ${sp.data.arrangement ? '' : `
+        ${sp.data.arrangement !== 'travel' ? '' : `
         <fieldset class="sp-fieldset">
           <legend>Travel</legend>
           <div class="sp-field-grid">
