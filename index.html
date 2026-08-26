@@ -437,6 +437,16 @@
   body.driver-view-mode > *:not(#driver-public-view) { display: none !important; }
   body.schedule-view-mode > *:not(#schedule-public-view) { display: none !important; }
   #schedule-public-view { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
+  body.sponsor-view-mode > *:not(#sponsor-public-view) { display: none !important; }
+  #sponsor-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
+  .spv-org-name { font-size: 15px; color: var(--ink-soft); margin: 0; }
+  .spv-field { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 12px; }
+  .spv-field input { display: block; width: 100%; margin-top: 4px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; font-family: inherit; box-sizing: border-box; }
+  .spv-textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; font-family: inherit; box-sizing: border-box; resize: vertical; }
+  .spv-badge-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .spv-badge-row input { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
+  .spv-file-block { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .spv-file-block input[type="file"] { display: block; font-size: 12px; }
 
 /* ==== Sponsor Tracker ==== */
 .top-nav {
@@ -672,6 +682,11 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .qa-modal-actions button { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
 .qa-modal-done { background: var(--teal-deep); color: #fff; border: none; }
 .qa-modal-done:hover { background: var(--teal); }
+.email-gen-card { max-width: 640px; }
+.email-gen-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.email-gen-tab { padding: 7px 14px; border-radius: 20px; border: 1px solid var(--line); background: transparent; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--ink-soft); }
+.email-gen-tab.active { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+.email-gen-body { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; font-family: ui-monospace, monospace; line-height: 1.5; resize: vertical; }
 
 @keyframes rowFlash { 0%,100% { background: transparent; } 30%,70% { background: rgba(197,161,84,0.32); } }
 .sp-row-flash { animation: rowFlash 1.4s ease; }
@@ -1100,6 +1115,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 <div id="qa-modal-root"></div>
 <div id="exp-sort-modal-root"></div>
+<div id="email-gen-modal-root"></div>
 
 <div id="driver-public-view" style="display:none;">
   <div class="dv-header">
@@ -1120,6 +1136,16 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     <div class="dv-loading">Loading the current schedule&hellip;</div>
   </div>
 </div>
+
+<div id="sponsor-public-view" style="display:none;">
+  <div class="dv-header">
+    <h1>SBCMC 2027 &mdash; Sponsor Portal</h1>
+    <p id="spv-org-name" class="spv-org-name"></p>
+  </div>
+  <div id="spv-body" class="dv-body">
+    <div class="dv-loading">Loading your sponsor info&hellip;</div>
+  </div>
+</div>
 <script>
 // Shared-password gate, like a locked spreadsheet: one password for the whole team,
 // entered once per browser (stored via localStorage so it persists across visits).
@@ -1128,12 +1154,13 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 // in this page grants direct API access independent of this gate. It stops a random
 // person who stumbles on the link; it will not stop someone specifically targeting this site.
 (function() {
-  // Driver-view and schedule-view links (?view=drivers / ?view=schedule) skip the gate
-  // entirely -- see initDriverPublicView()/initSchedulePublicView(), called separately at
-  // the bottom of the page once the rest of the app has loaded.
+  // Driver-view, schedule-view, and sponsor-portal links (?view=drivers / ?view=schedule /
+  // ?view=sponsor) skip the gate entirely -- see initDriverPublicView()/initSchedulePublicView()/
+  // initSponsorPublicView(), called separately at the bottom of the page once the rest of the
+  // app has loaded.
   try {
     const publicView = new URLSearchParams(window.location.search).get('view');
-    if (publicView === 'drivers' || publicView === 'schedule') return;
+    if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor') return;
   } catch (e) {}
 
   var GATE_HASH = '72f98362bb1cbc378e36035e1af9121832cc7e7f1d12a80364e840aa6e8ba77c';
@@ -3004,6 +3031,376 @@ function copyScheduleViewLink() {
   });
 }
 
+// ==================== Sponsor Public Portal (magic link) ====================
+// Unlike the driver/schedule views above, which load whole tables (nothing sensitive in
+// them), this view is write-capable and scoped to ONE sponsor's own record -- financial data,
+// other sponsors' contacts, and internal notes must never reach this page. So instead of
+// loading the sponsors array, it fetches exactly one row from Supabase by matching a random
+// token embedded in the URL against data->>publicToken, and holds that single row in
+// sponsorPublicRecord (never in the global `sponsors` array). Reached via ?view=sponsor&t=TOKEN.
+function isSponsorViewMode() {
+  try { return new URLSearchParams(window.location.search).get('view') === 'sponsor'; }
+  catch (e) { return false; }
+}
+
+let sponsorPublicRecord = null;
+let sponsorPublicChannel = null;
+
+function generateRandomToken() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function initSponsorPublicView() {
+  document.body.classList.add('sponsor-view-mode');
+  document.getElementById('sponsor-public-view').style.display = 'block';
+
+  const token = new URLSearchParams(window.location.search).get('t');
+  const bodyEl = document.getElementById('spv-body');
+  if (!token || !isSupabaseConfigured()) {
+    bodyEl.innerHTML = '<div class="dv-loading">This link is missing or invalid \u2014 please ask the conference coordinator for a fresh link.</div>';
+    return;
+  }
+  try {
+    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    const { data: row, error } = await sbClient.from(SPONSORS_TABLE).select('*').eq('data->>publicToken', token).maybeSingle();
+    if (error) throw error;
+    if (!row) {
+      bodyEl.innerHTML = '<div class="dv-loading">This link isn\u2019t active \u2014 please ask the conference coordinator for a fresh link.</div>';
+      return;
+    }
+    sponsorPublicRecord = rowToSponsor(row);
+    renderSponsorPublicView();
+
+    // Stay live so edits made on this page (or by staff in the admin tracker) show up without
+    // a manual refresh -- filtered to this one row only, never the whole table.
+    sponsorPublicChannel = sbClient.channel('sponsor-portal-' + sponsorPublicRecord.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: SPONSORS_TABLE, filter: 'id=eq.' + sponsorPublicRecord.id }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          bodyEl.innerHTML = '<div class="dv-loading">This sponsor record is no longer available.</div>';
+          return;
+        }
+        sponsorPublicRecord = rowToSponsor(payload.new);
+        renderSponsorPublicView();
+      })
+      .subscribe();
+  } catch (err) {
+    console.error('Sponsor portal load failed:', err);
+    bodyEl.innerHTML = '<div class="dv-loading">Couldn\u2019t load your sponsor record \u2014 try refreshing.</div>';
+  }
+}
+
+function renderSponsorPublicView() {
+  const s = sponsorPublicRecord;
+  if (!s) return;
+  document.getElementById('spv-org-name').textContent = s.org || 'Your Organization';
+
+  const logistics = s.data.logistics || {};
+  const materials = s.data.materials || {};
+  const badgeNames = logistics.badgeNames || [];
+
+  const badgeNamesHtml = badgeNames.map((name, i) => `
+    <div class="spv-badge-row">
+      <input type="text" value="${escapeHtml(name)}" placeholder="Full name for badge" onchange="updateSponsorBadgeName('${s.id}', ${i}, this.value)">
+      <button class="sp-mini-btn" onclick="removeSponsorBadgeName('${s.id}', ${i})">Remove</button>
+    </div>
+  `).join('') || '<div class="sp-sub">No booth staff added yet.</div>';
+
+  function fileBlock(kind, label, dims) {
+    const file = materials[kind];
+    return `
+      <div class="spv-file-block">
+        <b>${escapeHtml(label)}</b>${dims ? ' <span class="sp-sub">(' + escapeHtml(dims) + ')</span>' : ''}
+        ${file ? `<div class="sp-sub">Uploaded: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="removeSponsorFile('${s.id}', '${kind}')">Remove</button>` : '<div class="sp-sub">Not uploaded yet.</div>'}
+        <input type="file" id="sp-${kind}-input-${s.id}" style="margin-top:6px;">
+        <button class="sp-add-btn" onclick="${kind === 'boothAdFile' ? 'uploadSponsorBoothAd' : 'uploadSponsorDisplayGraphic'}('${s.id}')">Upload</button>
+      </div>
+    `;
+  }
+
+  document.getElementById('spv-body').innerHTML = `
+    <div class="dv-section">
+      <div class="dv-section-title">Your Contact Info</div>
+      <label class="spv-field">Contact Name<input type="text" value="${escapeHtml(s.contactName)}" onchange="updateSponsorSimple('${s.id}', 'contactName', this.value)"></label>
+      <label class="spv-field">Contact Email<input type="email" value="${escapeHtml(s.contactEmail)}" onchange="updateSponsorSimple('${s.id}', 'contactEmail', this.value)"></label>
+      <label class="spv-field">Contact Phone<input type="tel" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}', 'contactPhone', this.value)"></label>
+    </div>
+
+    <div class="dv-section">
+      <div class="dv-section-title">Booth Staff Badge Names</div>
+      <p class="sp-sub">Add the name of everyone who\u2019ll need a badge at your booth.</p>
+      <div id="spv-badge-list">${badgeNamesHtml}</div>
+      <button class="sp-add-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add Badge Name</button>
+    </div>
+
+    <div class="dv-section">
+      <div class="dv-section-title">Shipping</div>
+      <p class="sp-sub">If you\u2019re shipping materials ahead of the conference, let us know here \u2014 carrier, tracking number, expected arrival, anything that helps us watch for it.</p>
+      <textarea class="spv-textarea" rows="3" onchange="updateSponsorNested('${s.id}', 'logistics', 'shipping', this.value)" placeholder="e.g. Shipping via UPS, arriving 3/2, 2 boxes">${escapeHtml(logistics.shipping || '')}</textarea>
+    </div>
+
+    <div class="dv-section">
+      <div class="dv-section-title">Materials</div>
+      <p class="sp-sub">Booth ad and display graphic specs (exact dimensions, load-in time, etc.) will be confirmed closer to the conference \u2014 we\u2019ll follow up with those details. Upload whenever you\u2019re ready.</p>
+      ${fileBlock('boothAdFile', 'Booth Ad', 'dimensions TBD')}
+      ${fileBlock('displayGraphicFile', 'Display Graphic', 'dimensions TBD')}
+    </div>
+
+    <div class="dv-section">
+      <div class="dv-section-title">Notes for the Conference Team</div>
+      <textarea class="spv-textarea" rows="3" onchange="updateSponsorData('${s.id}', 'publicNotes', this.value)" placeholder="Anything else we should know?">${escapeHtml(s.data.publicNotes || '')}</textarea>
+    </div>
+  `;
+}
+
+// Admin-side: generate (if needed) and copy this sponsor's self-service link. The token is
+// created lazily on first copy rather than for every sponsor up front, so unused records don't
+// carry a live credential sitting in the database.
+function copySponsorPublicLink(id) {
+  const s = getSponsor(id); if (!s) return;
+  if (!s.data.publicToken) {
+    s.data.publicToken = generateRandomToken();
+    pushSponsor(s);
+  }
+  const url = window.location.origin + window.location.pathname + '?view=sponsor&t=' + s.data.publicToken;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Self-service link for ' + (s.org || 'this sponsor') + ' copied \u2014 send it to their contact.');
+  }).catch(() => {
+    prompt('Copy this link to send to ' + (s.org || 'this sponsor') + ':', url);
+  });
+}
+
+function revokeSponsorPublicLink(id) {
+  const s = getSponsor(id); if (!s) return;
+  if (!s.data.publicToken) return;
+  if (!confirm('Revoke this sponsor\u2019s self-service link? Their old link will stop working immediately. You can generate a new one anytime.')) return;
+  s.data.publicToken = '';
+  pushSponsor(s);
+  renderSponsorRows(id);
+  toast('Link revoked for ' + (s.org || 'this sponsor') + '.');
+}
+
+// ==================== Generate Sponsor/Exhibitor Emails ====================
+// Builds this year's version of the 3 emails SBCMC has historically sent sponsors, pulling
+// whatever's already known from the sponsor tracker (org, contact, package, badge names,
+// materials on file) and leaving a bracketed [PLACEHOLDER] for anything that isn't finalized
+// yet for 2027 (dates, load-in windows, booklet/graphic specs, addresses, wifi, parking) --
+// last year's numbers for those would just be wrong for a different venue and schedule.
+function sponsorGreetingName(s) {
+  const first = (s.contactName || '').trim().split(/\s+/)[0];
+  return first || 'Sponsor';
+}
+function sponsorPackageLabel(s) {
+  return s.package ? s.package : '[PACKAGE TIER]';
+}
+
+function sponsorEmailWelcome(s) {
+  const subject = 'SBCMC 2027 Welcome';
+  const body = `Dear ${sponsorGreetingName(s)},
+
+We are thrilled to welcome ${s.org} as an exhibitor at the Southern Baptist Church Music Conference! We are already seeing God\u2019s hand at work in every detail as we prepare for this gathering, and your participation plays a vital role in making this conference meaningful for all attendees. Thank you for your generous support\u2014it will truly make a lasting difference in the lives of worship pastors and leaders who will come to be encouraged, equipped, and inspired. The information below is provided to help you prepare for the conference.
+
+SPONSORSHIP INFORMATION
+As you plan for your exhibit, please keep the following details in mind:
+- Each booth will include one 8-foot table and two chairs.
+- Hanging signs are not permitted.
+- Power supply in the exhibit area is limited. If you plan to use electricity, please submit a request for approval by emailing [CONTACT PERSON AT CHURCH] with your request by [POWER REQUEST DEADLINE].
+
+EXHIBIT SCHEDULE
+- Load-in: [LOAD-IN DATE/TIME OPTIONS \u2014 not finalized yet]. Attendee check-in begins at [ATTENDEE CHECK-IN TIME].
+- Load-out: [LOAD-OUT DATE/TIME]. All exhibits must be completely cleared by [LOAD-OUT DEADLINE TIME].
+- Shipping: By [SHIPPING INSTRUCTIONS DATE], we will send detailed shipping instructions for exhibitors\u2019 mailing boxes to or from the church.
+
+CONFERENCE BOOKLET
+Please submit your booklet advertisement by [BOOKLET AD DEADLINE]. Exact size/format specs (dimensions, bleed, resolution) are still being finalized for this year\u2019s booklet \u2014 we\u2019ll follow up with those once confirmed.
+
+GRAPHICS
+Please send your graphic for display during the conference in our main venue and hallways by [GRAPHIC DEADLINE]. Exact sizing/format will be confirmed and sent separately.
+
+PROMOTIONAL HANDOUT FOR WELCOME BAG
+If you are sending in a promotional handout to be included in our welcome bag for all attendees, please mail to [CHURCH ADDRESS AND ATTENTION TO]. Please don\u2019t exceed [MAX HANDOUT SIZE \u2014 8.5" x 11" last year, to be confirmed].
+
+You have secured ${sponsorPackageLabel(s)}.
+
+If you have any questions about your exhibit space or sponsorship opportunities, we would be delighted to assist you.`;
+  return { subject, body };
+}
+
+function sponsorEmailActionRequired(s) {
+  const missing = [];
+  const mats = s.data.materials || {};
+  const badgeNames = (s.data.logistics.badgeNames || []).filter(n => n && n.trim());
+  if (!mats.boothAdFile) missing.push('Sponsorship advertisement for the program booklet');
+  if (!mats.displayGraphicFile) missing.push('Sponsorship graphic for on-site display');
+  if (badgeNames.length < 2) missing.push('First and last names of two booth representatives (for badges)');
+  if (!s.data.logistics.loadInTime) missing.push('Preferred arrival day and time for load-in');
+
+  const missingList = missing.length
+    ? missing.map((m, i) => (i + 1) + '. ' + m).join('\n')
+    : 'Looks like we already have everything on file for you \u2014 thank you!';
+
+  const subject = 'SBCMC Sponsor & Exhibit Information \u2014 Action Required [DEADLINE]';
+  const body = `Dear ${sponsorGreetingName(s)},
+
+Thank you for your partnership as a sponsor of the Southern Baptist Church Music Conference. As we finalize preparations, we kindly request the materials and information listed below no later than [DEADLINE DATE] to ensure inclusion in all appropriate conference materials.
+
+Materials not received by the deadline cannot be included. If you anticipate any issues meeting this deadline, please contact [SPONSOR CONTACT INFORMATION].
+
+The conference schedule is attached for your reference.
+
+EXHIBIT INFORMATION
+Exhibits will open at the beginning and close at the end of each conference day. Please close your exhibit during any sessions taking place in the auditorium (see attached schedule for specific times).
+
+Exhibit Details:
+- One (1) 8-foot table
+- Two (2) chairs
+- No hanging signs permitted
+
+Load-In Times (choose one): [LOAD-IN OPTION 1] OR [LOAD-IN OPTION 2]
+(Attendee check-in begins at [CHECK-IN TIME].)
+
+Load-Out: [LOAD-OUT DATE/TIME]
+(All exhibits must be cleared by [LOAD-OUT DEADLINE TIME].)
+
+INFORMATION & MATERIALS (Due [DEADLINE DATE])
+Please reply to this email with the following items we\u2019re still missing from ${s.org}:
+${missingList}
+
+PROGRAM BOOKLET AD SPECIFICATIONS
+Exact final size, bleed, safe area, resolution, and accepted file formats for this year\u2019s booklet are still being finalized \u2014 we\u2019ll send those separately before the deadline.
+
+WELCOME BAG PROMOTIONAL HANDOUT (Due [DEADLINE DATE])
+- Quantity: [QUANTITY]
+- Maximum size: [MAX SIZE]
+- Mail to: [MAIN CONTACT NAME TO RECEIVE HANDOUTS], [CHURCH HOST NAME], [CHURCH ADDRESS, CITY AND ZIP]
+
+EXHIBIT SHIPPING INFORMATION
+Your Exhibit Number: ${s.data.logistics.exhibitNumber ? s.data.logistics.exhibitNumber : '[TO BE ASSIGNED]'}
+(Please include this number on all shipments.)
+
+When shipping items to [HOST CHURCH NAME], label each package as follows:
+- Your Organization Name (with return address)
+- Attention: [CHURCH HOST CONTACT NAME FOR EXHIBIT PLANNING], For SBCMC Worship Conference, Exhibit # ${s.data.logistics.exhibitNumber ? s.data.logistics.exhibitNumber : '[TBD]'}
+[CHURCH HOST ADDRESS, CITY AND ZIP]
+
+Important: If you plan to ship materials back, please bring pre-printed return labels. You are responsible for packing and return shipping of your materials.
+
+If you have any questions, please reply all so our team can assist you promptly.
+
+We look forward to serving you at the conference!`;
+  return { subject, body };
+}
+
+function sponsorEmailFinalReminder(s) {
+  const shippedNote = s.data.logistics.shipped
+    ? 'Our records show your materials have already shipped to us \u2014 they\u2019ll be waiting for you at your table when you arrive.'
+    : 'If you shipped boxes to the church ahead of time, they will be waiting for you at your table when you arrive.';
+
+  const subject = 'SBCMC Conference \u2014 Final Reminder for Exhibitors';
+  const body = `Dear ${sponsorGreetingName(s)},
+
+We are less than two weeks away from the SBCMC Conference, and we are so excited to welcome you! Thank you for your generous sponsorship\u2014we are truly grateful for your support and are looking forward to partnering with you for a wonderful week.
+
+To help you prepare, please review the important details below and share this with your representatives who are attending the conference.
+
+CAMPUS MAP & ARRIVAL
+You should have received a separate attendee email with a campus map attached. For your convenience the map is attached here. Please refer to that map as you arrive for check-in.
+
+CHECK-IN DETAILS
+Times: [CHECK-IN DATE/TIME OPTIONS]
+
+CHECKOUT DETAILS
+[CHECKOUT DATE/TIME]
+(All exhibits must be cleared by [CHECKOUT DEADLINE TIME].)
+Important: If you plan to ship materials back, please bring pre-printed return labels. You are responsible for packing and return shipping of your materials. Please leave your packed boxes on your exhibit table.
+
+LOCATION
+[CHURCH HOST NAME AND ADDRESS OR PARKING LOT ACCESS INSTRUCTIONS]
+
+INSTRUCTIONS
+When you arrive, please pull into the unloading zone at the address above and enter through the designated doors. Our team will be there to warmly greet you and guide you to your table.
+
+After unloading your materials, please move your vehicle to the designated parking area listed below before setting up your exhibit, to allow room for others arriving.
+
+PARKING INFORMATION
+[PARKING DETAILS \u2014 not finalized yet]
+
+SHIPPED PACKAGES
+${shippedNote}
+
+DEDICATED WI-FI FOR EXHIBITORS
+SSID: [WIFI NETWORK NAME]
+Password: [WIFI PASSWORD]
+
+If you have any questions at all, please don\u2019t hesitate to reach out\u2014we\u2019re happy to help. We are so glad you will be part of this conference and truly look forward to a meaningful week of learning, fellowship, and encouragement together.
+
+[ATTACH: campus map]`;
+  return { subject, body };
+}
+
+let emailGenModalState = null; // { sponsorId, templateKey } | null
+
+function openEmailGenModal(id, templateKey) {
+  emailGenModalState = { sponsorId: id, templateKey: templateKey || 'welcome' };
+  renderEmailGenModal();
+}
+function closeEmailGenModal() {
+  emailGenModalState = null;
+  document.getElementById('email-gen-modal-root').innerHTML = '';
+}
+function switchEmailGenTemplate(templateKey) {
+  if (!emailGenModalState) return;
+  emailGenModalState.templateKey = templateKey;
+  renderEmailGenModal();
+}
+function renderEmailGenModal() {
+  const root = document.getElementById('email-gen-modal-root');
+  if (!emailGenModalState) { root.innerHTML = ''; return; }
+  const s = getSponsor(emailGenModalState.sponsorId);
+  if (!s) { closeEmailGenModal(); return; }
+  const templates = { welcome: sponsorEmailWelcome, action: sponsorEmailActionRequired, final: sponsorEmailFinalReminder };
+  const { subject, body } = templates[emailGenModalState.templateKey](s);
+  const tabs = [
+    { key: 'welcome', label: 'Welcome' },
+    { key: 'action', label: 'Action Required' },
+    { key: 'final', label: 'Final Reminder' }
+  ];
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeEmailGenModal();">
+      <div class="qa-modal-card email-gen-card">
+        <h3>Generate Email \u2014 ${escapeHtml(s.org)}</h3>
+        <p class="qa-modal-sub">Bracketed [placeholders] mark anything not yet finalized for 2027 \u2014 fill those in before sending. Everything else is pulled from this sponsor\u2019s record.</p>
+        <div class="email-gen-tabs">
+          ${tabs.map(t => `<button class="email-gen-tab ${t.key === emailGenModalState.templateKey ? 'active' : ''}" onclick="switchEmailGenTemplate('${t.key}')">${t.label}</button>`).join('')}
+        </div>
+        <div class="qa-modal-field">
+          <label for="email-gen-subject">Subject</label>
+          <input id="email-gen-subject" type="text" readonly value="${escapeHtml(subject)}">
+        </div>
+        <div class="qa-modal-field">
+          <label for="email-gen-body">Body</label>
+          <textarea id="email-gen-body" class="email-gen-body" readonly rows="16">${escapeHtml(body)}</textarea>
+        </div>
+        <div class="qa-modal-actions">
+          <button class="sp-mini-btn" onclick="closeEmailGenModal()">Close</button>
+          <button class="qa-modal-done" onclick="copyGeneratedEmail()">Copy Email</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function copyGeneratedEmail() {
+  const subject = document.getElementById('email-gen-subject').value;
+  const body = document.getElementById('email-gen-body').value;
+  const combined = 'Subject: ' + subject + '\n\n' + body;
+  navigator.clipboard.writeText(combined).then(() => {
+    toast('Email copied \u2014 paste it into your email client.');
+  }).catch(() => {
+    prompt('Copy this email:', combined);
+  });
+}
+
 function updateSyncStatus(state, detail) {
   const dot = document.getElementById('sync-dot');
   const text = document.getElementById('sync-text');
@@ -4527,6 +4924,11 @@ async function deletePackageAdmin(key) {
 // for an internal, unlisted-link planning tool. Don't put anything truly sensitive here.)
 
 const SPONSORS_TABLE = 'sponsors';
+// Booth ad / display graphic uploads (program booklet artwork, on-screen graphic). Needs its
+// own Storage bucket -- create it once in Supabase (Storage -> New bucket -> name exactly
+// "sponsor-materials", Public bucket ON so getPublicUrl() links work). Until it exists,
+// uploadSponsorFile() below just toasts an error instead of crashing.
+const SPONSOR_MATERIALS_BUCKET = 'sponsor-materials';
 function errDetail(error) {
   // Supabase/Postgres errors carry a machine-readable code (e.g. 42501 = permission denied,
   // PGRST205 = table not found) alongside the human message -- surfacing both means a
@@ -5693,7 +6095,9 @@ function rowToSponsor(row) {
     data: Object.assign({
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
-      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '' },
+      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
+      materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
+      publicToken: '', publicNotes: '',
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }, row.data || {})
@@ -5746,7 +6150,9 @@ function addSponsor() {
     data: {
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
-      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '' },
+      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
+      materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
+      publicToken: '', publicNotes: '',
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }
@@ -6440,8 +6846,11 @@ function sponsorDetailHTML(s) {
           <div class="sp-field-grid">
           <div class="sp-check"><input id="sp-power-${s.id}" type="checkbox" ${s.data.logistics.power ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','power',this.checked)"><label for="sp-power-${s.id}"> Power needed</label></div>
           <div class="sp-check"><input id="sp-av-${s.id}" type="checkbox" ${s.data.logistics.av ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','av',this.checked)"><label for="sp-av-${s.id}"> AV needed</label></div>
-          <div class="sp-field"><label for="sp-loadin-${s.id}">Load-in time</label><input id="sp-loadin-${s.id}" type="text" value="${escapeHtml(s.data.logistics.loadInTime)}" onchange="updateSponsorNested('${s.id}','logistics','loadInTime',this.value)"></div>
+          <div class="sp-field"><label for="sp-exhibitnum-${s.id}">Exhibit / booth number</label><input id="sp-exhibitnum-${s.id}" type="text" value="${escapeHtml(s.data.logistics.exhibitNumber)}" onchange="updateSponsorNested('${s.id}','logistics','exhibitNumber',this.value)"></div>
+          <div class="sp-field"><label for="sp-loadin-${s.id}">Load-in time</label><input id="sp-loadin-${s.id}" type="text" placeholder="Not finalized yet" value="${escapeHtml(s.data.logistics.loadInTime)}" onchange="updateSponsorNested('${s.id}','logistics','loadInTime',this.value)"></div>
           <div class="sp-field"><label for="sp-shipping-${s.id}">Shipping / drayage notes</label><input id="sp-shipping-${s.id}" type="text" value="${escapeHtml(s.data.logistics.shipping)}" onchange="updateSponsorNested('${s.id}','logistics','shipping',this.value)"></div>
+          <div class="sp-check"><input id="sp-shipped-${s.id}" type="checkbox" ${s.data.logistics.shipped ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','shipped',this.checked)"><label for="sp-shipped-${s.id}"> Materials shipped to us</label></div>
+          <div class="sp-field"><label for="sp-tracking-${s.id}">Tracking info</label><input id="sp-tracking-${s.id}" type="text" value="${escapeHtml(s.data.logistics.trackingInfo)}" onchange="updateSponsorNested('${s.id}','logistics','trackingInfo',this.value)"></div>
           <div class="sp-subhead">Badges</div>
           ${(s.data.logistics.badgeNames || []).map((name, i) => `
             <div class="sp-add-row" style="margin-bottom:4px;">
@@ -6451,6 +6860,48 @@ function sponsorDetailHTML(s) {
           `).join('')}
           <button class="sp-mini-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add name</button>
           </div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Materials Received</legend>
+          <div class="sp-field-grid">
+          <div class="sp-field" style="grid-column:1/-1;">
+            <label>Program booklet ad</label>
+            ${(s.data.materials || {}).boothAdFile ? `
+              <div class="sk-file-row">
+                <a href="${escapeHtml(s.data.materials.boothAdFile.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(s.data.materials.boothAdFile.fileName)}</a>
+                <span class="sp-sub">${fmtFileSize(s.data.materials.boothAdFile.fileSize)} · ${escapeHtml(s.data.materials.boothAdFile.uploadedAt)}</span>
+                <button class="sp-mini-btn" onclick="removeSponsorFile('${s.id}','boothAdFile')">&times;</button>
+              </div>` : `
+              <div class="sp-add-row"><input type="file" id="sp-boothAdFile-input-${s.id}" style="flex:1;"><button class="sp-mini-btn" onclick="uploadSponsorBoothAd('${s.id}')">Upload</button></div>`}
+          </div>
+          <div class="sp-field" style="grid-column:1/-1;">
+            <label>Display graphic</label>
+            ${(s.data.materials || {}).displayGraphicFile ? `
+              <div class="sk-file-row">
+                <a href="${escapeHtml(s.data.materials.displayGraphicFile.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(s.data.materials.displayGraphicFile.fileName)}</a>
+                <span class="sp-sub">${fmtFileSize(s.data.materials.displayGraphicFile.fileSize)} · ${escapeHtml(s.data.materials.displayGraphicFile.uploadedAt)}</span>
+                <button class="sp-mini-btn" onclick="removeSponsorFile('${s.id}','displayGraphicFile')">&times;</button>
+              </div>` : `
+              <div class="sp-add-row"><input type="file" id="sp-displayGraphicFile-input-${s.id}" style="flex:1;"><button class="sp-mini-btn" onclick="uploadSponsorDisplayGraphic('${s.id}')">Upload</button></div>`}
+          </div>
+          <div class="sp-check" style="grid-column:1/-1;"><input id="sp-handout-${s.id}" type="checkbox" ${(s.data.materials || {}).welcomeBagHandoutReceived ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','materials','welcomeBagHandoutReceived',this.checked)"><label for="sp-handout-${s.id}"> Welcome bag handout received (mailed in)</label></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Self-Service Portal</legend>
+          <p class="sp-sub">Send this sponsor a private link where they can update their own contact info, badge names, shipping notes, and upload their booth ad / display graphic — no password needed, and it only shows their own record.</p>
+          <button class="sp-mini-btn" onclick="copySponsorPublicLink('${s.id}')">🔗 Copy Self-Service Link</button>
+          ${s.data.publicToken ? `<button class="sp-mini-btn" onclick="revokeSponsorPublicLink('${s.id}')">Revoke Link</button>` : ''}
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Generate Email</legend>
+          <p class="sp-sub">Draft this year's welcome, action-required, or final-reminder email using this sponsor's info. Anything not yet finalized for 2027 is left as a [placeholder] to fill in before sending.</p>
+          <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','welcome')">✉️ Welcome Email</button>
+          <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','action')">✉️ Action Required</button>
+          <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','final')">✉️ Final Reminder</button>
         </fieldset>
         </div>
       </div>
@@ -6498,6 +6949,14 @@ function sponsorDetailHTML(s) {
 }
 
 function getSponsor(id) { return sponsors.find(s => s.id === id); }
+// The public sponsor portal (?view=sponsor) never loads the full sponsors array -- only the one
+// record its token resolves to, held in sponsorPublicRecord. Field-update functions that are
+// shared between the admin tracker and the portal (badge names, load-in notes, etc.) resolve
+// through here instead of calling getSponsor() directly, so the same handler works in both.
+function resolveSponsorForEdit(id) {
+  if (typeof isSponsorViewMode === 'function' && isSponsorViewMode() && sponsorPublicRecord && sponsorPublicRecord.id === id) return sponsorPublicRecord;
+  return getSponsor(id);
+}
 
 const ADDON_TYPE_SUGGESTIONS = [
   'Snack Area Sponsorship ($5/person/day, Mon-Wed)',
@@ -6536,10 +6995,10 @@ function updateSponsorPackage(id, value) {
 }
 
 function updateSponsorSimple(id, field, value) {
-  const s = getSponsor(id); if (!s) return;
+  const s = resolveSponsorForEdit(id); if (!s) return;
   const prevValue = s[field];
   s[field] = value;
-  if (field === 'org' && value.trim()) {
+  if (field === 'org' && value.trim() && typeof sponsors !== 'undefined') {
     const dupe = sponsors.find(x => x.id !== id && x.org.trim().toLowerCase() === value.trim().toLowerCase());
     if (dupe) toast('Heads up: "' + value + '" looks like it may already be tracked (another record with the same name exists).');
   }
@@ -6557,38 +7016,94 @@ function updateSponsorSimple(id, field, value) {
     }
   }
   pushSponsor(s);
-  renderSponsorRows(id);
+  refreshSponsorAfterEdit(id);
 }
 function updateSponsorData(id, field, value) {
-  const s = getSponsor(id); if (!s) return;
+  const s = resolveSponsorForEdit(id); if (!s) return;
   s.data[field] = value;
   pushSponsor(s);
-  renderSponsorRows(id);
+  refreshSponsorAfterEdit(id);
 }
 function addSponsorBadgeName(id) {
-  const s = getSponsor(id); if (!s) return;
+  const s = resolveSponsorForEdit(id); if (!s) return;
   if (!s.data.logistics.badgeNames) s.data.logistics.badgeNames = [];
   s.data.logistics.badgeNames.push('');
   pushSponsor(s);
-  renderSponsorRows(id);
+  refreshSponsorAfterEdit(id);
 }
 function updateSponsorBadgeName(id, i, value) {
-  const s = getSponsor(id); if (!s) return;
+  const s = resolveSponsorForEdit(id); if (!s) return;
   s.data.logistics.badgeNames[i] = value;
   pushSponsor(s);
-  renderSponsorRows(id);
+  refreshSponsorAfterEdit(id);
 }
 function removeSponsorBadgeName(id, i) {
-  const s = getSponsor(id); if (!s) return;
+  const s = resolveSponsorForEdit(id); if (!s) return;
   s.data.logistics.badgeNames.splice(i, 1);
   pushSponsor(s);
-  renderSponsorRows(id);
+  refreshSponsorAfterEdit(id);
 }
 function updateSponsorNested(id, group, field, value) {
-  const s = getSponsor(id); if (!s) return;
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  if (!s.data[group]) s.data[group] = {}; // records saved before this nested group existed
   s.data[group][field] = value;
   pushSponsor(s);
-  renderSponsorRows(id);
+  refreshSponsorAfterEdit(id);
+}
+
+// Used by both the admin Sponsor Tracker and the public sponsor portal (?view=sponsor) --
+// whichever one is currently active is the one that needs to re-render after a write.
+function refreshSponsorAfterEdit(id) {
+  if (typeof isSponsorViewMode === 'function' && isSponsorViewMode() && typeof renderSponsorPublicView === 'function') {
+    renderSponsorPublicView();
+  } else {
+    renderSponsorRows(id);
+  }
+}
+
+// ---- Sponsor file uploads (booth ad / display graphic) -- single-slot, not a growing list ----
+async function uploadSponsorFile(id, kind) {
+  // kind: 'boothAdFile' | 'displayGraphicFile'
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  const input = document.getElementById('sp-' + kind + '-input-' + id);
+  if (!input || !input.files || !input.files[0]) { toast('Choose a file first.'); return; }
+  if (!sbClient) { toast('Not connected to shared storage — can’t upload right now.'); return; }
+  const file = input.files[0];
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = id + '/' + kind + '/' + Date.now() + '_' + safeName;
+
+  toast('Uploading ' + file.name + '...');
+  const { error: uploadError } = await sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).upload(path, file, { upsert: true });
+  if (uploadError) {
+    console.error('Upload failed:', uploadError);
+    toast('Upload failed — ' + (uploadError.message || 'see console') + '. If this bucket doesn’t exist yet, it needs to be created in Supabase Storage first.');
+    return;
+  }
+  const { data: urlData } = sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).getPublicUrl(path);
+  if (!s.data.materials) s.data.materials = { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false };
+  s.data.materials[kind] = {
+    fileName: file.name, filePath: path, fileSize: file.size,
+    url: urlData.publicUrl, uploadedAt: new Date().toISOString().slice(0, 10)
+  };
+  pushSponsor(s);
+  input.value = '';
+  refreshSponsorAfterEdit(id);
+  toast('Uploaded ' + file.name);
+}
+function uploadSponsorBoothAd(id) { return uploadSponsorFile(id, 'boothAdFile'); }
+function uploadSponsorDisplayGraphic(id) { return uploadSponsorFile(id, 'displayGraphicFile'); }
+
+async function removeSponsorFile(id, kind) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  const material = s.data.materials && s.data.materials[kind];
+  if (!material) return;
+  if (sbClient && material.filePath) {
+    const { error } = await sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([material.filePath]);
+    if (error) console.error('Storage delete failed:', error);
+  }
+  s.data.materials[kind] = null;
+  pushSponsor(s);
+  refreshSponsorAfterEdit(id);
 }
 
 function linkBoothToSponsor(sponsorId, boothId) {
@@ -10251,6 +10766,11 @@ if (isDriverViewMode()) {
   // Read-only conference schedule link -- same idea, but for the Breakout Grid, Timeline,
   // and per-group Itinerary. No edit controls anywhere on this path.
   initSchedulePublicView();
+} else if (isSponsorViewMode()) {
+  // Sponsor self-service portal -- scoped to exactly one sponsor's own record via a token
+  // in the URL, with limited edit controls (contact info, badge names, shipping notes,
+  // materials upload, notes). No financial data, no other sponsors' data, ever loaded here.
+  initSponsorPublicView();
 } else {
   renderPackageSidebar();
   buildTabs();
