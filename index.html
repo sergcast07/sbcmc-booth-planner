@@ -846,6 +846,12 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
     content: attr(data-label); display: block; font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-top: 8px;
   }
+  /* The org/person name is the card's real title, not just another labeled field -- drop the
+     redundant caption above it and give the name itself more visual weight than the rest of
+     the card, so the hierarchy reads "who is this" first, everything else second. */
+  table.sp-table td.sp-org[data-label]:not([data-label=""])::before { display: none; }
+  table.sp-table td.sp-org { font-size: 17px; font-weight: 700; margin-top: 4px; line-height: 1.25; }
+  table.sp-table td.sp-org .sp-sub { font-size: 12px; font-weight: 400; margin-top: 3px; }
   table.sp-table tr.sp-detail-row.open { margin-bottom: 12px; }
   table.sp-table td.sp-detail-cell { padding: 0; }
 
