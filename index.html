@@ -822,20 +822,31 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   .sp-add-row { flex-wrap: wrap; }
   .sp-add-row input { min-width: 140px; }
 
-  /* Sponsor table -> stacked list of cards. 7 columns of horizontal-scroll never works well
-     with a thumb, so each row becomes a block with the column name as a small label above its
-     value (from the td's data-label attribute) instead. */
-  .sp-table-wrap { overflow-x: visible; border-radius: 10px; }
-  table.sp-table { min-width: 0; }
+  /* Sponsor/Speaker table -> stacked deck of distinct cards. 7 columns of horizontal-scroll
+     never works well with a thumb, so each row becomes its own rounded, shadowed card with the
+     column name as a small label above its value (from the td's data-label attribute), and a
+     real gap between cards instead of a thin line -- so it's obvious where one record ends and
+     the next begins, even when a field is blank ("—"). */
+  .sp-table-wrap { overflow-x: visible; border: none; box-shadow: none; background: transparent; }
+  table.sp-table { min-width: 0; background: transparent; }
   table.sp-table thead { display: none; }
   table.sp-table, table.sp-table tbody, table.sp-table tr, table.sp-table td { display: block; width: 100%; }
-  table.sp-table tr.sp-row { padding: 12px 14px; border-bottom: 1px solid var(--line); }
-  table.sp-table tr.sp-row:last-child { border-bottom: none; }
+  table.sp-table tr.sp-row {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(23,38,43,0.06);
+  }
+  table.sp-table tr.sp-row:hover { background: var(--panel); }
+  /* Highlight the card whose detail panel is currently open, so it stays visually anchored to
+     its own expanded content below rather than looking like just another card in the stack. */
+  table.sp-table tr.sp-row:has(+ tr.sp-detail-row.open) {
+    border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal), 0 1px 3px rgba(23,38,43,0.06);
+  }
   table.sp-table td { padding: 2px 0; border-bottom: none; overflow: visible; white-space: normal; }
   table.sp-table td[data-label]:not([data-label=""])::before {
     content: attr(data-label); display: block; font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-top: 8px;
   }
+  table.sp-table tr.sp-detail-row.open { margin-bottom: 12px; }
   table.sp-table td.sp-detail-cell { padding: 0; }
 
   /* Detail panel tabs can crowd 4-across on a phone -- let them wrap instead of clipping. */
@@ -10074,6 +10085,7 @@ function buildSpeakerRowPair(sp, todayStr) {
         ? escapeHtml(sp.data.logistics.hostName)
         : '<span class="sp-task-badge sp-task-badge-overdue" title="A host is needed but nobody’s assigned yet">Needs host</span>');
   const tr = document.createElement('tr');
+  tr.className = 'sp-row';
   tr.dataset.id = sp.id;
   tr.innerHTML = `
     <td data-label=""><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}</td>
@@ -10109,6 +10121,7 @@ function buildSpeakerRowPair(sp, todayStr) {
   let detailTr = null;
   if (openSpeakerId === sp.id) {
     detailTr = document.createElement('tr');
+    detailTr.className = 'sp-detail-row open';
     detailTr.id = 'sk-detail-' + sp.id;
     const detailTd = document.createElement('td');
     detailTd.colSpan = 7;
