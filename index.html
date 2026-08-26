@@ -870,6 +870,17 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
      Give each its own full-width line so the actual text is readable instead of clipped. */
   .sk-file-row .sp-sub { flex: 1 1 100%; white-space: normal; overflow: visible; text-overflow: clip; }
 
+  /* Schedule tab: Breakout Grid / Timeline / Itinerary / Copy Link / Export CSV as 5 buttons
+     in one unwrapped row forced the whole page wider than the screen. The grid view itself
+     is a genuine 2D dataset (tracks x time slots) that already scrolls horizontally within its
+     own contained wrapper with a sticky track column -- that's the right pattern for this kind
+     of data on a phone, so it's left as-is; only the toggle row needed fixing. */
+  .sch-view-toggle { flex-wrap: wrap; }
+  .sch-grid-wrap::before {
+    content: "\2194 scroll to see more tracks/times"; display: block; text-align: center;
+    font-size: 11px; color: var(--ink-soft); padding: 6px 0; background: var(--teal-pale);
+  }
+
   .canvas-body-row { flex-direction: column; }
   .spot-directory { width: 100%; border-left: none; border-top: 1px solid var(--line); max-height: 240px; }
 
