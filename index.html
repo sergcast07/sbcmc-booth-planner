@@ -3133,9 +3133,11 @@ function renderSponsorPublicView() {
 
     <div class="dv-section">
       <div class="dv-section-title">Booth Staff Badge Names</div>
-      <p class="sp-sub sp-sub-wrap">Add the name of everyone who\u2019ll need a badge at your booth.</p>
+      <p class="sp-sub sp-sub-wrap">Your sponsorship includes ${sponsorBadgeLimit(s)} badge${sponsorBadgeLimit(s) === 1 ? '' : 's'}. Add the name of everyone who\u2019ll be staffing your booth.</p>
       <div id="spv-badge-list">${badgeNamesHtml}</div>
-      <button class="sp-add-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add Badge Name</button>
+      ${badgeNames.length >= sponsorBadgeLimit(s)
+        ? `<p class="sp-sub sp-sub-wrap">You\u2019ve used all ${sponsorBadgeLimit(s)} badges included with your sponsorship. If you need badges for additional attendees, please contact the conference coordinator to discuss.</p>`
+        : `<button class="sp-add-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add Badge Name</button>`}
     </div>
 
     <div class="dv-section">
@@ -3243,9 +3245,10 @@ function sponsorEmailActionRequired(s) {
   const missing = [];
   const mats = s.data.materials || {};
   const badgeNames = (s.data.logistics.badgeNames || []).filter(n => n && n.trim());
+  const badgeLimit = sponsorBadgeLimit(s);
   if (!mats.boothAdFile) missing.push('Sponsorship advertisement for the program booklet');
   if (!mats.displayGraphicFile) missing.push('Sponsorship graphic for on-site display');
-  if (badgeNames.length < 2) missing.push('First and last names of two booth representatives (for badges)');
+  if (badgeLimit > 0 && badgeNames.length < badgeLimit) missing.push('First and last names of your booth representatives (up to ' + badgeLimit + ', for badges)');
   if (!s.data.logistics.loadInTime) missing.push('Preferred arrival day and time for load-in');
 
   const missingList = missing.length
@@ -6107,7 +6110,7 @@ function rowToSponsor(row) {
     data: Object.assign({
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
-      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
+      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], badgeLimit: 2, shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '',
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
@@ -6162,7 +6165,7 @@ function addSponsor() {
     data: {
       amountStatus: '', checkoutTier: '', specialNotes: '',
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
-      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
+      logistics: { power: false, av: false, loadInTime: '', badgeNames: [], badgeLimit: 2, shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '',
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
@@ -6864,13 +6867,15 @@ function sponsorDetailHTML(s) {
           <div class="sp-check"><input id="sp-shipped-${s.id}" type="checkbox" ${s.data.logistics.shipped ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','logistics','shipped',this.checked)"><label for="sp-shipped-${s.id}"> Materials shipped to us</label></div>
           <div class="sp-field"><label for="sp-tracking-${s.id}">Tracking info</label><input id="sp-tracking-${s.id}" type="text" value="${escapeHtml(s.data.logistics.trackingInfo)}" onchange="updateSponsorNested('${s.id}','logistics','trackingInfo',this.value)"></div>
           <div class="sp-subhead">Badges</div>
+          <div class="sp-field"><label for="sp-badgelimit-${s.id}">Badge limit</label><input id="sp-badgelimit-${s.id}" type="number" min="0" step="1" value="${sponsorBadgeLimit(s)}" onchange="updateSponsorNested('${s.id}','logistics','badgeLimit',parseInt(this.value,10) || 0)"></div>
           ${(s.data.logistics.badgeNames || []).map((name, i) => `
             <div class="sp-add-row" style="margin-bottom:4px;">
               <input type="text" value="${escapeHtml(name)}" onchange="updateSponsorBadgeName('${s.id}',${i},this.value)">
               <button class="sp-mini-btn" onclick="removeSponsorBadgeName('${s.id}',${i})">&times;</button>
             </div>
           `).join('')}
-          <button class="sp-mini-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add name</button>
+          <button class="sp-mini-btn" onclick="addSponsorBadgeName('${s.id}')" ${(s.data.logistics.badgeNames || []).length >= sponsorBadgeLimit(s) ? 'disabled title="Badge limit reached"' : ''}>+ Add name</button>
+          <p class="sp-sub sp-sub-wrap">${(s.data.logistics.badgeNames || []).length} of ${sponsorBadgeLimit(s)} badges used${(s.data.logistics.badgeNames || []).length >= sponsorBadgeLimit(s) ? ' — raise the limit above to add more.' : '.'}</p>
           </div>
         </fieldset>
 
@@ -7047,9 +7052,21 @@ function updateSponsorData(id, field, value) {
   pushSponsor(s);
   refreshSponsorAfterEdit(id);
 }
+function sponsorBadgeLimit(s) {
+  const limit = parseInt(s.data.logistics.badgeLimit, 10);
+  return Number.isFinite(limit) && limit >= 0 ? limit : 2;
+}
 function addSponsorBadgeName(id) {
   const s = resolveSponsorForEdit(id); if (!s) return;
   if (!s.data.logistics.badgeNames) s.data.logistics.badgeNames = [];
+  const limit = sponsorBadgeLimit(s);
+  if (s.data.logistics.badgeNames.length >= limit) {
+    const isPublic = typeof isSponsorViewMode === 'function' && isSponsorViewMode();
+    toast(isPublic
+      ? 'You’ve reached your badge limit (' + limit + '). Please contact the conference coordinator to discuss additional attendees.'
+      : 'This sponsor’s badge limit (' + limit + ') has been reached. Raise the limit above to add more.');
+    return;
+  }
   s.data.logistics.badgeNames.push('');
   pushSponsor(s);
   refreshSponsorAfterEdit(id);
