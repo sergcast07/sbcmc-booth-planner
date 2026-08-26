@@ -3202,13 +3202,23 @@ function renderSponsorPublicView() {
 // Admin-side: generate (if needed) and copy this sponsor's self-service link. The token is
 // created lazily on first copy rather than for every sponsor up front, so unused records don't
 // carry a live credential sitting in the database.
-function copySponsorPublicLink(id) {
-  const s = getSponsor(id); if (!s) return;
+// Lazily creates a sponsor's self-service token the first time it's actually needed (copy
+// link, or generating an email that embeds it), rather than minting one for every sponsor up
+// front -- unused records don't carry a live credential sitting in the database. Shared by
+// copySponsorPublicLink and the email generator below so both always point at the same link.
+function ensureSponsorPublicToken(s) {
   if (!s.data.publicToken) {
     s.data.publicToken = generateRandomToken();
     pushSponsor(s);
   }
-  const url = window.location.origin + window.location.pathname + '?view=sponsor&t=' + s.data.publicToken;
+  return s.data.publicToken;
+}
+function sponsorPortalUrl(s) {
+  return window.location.origin + window.location.pathname + '?view=sponsor&t=' + ensureSponsorPublicToken(s);
+}
+function copySponsorPublicLink(id) {
+  const s = getSponsor(id); if (!s) return;
+  const url = sponsorPortalUrl(s);
   navigator.clipboard.writeText(url).then(() => {
     toast('Self-service link for ' + (s.org || 'this sponsor') + ' copied \u2014 send it to their contact.');
   }).catch(() => {
@@ -3241,6 +3251,7 @@ function sponsorPackageLabel(s) {
 }
 
 function sponsorEmailWelcome(s) {
+  const url = sponsorPortalUrl(s);
   const subject = 'SBCMC 2027 Welcome';
   const body = `Dear ${sponsorGreetingName(s)},
 
@@ -3268,11 +3279,15 @@ If you are sending in a promotional handout to be included in our welcome bag fo
 
 You have secured ${sponsorPackageLabel(s)}.
 
+YOUR SPONSOR PORTAL
+Whenever it's convenient, you can add your booth staff's badge names, let us know if you'll need power at your booth, share shipping details, and upload your booth ad or display graphic here: ${url}
+
 If you have any questions about your exhibit space or sponsorship opportunities, we would be delighted to assist you.`;
   return { subject, body };
 }
 
 function sponsorEmailActionRequired(s) {
+  const url = sponsorPortalUrl(s);
   const missing = [];
   const mats = s.data.materials || {};
   const badgeNames = (s.data.logistics.badgeNames || []).filter(n => n && n.trim());
@@ -3283,8 +3298,8 @@ function sponsorEmailActionRequired(s) {
   if (!s.data.logistics.loadInTime) missing.push('Preferred arrival day and time for load-in');
 
   const missingList = missing.length
-    ? missing.map((m, i) => (i + 1) + '. ' + m).join('\n')
-    : 'Looks like we already have everything on file for you \u2014 thank you!';
+    ? 'Please update what you can directly on your sponsor portal \u2014 ' + url + ' \u2014 and reply to this email for anything you can\u2019t update there (like your load-in time):\n' + missing.map((m, i) => (i + 1) + '. ' + m).join('\n')
+    : 'Looks like we already have everything on file for you \u2014 thank you! If anything changes, you can update it anytime on your sponsor portal: ' + url;
 
   const subject = 'SBCMC Sponsor & Exhibit Information \u2014 Action Required [DEADLINE]';
   const body = `Dear ${sponsorGreetingName(s)},
@@ -3310,7 +3325,6 @@ Load-Out: [LOAD-OUT DATE/TIME]
 (All exhibits must be cleared by [LOAD-OUT DEADLINE TIME].)
 
 INFORMATION & MATERIALS (Due [DEADLINE DATE])
-Please reply to this email with the following items we\u2019re still missing from ${s.org}:
 ${missingList}
 
 PROGRAM BOOKLET AD SPECIFICATIONS
@@ -3339,6 +3353,7 @@ We look forward to serving you at the conference!`;
 }
 
 function sponsorEmailFinalReminder(s) {
+  const url = sponsorPortalUrl(s);
   const shippedNote = s.data.logistics.shipped
     ? 'Our records show your materials have already shipped to us \u2014 they\u2019ll be waiting for you at your table when you arrive.'
     : 'If you shipped boxes to the church ahead of time, they will be waiting for you at your table when you arrive.';
@@ -3378,6 +3393,9 @@ ${shippedNote}
 DEDICATED WI-FI FOR EXHIBITORS
 SSID: [WIFI NETWORK NAME]
 Password: [WIFI PASSWORD]
+
+UPDATE YOUR INFO
+Need to make a last-minute change \u2014 badge names, shipping, your booth ad or display graphic? Update it anytime here: ${url}
 
 If you have any questions at all, please don\u2019t hesitate to reach out\u2014we\u2019re happy to help. We are so glad you will be part of this conference and truly look forward to a meaningful week of learning, fellowship, and encouragement together.
 
