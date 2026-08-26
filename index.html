@@ -892,6 +892,13 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   input[type="text"], input[type="email"], input[type="date"], input[type="password"], select, textarea {
     font-size: 16px !important;
   }
+  /* ...except these two, which are deliberately tiny badge/pill-style selects (a session-kind
+     tag, a compact "add person" picker) -- forcing them to 16px blew them up into oversized
+     pills that dominated the row instead of sitting quietly alongside the time/label text. Tap
+     targets stay reasonable at this size, and neither triggers iOS's zoom-on-focus the way a
+     free-text field does since both open a native picker rather than a text cursor. */
+  .sch-timeline-kind-select { font-size: 9.5px !important; }
+  .sch-timeline-assign select { font-size: 12px !important; }
 }
 
 /* ==== Dashboard Drill-Down Popup ==== */
