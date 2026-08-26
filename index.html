@@ -3148,7 +3148,7 @@ function renderSponsorPublicView() {
   const pendingCount = Object.keys(pending).length;
 
   document.getElementById('spv-body').innerHTML = `
-    ${pendingCount > 0 ? `<div class="spv-pending-banner">You have ${pendingCount} update${pendingCount === 1 ? '' : 's'} awaiting review by our team — shown below with a "Pending review" tag. Nothing official changes until they approve it.</div>` : ''}
+    ${pendingCount > 0 ? `<div class="spv-pending-banner">Thanks! Our team will take a quick look at your update${pendingCount === 1 ? '' : 's'} shortly.</div>` : ''}
 
     <div class="dv-section">
       <div class="dv-section-title">Your Contact Info</div>
