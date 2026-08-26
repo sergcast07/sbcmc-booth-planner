@@ -1229,7 +1229,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <span class="brand-mini">SBCMC 2027</span>
   <button class="top-nav-btn active" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
   <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker<span class="sp-nav-badge" id="nav-sponsors-pending-badge" title="Sponsor updates awaiting your review"></span></button>
-  <button class="top-nav-btn" id="nav-speakers-btn" onclick="switchTopView('speakers')">Speakers/Artists</button>
+  <button class="top-nav-btn" id="nav-speakers-btn" onclick="switchTopView('speakers')">Speakers & Artists</button>
   <button class="top-nav-btn" id="nav-schedule-btn" onclick="switchTopView('schedule')">Schedule</button>
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
@@ -1431,7 +1431,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
       <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('schedule')">Export CSV</button>
     </div>
   </div>
-  <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, see the full Sunday–Wednesday agenda, or pull one group's own itinerary. This reads and writes the same session data as the Speakers/Artists tab — editing here updates their record, and editing their record updates here.</p>
+  <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, see the full Sunday–Wednesday agenda, or pull one group's own itinerary. This reads and writes the same session data as the Speakers & Artists tab — editing here updates their record, and editing their record updates here.</p>
 
   <div id="sch-conflicts-body"></div>
   <div id="sch-grid-body" style="display:none;"></div>
@@ -5586,7 +5586,7 @@ function renderSpeakerSummarySection() {
   const el = document.getElementById('db-speaker-summary');
   if (!el) return;
   if (typeof speakers === 'undefined' || speakers.length === 0) {
-    el.innerHTML = '<div class="db-caveat">No speakers/artists added yet. <span class="db-opp-clickable" onclick="switchTopView(\'speakers\')">Go to the Speakers/Artists tab</span> to add your first one.</div>';
+    el.innerHTML = '<div class="db-caveat">No speakers/artists added yet. <span class="db-opp-clickable" onclick="switchTopView(\'speakers\')">Go to the Speakers & Artists tab</span> to add your first one.</div>';
     return;
   }
   const confirmedStatuses = ['Confirmed', 'Contract Signed', 'Complete'];
@@ -5605,7 +5605,7 @@ function renderSpeakerSummarySection() {
       <b style="color:#a52620;">${openTaskCount}</b> open action item${openTaskCount === 1 ? '' : 's'}
     </div>
     <div class="db-row" onclick="switchTopView('speakers')" style="cursor:pointer;">
-      <div class="db-row-label">View full Speakers/Artists tracker</div>
+      <div class="db-row-label">View full Speakers & Artists tracker</div>
       <div class="db-row-bar-outer" style="visibility:hidden;"></div>
       <div class="db-row-value">\u2192</div>
     </div>
@@ -6374,7 +6374,7 @@ const EXPORT_SORT_OPTIONS = {
     ]
   },
   speakers: {
-    title: 'Export Speakers/Artists CSV',
+    title: 'Export Speakers & Artists CSV',
     defaultValue: '',
     options: [
       { value: '', label: 'Table order (unsorted)' },
@@ -7463,12 +7463,10 @@ function toggleTransportAddForm(id) {
 
 function speakerLogisticsArrangementNote(sp) {
   // Explains why the Logistics tab is collapsed. Travel is only arranged/tracked here for the
-  // 'travel' arrangement -- Standard, Local, and Sponsor-provided all skip it (Standard now
-  // means flat fee with no travel arranged; 'travel' is the exception that includes it).
+  // 'travel' arrangement -- Standard and Sponsor-provided both skip it (Standard means flat
+  // fee with no travel arranged; 'travel' is the exception that includes it). Being local is a
+  // separate, independent flag from the fee arrangement -- see speakerFeeLabel below.
   if (sp.data.arrangement === 'travel') return ''; // travel IS tracked here -- nothing to explain
-  if (sp.data.arrangement === 'local') {
-    return 'This speaker is local — no travel arrangements are tracked here. (They may still be paid a fee — see the Financials tab.) Switch "Speaker arrangement" to Fee + Travel on the Overview tab if that changes.';
-  }
   if (sp.data.arrangement === 'sponsor') {
     const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
     return sponsor
@@ -7476,11 +7474,15 @@ function speakerLogisticsArrangementNote(sp) {
       : 'Presenting as part of a sponsorship — pick the linked sponsor on the Overview tab. No travel arrangement tracked here.';
   }
   // Standard (arrangement === '')
-  return 'Standard arrangement — flat fee, no travel arranged here. (A one-off travel reimbursement can still be entered on the Financials tab.) Switch "Speaker arrangement" to Fee + Travel on the Overview tab if the conference is arranging their trip.';
+  if (sp.data.logistics.local) {
+    return 'This speaker is local — no travel arrangements are tracked here. (They may still be paid a fee — see the Financials tab.) Uncheck "Local" on the Logistics tab if that changes.';
+  }
+  return 'Standard arrangement — flat fee, no travel arranged here. (A one-off travel reimbursement can still be entered on the Financials tab.) Switch "Speaker arrangement" to Fee + Travel on the Overview tab if the conference is arranging their trip, or check "Local" below if they simply don’t need any.';
 }
 function speakerFinancialArrangementNote(sp) {
   // Only 'sponsor' arrangement skips fee tracking -- every other arrangement still gets paid a
-  // fee (Standard/Local/Fee+Travel just differ on whether travel is separately arranged).
+  // fee (Standard/Fee+Travel just differ on whether travel is separately arranged), regardless
+  // of whether the speaker is local.
   const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
   return sponsor
     ? `Presenting as part of <a href="#" onclick="event.preventDefault(); jumpToSponsorById('${sponsor.id}')">${escapeHtml(sponsor.org)}</a>'s sponsorship — no separate fee tracked here.`
@@ -8434,7 +8436,8 @@ function defaultSpeakerData() {
       lodgingNeeded: false, hotelId: '', nightsNeeded: '', roomsNeeded: '', hotelConfirmed: false,
       mealsProvided: '', mealNotes: '', // 'All meals provided' | 'Partial' | 'On their own', + dietary/logistics notes
       hostNeeded: false, hostName: '', // an assigned point-person to greet/escort them on-site
-      avNeeds: '', techRider: ''
+      avNeeds: '', techRider: '',
+      local: false // no travel/lodging needed because they're local -- independent of fee arrangement; see arrangement below
     },
     production: {
       soundCheckScheduled: false, soundCheckTime: '',
@@ -8445,10 +8448,12 @@ function defaultSpeakerData() {
     materialsToShare: [], // [{id, label, fileName, filePath, fileSize, uploadedAt}] -- for attendees
     internalDocuments: [], // same shape, but internal-only (rider, contract, W9) -- never shown to attendees
     specialNotes: '', flagged: false,
-    // '' (standard: paid + travel arranged), 'local' (no fee/travel needed), or 'sponsor'
-    // (presenting as part of a sponsorship -- see linkedSponsorId). Collapses the Financials
-    // and most of the Logistics tab to a one-line note for 'local'/'sponsor', and is excluded
-    // from the completeness score so those records don't sit at a permanently low percentage.
+    // '' (standard: flat fee, travel not tracked here), 'travel' (fee + travel is arranged and
+    // tracked), or 'sponsor' (presenting as part of a sponsorship -- see linkedSponsorId, no fee
+    // tracked). Purely a FEE/logistics-tracking split -- whether someone is local is a separate,
+    // independent flag (logistics.local above), since a local speaker may or may not still be
+    // paid a fee. Collapses most of the Logistics tab to a one-line note for 'sponsor', and is
+    // excluded from the completeness score so those records don't sit at a permanently low percentage.
     arrangement: '', linkedSponsorId: '',
     comms: [], actionItems: [], questions: []
   };
@@ -8471,6 +8476,13 @@ function rowToSpeaker(row) {
     data.sessions = hasContent ? [Object.assign({ id: makeId() }, legacy)] : [];
   }
   delete data.session; // drop the old singular key either way so it doesn't linger in memory or get re-saved
+  // Migrate the old "Local" arrangement value (before local/no-travel was split out from the
+  // fee arrangement) into the new independent logistics.local flag, once, for any record saved
+  // before this change. Fee tracking for these records is unaffected either way.
+  if (data.arrangement === 'local') {
+    data.arrangement = '';
+    data.logistics.local = true;
+  }
   return {
     id: row.id, name: row.name || '',
     types,
@@ -8615,6 +8627,9 @@ function sessionRoomOptionsHtml(selected) {
 function updateSpeakerData(id, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data[field] = value;
+  // "Local" is only shown/editable under the Standard arrangement -- clear it when switching
+  // away so it can't linger hidden and misleading on a Fee+Travel or Sponsor-provided record.
+  if (field === 'arrangement' && value !== '') sp.data.logistics.local = false;
   pushSpeaker(sp);
   renderSpeakerRows(id);
 }
@@ -9996,8 +10011,7 @@ function buildSpeakerRowPair(sp, todayStr) {
     <td class="sp-org">${escapeHtml(sp.name)}${(() => {
       const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
       return linkedGroup ? `<a href="#" class="sp-linked-group-chip" title="Badges/meals/travel counted under ${escapeHtml(linkedGroup.name)} -- click to open that record" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">👥 ${escapeHtml(linkedGroup.name)}</a>` : '';
-    })()}${(() => {
-      if (sp.data.arrangement === 'local') return `<span class="sp-linked-group-chip" style="background:#EEE; color:#666;" title="Local — no travel tracked (may still be paid a fee)">📍 Local</span>`;
+    })()}${sp.data.logistics.local ? `<span class="sp-linked-group-chip" style="background:#EEE; color:#666;" title="Local — no travel tracked (may still be paid a fee)">📍 Local</span>` : ''}${(() => {
       if (sp.data.arrangement === 'travel') return `<span class="sp-linked-group-chip" style="background:#E6EEE8; color:#2E6B47;" title="Fee + travel — travel is arranged and tracked here">✈️ Fee + Travel</span>`;
       if (sp.data.arrangement === 'sponsor') {
         const sponsor = sp.data.linkedSponsorId ? sponsors.find(s => s.id === sp.data.linkedSponsorId) : null;
@@ -10210,7 +10224,6 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label for="sk-arrangement-${sp.id}">Speaker arrangement</label><select id="sk-arrangement-${sp.id}" onchange="updateSpeakerData('${sp.id}','arrangement',this.value)">
             <option value="" ${!sp.data.arrangement ? 'selected' : ''}>Standard (flat fee, no travel arranged)</option>
             <option value="travel" ${sp.data.arrangement === 'travel' ? 'selected' : ''}>Fee + Travel (travel arranged and paid)</option>
-            <option value="local" ${sp.data.arrangement === 'local' ? 'selected' : ''}>Local (no travel needed)</option>
             <option value="sponsor" ${sp.data.arrangement === 'sponsor' ? 'selected' : ''}>Sponsor-provided (part of a sponsorship)</option>
           </select></div>
           ${sp.data.arrangement === 'sponsor' ? `
@@ -10302,7 +10315,7 @@ function speakerDetailHTML(sp) {
           ${linkedGroup ? `<div class="sp-sub" style="margin-top:8px;"><span style="color:var(--teal-deep); font-weight:600;">👥 Counted under <a href="#" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">${escapeHtml(linkedGroup.name)}</a>'s badges, meals, and travel.</span> Leave the Travel/Meals fields below blank for this record to avoid double-counting.</div>` : ''}
         </div>`;
       })()}
-      ${sp.data.arrangement !== 'travel' ? `<div class="sp-linked-group-box">${speakerLogisticsArrangementNote(sp)}</div>` : ''}
+      ${sp.data.arrangement !== 'travel' ? `<div class="sp-linked-group-box">${speakerLogisticsArrangementNote(sp)}${sp.data.arrangement === '' ? `<div class="sp-check" style="margin-top:8px;"><input id="sk-local-${sp.id}" type="checkbox" ${sp.data.logistics.local ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','local',this.checked)"><label for="sk-local-${sp.id}"> \u{1F4CD} Local — no travel or lodging needed</label></div>` : ''}</div>` : ''}
       <div class="sk-logistics-grid">
         ${sp.data.arrangement !== 'travel' ? '' : `
         <fieldset class="sp-fieldset">
