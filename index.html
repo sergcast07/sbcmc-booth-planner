@@ -841,7 +841,12 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   /* Detail panel tabs can crowd 4-across on a phone -- let them wrap instead of clipping. */
   .sk-tabs { flex-wrap: wrap; }
   .sk-detail-header { flex-wrap: wrap; gap: 8px; }
-  .sp-field-grid { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr) instead of plain 1fr -- a grid track otherwise won't shrink below its
+     content's min-content width, so a long unbreakable row (like an ad-hoc item with a fixed
+     70px $ input) can force the whole fieldset wider than the screen instead of wrapping. */
+  .sp-field-grid { grid-template-columns: minmax(0, 1fr); }
+  .sp-adhoc-list { grid-template-columns: minmax(0, 1fr); }
+  .sp-adhoc-row { flex-wrap: wrap; }
 
   .canvas-body-row { flex-direction: column; }
   .spot-directory { width: 100%; border-left: none; border-top: 1px solid var(--line); max-height: 240px; }
