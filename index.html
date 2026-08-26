@@ -3162,6 +3162,11 @@ function renderSponsorPublicView() {
     </div>
 
     <div class="dv-section">
+      <div class="dv-section-title">Booth Setup${pendingTag('power')}</div>
+      <label class="sp-check"><input type="checkbox" ${portalStagedValue(s, 'power', !!logistics.power) ? 'checked' : ''} onchange="portalUpdatePower('${s.id}', this.checked)"> ⚡ We’ll need power/electrical at our booth</label>
+    </div>
+
+    <div class="dv-section">
       <div class="dv-section-title">Shipping${pendingTag('shipping')}</div>
       <p class="sp-sub sp-sub-wrap">If you’re shipping materials ahead of the conference, let us know here — carrier, tracking number, expected arrival, anything that helps us watch for it.</p>
       <textarea class="spv-textarea" rows="3" onchange="portalUpdateShipping('${s.id}', this.value)" placeholder="e.g. Shipping via UPS, arriving 3/2, 2 boxes">${escapeHtml(portalStagedValue(s, 'shipping', logistics.shipping || ''))}</textarea>
@@ -7066,6 +7071,7 @@ const SPONSOR_PENDING_FIELD_MAP = {
   contactEmail: { label: 'Contact Email', apply: (s, v) => { s.contactEmail = v; } },
   contactPhone: { label: 'Contact Phone', apply: (s, v) => { s.contactPhone = v; } },
   shipping: { label: 'Shipping / Drayage Notes', apply: (s, v) => { s.data.logistics.shipping = v; } },
+  power: { label: 'Power / Electrical Needed', apply: (s, v) => { s.data.logistics.power = v; } },
   badgeNames: { label: 'Booth Staff Badge Names', apply: (s, v) => { s.data.logistics.badgeNames = v; } },
   publicNotes: { label: 'Notes for the Conference Team', apply: (s, v) => { s.data.publicNotes = v; } },
   boothAdFile: { label: 'Booth Ad', apply: (s, v) => { if (!s.data.materials) s.data.materials = {}; s.data.materials.boothAdFile = v; } },
@@ -7077,6 +7083,7 @@ function sponsorLiveFieldValue(s, key) {
     case 'contactEmail': return s.contactEmail;
     case 'contactPhone': return s.contactPhone;
     case 'shipping': return s.data.logistics.shipping || '';
+    case 'power': return !!s.data.logistics.power;
     case 'badgeNames': return s.data.logistics.badgeNames || [];
     case 'publicNotes': return s.data.publicNotes || '';
     case 'boothAdFile': return (s.data.materials || {}).boothAdFile || null;
@@ -7108,6 +7115,7 @@ function portalStagedValue(s, key, fallback) {
   return pc ? pc.new : fallback;
 }
 function formatSponsorPendingValue(key, value) {
+  if (key === 'power') return value ? 'Needed' : 'Not needed';
   if (key === 'badgeNames') {
     const names = (value || []).filter(n => n && n.trim());
     return names.length ? names.join(', ') : '(none)';
@@ -7182,6 +7190,7 @@ function updateSponsorPendingBadge() {
 // updateSponsor* functions above, unaffected by any of this.
 function portalUpdateContactField(id, field, value) { stageSponsorChange(id, field, value); }
 function portalUpdateShipping(id, value) { stageSponsorChange(id, 'shipping', value); }
+function portalUpdatePower(id, value) { stageSponsorChange(id, 'power', value); }
 function portalUpdateNotes(id, value) { stageSponsorChange(id, 'publicNotes', value); }
 function portalWorkingBadgeNames(s) { return portalStagedValue(s, 'badgeNames', s.data.logistics.badgeNames || []).slice(); }
 function portalAddBadgeName(id) {
