@@ -8533,7 +8533,7 @@ function rowToApplicant(row) {
     sortOrder: row.sort_order || 0,
     data: Object.assign({
       raw: {}, status: 'Pending', reviewedBy: '', reviewedAt: '', reviewNotes: '',
-      needsLodging: null, roomLabel: '', flagged: false
+      needsLodging: null, roomLabel: '', gender: '', flagged: false
     }, row.data || {})
   };
 }
@@ -8717,7 +8717,7 @@ function buildApplicantRowPair(a) {
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Program">${escapeHtml(applicantGroupName(a.groupId))}</td>
     <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
-    <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
+    <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
   tr.addEventListener('click', () => toggleApplicantDetail(a.id));
   const dtr = document.createElement('tr');
@@ -8780,7 +8780,12 @@ function applicantDetailHTML(a) {
             <option value="yes" ${a.data.needsLodging === true ? 'selected' : ''}>Yes</option>
             <option value="no" ${a.data.needsLodging === false ? 'selected' : ''}>No</option>
           </select></div>
-          <div class="sp-field"><label for="ap-room-${a.id}">Room / group label</label><input id="ap-room-${a.id}" type="text" placeholder="e.g. Room 214, Group A" value="${escapeHtml(a.data.roomLabel || '')}" onchange="updateApplicantData('${a.id}','roomLabel',this.value)"></div>
+          <div class="sp-field"><label for="ap-gender-${a.id}">Gender</label><select id="ap-gender-${a.id}" onchange="updateApplicantData('${a.id}','gender',this.value)">
+            <option value="" ${!a.data.gender ? 'selected' : ''}>— not set —</option>
+            <option value="Male" ${a.data.gender === 'Male' ? 'selected' : ''}>Male</option>
+            <option value="Female" ${a.data.gender === 'Female' ? 'selected' : ''}>Female</option>
+          </select></div>
+          <div class="sp-field"><label for="ap-room-${a.id}">Room / group label</label><input id="ap-room-${a.id}" type="text" placeholder="e.g. Room 214, Group A" value="${escapeHtml(a.data.roomLabel || '')}" onchange="updateApplicantRoomLabel('${a.id}',this.value)"></div>
           </div>
         </fieldset>
       </div>
@@ -8808,6 +8813,26 @@ function updateApplicantData(id, field, value) {
   a.data[field] = value;
   pushApplicant(a);
   refreshApplicantAfterEdit(id);
+}
+function roomGenderConflict(roomLabel, gender, excludeId) {
+  if (!roomLabel || !gender) return null;
+  const occupant = roomAssignmentCandidates().find(x => x.id !== excludeId && (x.data.roomLabel || '') === roomLabel && x.data.gender && x.data.gender !== gender);
+  return occupant || null;
+}
+function updateApplicantRoomLabel(id, value) {
+  const a = resolveApplicantForEdit(id); if (!a) return;
+  const label = value.trim();
+  const conflict = roomGenderConflict(label, a.data.gender, id);
+  if (conflict) {
+    toast('Can’t put ' + (a.name || 'this applicant') + ' in "' + label + '" — ' + conflict.name + ' (' + conflict.data.gender + ') is already assigned there.');
+    refreshApplicantAfterEdit(id);
+    refreshRoomAssignmentModal();
+    return;
+  }
+  a.data.roomLabel = label;
+  pushApplicant(a);
+  refreshApplicantAfterEdit(id);
+  refreshRoomAssignmentModal();
 }
 function updateApplicantLodging(id, value) {
   const a = resolveApplicantForEdit(id); if (!a) return;
@@ -8845,7 +8870,7 @@ let apImportState = null;
 function openApplicantImportModal() {
   if (!applicantGroups.length) { toast('Add a program first (left sidebar), then import into it.'); return; }
   const defaultGroup = applicantGroupFilter !== 'all' ? applicantGroupFilter : orderedApplicantGroups()[0].id;
-  apImportState = { groupId: defaultGroup, csvText: '', headers: [], rows: [], mapping: { nameFirst: '', nameLast: '', name: '', email: '', phone: '', lodging: '' } };
+  apImportState = { groupId: defaultGroup, csvText: '', headers: [], rows: [], mapping: { nameFirst: '', nameLast: '', name: '', email: '', phone: '', lodging: '', gender: '' } };
   renderApplicantImportModal();
 }
 function closeApplicantImportModal() {
@@ -8879,6 +8904,8 @@ function parseApplicantImportText() {
     apImportState.mapping.phone = phoneIdx >= 0 ? apImportState.headers[phoneIdx] : '';
     const lodgingIdx = findCol(['lodging', 'hotel room']);
     apImportState.mapping.lodging = lodgingIdx >= 0 ? apImportState.headers[lodgingIdx] : '';
+    const genderIdx = findCol(['gender', 'sex']);
+    apImportState.mapping.gender = genderIdx >= 0 ? apImportState.headers[genderIdx] : '';
   } else {
     apImportState.headers = []; apImportState.rows = [];
   }
@@ -8893,7 +8920,7 @@ function confirmApplicantImport() {
   const { headers, rows, mapping, groupId } = apImportState;
   const idx = (h) => headers.indexOf(h);
   const nameFirstI = idx(mapping.nameFirst), nameLastI = idx(mapping.nameLast), nameI = idx(mapping.name);
-  const emailI = idx(mapping.email), phoneI = idx(mapping.phone), lodgingI = idx(mapping.lodging);
+  const emailI = idx(mapping.email), phoneI = idx(mapping.phone), lodgingI = idx(mapping.lodging), genderI = idx(mapping.gender);
   let imported = 0;
   rows.forEach(r => {
     const raw = {};
@@ -8909,9 +8936,15 @@ function confirmApplicantImport() {
       const v = (r[lodgingI] || '').toLowerCase();
       if (v) needsLodging = /yes|need/.test(v) && !/\bno\b/.test(v);
     }
+    let gender = '';
+    if (genderI >= 0) {
+      const v = (r[genderI] || '').toLowerCase();
+      if (/^m|male/.test(v)) gender = 'Male';
+      else if (/^f|female/.test(v)) gender = 'Female';
+    }
     const a = {
       id: makeApplicantId(), groupId, name: name.trim(), email: email.trim(), phone: phone.trim(), sortOrder: applicants.length + imported,
-      data: { raw, status: 'Pending', reviewedBy: '', reviewedAt: '', reviewNotes: '', needsLodging, roomLabel: '', flagged: false }
+      data: { raw, status: 'Pending', reviewedBy: '', reviewedAt: '', reviewNotes: '', needsLodging, roomLabel: '', gender, flagged: false }
     };
     applicants.push(a);
     pushApplicant(a);
@@ -8950,6 +8983,7 @@ function renderApplicantImportModal() {
           <div class="sp-field"><label>Email column</label><select onchange="updateApplicantImportMapping('email', this.value)">${headerOptions(apImportState.mapping.email)}</select></div>
           <div class="sp-field"><label>Phone column</label><select onchange="updateApplicantImportMapping('phone', this.value)">${headerOptions(apImportState.mapping.phone)}</select></div>
           <div class="sp-field"><label>Needs-lodging column (optional)</label><select onchange="updateApplicantImportMapping('lodging', this.value)">${headerOptions(apImportState.mapping.lodging)}</select></div>
+          <div class="sp-field"><label>Gender column (optional)</label><select onchange="updateApplicantImportMapping('gender', this.value)">${headerOptions(apImportState.mapping.gender)}</select></div>
         </div>
         ` : ''}
         <div class="qa-modal-actions">
@@ -8965,37 +8999,87 @@ function renderApplicantImportModal() {
 function roomAssignmentCandidates() {
   return applicants.filter(a => a.data.status === 'Approved' && a.data.needsLodging === true);
 }
+let roomModalSelected = new Set();
 function openRoomAssignmentModal() {
+  roomModalSelected = new Set();
   document.getElementById('ap-room-modal-root').innerHTML = renderRoomAssignmentModalHTML();
 }
 function closeRoomAssignmentModal() {
+  roomModalSelected = new Set();
   document.getElementById('ap-room-modal-root').innerHTML = '';
 }
 function refreshRoomAssignmentModal() {
   const root = document.getElementById('ap-room-modal-root');
   if (root.innerHTML.trim()) root.innerHTML = renderRoomAssignmentModalHTML();
 }
+function toggleRoomModalSelect(id) {
+  if (roomModalSelected.has(id)) roomModalSelected.delete(id); else roomModalSelected.add(id);
+  refreshRoomAssignmentModal();
+}
+function toggleRoomModalSelectGroup(key) {
+  const ids = roomAssignmentCandidates().filter(a => (a.data.roomLabel || 'Unassigned') === key).map(a => a.id);
+  const allSelected = ids.every(id => roomModalSelected.has(id));
+  ids.forEach(id => allSelected ? roomModalSelected.delete(id) : roomModalSelected.add(id));
+  refreshRoomAssignmentModal();
+}
+function assignRoomModalSelected() {
+  const input = document.getElementById('ap-room-bulk-input');
+  const label = input.value.trim();
+  if (!label) { toast('Enter a room / group label first.'); return; }
+  if (!roomModalSelected.size) { toast('Select at least one applicant first.'); return; }
+  const selected = [...roomModalSelected].map(id => getApplicant(id)).filter(Boolean);
+  const genders = new Set(selected.map(a => a.data.gender).filter(Boolean));
+  roomAssignmentCandidates().forEach(a => {
+    if (!roomModalSelected.has(a.id) && (a.data.roomLabel || '') === label && a.data.gender) genders.add(a.data.gender);
+  });
+  if (genders.size > 1) {
+    toast('Can’t assign — "' + label + '" would mix genders (' + [...genders].join(' & ') + '). Split the selection by gender first.');
+    return;
+  }
+  selected.forEach(a => { a.data.roomLabel = label; pushApplicant(a); });
+  roomModalSelected.clear();
+  input.value = '';
+  renderApplicantRows();
+  refreshRoomAssignmentModal();
+  toast('Assigned ' + selected.length + ' to "' + label + '".');
+}
 function renderRoomAssignmentModalHTML() {
   const list = roomAssignmentCandidates();
   const groups = {};
   list.forEach(a => { const key = a.data.roomLabel || 'Unassigned'; (groups[key] = groups[key] || []).push(a); });
   const groupKeys = Object.keys(groups).sort((a, b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b));
-  const body = groupKeys.map(key => `
+  const genderTag = (g) => g ? ' <span class="sp-sub">(' + escapeHtml(g) + ')</span>' : ' <span class="sp-sub">(gender not set)</span>';
+  const body = groupKeys.map(key => {
+    const mixedGenders = new Set(groups[key].map(a => a.data.gender).filter(Boolean));
+    const groupIds = groups[key].map(a => a.id);
+    const allSelected = groupIds.every(id => roomModalSelected.has(id));
+    return `
     <div class="sp-fieldset" style="margin-bottom:10px;">
-      <div class="sp-subhead">${escapeHtml(key)} (${groups[key].length})</div>
+      <div class="sp-subhead" style="display:flex; align-items:center; gap:6px;">
+        ${key !== 'Unassigned' ? `<input type="checkbox" style="width:auto; flex-shrink:0;" ${allSelected ? 'checked' : ''} onchange="toggleRoomModalSelectGroup('${key.replace(/'/g, "\\'")}')" title="Select all in this room">` : ''}
+        <span>${escapeHtml(key)} (${groups[key].length})</span>
+        ${mixedGenders.size > 1 ? '<span class="sp-badge sp-badge-lapsed" title="This room already mixes genders">⚠ mixed genders</span>' : ''}
+      </div>
       ${groups[key].map(a => `
-        <div class="sp-add-row" style="margin-bottom:6px; flex-wrap:wrap;">
-          <span style="flex:1 1 160px;">${escapeHtml(a.name)} <span class="sp-sub">${escapeHtml(applicantGroupName(a.groupId))}</span></span>
-          <input type="text" placeholder="Room / group label" value="${escapeHtml(a.data.roomLabel || '')}" onchange="updateApplicantData('${a.id}','roomLabel',this.value); refreshRoomAssignmentModal();" style="max-width:160px;">
+        <div class="sp-add-row" style="margin-bottom:6px; flex-wrap:wrap; align-items:center;">
+          <input type="checkbox" style="width:auto; flex-shrink:0;" ${roomModalSelected.has(a.id) ? 'checked' : ''} onchange="toggleRoomModalSelect('${a.id}')">
+          <span style="flex:1 1 160px;">${escapeHtml(a.name)}${genderTag(a.data.gender)} <span class="sp-sub">${escapeHtml(applicantGroupName(a.groupId))}</span></span>
+          <input type="text" placeholder="Room / group label" value="${escapeHtml(a.data.roomLabel || '')}" onchange="updateApplicantRoomLabel('${a.id}',this.value)" style="max-width:160px;">
         </div>
       `).join('')}
     </div>
-  `).join('') || '<div class="sp-sub">No approved applicants need lodging yet.</div>';
+  `;
+  }).join('') || '<div class="sp-sub">No approved applicants need lodging yet.</div>';
   return `
     <div class="qa-modal-overlay" onclick="if(event.target===this) closeRoomAssignmentModal();">
       <div class="qa-modal-card email-gen-card">
         <h3>Room Assignments</h3>
-        <p class="qa-modal-sub">Approved applicants who need lodging, grouped by whatever label you give them. Assign labels below, then export the list for whoever is booking hotel rooms.</p>
+        <p class="qa-modal-sub">Approved applicants who need lodging, grouped by whatever label you give them. Different genders can’t share a room. Check off students below and assign them all at once, then export the list for whoever is booking hotel rooms.</p>
+        ${list.length ? `<div class="sp-add-row" style="margin-bottom:12px; flex-wrap:wrap; background:var(--panel-2,#F4F1EA); padding:8px; border-radius:8px;">
+          <span class="sp-sub" style="flex:1 1 100%;">${roomModalSelected.size} selected</span>
+          <input id="ap-room-bulk-input" type="text" placeholder="Room / group label" style="max-width:200px;">
+          <button class="sp-mini-btn" onclick="assignRoomModalSelected()">Assign Selected</button>
+        </div>` : ''}
         <div style="max-height:340px; overflow-y:auto; margin-bottom:14px;">${body}</div>
         <div class="qa-modal-actions">
           <button class="sp-mini-btn" onclick="closeRoomAssignmentModal()">Close</button>
@@ -9008,10 +9092,10 @@ function renderRoomAssignmentModalHTML() {
 function exportRoomAssignmentsCSV() {
   const list = roomAssignmentCandidates();
   if (!list.length) { toast('No approved, lodging-needed applicants to export yet.'); return; }
-  const headers = ['Room / Group Label', 'Name', 'Program', 'Email', 'Phone'];
+  const headers = ['Room / Group Label', 'Name', 'Gender', 'Program', 'Email', 'Phone'];
   const lines = [headers.map(csvEscape).join(',')];
   list.slice().sort((a, b) => (a.data.roomLabel || 'zzz').localeCompare(b.data.roomLabel || 'zzz')).forEach(a => {
-    lines.push([a.data.roomLabel || 'Unassigned', a.name, applicantGroupName(a.groupId), a.email, a.phone].map(csvEscape).join(','));
+    lines.push([a.data.roomLabel || 'Unassigned', a.name, a.data.gender || '', applicantGroupName(a.groupId), a.email, a.phone].map(csvEscape).join(','));
   });
   const csv = lines.join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
