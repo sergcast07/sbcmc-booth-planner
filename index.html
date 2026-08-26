@@ -560,6 +560,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 }
 .sp-task-badge-overdue { background: #F6E3DF; color: #9C3A2E; }
 .sp-sub { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sp-sub-wrap { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
 .sp-badge { font-size: 10.5px; padding: 3px 10px; border-radius: 12px; font-weight: 700; display: inline-block; white-space: nowrap; letter-spacing: 0.01em; }
 .sp-badge-reg { background: #E1EFE4; color: #256B3F; }
 .sp-badge-inkind { background: var(--gold-pale); color: #8B5E13; }
@@ -3132,20 +3133,20 @@ function renderSponsorPublicView() {
 
     <div class="dv-section">
       <div class="dv-section-title">Booth Staff Badge Names</div>
-      <p class="sp-sub">Add the name of everyone who\u2019ll need a badge at your booth.</p>
+      <p class="sp-sub sp-sub-wrap">Add the name of everyone who\u2019ll need a badge at your booth.</p>
       <div id="spv-badge-list">${badgeNamesHtml}</div>
       <button class="sp-add-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add Badge Name</button>
     </div>
 
     <div class="dv-section">
       <div class="dv-section-title">Shipping</div>
-      <p class="sp-sub">If you\u2019re shipping materials ahead of the conference, let us know here \u2014 carrier, tracking number, expected arrival, anything that helps us watch for it.</p>
+      <p class="sp-sub sp-sub-wrap">If you\u2019re shipping materials ahead of the conference, let us know here \u2014 carrier, tracking number, expected arrival, anything that helps us watch for it.</p>
       <textarea class="spv-textarea" rows="3" onchange="updateSponsorNested('${s.id}', 'logistics', 'shipping', this.value)" placeholder="e.g. Shipping via UPS, arriving 3/2, 2 boxes">${escapeHtml(logistics.shipping || '')}</textarea>
     </div>
 
     <div class="dv-section">
       <div class="dv-section-title">Materials</div>
-      <p class="sp-sub">Booth ad and display graphic specs (exact dimensions, load-in time, etc.) will be confirmed closer to the conference \u2014 we\u2019ll follow up with those details. Upload whenever you\u2019re ready.</p>
+      <p class="sp-sub sp-sub-wrap">Booth ad and display graphic specs (exact dimensions, load-in time, etc.) will be confirmed closer to the conference \u2014 we\u2019ll follow up with those details. Upload whenever you\u2019re ready.</p>
       ${fileBlock('boothAdFile', 'Booth Ad', 'dimensions TBD')}
       ${fileBlock('displayGraphicFile', 'Display Graphic', 'dimensions TBD')}
     </div>
@@ -3159,7 +3160,7 @@ function renderSponsorPublicView() {
       ${s.data.publicPortalCompletedAt ? `
         <div class="spv-done-banner">✓ Marked complete on ${escapeHtml(new Date(s.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}. You can still come back and make changes anytime — just click below again when you’re done.</div>
       ` : ''}
-      <p class="sp-sub">Every field above saves automatically as you go — nothing to lose by closing this page. Click below when you’re finished so our team knows your info is ready.</p>
+      <p class="sp-sub sp-sub-wrap">Every field above saves automatically as you go — nothing to lose by closing this page. Click below when you’re finished so our team knows your info is ready.</p>
       <button class="qa-modal-done spv-done-btn" onclick="markSponsorPortalComplete('${s.id}')">✓ I'm Done — Everything's Saved</button>
     </div>
   `;
@@ -6902,7 +6903,7 @@ function sponsorDetailHTML(s) {
 
         <fieldset class="sp-fieldset">
           <legend>Self-Service Portal</legend>
-          <p class="sp-sub">Send this sponsor a private link where they can update their own contact info, badge names, shipping notes, and upload their booth ad / display graphic — no password needed, and it only shows their own record.</p>
+          <p class="sp-sub sp-sub-wrap">Send this sponsor a private link where they can update their own contact info, badge names, shipping notes, and upload their booth ad / display graphic — no password needed, and it only shows their own record.</p>
           <button class="sp-mini-btn" onclick="copySponsorPublicLink('${s.id}')">🔗 Copy Self-Service Link</button>
           ${s.data.publicToken ? `<button class="sp-mini-btn" onclick="revokeSponsorPublicLink('${s.id}')">Revoke Link</button>` : ''}
           ${s.data.publicPortalCompletedAt ? `<div class="sp-sub" style="margin-top:8px; color:#2E8B57; font-weight:600;">✓ Sponsor marked their info complete on ${escapeHtml(new Date(s.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</div>` : ''}
@@ -6910,7 +6911,7 @@ function sponsorDetailHTML(s) {
 
         <fieldset class="sp-fieldset">
           <legend>Generate Email</legend>
-          <p class="sp-sub">Draft this year's welcome, action-required, or final-reminder email using this sponsor's info. Anything not yet finalized for 2027 is left as a [placeholder] to fill in before sending.</p>
+          <p class="sp-sub sp-sub-wrap">Draft this year's welcome, action-required, or final-reminder email using this sponsor's info. Anything not yet finalized for 2027 is left as a [placeholder] to fill in before sending.</p>
           <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','welcome')">✉️ Welcome Email</button>
           <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','action')">✉️ Action Required</button>
           <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','final')">✉️ Final Reminder</button>
