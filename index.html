@@ -3061,6 +3061,11 @@ function isSponsorViewMode() {
 
 let sponsorPublicRecord = null;
 let sponsorPublicChannel = null;
+// Session-only -- true right after clicking "I'm Done" this visit, so the confirmation banner
+// shows once and doesn't greet a returning sponsor with a stale "you already told us" message
+// every time they reopen their link. The underlying timestamp still persists in the data (staff
+// see it on the admin side) -- this just controls whether the SPONSOR sees the banner right now.
+let sponsorPortalJustCompleted = false;
 
 function generateRandomToken() {
   const bytes = new Uint8Array(24);
@@ -3185,7 +3190,7 @@ function renderSponsorPublicView() {
     </div>
 
     <div class="dv-section spv-done-section">
-      ${s.data.publicPortalCompletedAt ? `
+      ${sponsorPortalJustCompleted ? `
         <div class="spv-done-banner">✓ Marked complete on ${escapeHtml(new Date(s.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}. You can still come back and make changes anytime — just click below again when you’re done.</div>
       ` : ''}
       <p class="sp-sub sp-sub-wrap">Every field above is saved as a suggested update — our team reviews and approves it before it's official. Click below when you're finished so they know it's ready to look at.</p>
@@ -7057,6 +7062,7 @@ function resolveSponsorForEdit(id) {
 function markSponsorPortalComplete(id) {
   const s = resolveSponsorForEdit(id); if (!s) return;
   s.data.publicPortalCompletedAt = new Date().toISOString();
+  sponsorPortalJustCompleted = true;
   pushSponsor(s);
   refreshSponsorAfterEdit(id);
 }
