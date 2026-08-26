@@ -848,6 +848,11 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   .sp-adhoc-list { grid-template-columns: minmax(0, 1fr); }
   .sp-adhoc-row { flex-wrap: wrap; }
 
+  /* File/trip info rows (materials, transportation needs, etc.) -- each .sp-sub fragment
+     (pickup, drop-off, driver...) used to compete for one line and truncate with an ellipsis.
+     Give each its own full-width line so the actual text is readable instead of clipped. */
+  .sk-file-row .sp-sub { flex: 1 1 100%; white-space: normal; overflow: visible; text-overflow: clip; }
+
   .canvas-body-row { flex-direction: column; }
   .spot-directory { width: 100%; border-left: none; border-top: 1px solid var(--line); max-height: 240px; }
 
@@ -10071,8 +10076,8 @@ function buildSpeakerRowPair(sp, todayStr) {
   const tr = document.createElement('tr');
   tr.dataset.id = sp.id;
   tr.innerHTML = `
-    <td><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}</td>
-    <td class="sp-org">${escapeHtml(sp.name)}${(() => {
+    <td data-label=""><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}</td>
+    <td class="sp-org" data-label="Name">${escapeHtml(sp.name)}${(() => {
       const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
       return linkedGroup ? `<a href="#" class="sp-linked-group-chip" title="Badges/meals/travel counted under ${escapeHtml(linkedGroup.name)} -- click to open that record" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">👥 ${escapeHtml(linkedGroup.name)}</a>` : '';
     })()}${sp.data.logistics.local ? `<span class="sp-linked-group-chip" style="background:#EEE; color:#666;" title="Local — no travel tracked (may still be paid a fee)">📍 Local</span>` : ''}${(() => {
@@ -10085,7 +10090,7 @@ function buildSpeakerRowPair(sp, todayStr) {
       }
       return '';
     })()}<div class="sp-sub">${escapeHtml((sp.types || []).join(', '))}</div></td>
-    <td>${(() => {
+    <td data-label="Session">${(() => {
       const sessions = sp.data.sessions || [];
       const first = earliestSpeakerSession(sp);
       if (!first) return '—';
@@ -10093,10 +10098,10 @@ function buildSpeakerRowPair(sp, todayStr) {
       const when = [first.day, friendlyTime(first.timeSlot)].filter(Boolean).join(' · ');
       return `${escapeHtml(first.title || 'Untitled session')}${extra}<div class="sp-sub">${escapeHtml(when)}</div>`;
     })()}</td>
-    <td>${escapeHtml(sp.contactName) || '—'}<div class="sp-sub">${escapeHtml(sp.contactEmail)}</div></td>
-    <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
-    <td>${(() => { const c = speakerCompleteness(sp); const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
-    <td>${hostCell}</td>
+    <td data-label="Contact">${escapeHtml(sp.contactName) || '—'}<div class="sp-sub">${escapeHtml(sp.contactEmail)}</div></td>
+    <td data-label="Tracker Status"><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
+    <td data-label="Complete">${(() => { const c = speakerCompleteness(sp); const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
+    <td data-label="Host">${hostCell}</td>
   `;
   tr.style.cursor = 'pointer';
   tr.onclick = (e) => { if (e.target.tagName !== 'A') toggleSpeakerDetail(sp.id); };
