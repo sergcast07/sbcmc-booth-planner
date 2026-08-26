@@ -7474,10 +7474,8 @@ function speakerLogisticsArrangementNote(sp) {
       : 'Presenting as part of a sponsorship — pick the linked sponsor on the Overview tab. No travel arrangement tracked here.';
   }
   // Standard (arrangement === '')
-  if (sp.data.logistics.local) {
-    return 'This speaker is local — no travel arrangements are tracked here. (They may still be paid a fee — see the Financials tab.) Uncheck "Local" on the Logistics tab if that changes.';
-  }
-  return 'Standard arrangement — flat fee, no travel arranged here. (A one-off travel reimbursement can still be entered on the Financials tab.) Switch "Speaker arrangement" to Fee + Travel on the Overview tab if the conference is arranging their trip, or check "Local" below if they simply don’t need any.';
+  if (sp.data.logistics.local) return 'Local — no travel tracked here.';
+  return 'No travel arranged here. Switch to Fee + Travel above, or check Local below if none is needed.';
 }
 function speakerFinancialArrangementNote(sp) {
   // Only 'sponsor' arrangement skips fee tracking -- every other arrangement still gets paid a
