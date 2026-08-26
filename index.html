@@ -1074,6 +1074,22 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .sch-conflict-row { cursor: pointer; }
 .sch-conflict-row:hover { background: var(--teal-pale); }
 
+/* ==== Room Assignment board (drag-and-drop) ==== */
+.rm-board-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rm-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.rm-col { flex: 0 0 220px; background: var(--panel-2, #F4F1EA); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; }
+.rm-col-head { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; padding: 2px 4px 8px; }
+.rm-col-body { flex: 1; min-height: 70px; display: flex; flex-direction: column; gap: 6px; border-radius: 8px; transition: background .12s, outline .12s; }
+.rm-col-body.rm-dragover { background: var(--teal-pale); outline: 2px dashed var(--teal-deep); }
+.rm-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: grab; touch-action: none; box-shadow: 0 1px 2px rgba(0,0,0,.06); user-select: none; }
+.rm-card.dragging { opacity: 0.35; }
+.rm-card-name { font-weight: 600; font-size: 13.5px; }
+.rm-card-sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+.rm-ghost { position: fixed; pointer-events: none; z-index: 9999; opacity: 0.92; transform: rotate(2deg); box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+@media (max-width: 760px) {
+  .rm-col { flex-basis: 170px; }
+}
+
 .sch-roster-strip { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; background: var(--panel); }
 .sch-roster-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .sch-roster-header input { flex: 1; max-width: 260px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 12.5px; }
@@ -9000,17 +9016,35 @@ function roomAssignmentCandidates() {
   return applicants.filter(a => a.data.status === 'Approved' && a.data.needsLodging === true);
 }
 let roomModalSelected = new Set();
+let roomModalViewMode = 'board';
+let roomModalExtraColumns = [];
 function openRoomAssignmentModal() {
   roomModalSelected = new Set();
+  roomModalExtraColumns = [];
   document.getElementById('ap-room-modal-root').innerHTML = renderRoomAssignmentModalHTML();
 }
 function closeRoomAssignmentModal() {
   roomModalSelected = new Set();
+  roomModalExtraColumns = [];
   document.getElementById('ap-room-modal-root').innerHTML = '';
 }
 function refreshRoomAssignmentModal() {
   const root = document.getElementById('ap-room-modal-root');
   if (root.innerHTML.trim()) root.innerHTML = renderRoomAssignmentModalHTML();
+}
+function setRoomModalViewMode(mode) {
+  roomModalViewMode = mode;
+  refreshRoomAssignmentModal();
+}
+function addRoomModalColumn() {
+  const input = document.getElementById('rm-new-room-input');
+  const label = input.value.trim();
+  if (!label) { toast('Enter a room / group label first.'); return; }
+  if (label === 'Unassigned') { toast('That name is reserved — pick another.'); return; }
+  const exists = roomModalExtraColumns.includes(label) || roomAssignmentCandidates().some(a => (a.data.roomLabel || 'Unassigned') === label);
+  if (!exists) roomModalExtraColumns.push(label);
+  input.value = '';
+  refreshRoomAssignmentModal();
 }
 function toggleRoomModalSelect(id) {
   if (roomModalSelected.has(id)) roomModalSelected.delete(id); else roomModalSelected.add(id);
@@ -9043,13 +9077,100 @@ function assignRoomModalSelected() {
   refreshRoomAssignmentModal();
   toast('Assigned ' + selected.length + ' to "' + label + '".');
 }
-function renderRoomAssignmentModalHTML() {
-  const list = roomAssignmentCandidates();
+// Custom pointer-based drag (not HTML5 DnD) so this works on touch as well as mouse.
+function startRoomCardDrag(downEvent, card) {
+  const startX = downEvent.clientX, startY = downEvent.clientY;
+  const id = card.dataset.id;
+  const sourceRoom = card.closest('.rm-col-body')?.dataset.room || 'Unassigned';
+  let dragging = false, ghost = null, overEl = null;
+  function onMove(ev) {
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if (!dragging) {
+      if (Math.hypot(dx, dy) < 6) return;
+      dragging = true;
+      card.classList.add('dragging');
+      const rect = card.getBoundingClientRect();
+      ghost = card.cloneNode(true);
+      ghost.classList.add('rm-ghost');
+      ghost.style.width = rect.width + 'px';
+      document.body.appendChild(ghost);
+    }
+    ev.preventDefault();
+    if (ghost) { ghost.style.left = (ev.clientX + 14) + 'px'; ghost.style.top = (ev.clientY + 14) + 'px'; }
+    const under = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.rm-col-body') || null;
+    if (under !== overEl) {
+      if (overEl) overEl.classList.remove('rm-dragover');
+      if (under) under.classList.add('rm-dragover');
+      overEl = under;
+    }
+  }
+  function onUp(ev) {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    if (ghost) ghost.remove();
+    card.classList.remove('dragging');
+    if (overEl) overEl.classList.remove('rm-dragover');
+    if (!dragging) return;
+    const dropBody = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.rm-col-body');
+    if (!dropBody) return;
+    const dropRoomRaw = dropBody.dataset.room || 'Unassigned';
+    if (dropRoomRaw === sourceRoom) return;
+    updateApplicantRoomLabel(id, dropRoomRaw === 'Unassigned' ? '' : dropRoomRaw);
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp, { once: true });
+}
+document.addEventListener('pointerdown', (e) => {
+  if (e.button !== undefined && e.button !== 0) return;
+  const card = e.target.closest('.rm-card');
+  if (!card) return;
+  startRoomCardDrag(e, card);
+});
+function roomModalToolbarHTML() {
+  return `
+    <div class="rm-board-toolbar">
+      <div class="sch-view-toggle">
+        <button class="sch-toggle-btn ${roomModalViewMode === 'board' ? 'active' : ''}" onclick="setRoomModalViewMode('board')">🗂 Board</button>
+        <button class="sch-toggle-btn ${roomModalViewMode === 'list' ? 'active' : ''}" onclick="setRoomModalViewMode('list')">☰ List</button>
+      </div>
+      ${roomModalViewMode === 'board' ? `<div class="sp-add-row" style="flex-wrap:wrap;">
+        <input id="rm-new-room-input" type="text" placeholder="New room / group label" style="max-width:180px;">
+        <button class="sp-mini-btn" onclick="addRoomModalColumn()">+ Add Room</button>
+      </div>` : ''}
+    </div>`;
+}
+function renderRoomAssignmentBoardBody(list) {
+  const groups = { Unassigned: [] };
+  roomModalExtraColumns.forEach(l => { groups[l] = groups[l] || []; });
+  list.forEach(a => { const key = a.data.roomLabel || 'Unassigned'; (groups[key] = groups[key] || []).push(a); });
+  const keys = Object.keys(groups).sort((a, b) => a === 'Unassigned' ? -1 : b === 'Unassigned' ? 1 : a.localeCompare(b));
+  const genderTag = (g) => g ? ' <span class="sp-sub">(' + escapeHtml(g) + ')</span>' : '';
+  const cols = keys.map(key => {
+    const mixedGenders = new Set(groups[key].map(a => a.data.gender).filter(Boolean));
+    return `
+    <div class="rm-col">
+      <div class="rm-col-head">
+        <span>${escapeHtml(key)} (${groups[key].length})</span>
+        ${mixedGenders.size > 1 ? '<span class="sp-badge sp-badge-lapsed" title="This room already mixes genders">⚠</span>' : ''}
+      </div>
+      <div class="rm-col-body" data-room="${escapeHtml(key)}">
+        ${groups[key].map(a => `
+          <div class="rm-card" data-id="${a.id}">
+            <div class="rm-card-name">${escapeHtml(a.name)}${genderTag(a.data.gender)}</div>
+            <div class="rm-card-sub">${escapeHtml(applicantGroupName(a.groupId))}</div>
+          </div>
+        `).join('') || '<div class="sp-sub" style="padding:4px;">Drop here</div>'}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="rm-board">${cols}</div>`;
+}
+function renderRoomAssignmentListBody(list) {
   const groups = {};
   list.forEach(a => { const key = a.data.roomLabel || 'Unassigned'; (groups[key] = groups[key] || []).push(a); });
   const groupKeys = Object.keys(groups).sort((a, b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b));
   const genderTag = (g) => g ? ' <span class="sp-sub">(' + escapeHtml(g) + ')</span>' : ' <span class="sp-sub">(gender not set)</span>';
-  const body = groupKeys.map(key => {
+  return groupKeys.map(key => {
     const mixedGenders = new Set(groups[key].map(a => a.data.gender).filter(Boolean));
     const groupIds = groups[key].map(a => a.id);
     const allSelected = groupIds.every(id => roomModalSelected.has(id));
@@ -9070,17 +9191,25 @@ function renderRoomAssignmentModalHTML() {
     </div>
   `;
   }).join('') || '<div class="sp-sub">No approved applicants need lodging yet.</div>';
+}
+function renderRoomAssignmentModalHTML() {
+  const list = roomAssignmentCandidates();
+  const hasAny = list.length || roomModalExtraColumns.length;
+  const body = !hasAny
+    ? '<div class="sp-sub">No approved applicants need lodging yet.</div>'
+    : (roomModalViewMode === 'board' ? renderRoomAssignmentBoardBody(list) : renderRoomAssignmentListBody(list));
   return `
     <div class="qa-modal-overlay" onclick="if(event.target===this) closeRoomAssignmentModal();">
-      <div class="qa-modal-card email-gen-card">
+      <div class="qa-modal-card email-gen-card" style="max-width:840px;">
         <h3>Room Assignments</h3>
-        <p class="qa-modal-sub">Approved applicants who need lodging, grouped by whatever label you give them. Different genders can’t share a room. Check off students below and assign them all at once, then export the list for whoever is booking hotel rooms.</p>
-        ${list.length ? `<div class="sp-add-row" style="margin-bottom:12px; flex-wrap:wrap; background:var(--panel-2,#F4F1EA); padding:8px; border-radius:8px;">
+        <p class="qa-modal-sub">Approved applicants who need lodging, grouped by whatever label you give them. Different genders can’t share a room.${roomModalViewMode === 'board' ? ' Drag a student card into a room.' : ' Check off students and assign them all at once.'}</p>
+        ${hasAny ? roomModalToolbarHTML() : ''}
+        ${roomModalViewMode === 'list' && list.length ? `<div class="sp-add-row" style="margin:10px 0; flex-wrap:wrap; background:var(--panel-2,#F4F1EA); padding:8px; border-radius:8px;">
           <span class="sp-sub" style="flex:1 1 100%;">${roomModalSelected.size} selected</span>
           <input id="ap-room-bulk-input" type="text" placeholder="Room / group label" style="max-width:200px;">
           <button class="sp-mini-btn" onclick="assignRoomModalSelected()">Assign Selected</button>
         </div>` : ''}
-        <div style="max-height:340px; overflow-y:auto; margin-bottom:14px;">${body}</div>
+        <div style="max-height:420px; overflow-y:auto; margin:10px 0 14px;">${body}</div>
         <div class="qa-modal-actions">
           <button class="sp-mini-btn" onclick="closeRoomAssignmentModal()">Close</button>
           <button class="qa-modal-done" onclick="exportRoomAssignmentsCSV()">Export CSV</button>
