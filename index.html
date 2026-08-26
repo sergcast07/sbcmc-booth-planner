@@ -447,6 +447,9 @@
   .spv-badge-row input { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
   .spv-file-block { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
   .spv-file-block input[type="file"] { display: block; font-size: 12px; }
+  .spv-done-section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 8px; text-align: center; }
+  .spv-done-banner { background: rgba(46,139,87,0.12); color: #2E8B57; border: 1px solid rgba(46,139,87,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 12px; }
+  .spv-done-btn { width: 100%; padding: 13px 20px; font-size: 14px; }
 
 /* ==== Sponsor Tracker ==== */
 .top-nav {
@@ -3150,6 +3153,14 @@ function renderSponsorPublicView() {
     <div class="dv-section">
       <div class="dv-section-title">Notes for the Conference Team</div>
       <textarea class="spv-textarea" rows="3" onchange="updateSponsorData('${s.id}', 'publicNotes', this.value)" placeholder="Anything else we should know?">${escapeHtml(s.data.publicNotes || '')}</textarea>
+    </div>
+
+    <div class="dv-section spv-done-section">
+      ${s.data.publicPortalCompletedAt ? `
+        <div class="spv-done-banner">✓ Marked complete on ${escapeHtml(new Date(s.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}. You can still come back and make changes anytime — just click below again when you’re done.</div>
+      ` : ''}
+      <p class="sp-sub">Every field above saves automatically as you go — nothing to lose by closing this page. Click below when you’re finished so our team knows your info is ready.</p>
+      <button class="qa-modal-done spv-done-btn" onclick="markSponsorPortalComplete('${s.id}')">✓ I'm Done — Everything's Saved</button>
     </div>
   `;
 }
@@ -6097,7 +6108,7 @@ function rowToSponsor(row) {
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
-      publicToken: '', publicNotes: '',
+      publicToken: '', publicNotes: '', publicPortalCompletedAt: '',
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }, row.data || {})
@@ -6152,7 +6163,7 @@ function addSponsor() {
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeNames: [], shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
-      publicToken: '', publicNotes: '',
+      publicToken: '', publicNotes: '', publicPortalCompletedAt: '',
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }
@@ -6894,6 +6905,7 @@ function sponsorDetailHTML(s) {
           <p class="sp-sub">Send this sponsor a private link where they can update their own contact info, badge names, shipping notes, and upload their booth ad / display graphic — no password needed, and it only shows their own record.</p>
           <button class="sp-mini-btn" onclick="copySponsorPublicLink('${s.id}')">🔗 Copy Self-Service Link</button>
           ${s.data.publicToken ? `<button class="sp-mini-btn" onclick="revokeSponsorPublicLink('${s.id}')">Revoke Link</button>` : ''}
+          ${s.data.publicPortalCompletedAt ? `<div class="sp-sub" style="margin-top:8px; color:#2E8B57; font-weight:600;">✓ Sponsor marked their info complete on ${escapeHtml(new Date(s.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</div>` : ''}
         </fieldset>
 
         <fieldset class="sp-fieldset">
@@ -6956,6 +6968,16 @@ function getSponsor(id) { return sponsors.find(s => s.id === id); }
 function resolveSponsorForEdit(id) {
   if (typeof isSponsorViewMode === 'function' && isSponsorViewMode() && sponsorPublicRecord && sponsorPublicRecord.id === id) return sponsorPublicRecord;
   return getSponsor(id);
+}
+
+// Every field on the portal already autosaves on change -- this button doesn't save anything
+// new, it just gives the sponsor a clear "you're done" moment and lets staff see, at a glance,
+// which sponsors have confirmed their info rather than just having touched a field or two.
+function markSponsorPortalComplete(id) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  s.data.publicPortalCompletedAt = new Date().toISOString();
+  pushSponsor(s);
+  refreshSponsorAfterEdit(id);
 }
 
 const ADDON_TYPE_SUGGESTIONS = [
