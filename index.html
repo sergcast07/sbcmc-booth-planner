@@ -450,6 +450,8 @@
   .spv-done-section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 8px; text-align: center; }
   .spv-done-banner { background: rgba(46,139,87,0.12); color: #2E8B57; border: 1px solid rgba(46,139,87,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 12px; }
   .spv-done-btn { width: 100%; padding: 13px 20px; font-size: 14px; }
+  .spv-pending-banner { background: rgba(197,161,84,0.15); color: #8a6d1f; border: 1px solid rgba(197,161,84,0.4); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 20px; }
+  .spv-pending-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #8a6d1f; background: rgba(197,161,84,0.18); border-radius: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
 
 /* ==== Sponsor Tracker ==== */
 .top-nav {
@@ -589,6 +591,15 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sk-tab-btn:hover { color: var(--ink); }
 .sk-tab-btn.active { color: var(--teal-deep); border-bottom-color: var(--gold); }
 .sk-tab-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #a52620; margin-left: 2px; vertical-align: middle; }
+.sk-tab-btn-pending { color: #8a6d1f !important; }
+.spv-pending-review-row { background: rgba(197,161,84,0.08); border: 1px solid rgba(197,161,84,0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.spv-pending-review-label { font-size: 11.5px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.spv-pending-review-diff { font-size: 12.5px; margin-bottom: 8px; word-break: break-word; }
+.spv-pending-old { color: var(--ink-soft); text-decoration: line-through; }
+.spv-pending-arrow { margin: 0 6px; color: var(--ink-soft); }
+.spv-pending-new { color: #256B3F; font-weight: 600; }
+.sp-row-pending-flag { color: #8a6d1f; }
+.sp-nav-badge { display: none; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: #a52620; color: #fff; font-size: 10px; font-weight: 700; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
 .sk-tab-panel { padding: 0 22px 18px; }
 .sk-tab-panel .sp-detail-grid { margin-bottom: 0; }
 .sk-logistics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -1217,7 +1228,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 <div class="top-nav">
   <span class="brand-mini">SBCMC 2027</span>
   <button class="top-nav-btn active" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
-  <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker</button>
+  <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker<span class="sp-nav-badge" id="nav-sponsors-pending-badge" title="Sponsor updates awaiting your review"></span></button>
   <button class="top-nav-btn" id="nav-speakers-btn" onclick="switchTopView('speakers')">Speakers/Artists</button>
   <button class="top-nav-btn" id="nav-schedule-btn" onclick="switchTopView('schedule')">Schedule</button>
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
@@ -1257,6 +1268,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
           <button class="sp-filter-btn" data-f="Declined" onclick="setSponsorFilter('Declined')">Declined</button>
           <button class="sp-filter-btn" data-f="__flagged__" onclick="setSponsorFilter('__flagged__')">🚩 Flagged for Review</button>
           <button class="sp-filter-btn" data-f="__overdue__" onclick="setSponsorFilter('__overdue__')">⚠️ Payment Overdue</button>
+          <button class="sp-filter-btn" data-f="__pending__" onclick="setSponsorFilter('__pending__')">🔔 Pending Updates</button>
         </div>
       </div>
       <div class="hint">Click any sponsor to open their full record: contact info, package, money, program/stage commitments, logistics, a communication log, and action items. Link them to a booth on the floor plan from inside their record.</div>
@@ -3100,70 +3112,79 @@ function renderSponsorPublicView() {
   if (!s) return;
   document.getElementById('spv-org-name').textContent = s.org || 'Your Organization';
 
+  const pending = s.data.pendingChanges || {};
+  const pendingTag = key => pending[key] ? ' <span class="spv-pending-tag">Pending review</span>' : '';
+
   const logistics = s.data.logistics || {};
   const materials = s.data.materials || {};
-  const badgeNames = logistics.badgeNames || [];
+  const badgeNames = portalWorkingBadgeNames(s);
 
   const badgeNamesHtml = badgeNames.map((name, i) => `
     <div class="spv-badge-row">
-      <input type="text" value="${escapeHtml(name)}" placeholder="Full name for badge" onchange="updateSponsorBadgeName('${s.id}', ${i}, this.value)">
-      <button class="sp-mini-btn" onclick="removeSponsorBadgeName('${s.id}', ${i})">Remove</button>
+      <input type="text" value="${escapeHtml(name)}" placeholder="Full name for badge" onchange="portalUpdateBadgeName('${s.id}', ${i}, this.value)">
+      <button class="sp-mini-btn" onclick="portalRemoveBadgeName('${s.id}', ${i})">Remove</button>
     </div>
   `).join('') || '<div class="sp-sub">No booth staff added yet.</div>';
 
   function fileBlock(kind, label, dims) {
-    const file = materials[kind];
+    const filePending = pending[kind];
+    const file = filePending ? filePending.new : (materials[kind] || null);
+    const isPendingRemoval = filePending && !filePending.new;
     return `
       <div class="spv-file-block">
-        <b>${escapeHtml(label)}</b>${dims ? ' <span class="sp-sub">(' + escapeHtml(dims) + ')</span>' : ''}
-        ${file ? `<div class="sp-sub">Uploaded: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="removeSponsorFile('${s.id}', '${kind}')">Remove</button>` : '<div class="sp-sub">Not uploaded yet.</div>'}
+        <b>${escapeHtml(label)}</b>${dims ? ' <span class="sp-sub">(' + escapeHtml(dims) + ')</span>' : ''}${pendingTag(kind)}
+        ${isPendingRemoval ? '<div class="sp-sub">Removal pending review.</div>' : file ? `<div class="sp-sub">${filePending ? 'Proposed' : 'Uploaded'}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="portalRemoveFile('${s.id}', '${kind}')">Remove</button>` : '<div class="sp-sub">Not uploaded yet.</div>'}
         <input type="file" id="sp-${kind}-input-${s.id}" style="margin-top:6px;">
-        <button class="sp-add-btn" onclick="${kind === 'boothAdFile' ? 'uploadSponsorBoothAd' : 'uploadSponsorDisplayGraphic'}('${s.id}')">Upload</button>
+        <button class="sp-add-btn" onclick="${kind === 'boothAdFile' ? 'portalUploadBoothAd' : 'portalUploadDisplayGraphic'}('${s.id}')">Upload</button>
       </div>
     `;
   }
 
+  const pendingCount = Object.keys(pending).length;
+
   document.getElementById('spv-body').innerHTML = `
+    ${pendingCount > 0 ? `<div class="spv-pending-banner">You have ${pendingCount} update${pendingCount === 1 ? '' : 's'} awaiting review by our team — shown below with a "Pending review" tag. Nothing official changes until they approve it.</div>` : ''}
+
     <div class="dv-section">
       <div class="dv-section-title">Your Contact Info</div>
-      <label class="spv-field">Contact Name<input type="text" value="${escapeHtml(s.contactName)}" onchange="updateSponsorSimple('${s.id}', 'contactName', this.value)"></label>
-      <label class="spv-field">Contact Email<input type="email" value="${escapeHtml(s.contactEmail)}" onchange="updateSponsorSimple('${s.id}', 'contactEmail', this.value)"></label>
-      <label class="spv-field">Contact Phone<input type="tel" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}', 'contactPhone', this.value)"></label>
+      <label class="spv-field">Contact Name${pendingTag('contactName')}<input type="text" value="${escapeHtml(portalStagedValue(s, 'contactName', s.contactName))}" onchange="portalUpdateContactField('${s.id}', 'contactName', this.value)"></label>
+      <label class="spv-field">Contact Email${pendingTag('contactEmail')}<input type="email" value="${escapeHtml(portalStagedValue(s, 'contactEmail', s.contactEmail))}" onchange="portalUpdateContactField('${s.id}', 'contactEmail', this.value)"></label>
+      <label class="spv-field">Contact Phone${pendingTag('contactPhone')}<input type="tel" value="${escapeHtml(portalStagedValue(s, 'contactPhone', s.contactPhone))}" onchange="portalUpdateContactField('${s.id}', 'contactPhone', this.value)"></label>
     </div>
 
     <div class="dv-section">
-      <div class="dv-section-title">Booth Staff Badge Names</div>
-      <p class="sp-sub sp-sub-wrap">Your sponsorship includes ${sponsorBadgeLimit(s)} badge${sponsorBadgeLimit(s) === 1 ? '' : 's'}. Add the name of everyone who\u2019ll be staffing your booth.</p>
+      <div class="dv-section-title">Booth Staff Badge Names${pendingTag('badgeNames')}</div>
+      <p class="sp-sub sp-sub-wrap">Your sponsorship includes ${sponsorBadgeLimit(s)} badge${sponsorBadgeLimit(s) === 1 ? '' : 's'}. Add the name of everyone who’ll be staffing your booth.</p>
       <div id="spv-badge-list">${badgeNamesHtml}</div>
       ${badgeNames.length >= sponsorBadgeLimit(s)
-        ? `<p class="sp-sub sp-sub-wrap">You\u2019ve used all ${sponsorBadgeLimit(s)} badges included with your sponsorship. If you need badges for additional attendees, please contact the conference coordinator to discuss.</p>`
-        : `<button class="sp-add-btn" onclick="addSponsorBadgeName('${s.id}')">+ Add Badge Name</button>`}
+        ? `<p class="sp-sub sp-sub-wrap">You’ve used all ${sponsorBadgeLimit(s)} badges included with your sponsorship. If you need badges for additional attendees, please contact the conference coordinator to discuss.</p>`
+        : `<button class="sp-add-btn" onclick="portalAddBadgeName('${s.id}')">+ Add Badge Name</button>`}
     </div>
 
     <div class="dv-section">
-      <div class="dv-section-title">Shipping</div>
-      <p class="sp-sub sp-sub-wrap">If you\u2019re shipping materials ahead of the conference, let us know here \u2014 carrier, tracking number, expected arrival, anything that helps us watch for it.</p>
-      <textarea class="spv-textarea" rows="3" onchange="updateSponsorNested('${s.id}', 'logistics', 'shipping', this.value)" placeholder="e.g. Shipping via UPS, arriving 3/2, 2 boxes">${escapeHtml(logistics.shipping || '')}</textarea>
+      <div class="dv-section-title">Shipping${pendingTag('shipping')}</div>
+      <p class="sp-sub sp-sub-wrap">If you’re shipping materials ahead of the conference, let us know here — carrier, tracking number, expected arrival, anything that helps us watch for it.</p>
+      <textarea class="spv-textarea" rows="3" onchange="portalUpdateShipping('${s.id}', this.value)" placeholder="e.g. Shipping via UPS, arriving 3/2, 2 boxes">${escapeHtml(portalStagedValue(s, 'shipping', logistics.shipping || ''))}</textarea>
     </div>
 
     <div class="dv-section">
       <div class="dv-section-title">Materials</div>
-      <p class="sp-sub sp-sub-wrap">Booth ad and display graphic specs (exact dimensions, load-in time, etc.) will be confirmed closer to the conference \u2014 we\u2019ll follow up with those details. Upload whenever you\u2019re ready.</p>
+      <p class="sp-sub sp-sub-wrap">Booth ad and display graphic specs (exact dimensions, load-in time, etc.) will be confirmed closer to the conference — we’ll follow up with those details. Upload whenever you’re ready.</p>
       ${fileBlock('boothAdFile', 'Booth Ad', 'dimensions TBD')}
       ${fileBlock('displayGraphicFile', 'Display Graphic', 'dimensions TBD')}
     </div>
 
     <div class="dv-section">
-      <div class="dv-section-title">Notes for the Conference Team</div>
-      <textarea class="spv-textarea" rows="3" onchange="updateSponsorData('${s.id}', 'publicNotes', this.value)" placeholder="Anything else we should know?">${escapeHtml(s.data.publicNotes || '')}</textarea>
+      <div class="dv-section-title">Notes for the Conference Team${pendingTag('publicNotes')}</div>
+      <textarea class="spv-textarea" rows="3" onchange="portalUpdateNotes('${s.id}', this.value)" placeholder="Anything else we should know?">${escapeHtml(portalStagedValue(s, 'publicNotes', s.data.publicNotes || ''))}</textarea>
     </div>
 
     <div class="dv-section spv-done-section">
       ${s.data.publicPortalCompletedAt ? `
         <div class="spv-done-banner">✓ Marked complete on ${escapeHtml(new Date(s.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}. You can still come back and make changes anytime — just click below again when you’re done.</div>
       ` : ''}
-      <p class="sp-sub sp-sub-wrap">Every field above saves automatically as you go — nothing to lose by closing this page. Click below when you’re finished so our team knows your info is ready.</p>
-      <button class="qa-modal-done spv-done-btn" onclick="markSponsorPortalComplete('${s.id}')">✓ I'm Done — Everything's Saved</button>
+      <p class="sp-sub sp-sub-wrap">Every field above is saved as a suggested update — our team reviews and approves it before it's official. Click below when you're finished so they know it's ready to look at.</p>
+      <button class="qa-modal-done spv-done-btn" onclick="markSponsorPortalComplete('${s.id}')">✓ I'm Done — Ready for Review</button>
     </div>
   `;
 }
@@ -3500,6 +3521,7 @@ async function initSupabase() {
 
     if (typeof subscribeSponsorRealtime === 'function') subscribeSponsorRealtime();
     if (typeof subscribeSpeakerRealtime === 'function') subscribeSpeakerRealtime();
+    if (typeof updateSponsorPendingBadge === 'function') updateSponsorPendingBadge();
   } catch (err) {
     console.error('Supabase init failed:', err);
     updateSyncStatus('error');
@@ -6112,7 +6134,7 @@ function rowToSponsor(row) {
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeNames: [], badgeLimit: 2, shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
-      publicToken: '', publicNotes: '', publicPortalCompletedAt: '',
+      publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }, row.data || {})
@@ -6129,10 +6151,19 @@ function subscribeSponsorRealtime() {
       } else {
         const updated = rowToSponsor(payload.new);
         const idx = sponsors.findIndex(s => s.id === updated.id);
+        const previous = idx >= 0 ? sponsors[idx] : null;
         if (idx >= 0) sponsors[idx] = updated; else sponsors.push(updated);
+        // A sponsor clicking "I'm Done" on their portal is the clearest signal that they've
+        // submitted something for review -- surface it immediately if staff happen to be
+        // looking at the app right now, on top of the persistent nav badge count either way.
+        const justSubmitted = updated.data.publicPortalCompletedAt
+          && updated.data.publicPortalCompletedAt !== (previous && previous.data.publicPortalCompletedAt)
+          && sponsorPendingCount(updated) > 0;
+        if (justSubmitted) toast('🔔 ' + (updated.org || 'A sponsor') + ' submitted updates for review — check the Sponsor Tracker.');
       }
       if (document.getElementById('nav-sponsors-btn').classList.contains('active')) renderSponsorView();
       if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
+      updateSponsorPendingBadge();
     })
     .subscribe();
 }
@@ -6167,7 +6198,7 @@ function addSponsor() {
       program: { type: '', track: '', timeSlot: '', lengthMin: '', fulfilled: false },
       logistics: { power: false, av: false, loadInTime: '', badgeNames: [], badgeLimit: 2, shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
-      publicToken: '', publicNotes: '', publicPortalCompletedAt: '',
+      publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }
@@ -6310,6 +6341,7 @@ function currentFilteredSponsors() {
     if (sponsorFilter === 'all') matchesFilter = true;
     else if (sponsorFilter === '__flagged__') matchesFilter = !!s.data.flagged;
     else if (sponsorFilter === '__overdue__') matchesFilter = isOverdue(s);
+    else if (sponsorFilter === '__pending__') matchesFilter = sponsorPendingCount(s) > 0;
     else matchesFilter = s.trackerStatus === sponsorFilter;
     const matchesSearch = !sponsorSearch || sponsorSearchHaystack(s).includes(sponsorSearch.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -6566,7 +6598,7 @@ function buildSponsorRowPair(s, todayStr) {
     ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${friendlyDate(s.data.money.dueDate)}</span>` : escapeHtml(friendlyDate(s.data.money.dueDate)))
     : '—';
   tr.innerHTML = `
-    <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">▸</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${(() => {
+    <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">▸</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${sponsorPendingCount(s) > 0 ? ` <span class="sp-row-pending-flag" title="${sponsorPendingCount(s)} sponsor update${sponsorPendingCount(s) === 1 ? '' : 's'} awaiting your review">🔔${sponsorPendingCount(s)}</span>` : ''}${(() => {
       const openItems = (s.data.actionItems || []).filter(a => !a.done);
       if (openItems.length === 0) return '';
       const hasOverdue = openItems.some(a => a.dueDate && a.dueDate < todayStr);
@@ -6598,6 +6630,7 @@ function renderSponsorRows(dirtyId) {
     if (sponsorFilter === 'all') matchesFilter = true;
     else if (sponsorFilter === '__flagged__') matchesFilter = !!s.data.flagged;
     else if (sponsorFilter === '__overdue__') matchesFilter = isOverdue(s);
+    else if (sponsorFilter === '__pending__') matchesFilter = sponsorPendingCount(s) > 0;
     else matchesFilter = s.trackerStatus === sponsorFilter;
     const matchesSearch = !sponsorSearch || sponsorSearchHaystack(s).includes(sponsorSearch.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -6746,10 +6779,12 @@ function sponsorDetailHTML(s) {
         const completeness = sponsorCompleteness(s);
         const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
         const activeTab = sponsorActiveTab;
+        const pendingCount = sponsorPendingCount(s);
         const tabs = [['overview', 'Overview'], ['money', 'Financials'], ['program', 'Program & Logistics']];
+        if (pendingCount > 0) tabs.push(['pending', '🔔 Pending Updates (' + pendingCount + ')']);
         const tabBarHtml = tabs.map(([key, label]) => {
-          const alert = sponsorTabAlert(s, key);
-          return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''}" onclick="setSponsorTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
+          const alert = key === 'pending' ? false : sponsorTabAlert(s, key);
+          return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''} ${key === 'pending' ? 'sk-tab-btn-pending' : ''}" onclick="setSponsorTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
         }).join('');
         return `
         <div class="sk-detail-header">
@@ -6908,7 +6943,7 @@ function sponsorDetailHTML(s) {
 
         <fieldset class="sp-fieldset">
           <legend>Self-Service Portal</legend>
-          <p class="sp-sub sp-sub-wrap">Send this sponsor a private link where they can update their own contact info, badge names, shipping notes, and upload their booth ad / display graphic — no password needed, and it only shows their own record.</p>
+          <p class="sp-sub sp-sub-wrap">Send this sponsor a private link where they can update their own contact info, badge names, shipping notes, and upload their booth ad / display graphic — no password needed, and it only shows their own record. Their edits are staged as proposed changes, not applied automatically — you'll see them under "Pending Updates" above to approve or reject.</p>
           <button class="sp-mini-btn" onclick="copySponsorPublicLink('${s.id}')">🔗 Copy Self-Service Link</button>
           ${s.data.publicToken ? `<button class="sp-mini-btn" onclick="revokeSponsorPublicLink('${s.id}')">Revoke Link</button>` : ''}
           ${s.data.publicPortalCompletedAt ? `<div class="sp-sub" style="margin-top:8px; color:#2E8B57; font-weight:600;">✓ Sponsor marked their info complete on ${escapeHtml(new Date(s.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</div>` : ''}
@@ -6920,6 +6955,41 @@ function sponsorDetailHTML(s) {
           <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','welcome')">✉️ Welcome Email</button>
           <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','action')">✉️ Action Required</button>
           <button class="sp-mini-btn" onclick="openEmailGenModal('${s.id}','final')">✉️ Final Reminder</button>
+        </fieldset>
+        </div>
+      </div>
+      `}
+
+      ${sponsorActiveTab !== 'pending' ? '' : `
+      <div class="sk-tab-panel">
+        <div class="sp-detail-grid">
+        <fieldset class="sp-fieldset">
+          <legend>\ud83d\udd14 Pending Updates from ${escapeHtml(s.org)}</legend>
+          <p class="sp-sub sp-sub-wrap">Proposed by the sponsor through their self-service link. Nothing here is live yet \u2014 approve to apply it to the record, or reject to discard it and keep the current value.</p>
+          ${Object.keys(s.data.pendingChanges || {}).length > 1 ? `
+            <div class="sp-add-row" style="margin-bottom:10px;">
+              <button class="sp-mini-btn" onclick="approveAllSponsorPendingChanges('${s.id}')">\u2713 Approve All</button>
+              <button class="sp-mini-btn" onclick="rejectAllSponsorPendingChanges('${s.id}')">\u2715 Reject All</button>
+            </div>
+          ` : ''}
+          ${Object.entries(s.data.pendingChanges || {}).map(([key, change]) => {
+            const map = SPONSOR_PENDING_FIELD_MAP[key];
+            const label = map ? map.label : key;
+            return `
+              <div class="spv-pending-review-row">
+                <div class="spv-pending-review-label">${escapeHtml(label)}</div>
+                <div class="spv-pending-review-diff">
+                  <span class="spv-pending-old">${escapeHtml(formatSponsorPendingValue(key, change.old))}</span>
+                  <span class="spv-pending-arrow">\u2192</span>
+                  <span class="spv-pending-new">${escapeHtml(formatSponsorPendingValue(key, change.new))}</span>
+                </div>
+                <div class="sp-add-row">
+                  <button class="sp-mini-btn" onclick="approveSponsorPendingChange('${s.id}','${key}')">\u2713 Approve</button>
+                  <button class="sp-mini-btn" onclick="rejectSponsorPendingChange('${s.id}','${key}')">\u2715 Reject</button>
+                </div>
+              </div>
+            `;
+          }).join('') || '<div class="sp-sub">Nothing pending.</div>'}
         </fieldset>
         </div>
       </div>
@@ -6984,6 +7054,202 @@ function markSponsorPortalComplete(id) {
   s.data.publicPortalCompletedAt = new Date().toISOString();
   pushSponsor(s);
   refreshSponsorAfterEdit(id);
+}
+
+// ==================== Sponsor Portal: Pending Changes (approval queue) ====================
+// Edits a sponsor makes on their self-service portal don't write straight to the live record --
+// they're staged in data.pendingChanges (keyed by field) until a staff member approves or
+// rejects each one from the tracker. This is the field->live-write map approveSponsorPendingChange
+// uses; everything the portal exposes for editing has an entry here.
+const SPONSOR_PENDING_FIELD_MAP = {
+  contactName: { label: 'Contact Name', apply: (s, v) => { s.contactName = v; } },
+  contactEmail: { label: 'Contact Email', apply: (s, v) => { s.contactEmail = v; } },
+  contactPhone: { label: 'Contact Phone', apply: (s, v) => { s.contactPhone = v; } },
+  shipping: { label: 'Shipping / Drayage Notes', apply: (s, v) => { s.data.logistics.shipping = v; } },
+  badgeNames: { label: 'Booth Staff Badge Names', apply: (s, v) => { s.data.logistics.badgeNames = v; } },
+  publicNotes: { label: 'Notes for the Conference Team', apply: (s, v) => { s.data.publicNotes = v; } },
+  boothAdFile: { label: 'Booth Ad', apply: (s, v) => { if (!s.data.materials) s.data.materials = {}; s.data.materials.boothAdFile = v; } },
+  displayGraphicFile: { label: 'Display Graphic', apply: (s, v) => { if (!s.data.materials) s.data.materials = {}; s.data.materials.displayGraphicFile = v; } }
+};
+function sponsorLiveFieldValue(s, key) {
+  switch (key) {
+    case 'contactName': return s.contactName;
+    case 'contactEmail': return s.contactEmail;
+    case 'contactPhone': return s.contactPhone;
+    case 'shipping': return s.data.logistics.shipping || '';
+    case 'badgeNames': return s.data.logistics.badgeNames || [];
+    case 'publicNotes': return s.data.publicNotes || '';
+    case 'boothAdFile': return (s.data.materials || {}).boothAdFile || null;
+    case 'displayGraphicFile': return (s.data.materials || {}).displayGraphicFile || null;
+    default: return undefined;
+  }
+}
+// Stages a proposed value instead of writing it live. Keeps the ORIGINAL live value as `old`
+// across repeated edits to the same field (so the diff staff sees is "what's different from
+// what's actually live," not "what changed since your last keystroke") -- and if a sponsor
+// edits a field back to its original value, the pending entry is dropped entirely rather than
+// showing a no-op change to review.
+function stageSponsorChange(id, key, newValue) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  if (!s.data.pendingChanges) s.data.pendingChanges = {};
+  const liveValue = sponsorLiveFieldValue(s, key);
+  const existing = s.data.pendingChanges[key];
+  const oldValue = existing ? existing.old : liveValue;
+  if (JSON.stringify(newValue) === JSON.stringify(oldValue)) {
+    delete s.data.pendingChanges[key];
+  } else {
+    s.data.pendingChanges[key] = { old: oldValue, new: newValue, changedAt: new Date().toISOString() };
+  }
+  pushSponsor(s);
+  refreshSponsorAfterEdit(id);
+}
+function portalStagedValue(s, key, fallback) {
+  const pc = s.data.pendingChanges && s.data.pendingChanges[key];
+  return pc ? pc.new : fallback;
+}
+function formatSponsorPendingValue(key, value) {
+  if (key === 'badgeNames') {
+    const names = (value || []).filter(n => n && n.trim());
+    return names.length ? names.join(', ') : '(none)';
+  }
+  if (key === 'boothAdFile' || key === 'displayGraphicFile') {
+    return value ? value.fileName : '(none)';
+  }
+  return value ? value : '(blank)';
+}
+function sponsorPendingCount(s) { return Object.keys(s.data.pendingChanges || {}).length; }
+
+// Admin-side: apply one proposed change to the live record, or discard it. Both clean up any
+// now-orphaned uploaded file in storage so rejected/overwritten uploads don't pile up unseen.
+function approveSponsorPendingChange(id, key) {
+  const s = getSponsor(id); if (!s) return;
+  const pending = s.data.pendingChanges && s.data.pendingChanges[key];
+  const map = SPONSOR_PENDING_FIELD_MAP[key];
+  if (!pending || !map) return;
+  if ((key === 'boothAdFile' || key === 'displayGraphicFile') && pending.old && pending.old.filePath && (!pending.new || pending.new.filePath !== pending.old.filePath) && sbClient) {
+    sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([pending.old.filePath]).then(({ error }) => { if (error) console.error('Storage cleanup failed:', error); });
+  }
+  map.apply(s, pending.new);
+  delete s.data.pendingChanges[key];
+  if (sponsorActiveTab === 'pending' && sponsorPendingCount(s) === 0) sponsorActiveTab = 'overview';
+  pushSponsor(s);
+  renderSponsorRows(id);
+  updateSponsorPendingBadge();
+  toast('Approved: ' + map.label + ' for ' + (s.org || 'this sponsor') + '.');
+}
+function rejectSponsorPendingChange(id, key) {
+  const s = getSponsor(id); if (!s) return;
+  const pending = s.data.pendingChanges && s.data.pendingChanges[key];
+  const map = SPONSOR_PENDING_FIELD_MAP[key];
+  if (!pending) return;
+  if ((key === 'boothAdFile' || key === 'displayGraphicFile') && pending.new && pending.new.filePath && (!pending.old || pending.old.filePath !== pending.new.filePath) && sbClient) {
+    sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([pending.new.filePath]).then(({ error }) => { if (error) console.error('Storage cleanup failed:', error); });
+  }
+  delete s.data.pendingChanges[key];
+  if (sponsorActiveTab === 'pending' && sponsorPendingCount(s) === 0) sponsorActiveTab = 'overview';
+  pushSponsor(s);
+  renderSponsorRows(id);
+  updateSponsorPendingBadge();
+  toast('Rejected: ' + (map ? map.label : key) + ' for ' + (s.org || 'this sponsor') + '. Their record is unchanged.');
+}
+function approveAllSponsorPendingChanges(id) {
+  const s = getSponsor(id); if (!s) return;
+  const keys = Object.keys(s.data.pendingChanges || {});
+  if (!keys.length) return;
+  if (!confirm('Approve all ' + keys.length + ' proposed change' + (keys.length === 1 ? '' : 's') + ' from ' + (s.org || 'this sponsor') + '?')) return;
+  keys.forEach(k => approveSponsorPendingChange(id, k));
+}
+function rejectAllSponsorPendingChanges(id) {
+  const s = getSponsor(id); if (!s) return;
+  const keys = Object.keys(s.data.pendingChanges || {});
+  if (!keys.length) return;
+  if (!confirm('Reject all ' + keys.length + ' proposed change' + (keys.length === 1 ? '' : 's') + ' from ' + (s.org || 'this sponsor') + '? Their record stays as-is.')) return;
+  keys.forEach(k => rejectSponsorPendingChange(id, k));
+}
+// Keeps the Sponsor Tracker nav tab's notification count in sync -- called after any load,
+// realtime update, or approve/reject action.
+function updateSponsorPendingBadge() {
+  const badge = document.getElementById('nav-sponsors-pending-badge');
+  if (!badge) return;
+  const count = (typeof sponsors !== 'undefined' ? sponsors : []).reduce((sum, s) => sum + sponsorPendingCount(s), 0);
+  badge.textContent = count > 0 ? String(count) : '';
+  badge.style.display = count > 0 ? 'inline-flex' : 'none';
+}
+
+// ==================== Sponsor Portal: staged (non-live) write functions ====================
+// Mirror the admin update functions, but stage into pendingChanges instead of writing live.
+// Only used by the public portal's own onclick handlers -- admin edits keep using the direct
+// updateSponsor* functions above, unaffected by any of this.
+function portalUpdateContactField(id, field, value) { stageSponsorChange(id, field, value); }
+function portalUpdateShipping(id, value) { stageSponsorChange(id, 'shipping', value); }
+function portalUpdateNotes(id, value) { stageSponsorChange(id, 'publicNotes', value); }
+function portalWorkingBadgeNames(s) { return portalStagedValue(s, 'badgeNames', s.data.logistics.badgeNames || []).slice(); }
+function portalAddBadgeName(id) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  const working = portalWorkingBadgeNames(s);
+  const limit = sponsorBadgeLimit(s);
+  if (working.length >= limit) {
+    toast('You’ve reached your badge limit (' + limit + '). Please contact the conference coordinator to discuss additional attendees.');
+    return;
+  }
+  working.push('');
+  stageSponsorChange(id, 'badgeNames', working);
+}
+function portalUpdateBadgeName(id, i, value) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  const working = portalWorkingBadgeNames(s);
+  working[i] = value;
+  stageSponsorChange(id, 'badgeNames', working);
+}
+function portalRemoveBadgeName(id, i) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  const working = portalWorkingBadgeNames(s);
+  working.splice(i, 1);
+  stageSponsorChange(id, 'badgeNames', working);
+}
+async function portalUploadFile(id, kind) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  const input = document.getElementById('sp-' + kind + '-input-' + id);
+  if (!input || !input.files || !input.files[0]) { toast('Choose a file first.'); return; }
+  if (!sbClient) { toast('Not connected to shared storage — can’t upload right now.'); return; }
+  const file = input.files[0];
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = id + '/' + kind + '/' + Date.now() + '_' + safeName;
+
+  toast('Uploading ' + file.name + '...');
+  const { error: uploadError } = await sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).upload(path, file, { upsert: true });
+  if (uploadError) {
+    console.error('Upload failed:', uploadError);
+    toast('Upload failed — ' + (uploadError.message || 'see console') + '. If this bucket doesn’t exist yet, it needs to be created in Supabase Storage first.');
+    return;
+  }
+  const { data: urlData } = sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).getPublicUrl(path);
+  const fileInfo = {
+    fileName: file.name, filePath: path, fileSize: file.size,
+    url: urlData.publicUrl, uploadedAt: new Date().toISOString().slice(0, 10)
+  };
+  input.value = '';
+  stageSponsorChange(id, kind, fileInfo);
+  toast('Uploaded ' + file.name + ' — pending review by our team.');
+}
+function portalUploadBoothAd(id) { return portalUploadFile(id, 'boothAdFile'); }
+function portalUploadDisplayGraphic(id) { return portalUploadFile(id, 'displayGraphicFile'); }
+async function portalRemoveFile(id, kind) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  const pending = s.data.pendingChanges && s.data.pendingChanges[kind];
+  if (pending) {
+    if (pending.new && sbClient && pending.new.filePath) {
+      const { error } = await sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([pending.new.filePath]);
+      if (error) console.error('Storage cleanup failed:', error);
+    }
+    delete s.data.pendingChanges[kind];
+    pushSponsor(s);
+    refreshSponsorAfterEdit(id);
+    return;
+  }
+  const live = (s.data.materials || {})[kind];
+  if (!live) return;
+  stageSponsorChange(id, kind, null);
 }
 
 const ADDON_TYPE_SUGGESTIONS = [
@@ -10822,6 +11088,7 @@ if (isDriverViewMode()) {
       loadSponsorsFromDb().then(() => {
         renderAll();
         if (typeof renderDashboard === 'function') renderDashboard();
+        if (typeof updateSponsorPendingBadge === 'function') updateSponsorPendingBadge();
       });
     }
     if (typeof loadSpeakersFromDb === 'function') loadSpeakersFromDb();
