@@ -1197,6 +1197,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 <div id="qa-modal-root"></div>
 <div id="exp-sort-modal-root"></div>
 <div id="email-gen-modal-root"></div>
+<div id="sch-link-modal-root"></div>
 
 <div id="driver-public-view" style="display:none;">
   <div class="dv-header">
@@ -2930,6 +2931,11 @@ function isScheduleViewMode() {
 
 let svPublicSubview = 'timeline';
 let svPublicAudienceFilter = null;
+// Set by copyScheduleViewLink's group picker via the ?aud= URL param -- null means an
+// unscoped link (every group toggleable, matching the tool's original behavior and every link
+// shared before this existed). When set, it's the hard ceiling on what this visitor can ever
+// see here, not just a starting point: the audience bar only offers chips for these groups.
+let svPublicAllowedAudienceIds = null;
 
 async function initSchedulePublicView() {
   document.body.classList.add('schedule-view-mode');
@@ -2949,7 +2955,11 @@ async function initSchedulePublicView() {
       loadScheduleAudiences(),
       loadSessionRoomsAndTracks()
     ]);
-    svPublicAudienceFilter = new Set([MAIN_AUDIENCE_ID]);
+    const audParam = new URLSearchParams(window.location.search).get('aud');
+    svPublicAllowedAudienceIds = audParam ? new Set(audParam.split(',').filter(Boolean)) : null;
+    // Scoped link: land showing every allowed group at once (that's what was deliberately
+    // shared). Unscoped link: same as always -- just Main Conference to start, toggle from there.
+    svPublicAudienceFilter = svPublicAllowedAudienceIds ? new Set(svPublicAllowedAudienceIds) : new Set([MAIN_AUDIENCE_ID]);
     renderSchedulePublicView();
 
     sbClient.channel('schedule-view-changes')
@@ -2986,7 +2996,10 @@ function renderSchedulePublicView() {
 }
 
 function renderSvPublicAudienceBar() {
-  const chips = orderedScheduleAudiences().map(a => {
+  const visibleAudiences = svPublicAllowedAudienceIds
+    ? orderedScheduleAudiences().filter(a => svPublicAllowedAudienceIds.has(a.id))
+    : orderedScheduleAudiences();
+  const chips = visibleAudiences.map(a => {
     const on = svPublicAudienceFilter.has(a.id);
     return `<span class="sch-aud-facet ${on ? 'on' : ''}" onclick="toggleSvPublicAudienceFilter('${a.id}')" title="${on ? 'Hide' : 'Show'} ${escapeHtml(a.name)}">
       <span class="sch-aud-swatch" style="--dot-color:${audienceColorForId(a.id)};"></span>
@@ -3104,10 +3117,72 @@ function renderSvPublicItinerary() {
     </div>`;
 }
 
+// Copying the schedule link asks which group(s) it should show, rather than always handing
+// out every group -- someone sharing this with, say, just the Collegiate Collective leader
+// shouldn't also be handing them Executive Council's schedule. Checking every box (the
+// default) reproduces the old behavior exactly: an unscoped link, viewer can toggle freely.
+let scheduleLinkModalSelection = null; // Set of audience ids, or null while the modal is closed
+
 function copyScheduleViewLink() {
-  const url = window.location.origin + window.location.pathname + '?view=schedule';
+  scheduleLinkModalSelection = new Set(orderedScheduleAudiences().map(a => a.id));
+  renderScheduleLinkModal();
+}
+function closeScheduleLinkModal() {
+  scheduleLinkModalSelection = null;
+  document.getElementById('sch-link-modal-root').innerHTML = '';
+}
+function toggleScheduleLinkModalAudience(id) {
+  if (!scheduleLinkModalSelection) return;
+  if (scheduleLinkModalSelection.has(id)) scheduleLinkModalSelection.delete(id);
+  else scheduleLinkModalSelection.add(id);
+  renderScheduleLinkModal();
+}
+function setScheduleLinkModalAll(allOn) {
+  scheduleLinkModalSelection = new Set(allOn ? orderedScheduleAudiences().map(a => a.id) : []);
+  renderScheduleLinkModal();
+}
+function renderScheduleLinkModal() {
+  const root = document.getElementById('sch-link-modal-root');
+  if (!scheduleLinkModalSelection) { root.innerHTML = ''; return; }
+  const auds = orderedScheduleAudiences();
+  const allChecked = auds.every(a => scheduleLinkModalSelection.has(a.id));
+  const rows = auds.map(a => `
+    <label class="sp-check" style="margin-bottom:8px;">
+      <input type="checkbox" style="width:auto; flex-shrink:0;" ${scheduleLinkModalSelection.has(a.id) ? 'checked' : ''} onchange="toggleScheduleLinkModalAudience('${a.id}')">
+      <span class="sch-aud-swatch" style="--dot-color:${audienceColorForId(a.id)};"></span>
+      ${escapeHtml(a.name)}
+    </label>
+  `).join('');
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeScheduleLinkModal();">
+      <div class="qa-modal-card">
+        <h3>Copy Schedule-Only Link</h3>
+        <p class="qa-modal-sub">Choose which schedule(s) this link should show. Whoever opens it can only see the group(s) checked here \u2014 nothing else.</p>
+        <div class="qa-modal-field">
+          <button class="sp-mini-btn" onclick="setScheduleLinkModalAll(${allChecked ? 'false' : 'true'})">${allChecked ? 'Uncheck All' : 'Check All'}</button>
+        </div>
+        <div class="qa-modal-field">${rows}</div>
+        <div class="qa-modal-actions">
+          <button class="sp-mini-btn" onclick="closeScheduleLinkModal()">Cancel</button>
+          <button class="qa-modal-done" onclick="confirmScheduleLinkModal()" ${scheduleLinkModalSelection.size === 0 ? 'disabled' : ''}>Copy Link</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function confirmScheduleLinkModal() {
+  if (!scheduleLinkModalSelection || scheduleLinkModalSelection.size === 0) return;
+  const auds = orderedScheduleAudiences();
+  const allChecked = auds.every(a => scheduleLinkModalSelection.has(a.id));
+  const selectedIds = Array.from(scheduleLinkModalSelection);
+  const url = window.location.origin + window.location.pathname + '?view=schedule'
+    + (allChecked ? '' : '&aud=' + selectedIds.map(encodeURIComponent).join(','));
+  const count = selectedIds.length;
+  closeScheduleLinkModal();
   navigator.clipboard.writeText(url).then(() => {
-    toast('Schedule link copied \u2014 paste it anywhere. No password needed, and it can\u2019t be edited from there.');
+    toast(allChecked
+      ? 'Schedule link copied \u2014 shows every group, viewer can toggle. No password needed.'
+      : 'Schedule link copied \u2014 scoped to ' + count + ' group' + (count === 1 ? '' : 's') + ' only.');
   }).catch(() => {
     prompt('Copy this link to share the schedule:', url);
   });
