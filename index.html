@@ -816,11 +816,32 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
   .sp-side.collapsed { width: 100%; height: auto; padding: 10px 14px; }
   .sp-main { padding: 14px; }
   .sp-topbar { flex-wrap: wrap; }
-  .sp-search { max-width: none; width: 100%; }
+  .sp-search { max-width: none; width: 100%; flex-basis: 100%; }
   .sp-add-btn { flex: 1; }
 
   .sp-add-row { flex-wrap: wrap; }
   .sp-add-row input { min-width: 140px; }
+
+  /* Sponsor table -> stacked list of cards. 7 columns of horizontal-scroll never works well
+     with a thumb, so each row becomes a block with the column name as a small label above its
+     value (from the td's data-label attribute) instead. */
+  .sp-table-wrap { overflow-x: visible; border-radius: 10px; }
+  table.sp-table { min-width: 0; }
+  table.sp-table thead { display: none; }
+  table.sp-table, table.sp-table tbody, table.sp-table tr, table.sp-table td { display: block; width: 100%; }
+  table.sp-table tr.sp-row { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  table.sp-table tr.sp-row:last-child { border-bottom: none; }
+  table.sp-table td { padding: 2px 0; border-bottom: none; overflow: visible; white-space: normal; }
+  table.sp-table td[data-label]:not([data-label=""])::before {
+    content: attr(data-label); display: block; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-top: 8px;
+  }
+  table.sp-table td.sp-detail-cell { padding: 0; }
+
+  /* Detail panel tabs can crowd 4-across on a phone -- let them wrap instead of clipping. */
+  .sk-tabs { flex-wrap: wrap; }
+  .sk-detail-header { flex-wrap: wrap; gap: 8px; }
+  .sp-field-grid { grid-template-columns: 1fr; }
 
   .canvas-body-row { flex-direction: column; }
   .spot-directory { width: 100%; border-left: none; border-top: 1px solid var(--line); max-height: 240px; }
@@ -5029,8 +5050,15 @@ function printDashboardReport() {
 // Floor Plan's booth-editing sidebar, remembered across visits like the gate password. The
 // toggle chevron's direction (pointing at the sidebar vs. away from it) flips via CSS off the
 // .collapsed class, so this only needs to set that class and keep the tooltip in sync.
+// Default to collapsed on a phone-width screen the first time someone opens this on a given
+// browser (no stored preference yet) -- otherwise the Overview stats + full Filter list push
+// the actual sponsor list below the fold before you've seen a single row. Once someone
+// explicitly toggles it, that choice is remembered and wins from then on, same as before.
 let sidebarCollapsed = false;
-try { sidebarCollapsed = localStorage.getItem('sbcmcSidebarCollapsed') === '1'; } catch (e) { /* private browsing, etc */ }
+try {
+  const storedSidebarPref = localStorage.getItem('sbcmcSidebarCollapsed');
+  sidebarCollapsed = storedSidebarPref !== null ? storedSidebarPref === '1' : window.matchMedia('(max-width: 760px)').matches;
+} catch (e) { /* private browsing, etc */ }
 
 function applySidebarCollapsedState() {
   document.querySelectorAll('.sp-side, .sidebar').forEach(el => el.classList.toggle('collapsed', sidebarCollapsed));
@@ -6626,19 +6654,19 @@ function buildSponsorRowPair(s, todayStr) {
     ? (overdue ? `<span style="color:#a52620; font-weight:700;">⚠️ ${friendlyDate(s.data.money.dueDate)}</span>` : escapeHtml(friendlyDate(s.data.money.dueDate)))
     : '—';
   tr.innerHTML = `
-    <td><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">▸</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${sponsorPendingCount(s) > 0 ? ` <span class="sp-row-pending-flag" title="${sponsorPendingCount(s)} sponsor update${sponsorPendingCount(s) === 1 ? '' : 's'} awaiting your review">🔔${sponsorPendingCount(s)}</span>` : ''}${(() => {
+    <td data-label=""><span class="sp-chevron ${openSponsorId === s.id ? 'open' : ''}">▸</span>${s.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${sponsorPendingCount(s) > 0 ? ` <span class="sp-row-pending-flag" title="${sponsorPendingCount(s)} sponsor update${sponsorPendingCount(s) === 1 ? '' : 's'} awaiting your review">🔔${sponsorPendingCount(s)}</span>` : ''}${(() => {
       const openItems = (s.data.actionItems || []).filter(a => !a.done);
       if (openItems.length === 0) return '';
       const hasOverdue = openItems.some(a => a.dueDate && a.dueDate < todayStr);
       return ` <span class="sp-task-badge ${hasOverdue ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}${hasOverdue ? ', at least one overdue' : ''}">📋${openItems.length}</span>`;
     })()}</td>
-    <td class="sp-org">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
-    <td>${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
-    <td>${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '—'}</td>
-    <td>${sponsorAmountCell(s)}</td>
-    <td>${dueCell}</td>
-    <td><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${s.trackerStatus}</span></td>
-    <td>${linkedBooth ? escapeHtml((linkedBooth.spotName || '') + ' — ' + (MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '')) : '—'}</td>
+    <td class="sp-org" data-label="Organization">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
+    <td data-label="Contact">${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
+    <td data-label="Package">${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '—'}</td>
+    <td data-label="Amount / Status">${sponsorAmountCell(s)}</td>
+    <td data-label="Due">${dueCell}</td>
+    <td data-label="Tracker Status"><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${s.trackerStatus}</span></td>
+    <td data-label="Linked Booth">${linkedBooth ? escapeHtml((linkedBooth.spotName || '') + ' — ' + (MAPS[linkedBooth.mapId] ? MAPS[linkedBooth.mapId].label : '')) : '—'}</td>
   `;
   tr.addEventListener('click', () => toggleSponsorDetail(s.id));
 
