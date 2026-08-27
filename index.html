@@ -433,11 +433,11 @@
   table.dv-table td { padding: 7px 10px; font-size: 12.5px; border-bottom: 1px solid var(--line); }
   table.dv-table tr:last-child td { border-bottom: none; }
   .dv-unassigned { color: #a52620; font-weight: 600; }
-  body.gate-locked > *:not(#access-gate) { display: none !important; }
-  body.driver-view-mode > *:not(#driver-public-view) { display: none !important; }
-  body.schedule-view-mode > *:not(#schedule-public-view) { display: none !important; }
+  body.gate-locked > *:not(#access-gate):not(#kb-toast) { display: none !important; }
+  body.driver-view-mode > *:not(#driver-public-view):not(#kb-toast) { display: none !important; }
+  body.schedule-view-mode > *:not(#schedule-public-view):not(#kb-toast) { display: none !important; }
   #schedule-public-view { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
-  body.sponsor-view-mode > *:not(#sponsor-public-view) { display: none !important; }
+  body.sponsor-view-mode > *:not(#sponsor-public-view):not(#kb-toast) { display: none !important; }
   #sponsor-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   .spv-org-name { font-size: 15px; color: var(--ink-soft); margin: 0; }
   .spv-field { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 12px; }
@@ -452,7 +452,7 @@
   .spv-done-btn { width: 100%; padding: 13px 20px; font-size: 14px; }
   .spv-pending-banner { background: rgba(197,161,84,0.15); color: #8a6d1f; border: 1px solid rgba(197,161,84,0.4); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 20px; }
   .spv-pending-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #8a6d1f; background: rgba(197,161,84,0.18); border-radius: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
-  body.applicants-view-mode > *:not(#applicants-public-view) { display: none !important; }
+  body.applicants-view-mode > *:not(#applicants-public-view):not(#kb-toast) { display: none !important; }
   #applicants-public-view { font-family: 'Inter', sans-serif; }
   #applicants-public-view > .dv-header { max-width: 1200px; margin: 0 auto; padding: 22px 26px 16px; }
   #applicants-public-view .sp-wrap { min-height: 0; }
@@ -1263,6 +1263,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <div id="apv-body" class="dv-body">
     <div class="dv-loading">Loading applicants&hellip;</div>
   </div>
+  <div id="apv-room-modal-root"></div>
 </div>
 <script>
 // Shared-password gate, like a locked spreadsheet: one password for the whole team,
@@ -8733,7 +8734,7 @@ function buildApplicantRowPair(a) {
     <td data-label=""><span class="sp-chevron ${openApplicantId === a.id ? 'open' : ''}">▸</span></td>
     <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
-    <td data-label="Program">${escapeHtml(applicantGroupName(a.groupId))}</td>
+    <td data-label="Program">${escapeHtml(applicantGroupName(a.groupId))}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
     <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
     <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
@@ -8758,6 +8759,12 @@ function renderApplicantRows() {
   renderApplicantGroupFilterList();
 }
 
+// Surfaces one extra CSV answer on the row itself instead of only inside the detail panel —
+// School/Seminary for Collegiate Collective applicants, Church for Student Leadership Summit ones.
+function applicantRowHighlightValue(a) {
+  const raw = a.data.raw || {};
+  return raw['School / Seminary you are attending'] || raw['Church You Attend'] || '';
+}
 function applicantRawAnswersHTML(raw) {
   const keys = Object.keys(raw || {}).filter(k => raw[k] !== '' && raw[k] != null);
   if (!keys.length) return '<div class="sp-sub">No additional fields imported.</div>';
@@ -9014,8 +9021,14 @@ function renderApplicantImportModal() {
 }
 
 // ---- Room assignments ----
+// Dual-context, same trick as resolveApplicantForEdit: in the leader portal this naturally
+// scopes to just that leader's own group, since applicantsPublicRecords only ever holds one group.
 function roomAssignmentCandidates() {
-  return applicants.filter(a => a.data.status === 'Approved' && a.data.needsLodging === true);
+  const source = (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode()) ? (applicantsPublicRecords || []) : applicants;
+  return source.filter(a => a.data.status === 'Approved' && a.data.needsLodging === true);
+}
+function roomModalRootId() {
+  return (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode()) ? 'apv-room-modal-root' : 'ap-room-modal-root';
 }
 let roomModalSelected = new Set();
 let roomModalViewMode = 'board';
@@ -9023,16 +9036,16 @@ let roomModalExtraColumns = [];
 function openRoomAssignmentModal() {
   roomModalSelected = new Set();
   roomModalExtraColumns = [];
-  document.getElementById('ap-room-modal-root').innerHTML = renderRoomAssignmentModalHTML();
+  document.getElementById(roomModalRootId()).innerHTML = renderRoomAssignmentModalHTML();
 }
 function closeRoomAssignmentModal() {
   roomModalSelected = new Set();
   roomModalExtraColumns = [];
-  document.getElementById('ap-room-modal-root').innerHTML = '';
+  document.getElementById(roomModalRootId()).innerHTML = '';
 }
 function refreshRoomAssignmentModal() {
-  const root = document.getElementById('ap-room-modal-root');
-  if (root.innerHTML.trim()) root.innerHTML = renderRoomAssignmentModalHTML();
+  const root = document.getElementById(roomModalRootId());
+  if (root && root.innerHTML.trim()) root.innerHTML = renderRoomAssignmentModalHTML();
 }
 function setRoomModalViewMode(mode) {
   roomModalViewMode = mode;
@@ -9063,7 +9076,7 @@ function assignRoomModalSelected() {
   const label = input.value.trim();
   if (!label) { toast('Enter a room / group label first.'); return; }
   if (!roomModalSelected.size) { toast('Select at least one applicant first.'); return; }
-  const selected = [...roomModalSelected].map(id => getApplicant(id)).filter(Boolean);
+  const selected = [...roomModalSelected].map(id => resolveApplicantForEdit(id)).filter(Boolean);
   const genders = new Set(selected.map(a => a.data.gender).filter(Boolean));
   roomAssignmentCandidates().forEach(a => {
     if (!roomModalSelected.has(a.id) && (a.data.roomLabel || '') === label && a.data.gender) genders.add(a.data.gender);
@@ -9075,7 +9088,8 @@ function assignRoomModalSelected() {
   selected.forEach(a => { a.data.roomLabel = label; pushApplicant(a); });
   roomModalSelected.clear();
   input.value = '';
-  renderApplicantRows();
+  if (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode() && typeof renderApplicantsPublicRows === 'function') renderApplicantsPublicRows();
+  else renderApplicantRows();
   refreshRoomAssignmentModal();
   toast('Assigned ' + selected.length + ' to "' + label + '".');
 }
@@ -9274,6 +9288,9 @@ async function initApplicantsPublicView() {
       return;
     }
     applicantsPublicGroupId = groupId;
+    // Room-assignment CSV export etc. resolve program names via applicantGroups; the portal
+    // only ever knows its own group, so seed it with just that one row.
+    applicantGroups = [{ id: groupRow.id, name: groupRow.name, sortOrder: 0, publicToken: groupRow.public_token || '' }];
     document.getElementById('apv-group-name').textContent = groupRow.name;
     try { applicantsPublicLeaderName = localStorage.getItem('sbcmcLeaderName_' + groupId) || ''; } catch (e) { /* private browsing, etc */ }
     const { data: rows, error: rowsErr } = await sbClient.from(APPLICANTS_TABLE).select('*').eq('group_id', groupId).order('sort_order', { ascending: true });
@@ -9359,6 +9376,17 @@ function applicantPortalDetailHTML(a) {
             </div>
             ${a.data.reviewedBy ? `<div class="sp-sub sp-sub-wrap" style="grid-column:1/-1;">Last reviewed by ${escapeHtml(a.data.reviewedBy)}${a.data.reviewedAt ? ' on ' + escapeHtml(new Date(a.data.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) : ''}</div>` : ''}
             <div class="sp-field" style="grid-column:1/-1;"><label for="apv-notes-${a.id}">Notes (visible to your co-leader and our team)</label><textarea id="apv-notes-${a.id}" rows="2" onchange="updateApplicantData('${a.id}','reviewNotes',this.value)">${escapeHtml(a.data.reviewNotes || '')}</textarea></div>
+            <div class="sp-field"><label for="apv-lodging-${a.id}">Needs lodging?</label><select id="apv-lodging-${a.id}" onchange="updateApplicantLodging('${a.id}',this.value)">
+              <option value="" ${a.data.needsLodging == null ? 'selected' : ''}>— not set —</option>
+              <option value="yes" ${a.data.needsLodging === true ? 'selected' : ''}>Yes</option>
+              <option value="no" ${a.data.needsLodging === false ? 'selected' : ''}>No</option>
+            </select></div>
+            <div class="sp-field"><label for="apv-gender-${a.id}">Gender</label><select id="apv-gender-${a.id}" onchange="updateApplicantData('${a.id}','gender',this.value)">
+              <option value="" ${!a.data.gender ? 'selected' : ''}>— not set —</option>
+              <option value="Male" ${a.data.gender === 'Male' ? 'selected' : ''}>Male</option>
+              <option value="Female" ${a.data.gender === 'Female' ? 'selected' : ''}>Female</option>
+            </select></div>
+            <div class="sp-field"><label for="apv-room-${a.id}">Room / group label</label><input id="apv-room-${a.id}" type="text" placeholder="e.g. Room 214, Group A" value="${escapeHtml(a.data.roomLabel || '')}" onchange="updateApplicantRoomLabel('${a.id}',this.value)"></div>
           </div>
         </fieldset>
       </div>
@@ -9378,10 +9406,10 @@ function buildApplicantPortalRowPair(a) {
   tr.dataset.id = a.id;
   tr.innerHTML = `
     <td data-label=""><span class="sp-chevron ${openApplicantPortalId === a.id ? 'open' : ''}">▸</span></td>
-    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}</td>
+    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
-    <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' : a.data.needsLodging === false ? 'No' : '—'}</td>
+    <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
   tr.addEventListener('click', () => toggleApplicantPortalDetail(a.id));
   const dtr = document.createElement('tr');
@@ -9419,6 +9447,7 @@ function renderApplicantsPublicShell() {
             <option value="name-asc">Name (A–Z)</option>
             <option value="name-desc">Name (Z–A)</option>
           </select>
+          <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
         </div>
         <div class="sch-view-toggle" style="margin-bottom:16px;" id="apv-status-filter-row">
           <button class="sch-toggle-btn active" data-sf="all" onclick="setApPublicStatusFilter('all')">All Statuses</button>
