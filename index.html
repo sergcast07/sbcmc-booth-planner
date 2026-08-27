@@ -453,7 +453,9 @@
   .spv-pending-banner { background: rgba(197,161,84,0.15); color: #8a6d1f; border: 1px solid rgba(197,161,84,0.4); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 20px; }
   .spv-pending-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #8a6d1f; background: rgba(197,161,84,0.18); border-radius: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
   body.applicants-view-mode > *:not(#applicants-public-view) { display: none !important; }
-  #applicants-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
+  #applicants-public-view { font-family: 'Inter', sans-serif; }
+  #applicants-public-view > .dv-header { max-width: 1200px; margin: 0 auto; padding: 22px 26px 16px; }
+  #applicants-public-view .sp-wrap { min-height: 0; }
   .spv-applicant-card { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; background: var(--panel); }
   .spv-applicant-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
   .ap-raw-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
@@ -8578,7 +8580,7 @@ function resolveApplicantForEdit(id) {
   return getApplicant(id);
 }
 function refreshApplicantAfterEdit(id) {
-  if (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode() && typeof renderApplicantsPublicView === 'function') renderApplicantsPublicView();
+  if (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode() && typeof renderApplicantsPublicRows === 'function') renderApplicantsPublicRows();
   else if (typeof renderApplicantRows === 'function') renderApplicantRows();
 }
 
@@ -9248,6 +9250,9 @@ let applicantsPublicRecords = [];
 let applicantsPublicLeaderName = '';
 let applicantsPublicChannel = null;
 let apPublicStatusFilter = 'all';
+let apPublicSearch = '';
+let apPublicSort = '';
+let openApplicantPortalId = null;
 
 async function initApplicantsPublicView() {
   document.body.classList.add('applicants-view-mode');
@@ -9274,7 +9279,8 @@ async function initApplicantsPublicView() {
     const { data: rows, error: rowsErr } = await sbClient.from(APPLICANTS_TABLE).select('*').eq('group_id', groupId).order('sort_order', { ascending: true });
     if (rowsErr) throw rowsErr;
     applicantsPublicRecords = (rows || []).map(rowToApplicant);
-    renderApplicantsPublicView();
+    renderApplicantsPublicShell();
+    renderApplicantsPublicRows();
 
     applicantsPublicChannel = sbClient.channel('applicants-portal-' + groupId)
       .on('postgres_changes', { event: '*', schema: 'public', table: APPLICANTS_TABLE, filter: 'group_id=eq.' + groupId }, (payload) => {
@@ -9285,7 +9291,7 @@ async function initApplicantsPublicView() {
           const idx = applicantsPublicRecords.findIndex(a => a.id === updated.id);
           if (idx >= 0) applicantsPublicRecords[idx] = updated; else applicantsPublicRecords.push(updated);
         }
-        renderApplicantsPublicView();
+        renderApplicantsPublicRows();
       })
       .subscribe();
   } catch (err) {
@@ -9299,43 +9305,166 @@ function updateApplicantsPublicLeaderName(value) {
 }
 function setApPublicStatusFilter(f) {
   apPublicStatusFilter = f;
-  renderApplicantsPublicView();
+  renderApplicantsPublicRows();
 }
-function renderApplicantsPublicView() {
-  const all = applicantsPublicRecords;
-  const list = apPublicStatusFilter === 'all' ? all : all.filter(a => (a.data.status || 'Pending') === apPublicStatusFilter);
-  const pendingCount = all.filter(a => (a.data.status || 'Pending') === 'Pending').length;
-  const filterRow = ['all', 'Pending', 'Approved', 'Declined'].map(f =>
-    `<button class="sch-toggle-btn ${apPublicStatusFilter === f ? 'active' : ''}" onclick="setApPublicStatusFilter('${f}')">${f === 'all' ? 'All' : f}</button>`
-  ).join('');
-  const cards = list.map(a => {
-    const status = a.data.status || 'Pending';
-    return `
-      <div class="dv-section spv-applicant-card">
-        <div class="spv-applicant-head">
-          <b>${escapeHtml(a.name || 'Unnamed')}</b>
-          <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span>
-        </div>
-        <div class="sp-sub sp-sub-wrap">${escapeHtml(a.email || '')}${a.phone ? ' · ' + escapeHtml(a.phone) : ''}</div>
-        ${applicantRawAnswersHTML(a.data.raw)}
-        <label class="spv-field" style="margin-top:10px;">Notes<textarea class="spv-textarea" rows="2" onchange="updateApplicantData('${a.id}','reviewNotes',this.value)" placeholder="Notes for the other leader or our team">${escapeHtml(a.data.reviewNotes || '')}</textarea></label>
-        <div class="sp-add-row" style="margin-top:8px;">
-          <button class="qa-modal-done" style="background:#256B3F;" onclick="setApplicantStatus('${a.id}','Approved')">✓ Approve</button>
-          <button class="qa-modal-done" style="background:#9C3A2E;" onclick="setApplicantStatus('${a.id}','Declined')">✕ Decline</button>
-        </div>
-        ${a.data.reviewedBy ? `<div class="sp-sub" style="margin-top:6px;">Last reviewed by ${escapeHtml(a.data.reviewedBy)}</div>` : ''}
+function setApPublicSearch(v) {
+  apPublicSearch = v;
+  renderApplicantsPublicRows();
+}
+function setApPublicSortFromDropdown(v) {
+  apPublicSort = v;
+  renderApplicantsPublicRows();
+}
+function toggleApplicantPortalDetail(id) {
+  openApplicantPortalId = openApplicantPortalId === id ? null : id;
+  renderApplicantsPublicRows();
+}
+function currentFilteredApplicantsPortal() {
+  let filtered = applicantsPublicRecords.filter(a => {
+    let matchesStatus;
+    if (apPublicStatusFilter === 'all') matchesStatus = true;
+    else if (apPublicStatusFilter === '__lodging__') matchesStatus = a.data.needsLodging === true;
+    else matchesStatus = (a.data.status || 'Pending') === apPublicStatusFilter;
+    const matchesSearch = !apPublicSearch || applicantSearchHaystack(a).includes(apPublicSearch.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+  if (apPublicSort === 'name-asc') filtered = filtered.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  else if (apPublicSort === 'name-desc') filtered = filtered.slice().sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+  return filtered;
+}
+function applicantPortalDetailHTML(a) {
+  const status = a.data.status || 'Pending';
+  return `
+    <div class="sp-detail-inner">
+      <div class="sk-detail-header">
+        <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span>
+        <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleApplicantPortalDetail('${a.id}')">▴ Close</button>
       </div>
-    `;
-  }).join('') || '<div class="dv-loading">Nothing here for this filter.</div>';
-
-  document.getElementById('apv-body').innerHTML = `
-    <div class="dv-section">
-      <label class="spv-field">Reviewing as (your name)<input type="text" value="${escapeHtml(applicantsPublicLeaderName)}" onchange="updateApplicantsPublicLeaderName(this.value)" placeholder="So we know who made each call"></label>
-      <p class="sp-sub">${pendingCount} of ${all.length} still awaiting a decision.</p>
-      <div class="sch-view-toggle">${filterRow}</div>
+      <div class="sp-detail-grid sp-detail-2col">
+        <fieldset class="sp-fieldset">
+          <legend>Applicant</legend>
+          <div class="sp-field-grid">
+            <div class="sp-field"><label>Name</label><div class="sp-sub sp-sub-wrap" style="font-size:13.5px; color:var(--ink);">${escapeHtml(a.name || '—')}</div></div>
+            <div class="sp-field"><label>Email</label><div class="sp-sub sp-sub-wrap" style="font-size:13.5px; color:var(--ink);">${escapeHtml(a.email || '—')}</div></div>
+            <div class="sp-field"><label>Phone</label><div class="sp-sub sp-sub-wrap" style="font-size:13.5px; color:var(--ink);">${escapeHtml(a.phone || '—')}</div></div>
+          </div>
+        </fieldset>
+        <fieldset class="sp-fieldset">
+          <legend>Review</legend>
+          <div class="sp-field-grid">
+            <div class="sp-add-row" style="grid-column:1/-1;">
+              <button class="sp-mini-btn" style="background:#E1EFE4; color:#256B3F; border-color:#256B3F;" onclick="setApplicantStatus('${a.id}','Approved')">✓ Approve</button>
+              <button class="sp-mini-btn" style="background:#F6E3DF; color:#9C3A2E; border-color:#9C3A2E;" onclick="setApplicantStatus('${a.id}','Declined')">✕ Decline</button>
+              ${status !== 'Pending' ? `<button class="sp-mini-btn" onclick="setApplicantStatus('${a.id}','Pending')">Reset to Pending</button>` : ''}
+            </div>
+            ${a.data.reviewedBy ? `<div class="sp-sub sp-sub-wrap" style="grid-column:1/-1;">Last reviewed by ${escapeHtml(a.data.reviewedBy)}${a.data.reviewedAt ? ' on ' + escapeHtml(new Date(a.data.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) : ''}</div>` : ''}
+            <div class="sp-field" style="grid-column:1/-1;"><label for="apv-notes-${a.id}">Notes (visible to your co-leader and our team)</label><textarea id="apv-notes-${a.id}" rows="2" onchange="updateApplicantData('${a.id}','reviewNotes',this.value)">${escapeHtml(a.data.reviewNotes || '')}</textarea></div>
+          </div>
+        </fieldset>
+      </div>
+      <div class="sp-detail-grid sp-detail-1col">
+        <fieldset class="sp-fieldset">
+          <legend>Submitted Answers</legend>
+          ${applicantRawAnswersHTML(a.data.raw)}
+        </fieldset>
+      </div>
     </div>
-    ${cards}
   `;
+}
+function buildApplicantPortalRowPair(a) {
+  const status = a.data.status || 'Pending';
+  const tr = document.createElement('tr');
+  tr.className = 'sp-row';
+  tr.dataset.id = a.id;
+  tr.innerHTML = `
+    <td data-label=""><span class="sp-chevron ${openApplicantPortalId === a.id ? 'open' : ''}">▸</span></td>
+    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}</td>
+    <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
+    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
+    <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' : a.data.needsLodging === false ? 'No' : '—'}</td>
+  `;
+  tr.addEventListener('click', () => toggleApplicantPortalDetail(a.id));
+  const dtr = document.createElement('tr');
+  dtr.className = 'sp-detail-row' + (openApplicantPortalId === a.id ? ' open' : '');
+  dtr.id = 'apv-detail-' + a.id;
+  dtr.innerHTML = `<td class="sp-detail-cell" colspan="5">${openApplicantPortalId === a.id ? applicantPortalDetailHTML(a) : ''}</td>`;
+  return [tr, dtr];
+}
+function renderApplicantsPublicShell() {
+  document.getElementById('apv-body').innerHTML = `
+    <div class="sp-wrap">
+      <div class="sp-side">
+        <div class="sp-side-section">
+          <div class="sp-side-label">Overview</div>
+          <div class="sp-stat-block">
+            <div class="sp-stat"><span>Total</span><b id="apv-stat-total">0</b></div>
+            <div class="sp-stat"><span>Pending review</span><b id="apv-stat-pending">0</b></div>
+            <div class="sp-stat"><span>Approved</span><b id="apv-stat-approved">0</b></div>
+            <div class="sp-stat"><span>Need lodging</span><b id="apv-stat-lodging">0</b></div>
+          </div>
+        </div>
+        <div class="sp-side-section">
+          <div class="sp-side-label">Reviewing As</div>
+          <div class="sp-add-row" style="margin-top:6px;">
+            <input type="text" id="apv-leader-name" value="${escapeHtml(applicantsPublicLeaderName)}" onchange="updateApplicantsPublicLeaderName(this.value)" placeholder="Your name">
+          </div>
+        </div>
+        <div class="hint">Both leaders can review. Either leader’s decision is final — no need to double-check with each other before approving or declining.</div>
+      </div>
+      <div class="sp-main">
+        <div class="sp-topbar">
+          <input class="sp-search" id="apv-search" placeholder="Search name, email, answers…" oninput="setApPublicSearch(this.value)">
+          <select class="sp-sort-select" id="apv-sort-select" onchange="setApPublicSortFromDropdown(this.value)">
+            <option value="">Sort by…</option>
+            <option value="name-asc">Name (A–Z)</option>
+            <option value="name-desc">Name (Z–A)</option>
+          </select>
+        </div>
+        <div class="sch-view-toggle" style="margin-bottom:16px;" id="apv-status-filter-row">
+          <button class="sch-toggle-btn active" data-sf="all" onclick="setApPublicStatusFilter('all')">All Statuses</button>
+          <button class="sch-toggle-btn" data-sf="Pending" onclick="setApPublicStatusFilter('Pending')">Pending</button>
+          <button class="sch-toggle-btn" data-sf="Approved" onclick="setApPublicStatusFilter('Approved')">Approved</button>
+          <button class="sch-toggle-btn" data-sf="Declined" onclick="setApPublicStatusFilter('Declined')">Declined</button>
+          <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApPublicStatusFilter('__lodging__')">🏨 Needs Lodging</button>
+        </div>
+        <div class="sp-table-wrap">
+          <table class="sp-table" id="apv-table">
+            <thead><tr>
+              <th style="width:56px;"></th>
+              <th style="width:190px;">Name</th>
+              <th style="width:190px;">Contact</th>
+              <th style="width:120px;">Status</th>
+              <th style="width:110px;">Lodging</th>
+            </tr></thead>
+            <tbody id="apv-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function renderApplicantsPublicRows() {
+  const tbody = document.getElementById('apv-rows');
+  if (!tbody) return;
+  const all = applicantsPublicRecords;
+  document.getElementById('apv-stat-total').textContent = all.length;
+  document.getElementById('apv-stat-pending').textContent = all.filter(a => (a.data.status || 'Pending') === 'Pending').length;
+  document.getElementById('apv-stat-approved').textContent = all.filter(a => a.data.status === 'Approved').length;
+  document.getElementById('apv-stat-lodging').textContent = all.filter(a => a.data.needsLodging === true).length;
+  document.querySelectorAll('#apv-status-filter-row .sch-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sf === apPublicStatusFilter);
+  });
+  const filtered = currentFilteredApplicantsPortal();
+  tbody.innerHTML = '';
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;" class="sp-sub">Nothing here for this filter.</td></tr>';
+    return;
+  }
+  filtered.forEach(a => {
+    const [tr, dtr] = buildApplicantPortalRowPair(a);
+    tbody.appendChild(tr);
+    tbody.appendChild(dtr);
+  });
 }
 
 async function loadDriversAndHotels() {
