@@ -1025,6 +1025,9 @@ table.rev-table tr.rev-group-head td { background: var(--teal-pale); font-weight
 .rev-phase-pill.local { background: #E1EFE4; color: var(--color-b-dark); }
 
 input.rev-rate-input, input.rev-cost-input, input.rev-nights-input { width: 52px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; background: var(--paper); color: var(--ink); }
+.rev-money-input { display: inline-flex; align-items: center; gap: 3px; }
+.rev-money-input .rev-money-prefix { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
+.rev-money-input input.rev-rate-input, .rev-money-input input.rev-cost-input { width: 46px; }
 input.rev-nights-input { width: 40px; text-align: center; }
 input.rev-rate-input:focus-visible, input.rev-cost-input:focus-visible, input.rev-nights-input:focus-visible, input.rev-count-number:focus-visible { border-color: var(--teal); }
 
@@ -6321,7 +6324,7 @@ function revenueTierRowHTML(t) {
   const phasePill = t.phase ? `<span class="rev-phase-pill ${pillClass}">${escapeHtml(t.phase)}</span>` : '';
   const rateCell = st.rate == null
     ? `<td class="num rev-col-divider">&mdash;</td>`
-    : `<td class="num rev-col-divider"><input class="rev-rate-input" data-id="${t.id}" data-field="rate" value="${st.rate}"></td>`;
+    : `<td class="num rev-col-divider"><span class="rev-money-input"><span class="rev-money-prefix">$</span><input class="rev-rate-input" data-id="${t.id}" data-field="rate" value="${st.rate}"></span></td>`;
   const nightsCell = t.hasHotel
     ? `<td class="ctr"><input type="number" class="rev-nights-input" data-id="${t.id}" data-field="nights" value="${st.nights}" min="0"></td>`
     : `<td class="ctr">&mdash;</td>`;
@@ -6334,7 +6337,7 @@ function revenueTierRowHTML(t) {
         <input type="range" class="rev-count-slider" data-id="${t.id}" data-field="count" min="0" max="${Math.max(300, st.count * 3)}" value="${st.count}">
       </div></td>
       <td class="num rev-line-revenue" data-line="revenue">$0</td>
-      <td class="num rev-col-divider"><input class="rev-cost-input" data-id="${t.id}" data-field="costPerDay" value="${st.costPerDay}"></td>
+      <td class="num rev-col-divider"><span class="rev-money-input"><span class="rev-money-prefix">$</span><input class="rev-cost-input" data-id="${t.id}" data-field="costPerDay" value="${st.costPerDay}"></span></td>
       ${nightsCell}
       <td class="num rev-line-cost" data-line="cost">$0</td>
       <td class="num rev-line-net rev-col-divider" data-line="net">$0</td>
