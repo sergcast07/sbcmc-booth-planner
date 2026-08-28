@@ -6783,7 +6783,15 @@ function speakerOutstanding(sp) {
 }
 function sponsorOutstanding(s) {
   const m = s.data.money || {};
-  return (parseFloat(m.committed) || 0) - (parseFloat(m.paid) || 0);
+  const committed = parseFloat(m.committed) || 0;
+  // Sponsors can also commit through ad-hoc add-ons (gifts, meal sponsorships, etc.) tracked
+  // separately from the package amount -- both the checklist (adhocItems) and the free-text
+  // adhocAmount field need to count, or a gift-only sponsor like one giving purely via
+  // "Additional Gift" shows as $0 owed even though real money is committed.
+  const adhocAmount = parseFloat(m.adhocAmount) || 0;
+  const adhocItemsSum = (m.adhocItems || []).reduce((sum, it) => sum + (it.checked ? (parseFloat(it.amount) || 0) : 0), 0);
+  const paid = parseFloat(m.paid) || 0;
+  return committed + adhocAmount + adhocItemsSum - paid;
 }
 function cfpSpeakerList() { return speakers.filter(sp => speakerOutstanding(sp) > 0); }
 function cfpSponsorList() { return sponsors.filter(s => sponsorOutstanding(s) > 0); }
