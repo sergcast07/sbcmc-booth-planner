@@ -6225,6 +6225,7 @@ const REVENUE_GROUPS = [
   { key: 'member', label: 'Member' },
   { key: 'nonmember', label: 'Non-Member' },
   { key: 'group', label: 'Group Rate' },
+  { key: 'student', label: 'Student Programs' },
   { key: 'other', label: 'Other' }
 ];
 const REVENUE_TIER_DEFAULTS = [
@@ -6242,10 +6243,10 @@ const REVENUE_TIER_DEFAULTS = [
   { id: 'group_reg', group: 'group', name: 'Regular', phase: 'Regular', rate: 230, count: 50 },
   { id: 'spouse', group: 'other', name: 'Spouse', phase: '', rate: 150, count: 30 },
   { id: 'lifetime', group: 'other', name: 'Lifetime Member', phase: '', rate: 0, count: 20 },
-  { id: 'collegiate', group: 'other', name: 'Collegiate Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3 },
-  { id: 'collegiate_local', group: 'other', name: 'Collegiate Collective', phase: 'Local', rate: 60, count: 20 },
-  { id: 'sls', group: 'other', name: 'Student Leadership Summit', phase: '', rate: 0, count: 0, hasHotel: true, nights: 2 },
-  { id: 'sls_local', group: 'other', name: 'Student Leadership Summit', phase: 'Local', rate: 0, count: 15 }
+  { id: 'collegiate', group: 'student', name: 'Collegiate Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3 },
+  { id: 'collegiate_local', group: 'student', name: 'Collegiate Collective', phase: 'Local', rate: 60, count: 20 },
+  { id: 'sls', group: 'student', name: 'Student Leadership Summit', phase: '', rate: 0, count: 0, hasHotel: true, nights: 2 },
+  { id: 'sls_local', group: 'student', name: 'Student Leadership Summit', phase: 'Local', rate: 0, count: 15 }
 ];
 
 let revenueState = null;
