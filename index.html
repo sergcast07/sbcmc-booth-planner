@@ -6685,13 +6685,33 @@ let cashflowSaveWarned = false;
 
 function cashflowDefaultState() {
   return {
-    startingBalance: 0,
+    // Real bank balance as of Aug 31, 2026, per the director's WF Business Checking statement.
+    startingBalance: 63164.65,
+    processingFeePct: 3,
+    // One-off/lump conference costs -- amounts are 2026 actuals from the director's statement,
+    // used as a grounded starting point (not a prediction), dates are rough placeholders.
+    // Deliberately excludes: Facility Rental (was $0), Programs/Concerts (per the coordinator,
+    // that's last year's cost and shouldn't be carried forward), and Meals (already modeled as
+    // a per-attendee $/day cost in the Revenue Estimator -- adding it here would double-count.
     otherExpenses: [
-      { name: 'Venue deposit', amount: 5000, date: '2026-09-15' },
-      { name: 'Catering deposit', amount: 3000, date: '2026-12-01' },
-      { name: 'Printing & materials', amount: 2000, date: '2027-03-01' },
-      { name: 'AV/Production', amount: 4000, date: '2027-03-01' },
-      { name: 'Final catering payment', amount: 15000, date: '2027-04-01' }
+      { name: 'Presenters/Speakers Lodging', amount: 4637, date: '2027-03-15' },
+      { name: 'Presenters/Speakers Travel', amount: 2574, date: '2027-03-15' },
+      { name: 'Student Collective Lodging', amount: 10147, date: '2027-04-01' },
+      { name: 'Annual Conference Printing', amount: 9612, date: '2027-03-01' },
+      { name: 'Plaques', amount: 940, date: '2027-04-01' },
+      { name: 'Conference Miscellaneous', amount: 2878, date: '2027-04-01' },
+      { name: 'Vendor/Exhibitor Coordinator', amount: 2444, date: '2027-02-01' },
+      { name: 'Mid-Year Council Meeting', amount: 297, date: '2026-11-01' }
+    ],
+    // Steady organizational overhead, applied identically to every month Sep 2026-Apr 2027
+    // rather than a one-time dated cost. Monthly amounts are the 2026 total (or observed
+    // monthly rate) divided across the 8-month window -- a starting estimate, not exact.
+    recurringOverhead: [
+      { name: 'Executive Director', monthlyAmount: 1000 },
+      { name: 'Conference Coordinator', monthlyAmount: 1000 },
+      { name: 'Advertising/Promotion', monthlyAmount: 3419 },
+      { name: 'Website & Tools', monthlyAmount: 1105 },
+      { name: 'Office/Postage/Misc', monthlyAmount: 152 }
     ],
     speakerInstallments: {},
     sponsorInstallments: {}
@@ -6723,7 +6743,9 @@ async function loadCashflowState() {
       const saved = JSON.parse(data.value);
       const merged = cashflowDefaultState();
       if (saved.startingBalance != null) merged.startingBalance = saved.startingBalance;
+      if (saved.processingFeePct != null) merged.processingFeePct = saved.processingFeePct;
       if (Array.isArray(saved.otherExpenses)) merged.otherExpenses = saved.otherExpenses;
+      if (Array.isArray(saved.recurringOverhead)) merged.recurringOverhead = saved.recurringOverhead;
       if (saved.speakerInstallments) merged.speakerInstallments = saved.speakerInstallments;
       if (saved.sponsorInstallments) merged.sponsorInstallments = saved.sponsorInstallments;
       cashflowState = merged;
@@ -6942,7 +6964,7 @@ function renderCashflowView() {
 
     <div class="cfp-stat-row">
       <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + committed sponsors</span></div>
-      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speaker fees/travel + other expenses</span></div>
+      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speakers + expenses + overhead + fees</span></div>
       <div class="cfp-stat-card hero"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), scheduled items only</span></div>
       <div class="cfp-stat-card" id="cfp-stat-lowpoint-card"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
     </div>
@@ -6950,6 +6972,7 @@ function renderCashflowView() {
     <div class="cfp-assumptions">
       <span class="cfp-assump-title">STARTING CASH</span>
       <div class="cfp-assump-field"><label>Balance on Sep 1, 2026</label><input type="number" id="cfp-starting-balance" value="${cashflowState.startingBalance}"></div>
+      <div class="cfp-assump-field"><label>Payment processing fee</label><input type="number" id="cfp-processing-fee" value="${cashflowState.processingFeePct}" min="0" step="0.1" style="width:56px;">%</div>
       <span class="cfp-hint-inline" id="cfp-unscheduled-hint"></span>
     </div>
 
@@ -6999,6 +7022,22 @@ function renderCashflowView() {
     </div>
 
     <div class="cfp-panel">
+      <div class="cfp-panel-head" data-section-toggle="cfp-overhead" onclick="toggleSidebarSection('cfp-overhead')">
+        <h3><span class="sp-chevron">▸</span>Administration &amp; Personnel <span class="badge out">Cash Out</span></h3>
+        <span class="hint">Steady monthly overhead, applied to every month Sep 2026&ndash;Apr 2027</span>
+      </div>
+      <div class="cfp-panel-body" data-section-key="cfp-overhead">
+        <div class="cfp-table-scroll">
+          <table class="cfp-table" id="cfp-overhead-table" style="min-width:0;">
+            <thead><tr><th style="width:60%;">Line</th><th class="num" style="width:30%;">Monthly Amount</th><th style="width:10%;"></th></tr></thead>
+            <tbody id="cfp-overhead-tbody"></tbody>
+          </table>
+        </div>
+        <div class="cfp-add-row-strip"><button class="sp-mini-btn" onclick="cfpAddOverheadRow()">+ Add Overhead Line</button></div>
+      </div>
+    </div>
+
+    <div class="cfp-panel">
       <div class="cfp-panel-head" data-section-toggle="cfp-other" onclick="toggleSidebarSection('cfp-other')">
         <h3><span class="sp-chevron">▸</span>Other Expenses <span class="badge out">Cash Out</span></h3>
         <span class="hint">Not tracked elsewhere yet</span>
@@ -7025,14 +7064,52 @@ function renderCashflowView() {
     cfpRecompute();
     pushCashflowState();
   });
+  document.getElementById('cfp-processing-fee').addEventListener('input', (e) => {
+    cashflowState.processingFeePct = parseFloat(e.target.value) || 0;
+    cfpRecompute();
+    pushCashflowState();
+  });
 
   document.getElementById('cfp-thead-row').innerHTML = '<th style="width:170px;">Line</th>' +
     CFP_MONTHS.map((m, i) => `<th class="num${i === CFP_CONFERENCE_MONTH_IDX ? ' month-hdr-conference' : ''}" style="width:90px;">${m}${i === CFP_CONFERENCE_MONTH_IDX ? ' 🎪' : ''}</th>`).join('');
 
   renderCashflowPersonLists();
+  renderCfpOverheadTable();
   renderCfpExpenseTable();
   cfpRecompute();
   applyCollapsedSectionsState();
+}
+
+function renderCfpOverheadTable() {
+  const tbody = document.getElementById('cfp-overhead-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = cashflowState.recurringOverhead.map((o, i) => `
+    <tr>
+      <td><input class="cfp-exp-row-name" data-i="${i}" data-field="name" value="${escapeHtml(o.name)}"></td>
+      <td class="num"><input type="number" class="cfp-exp-row-amt" data-i="${i}" data-field="monthlyAmount" value="${o.monthlyAmount}"></td>
+      <td><button class="cfp-exp-del-btn" onclick="cfpRemoveOverheadRow(${i})">✕</button></td>
+    </tr>
+  `).join('');
+  tbody.querySelectorAll('input').forEach(el => {
+    el.addEventListener('input', () => {
+      const i = parseInt(el.dataset.i), field = el.dataset.field;
+      cashflowState.recurringOverhead[i][field] = field === 'monthlyAmount' ? (parseFloat(el.value) || 0) : el.value;
+      cfpRecompute();
+      pushCashflowState();
+    });
+  });
+}
+function cfpAddOverheadRow() {
+  cashflowState.recurringOverhead.push({ name: 'New overhead line', monthlyAmount: 0 });
+  renderCfpOverheadTable();
+  cfpRecompute();
+  pushCashflowState();
+}
+function cfpRemoveOverheadRow(i) {
+  cashflowState.recurringOverhead.splice(i, 1);
+  renderCfpOverheadTable();
+  cfpRecompute();
+  pushCashflowState();
 }
 
 function cfpAllInstallments(list, store) { return list.flatMap(p => store[p.id] || []); }
@@ -7049,8 +7126,12 @@ function cfpRecompute() {
   const monthlySponsorIn = CFP_MONTHS.map((m, i) => sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
   const monthlySpeakerOut = CFP_MONTHS.map((m, i) => speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
   const monthlyExpOut = CFP_MONTHS.map((m, i) => expenses.filter(e => cfpMonthIndexForDate(e.date) === i).reduce((s, e) => s + e.amount, 0));
+  const overheadPerMonth = cashflowState.recurringOverhead.reduce((s, o) => s + (o.monthlyAmount || 0), 0);
+  const monthlyOverheadOut = CFP_MONTHS.map(() => overheadPerMonth);
+  const feePct = (cashflowState.processingFeePct || 0) / 100;
   const monthlyIn = CFP_MONTHS.map((m, i) => monthlyRegIn[i] + monthlySponsorIn[i]);
-  const monthlyOut = CFP_MONTHS.map((m, i) => monthlySpeakerOut[i] + monthlyExpOut[i]);
+  const monthlyFeeOut = monthlyIn.map(v => v * feePct);
+  const monthlyOut = CFP_MONTHS.map((m, i) => monthlySpeakerOut[i] + monthlyExpOut[i] + monthlyOverheadOut[i] + monthlyFeeOut[i]);
   const monthlyNet = CFP_MONTHS.map((m, i) => monthlyIn[i] - monthlyOut[i]);
   let running = startingBalance;
   const monthlyBalance = monthlyNet.map(n => { running += n; return running; });
@@ -7084,6 +7165,8 @@ function cfpRecompute() {
       row('Sponsor payments', monthlySponsorIn, 'cfp-in') +
       row('Speaker/artist fees + travel', monthlySpeakerOut.map(v => -v), 'cfp-out') +
       row('Other expenses', monthlyExpOut.map(v => -v), 'cfp-out') +
+      row('Admin & Personnel overhead', monthlyOverheadOut.map(v => -v), 'cfp-out') +
+      row('Payment processing fees', monthlyFeeOut.map(v => -v), 'cfp-out') +
       row('Net', monthlyNet, 'cfp-net') +
       row('Running Balance', monthlyBalance, 'cfp-balance');
   }
