@@ -1059,6 +1059,84 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 .rev-foot-note { margin-top: 4px; font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
 .rev-foot-note svg { flex-shrink: 0; }
 
+/* ==== Cash Flow Projection ==== */
+.cfp-page { max-width: 1280px; margin: 0 auto; padding: 22px 26px 60px; }
+.cfp-page-head h2 { margin: 0; }
+.cfp-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 74ch; }
+
+.cfp-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin: 18px 0; }
+.cfp-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+.cfp-stat-card.hero { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.cfp-stat-card.warn { background: rgba(229,57,53,0.08); border-color: var(--color-aa); }
+.cfp-stat-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+.cfp-stat-card.hero .cfp-stat-label { color: rgba(255,255,255,0.68); }
+.cfp-stat-card.warn .cfp-stat-label { color: var(--color-aa-dark); }
+.cfp-stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.cfp-stat-card.hero .cfp-stat-value { color: var(--gold-pale); font-size: 30px; }
+.cfp-stat-card.warn .cfp-stat-value { color: var(--color-aa-dark); }
+.cfp-stat-sub { font-size: 11.5px; color: var(--ink-soft); }
+.cfp-stat-card.hero .cfp-stat-sub { color: rgba(255,255,255,0.62); }
+
+.cfp-assumptions { background: var(--teal-pale); border: 1px solid var(--teal); border-radius: 12px; padding: 12px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.cfp-assumptions .cfp-assump-title { font-size: 11.5px; font-weight: 700; color: var(--teal-deep); white-space: nowrap; }
+.cfp-assump-field { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.cfp-assump-field label { color: var(--ink-soft); white-space: nowrap; }
+.cfp-assump-field input { width: 90px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12.5px; text-align: right; background: var(--panel); color: var(--ink); }
+.cfp-assumptions .cfp-hint-inline { font-size: 11px; color: var(--ink-soft); }
+
+.cfp-work-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; align-items: start; }
+@media (max-width: 1050px) { .cfp-work-grid { grid-template-columns: 1fr; } }
+
+.cfp-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 18px; }
+.cfp-panel-head { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+.cfp-panel-head h3 { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 6px; }
+.cfp-panel-head .hint { font-size: 11px; color: var(--ink-soft); }
+.cfp-panel-head .badge { font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+.cfp-panel-head .badge.in { background: var(--good-bg, #E1EFE4); color: #256B3F; }
+.cfp-panel-head .badge.out { background: rgba(229,57,53,0.1); color: var(--color-aa-dark); }
+.cfp-panel-body { border-top: 1px solid var(--line); }
+.cfp-panel-body.collapsed { display: none !important; }
+.cfp-person-list { max-height: 380px; overflow-y: auto; }
+
+.cfp-person-block { border-bottom: 1px solid var(--line); padding: 10px 18px; }
+.cfp-person-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.cfp-person-name { font-weight: 600; font-size: 12.5px; }
+.cfp-person-total { font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.cfp-inst-row { display: grid; grid-template-columns: 1fr 90px 140px 24px; gap: 6px; align-items: center; margin-bottom: 5px; }
+.cfp-inst-row input[type="text"] { padding: 4px 7px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 11.5px; background: var(--paper); color: var(--ink); }
+.cfp-inst-row input[type="number"] { padding: 4px 7px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 11.5px; text-align: right; background: var(--paper); color: var(--ink); }
+.cfp-inst-row input[type="date"] { padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 11px; background: var(--paper); color: var(--ink); }
+.cfp-inst-row input[type="date"].unset { border-color: var(--color-aa); background: rgba(229,57,53,0.06); }
+.cfp-inst-del-btn { background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 14px; padding: 0; }
+.cfp-inst-del-btn:hover { color: var(--color-aa-dark); }
+.cfp-split-btn { font-size: 10.5px; font-weight: 600; color: var(--teal-deep); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
+.cfp-split-btn:hover { color: var(--teal); }
+
+table.cfp-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 920px; }
+table.cfp-table th { text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-soft); padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--paper); position: sticky; top: 0; }
+table.cfp-table th.num, table.cfp-table td.num { text-align: right; }
+table.cfp-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; font-variant-numeric: tabular-nums; }
+table.cfp-table tr.cfp-in td.rowlabel { color: var(--teal-deep); font-weight: 600; }
+table.cfp-table tr.cfp-out td.rowlabel { color: var(--color-aa-dark); font-weight: 600; }
+table.cfp-table tr.cfp-net td { font-weight: 700; border-top: 2px solid var(--teal-deep); }
+table.cfp-table tr.cfp-balance td { font-weight: 700; background: var(--teal-pale); color: var(--teal-deep); }
+table.cfp-table td.neg { color: var(--color-aa-dark); }
+table.cfp-table td.month-hdr-conference { background: var(--gold-pale); }
+.cfp-table-scroll { overflow-x: auto; }
+
+.cfp-exp-row-name { width: 100%; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; background: var(--paper); color: var(--ink); }
+.cfp-exp-row-amt { width: 80px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; text-align: right; background: var(--paper); color: var(--ink); }
+.cfp-exp-row-date { padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; background: var(--paper); color: var(--ink); }
+.cfp-exp-del-btn { background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 15px; padding: 0 4px; }
+.cfp-exp-del-btn:hover { color: var(--color-aa-dark); }
+.cfp-add-row-strip { padding: 10px 14px; display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--line); }
+
+.cfp-chart-wrap { padding: 16px 18px 20px; }
+svg.cfp-balance-chart { width: 100%; height: 220px; overflow: visible; }
+
+.cfp-foot-note { margin-top: 4px; font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 6px; }
+.cfp-foot-note svg { flex-shrink: 0; margin-top: 1px; }
+
 /* ==== Print (Dashboard Report) ==== */
 @media print {
   @page { margin: 0.55in 0.6in; }
@@ -1424,6 +1502,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
   <button class="top-nav-btn" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
+  <button class="top-nav-btn" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
   <!-- Budget tab disabled for now, per request -- code is intact below, just re-enable this button to bring it back
   <button class="top-nav-btn" id="nav-budget-btn" onclick="switchTopView('budget')">Budget</button>
   -->
@@ -1821,6 +1900,10 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 <div id="revenue-view" style="display:none;">
   <div id="rev-root" class="rev-page"></div>
+</div>
+
+<div id="cashflow-view" style="display:none;">
+  <div id="cfp-root" class="cfp-page"></div>
 </div>
 
 <div class="app" style="display:none;">
@@ -5430,6 +5513,8 @@ function switchTopView(view) {
   if (applicantsViewEl) applicantsViewEl.style.display = view === 'applicants' ? 'block' : 'none';
   const revenueViewEl = document.getElementById('revenue-view');
   if (revenueViewEl) revenueViewEl.style.display = view === 'revenue' ? 'block' : 'none';
+  const cashflowViewEl = document.getElementById('cashflow-view');
+  if (cashflowViewEl) cashflowViewEl.style.display = view === 'cashflow' ? 'block' : 'none';
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
   document.getElementById('nav-sponsors-btn').classList.toggle('active', view === 'sponsors');
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
@@ -5445,6 +5530,8 @@ function switchTopView(view) {
   if (applicantsBtnEl) applicantsBtnEl.classList.toggle('active', view === 'applicants');
   const revenueBtnEl = document.getElementById('nav-revenue-btn');
   if (revenueBtnEl) revenueBtnEl.classList.toggle('active', view === 'revenue');
+  const cashflowBtnEl = document.getElementById('nav-cashflow-btn');
+  if (cashflowBtnEl) cashflowBtnEl.classList.toggle('active', view === 'cashflow');
   if (view === 'sponsors') renderSponsorView();
   if (view === 'dashboard') renderDashboard();
   if (view === 'budget' && typeof renderBudget === 'function' && budgetViewEl) renderBudget();
@@ -5453,6 +5540,7 @@ function switchTopView(view) {
   if (view === 'schedule' && typeof renderScheduleView === 'function' && scheduleViewEl) renderScheduleView();
   if (view === 'applicants' && typeof renderApplicantsView === 'function' && applicantsViewEl) renderApplicantsView();
   if (view === 'revenue' && typeof initRevenueView === 'function' && revenueViewEl) initRevenueView();
+  if (view === 'cashflow' && typeof initCashflowView === 'function' && cashflowViewEl) initCashflowView();
   if (view === 'floorplan') {
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
     // The map only just became visible (was display:none), so its container had zero
@@ -6582,6 +6670,453 @@ function revenueRecompute() {
   if (note) note.textContent = anyCost
     ? 'Shorter cost bar relative to its revenue bar means fatter margin for that category.'
     : 'Set a $/day cost and hotel nights on any tier to see its cost bar appear here.';
+}
+
+// ==== Cash Flow Projection ====
+const CFP_MONTHS = ['Sep 2026', 'Oct 2026', 'Nov 2026', 'Dec 2026', 'Jan 2027', 'Feb 2027', 'Mar 2027', 'Apr 2027'];
+const CFP_MONTH_KEYS = ['2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03', '2027-04'];
+const CFP_CONFERENCE_MONTH_IDX = 7;
+const CFP_DEFAULT_SPONSOR_DATE = '2027-01-31';
+
+let cashflowState = null;
+let cashflowLoaded = false;
+let cashflowPushTimer = null;
+let cashflowSaveWarned = false;
+
+function cashflowDefaultState() {
+  return {
+    startingBalance: 0,
+    otherExpenses: [
+      { name: 'Venue deposit', amount: 5000, date: '2026-09-15' },
+      { name: 'Catering deposit', amount: 3000, date: '2026-12-01' },
+      { name: 'Printing & materials', amount: 2000, date: '2027-03-01' },
+      { name: 'AV/Production', amount: 4000, date: '2027-03-01' },
+      { name: 'Final catering payment', amount: 15000, date: '2027-04-01' }
+    ],
+    speakerInstallments: {},
+    sponsorInstallments: {}
+  };
+}
+
+async function initCashflowView() {
+  const root = document.getElementById('cfp-root');
+  if (!revenueLoaded) {
+    if (root) root.innerHTML = '<div class="dv-loading">Loading…</div>';
+    await loadRevenueEstimator();
+    revenueLoaded = true;
+  }
+  if (!cashflowLoaded) {
+    if (root) root.innerHTML = '<div class="dv-loading">Loading cash flow projection…</div>';
+    await loadCashflowState();
+    cashflowLoaded = true;
+  }
+  renderCashflowView();
+}
+
+async function loadCashflowState() {
+  cashflowState = cashflowDefaultState();
+  if (!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'cashflow_projection').maybeSingle();
+    if (error) { console.warn('Cash flow load failed:', errDetail(error)); return; }
+    if (data && data.value) {
+      const saved = JSON.parse(data.value);
+      const merged = cashflowDefaultState();
+      if (saved.startingBalance != null) merged.startingBalance = saved.startingBalance;
+      if (Array.isArray(saved.otherExpenses)) merged.otherExpenses = saved.otherExpenses;
+      if (saved.speakerInstallments) merged.speakerInstallments = saved.speakerInstallments;
+      if (saved.sponsorInstallments) merged.sponsorInstallments = saved.sponsorInstallments;
+      cashflowState = merged;
+    }
+  } catch (err) {
+    console.warn('Cash flow load failed:', err);
+  }
+}
+
+function pushCashflowState() {
+  if (!sbClient) return;
+  clearTimeout(cashflowPushTimer);
+  cashflowPushTimer = setTimeout(() => {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'cashflow_projection', value: JSON.stringify(cashflowState) }).then(({ error }) => {
+      if (error) {
+        console.error('Cash flow save failed:', error);
+        if (!cashflowSaveWarned) { cashflowSaveWarned = true; toast('Couldn’t save the cash flow projection — changes won’t persist. (' + errDetail(error) + ')'); }
+      }
+    });
+  }, 400);
+}
+
+function cfpMoney(n) { return (n < 0 ? '-$' : '$') + Math.round(Math.abs(n)).toLocaleString('en-US'); }
+function cfpMonthIndexForDate(dateStr) {
+  if (!dateStr) return -1;
+  return CFP_MONTH_KEYS.indexOf(dateStr.slice(0, 7));
+}
+
+// Reads live off the same fields the Speakers & Artists / Sponsor Tracker admin tabs already
+// use (financial.fee/paid/travelReimbursement, data.money.committed/paid) -- never a separate copy.
+function speakerOutstanding(sp) {
+  const fin = sp.data.financial || {};
+  const fee = parseFloat(fin.fee) || 0, paid = parseFloat(fin.paid) || 0, travel = parseFloat(fin.travelReimbursement) || 0;
+  return fee + travel - paid;
+}
+function sponsorOutstanding(s) {
+  const m = s.data.money || {};
+  return (parseFloat(m.committed) || 0) - (parseFloat(m.paid) || 0);
+}
+function cfpSpeakerList() { return speakers.filter(sp => speakerOutstanding(sp) > 0); }
+function cfpSponsorList() { return sponsors.filter(s => sponsorOutstanding(s) > 0); }
+
+// Installment schedules (splits/dates) are lazily created on first render, one per person --
+// the base amount always comes fresh from the live speaker/sponsor record above.
+function getSpeakerInstallments(sp) {
+  if (!cashflowState.speakerInstallments[sp.id]) {
+    const travel = parseFloat((sp.data.financial || {}).travelReimbursement) || 0;
+    cashflowState.speakerInstallments[sp.id] = [{ label: travel > 0 ? 'Fee + travel' : 'Fee', amount: speakerOutstanding(sp), date: '' }];
+  }
+  return cashflowState.speakerInstallments[sp.id];
+}
+function getSponsorInstallments(s) {
+  if (!cashflowState.sponsorInstallments[s.id]) {
+    cashflowState.sponsorInstallments[s.id] = [{ label: 'Full payment', amount: sponsorOutstanding(s), date: CFP_DEFAULT_SPONSOR_DATE }];
+  }
+  return cashflowState.sponsorInstallments[s.id];
+}
+function cfpPersonTotal(installments) { return installments.reduce((s, x) => s + x.amount, 0); }
+
+// Reuses the Revenue Estimator's live tier data (whatever scenario/edits are currently set)
+// rather than a fixed snapshot, so this stays in sync automatically.
+function computeRegistrationPhaseTotals() {
+  let phase1 = 0, phase2 = 0, regular = 0, other = 0;
+  REVENUE_TIER_DEFAULTS.forEach(t => {
+    const st = revenueState.tiers[t.id];
+    if (!st) return;
+    const amt = (st.rate || 0) * st.count;
+    if (t.group === 'member' || t.group === 'nonmember' || t.group === 'group') {
+      if (t.phase === 'Phase 1') phase1 += amt;
+      else if (t.phase === 'Phase 2') phase2 += amt;
+      else regular += amt;
+    } else {
+      other += amt;
+    }
+  });
+  return { phase1, phase2, regular, other };
+}
+function cfpMonthlyRegistrationIn() {
+  const p = computeRegistrationPhaseTotals();
+  return CFP_MONTHS.map((m, i) => {
+    let amt = p.other / CFP_MONTHS.length;
+    if (i === 0) amt += p.phase1;
+    else if (i >= 1 && i <= 3) amt += p.phase2 / 3;
+    else if (i >= 4 && i <= 7) amt += p.regular / 4;
+    return amt;
+  });
+}
+
+function cfpInstallmentRowsHTML(name, id, installments, type) {
+  return `
+    <div class="cfp-person-block" data-id="${id}">
+      <div class="cfp-person-head">
+        <span class="cfp-person-name">${escapeHtml(name)}</span>
+        <span class="cfp-person-total">${cfpMoney(cfpPersonTotal(installments))} total</span>
+      </div>
+      ${installments.map((inst, ii) => `
+        <div class="cfp-inst-row">
+          <input type="text" data-id="${id}" data-ii="${ii}" data-field="label" data-type="${type}" value="${escapeHtml(inst.label)}">
+          <input type="number" data-id="${id}" data-ii="${ii}" data-field="amount" data-type="${type}" value="${inst.amount}">
+          <input type="date" class="${inst.date ? '' : 'unset'}" data-id="${id}" data-ii="${ii}" data-field="date" data-type="${type}" value="${inst.date}">
+          ${installments.length > 1 ? `<button class="cfp-inst-del-btn" data-id="${id}" data-ii="${ii}" data-type="${type}" data-action="remove">✕</button>` : '<span></span>'}
+        </div>
+      `).join('')}
+      <button class="cfp-split-btn" data-id="${id}" data-type="${type}" data-action="split">${installments.length > 1 ? '+ Add installment' : '+ Split into deposit / remainder'}</button>
+    </div>
+  `;
+}
+
+function cfpBindPersonListEvents(container) {
+  container.querySelectorAll('input').forEach(el => {
+    el.addEventListener('input', () => {
+      const id = el.dataset.id, ii = parseInt(el.dataset.ii), field = el.dataset.field, type = el.dataset.type;
+      const store = type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments;
+      const inst = store[id][ii];
+      if (field === 'amount') inst.amount = parseFloat(el.value) || 0;
+      else inst[field] = el.value;
+      el.classList.toggle('unset', field === 'date' && !el.value);
+      cfpRecompute();
+      pushCashflowState();
+    });
+  });
+  container.querySelectorAll('[data-action="remove"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id, ii = parseInt(btn.dataset.ii), type = btn.dataset.type;
+      const store = type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments;
+      store[id].splice(ii, 1);
+      renderCashflowPersonLists();
+      cfpRecompute();
+      pushCashflowState();
+    });
+  });
+  container.querySelectorAll('[data-action="split"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id, type = btn.dataset.type;
+      const store = type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments;
+      const list = store[id];
+      if (list.length === 1) {
+        const total = list[0].amount, date = list[0].date;
+        const deposit = Math.round(total * 0.3);
+        store[id] = [
+          { label: 'Deposit', amount: deposit, date: date },
+          { label: 'Remainder', amount: total - deposit, date: '' }
+        ];
+      } else {
+        list.push({ label: 'Additional installment', amount: 0, date: '' });
+      }
+      renderCashflowPersonLists();
+      cfpRecompute();
+      pushCashflowState();
+    });
+  });
+}
+
+function renderCashflowPersonLists() {
+  const sponsorList = cfpSponsorList();
+  const speakerList = cfpSpeakerList();
+  const sponsorEl = document.getElementById('cfp-sponsor-list');
+  const speakerEl = document.getElementById('cfp-speaker-list');
+  if (sponsorEl) {
+    sponsorEl.innerHTML = sponsorList.map(s => cfpInstallmentRowsHTML(s.org, s.id, getSponsorInstallments(s), 'sponsor')).join('') || '<div class="sp-sub" style="padding:14px 18px;">No sponsors with an outstanding balance.</div>';
+    cfpBindPersonListEvents(sponsorEl);
+  }
+  if (speakerEl) {
+    speakerEl.innerHTML = speakerList.map(sp => cfpInstallmentRowsHTML(sp.name, sp.id, getSpeakerInstallments(sp), 'speaker')).join('') || '<div class="sp-sub" style="padding:14px 18px;">No speakers/artists with an outstanding balance.</div>';
+    cfpBindPersonListEvents(speakerEl);
+  }
+  const sponsorTotal = sponsorList.reduce((s, x) => s + cfpPersonTotal(getSponsorInstallments(x)), 0);
+  const speakerTotal = speakerList.reduce((s, x) => s + cfpPersonTotal(getSpeakerInstallments(x)), 0);
+  const sponsorHint = document.getElementById('cfp-sponsor-total-hint');
+  if (sponsorHint) sponsorHint.textContent = sponsorList.length + ' sponsors · ' + cfpMoney(sponsorTotal) + ' outstanding';
+  const speakerHint = document.getElementById('cfp-speaker-total-hint');
+  if (speakerHint) speakerHint.textContent = speakerList.length + ' speakers · ' + cfpMoney(speakerTotal) + ' outstanding (incl. travel)';
+}
+
+function renderCfpExpenseTable() {
+  const tbody = document.getElementById('cfp-exp-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = cashflowState.otherExpenses.map((e, i) => `
+    <tr>
+      <td><input class="cfp-exp-row-name" data-i="${i}" data-field="name" value="${escapeHtml(e.name)}"></td>
+      <td class="num"><input type="number" class="cfp-exp-row-amt" data-i="${i}" data-field="amount" value="${e.amount}"></td>
+      <td><input type="date" class="cfp-exp-row-date" data-i="${i}" data-field="date" value="${e.date}"></td>
+      <td><button class="cfp-exp-del-btn" onclick="cfpRemoveExpenseRow(${i})">✕</button></td>
+    </tr>
+  `).join('');
+  tbody.querySelectorAll('input').forEach(el => {
+    el.addEventListener('input', () => {
+      const i = parseInt(el.dataset.i), field = el.dataset.field;
+      cashflowState.otherExpenses[i][field] = field === 'amount' ? (parseFloat(el.value) || 0) : el.value;
+      cfpRecompute();
+      pushCashflowState();
+    });
+  });
+}
+function cfpAddExpenseRow() {
+  cashflowState.otherExpenses.push({ name: 'New expense', amount: 0, date: '' });
+  renderCfpExpenseTable();
+  cfpRecompute();
+  pushCashflowState();
+}
+function cfpRemoveExpenseRow(i) {
+  cashflowState.otherExpenses.splice(i, 1);
+  renderCfpExpenseTable();
+  cfpRecompute();
+  pushCashflowState();
+}
+
+function renderCashflowView() {
+  const root = document.getElementById('cfp-root');
+  if (!root || !cashflowState) return;
+  root.innerHTML = `
+    <div class="cfp-page-head">
+      <h2 class="font-display">Cash Flow Projection</h2>
+      <p>Registration revenue from the Revenue Estimator plus your real committed sponsor payments and speaker/artist fees (including travel), projected against due dates through the conference. Split any person's total into a deposit + remainder, each with its own date.</p>
+    </div>
+
+    <div class="cfp-stat-row">
+      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + committed sponsors</span></div>
+      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speaker fees/travel + other expenses</span></div>
+      <div class="cfp-stat-card hero"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), scheduled items only</span></div>
+      <div class="cfp-stat-card" id="cfp-stat-lowpoint-card"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
+    </div>
+
+    <div class="cfp-assumptions">
+      <span class="cfp-assump-title">STARTING CASH</span>
+      <div class="cfp-assump-field"><label>Balance on Sep 1, 2026</label><input type="number" id="cfp-starting-balance" value="${cashflowState.startingBalance}"></div>
+      <span class="cfp-hint-inline" id="cfp-unscheduled-hint"></span>
+    </div>
+
+    <div class="cfp-work-grid">
+      <div class="cfp-panel" style="margin-bottom:0;">
+        <div class="cfp-panel-head" data-section-toggle="cfp-sponsors" onclick="toggleSidebarSection('cfp-sponsors')">
+          <h3><span class="sp-chevron">▸</span>Committed Sponsor Payments <span class="badge in">Cash In</span></h3>
+          <span class="hint" id="cfp-sponsor-total-hint"></span>
+        </div>
+        <div class="cfp-panel-body" data-section-key="cfp-sponsors">
+          <div class="cfp-person-list" id="cfp-sponsor-list"></div>
+        </div>
+      </div>
+      <div class="cfp-panel" style="margin-bottom:0;">
+        <div class="cfp-panel-head" data-section-toggle="cfp-speakers" onclick="toggleSidebarSection('cfp-speakers')">
+          <h3><span class="sp-chevron">▸</span>Speaker/Artist Fees + Travel <span class="badge out">Cash Out</span></h3>
+          <span class="hint" id="cfp-speaker-total-hint"></span>
+        </div>
+        <div class="cfp-panel-body" data-section-key="cfp-speakers">
+          <div class="cfp-person-list" id="cfp-speaker-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cfp-panel">
+      <div class="cfp-panel-head" data-section-toggle="cfp-monthly" onclick="toggleSidebarSection('cfp-monthly')">
+        <h3><span class="sp-chevron">▸</span>Monthly Projection</h3>
+        <span class="hint">Unscheduled items are excluded until dated</span>
+      </div>
+      <div class="cfp-panel-body" data-section-key="cfp-monthly">
+        <div class="cfp-table-scroll">
+          <table class="cfp-table" id="cfp-table">
+            <thead><tr id="cfp-thead-row"></tr></thead>
+            <tbody id="cfp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="cfp-panel">
+      <div class="cfp-panel-head" data-section-toggle="cfp-chart" onclick="toggleSidebarSection('cfp-chart')">
+        <h3><span class="sp-chevron">▸</span>Balance Over Time</h3>
+      </div>
+      <div class="cfp-panel-body" data-section-key="cfp-chart">
+        <div class="cfp-chart-wrap"><svg class="cfp-balance-chart" id="cfp-balance-chart" viewBox="0 0 900 220" preserveAspectRatio="none"></svg></div>
+      </div>
+    </div>
+
+    <div class="cfp-panel">
+      <div class="cfp-panel-head" data-section-toggle="cfp-other" onclick="toggleSidebarSection('cfp-other')">
+        <h3><span class="sp-chevron">▸</span>Other Expenses <span class="badge out">Cash Out</span></h3>
+        <span class="hint">Not tracked elsewhere yet</span>
+      </div>
+      <div class="cfp-panel-body" data-section-key="cfp-other">
+        <div class="cfp-table-scroll">
+          <table class="cfp-table" id="cfp-exp-table" style="min-width:0;">
+            <thead><tr><th style="width:40%;">Expense</th><th class="num" style="width:20%;">Amount</th><th style="width:30%;">Due Date</th><th style="width:10%;"></th></tr></thead>
+            <tbody id="cfp-exp-tbody"></tbody>
+          </table>
+        </div>
+        <div class="cfp-add-row-strip"><button class="sp-mini-btn" onclick="cfpAddExpenseRow()">+ Add Expense Line</button></div>
+      </div>
+    </div>
+
+    <div class="cfp-foot-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Sponsor and speaker amounts are today's real outstanding balances (committed minus already paid; speaker figures include travel reimbursement), pulled live from your Sponsor Tracker and Speakers &amp; Artists data. Sponsor payments default to Jan 31, 2027 &mdash; speaker/artist dates start blank since those are often set by contract.
+    </div>
+  `;
+
+  document.getElementById('cfp-starting-balance').addEventListener('input', (e) => {
+    cashflowState.startingBalance = parseFloat(e.target.value) || 0;
+    cfpRecompute();
+    pushCashflowState();
+  });
+
+  document.getElementById('cfp-thead-row').innerHTML = '<th style="width:170px;">Line</th>' +
+    CFP_MONTHS.map((m, i) => `<th class="num${i === CFP_CONFERENCE_MONTH_IDX ? ' month-hdr-conference' : ''}" style="width:90px;">${m}${i === CFP_CONFERENCE_MONTH_IDX ? ' 🎪' : ''}</th>`).join('');
+
+  renderCashflowPersonLists();
+  renderCfpExpenseTable();
+  cfpRecompute();
+  applyCollapsedSectionsState();
+}
+
+function cfpAllInstallments(list, store) { return list.flatMap(p => store[p.id] || []); }
+
+function cfpRecompute() {
+  const startingBalance = cashflowState.startingBalance;
+  const sponsorList = cfpSponsorList();
+  const speakerList = cfpSpeakerList();
+  const sponsorInsts = cfpAllInstallments(sponsorList, cashflowState.sponsorInstallments);
+  const speakerInsts = cfpAllInstallments(speakerList, cashflowState.speakerInstallments);
+  const expenses = cashflowState.otherExpenses;
+
+  const monthlyRegIn = cfpMonthlyRegistrationIn();
+  const monthlySponsorIn = CFP_MONTHS.map((m, i) => sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
+  const monthlySpeakerOut = CFP_MONTHS.map((m, i) => speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
+  const monthlyExpOut = CFP_MONTHS.map((m, i) => expenses.filter(e => cfpMonthIndexForDate(e.date) === i).reduce((s, e) => s + e.amount, 0));
+  const monthlyIn = CFP_MONTHS.map((m, i) => monthlyRegIn[i] + monthlySponsorIn[i]);
+  const monthlyOut = CFP_MONTHS.map((m, i) => monthlySpeakerOut[i] + monthlyExpOut[i]);
+  const monthlyNet = CFP_MONTHS.map((m, i) => monthlyIn[i] - monthlyOut[i]);
+  let running = startingBalance;
+  const monthlyBalance = monthlyNet.map(n => { running += n; return running; });
+
+  const unschedIn = sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+  const unschedOut = speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0) + expenses.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+
+  const totalIn = monthlyIn.reduce((a, b) => a + b, 0);
+  const totalOut = monthlyOut.reduce((a, b) => a + b, 0);
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('cfp-stat-total-in', cfpMoney(totalIn));
+  setText('cfp-stat-total-out', cfpMoney(totalOut));
+  setText('cfp-stat-ending', cfpMoney(monthlyBalance[CFP_CONFERENCE_MONTH_IDX]));
+
+  const lowIdx = monthlyBalance.indexOf(Math.min(...monthlyBalance));
+  const lowVal = monthlyBalance[lowIdx];
+  setText('cfp-stat-lowpoint', cfpMoney(lowVal));
+  const lowEl = document.getElementById('cfp-stat-lowpoint');
+  if (lowEl) lowEl.classList.toggle('neg', lowVal < 0);
+  setText('cfp-stat-lowpoint-month', CFP_MONTHS[lowIdx]);
+  const lowCard = document.getElementById('cfp-stat-lowpoint-card');
+  if (lowCard) lowCard.classList.toggle('warn', lowVal < 0);
+
+  setText('cfp-unscheduled-hint', `Registration revenue spreads across Early Bird Phase 1 (through Sep 30), Phase 2 (Oct–Dec), and Regular (Jan–Apr). Currently unscheduled: ${cfpMoney(unschedIn)} in sponsor payments, ${cfpMoney(unschedOut)} in speaker fees/expenses.`);
+
+  const tbody = document.getElementById('cfp-tbody');
+  if (tbody) {
+    const row = (label, values, cls) => `<tr class="${cls}"><td class="rowlabel">${label}</td>${values.map(v => `<td class="num${v < 0 ? ' neg' : ''}">${cfpMoney(v)}</td>`).join('')}</tr>`;
+    tbody.innerHTML =
+      row('Registrations', monthlyRegIn, 'cfp-in') +
+      row('Sponsor payments', monthlySponsorIn, 'cfp-in') +
+      row('Speaker/artist fees + travel', monthlySpeakerOut.map(v => -v), 'cfp-out') +
+      row('Other expenses', monthlyExpOut.map(v => -v), 'cfp-out') +
+      row('Net', monthlyNet, 'cfp-net') +
+      row('Running Balance', monthlyBalance, 'cfp-balance');
+  }
+
+  cfpDrawChart(monthlyBalance);
+}
+
+function cfpDrawChart(balances) {
+  const svg = document.getElementById('cfp-balance-chart');
+  if (!svg) return;
+  const w = 900, h = 220, padL = 60, padR = 20, padT = 16, padB = 30;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const maxV = Math.max(...balances, 0), minV = Math.min(...balances, 0);
+  const range = (maxV - minV) || 1;
+  const x = i => padL + (i / (CFP_MONTHS.length - 1)) * plotW;
+  const y = v => padT + plotH - ((v - minV) / range) * plotH;
+  const zeroY = y(0);
+
+  let svgContent = '';
+  svgContent += `<line x1="${padL}" y1="${zeroY}" x2="${w - padR}" y2="${zeroY}" stroke="var(--line)" stroke-width="1" stroke-dasharray="4,3"/>`;
+  svgContent += `<text x="${padL - 8}" y="${zeroY + 4}" text-anchor="end" font-size="10" fill="var(--ink-soft)">$0</text>`;
+  const points = balances.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  const areaPoints = `${x(0)},${zeroY} ${points} ${x(balances.length - 1)},${zeroY}`;
+  svgContent += `<polygon points="${areaPoints}" fill="var(--teal)" opacity="0.14"/>`;
+  svgContent += `<polyline points="${points}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>`;
+  balances.forEach((v, i) => {
+    const neg = v < 0;
+    svgContent += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${neg ? 'var(--color-aa-dark)' : 'var(--teal-deep)'}" stroke="var(--panel)" stroke-width="1.5"/>`;
+  });
+  CFP_MONTHS.forEach((m, i) => {
+    svgContent += `<text x="${x(i)}" y="${h - 8}" text-anchor="middle" font-size="10" fill="var(--ink-soft)">${m.split(' ')[0]}</text>`;
+  });
+  svg.innerHTML = svgContent;
 }
 
 function renderNewReturningBreakdown() {
