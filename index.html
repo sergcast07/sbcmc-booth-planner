@@ -1061,8 +1061,13 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 
 /* ==== Cash Flow Projection ==== */
 .cfp-page { max-width: 1280px; margin: 0 auto; padding: 22px 26px 60px; }
+.cfp-page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .cfp-page-head h2 { margin: 0; }
 .cfp-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 74ch; }
+.cfp-scenario-row { display: flex; gap: 6px; }
+.cfp-scenario-btn { padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: var(--font-body); }
+.cfp-scenario-btn.active { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+.cfp-scenario-btn:hover:not(.active) { border-color: var(--teal); color: var(--ink); }
 
 .cfp-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin: 18px 0; }
 .cfp-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
@@ -1132,7 +1137,7 @@ table.cfp-table td.month-hdr-conference { background: var(--gold-pale); }
 .cfp-add-row-strip { padding: 10px 14px; display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--line); }
 
 .cfp-chart-wrap { padding: 16px 18px 20px; }
-svg.cfp-balance-chart { width: 100%; height: 220px; overflow: visible; }
+svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
 
 .cfp-foot-note { margin-top: 4px; font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 6px; }
 .cfp-foot-note svg { flex-shrink: 0; margin-top: 1px; }
@@ -6688,6 +6693,9 @@ function cashflowDefaultState() {
     // Real bank balance as of Aug 31, 2026, per the director's WF Business Checking statement.
     startingBalance: 63164.65,
     processingFeePct: 3,
+    // Which Revenue Estimator scenario (conservative/expected/optimistic) drives the
+    // registration-revenue curve here -- independent of whatever's live on that tab.
+    registrationScenario: 'expected',
     // One-off/lump conference costs -- amounts are 2026 actuals from the director's statement,
     // used as a grounded starting point (not a prediction), dates are rough placeholders.
     // Deliberately excludes: Facility Rental (was $0), Programs/Concerts (per the coordinator,
@@ -6744,6 +6752,7 @@ async function loadCashflowState() {
       const merged = cashflowDefaultState();
       if (saved.startingBalance != null) merged.startingBalance = saved.startingBalance;
       if (saved.processingFeePct != null) merged.processingFeePct = saved.processingFeePct;
+      if (saved.registrationScenario) merged.registrationScenario = saved.registrationScenario;
       if (Array.isArray(saved.otherExpenses)) merged.otherExpenses = saved.otherExpenses;
       if (Array.isArray(saved.recurringOverhead)) merged.recurringOverhead = saved.recurringOverhead;
       if (saved.speakerInstallments) merged.speakerInstallments = saved.speakerInstallments;
@@ -6815,12 +6824,18 @@ function cfpPersonTotal(installments) { return installments.reduce((s, x) => s +
 
 // Reuses the Revenue Estimator's live tier data (whatever scenario/edits are currently set)
 // rather than a fixed snapshot, so this stays in sync automatically.
-function computeRegistrationPhaseTotals() {
+// scenarioName lets Cash Flow view a different registration scenario than whatever's
+// currently live on the Revenue Estimator tab, without touching that tab's own state.
+// Rates are never scenario-specific (only counts are), so rate always comes from the live
+// tier data; only the count is swapped for the chosen scenario's preset.
+function computeRegistrationPhaseTotals(scenarioName) {
+  const preset = REVENUE_SCENARIO_PRESETS[scenarioName];
   let phase1 = 0, phase2 = 0, regular = 0, other = 0;
   REVENUE_TIER_DEFAULTS.forEach(t => {
     const st = revenueState.tiers[t.id];
     if (!st) return;
-    const amt = (st.rate || 0) * st.count;
+    const count = (preset && preset[t.id] != null) ? preset[t.id] : st.count;
+    const amt = (st.rate || 0) * count;
     if (t.group === 'member' || t.group === 'nonmember' || t.group === 'group') {
       if (t.phase === 'Phase 1') phase1 += amt;
       else if (t.phase === 'Phase 2') phase2 += amt;
@@ -6832,7 +6847,7 @@ function computeRegistrationPhaseTotals() {
   return { phase1, phase2, regular, other };
 }
 function cfpMonthlyRegistrationIn() {
-  const p = computeRegistrationPhaseTotals();
+  const p = computeRegistrationPhaseTotals(cashflowState.registrationScenario || 'expected');
   return CFP_MONTHS.map((m, i) => {
     let amt = p.other / CFP_MONTHS.length;
     if (i === 0) amt += p.phase1;
@@ -6966,8 +6981,15 @@ function renderCashflowView() {
   if (!root || !cashflowState) return;
   root.innerHTML = `
     <div class="cfp-page-head">
-      <h2 class="font-display">Cash Flow Projection</h2>
-      <p>Registration revenue from the Revenue Estimator plus your real committed sponsor payments and speaker/artist fees (including travel), projected against due dates through the conference. Split any person's total into a deposit + remainder, each with its own date.</p>
+      <div>
+        <h2 class="font-display">Cash Flow Projection</h2>
+        <p>Registration revenue plus your real committed sponsor payments and speaker/artist fees (including travel), projected against due dates through the conference. Split any person's total into a deposit + remainder, each with its own date.</p>
+      </div>
+      <div class="cfp-scenario-row" role="group" aria-label="Registration scenario">
+        <button class="cfp-scenario-btn${cashflowState.registrationScenario === 'conservative' ? ' active' : ''}" data-scenario="conservative">Conservative</button>
+        <button class="cfp-scenario-btn${cashflowState.registrationScenario === 'expected' ? ' active' : ''}" data-scenario="expected">Expected</button>
+        <button class="cfp-scenario-btn${cashflowState.registrationScenario === 'optimistic' ? ' active' : ''}" data-scenario="optimistic">Optimistic</button>
+      </div>
     </div>
 
     <div class="cfp-stat-row">
@@ -7025,7 +7047,7 @@ function renderCashflowView() {
         <h3><span class="sp-chevron">▸</span>Balance Over Time</h3>
       </div>
       <div class="cfp-panel-body" data-section-key="cfp-chart">
-        <div class="cfp-chart-wrap"><svg class="cfp-balance-chart" id="cfp-balance-chart" viewBox="0 0 900 220" preserveAspectRatio="none"></svg></div>
+        <div class="cfp-chart-wrap"><svg class="cfp-balance-chart" id="cfp-balance-chart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg></div>
       </div>
     </div>
 
@@ -7076,6 +7098,14 @@ function renderCashflowView() {
     cashflowState.processingFeePct = parseFloat(e.target.value) || 0;
     cfpRecompute();
     pushCashflowState();
+  });
+  document.querySelectorAll('.cfp-scenario-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cashflowState.registrationScenario = btn.dataset.scenario;
+      document.querySelectorAll('.cfp-scenario-btn').forEach(b => b.classList.toggle('active', b === btn));
+      cfpRecompute();
+      pushCashflowState();
+    });
   });
 
   document.getElementById('cfp-thead-row').innerHTML = '<th style="width:170px;">Line</th>' +
@@ -7182,27 +7212,68 @@ function cfpRecompute() {
   cfpDrawChart(monthlyBalance);
 }
 
+// Compact $ label for chart text (e.g. $207K) -- full precision stays in the table above.
+function cfpCompactMoney(n) {
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1000) {
+    const k = abs / 1000;
+    return sign + '$' + (Math.round(k * 10) / 10).toLocaleString('en-US') + 'K';
+  }
+  return sign + '$' + Math.round(abs).toLocaleString('en-US');
+}
+// Rounds a min/max range out to "nice" step sizes (1/2/5 x10^n) so gridlines land on
+// readable numbers ($50K, $100K...) instead of arbitrary fractions of the data range.
+function cfpNiceTicks(minV, maxV, targetCount) {
+  const span = (maxV - minV) || 1;
+  const rawStep = span / targetCount;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const residual = rawStep / mag;
+  const niceStep = (residual > 5 ? 10 : residual > 2 ? 5 : residual > 1 ? 2 : 1) * mag;
+  const niceMin = Math.floor(minV / niceStep) * niceStep;
+  const niceMax = Math.ceil(maxV / niceStep) * niceStep;
+  const ticks = [];
+  for (let v = niceMin; v <= niceMax + niceStep * 1e-6; v += niceStep) ticks.push(Math.round(v * 100) / 100);
+  return ticks;
+}
+
 function cfpDrawChart(balances) {
   const svg = document.getElementById('cfp-balance-chart');
   if (!svg) return;
-  const w = 900, h = 220, padL = 60, padR = 20, padT = 16, padB = 30;
+  const w = 900, h = 260, padL = 66, padR = 20, padT = 28, padB = 34;
   const plotW = w - padL - padR, plotH = h - padT - padB;
-  const maxV = Math.max(...balances, 0), minV = Math.min(...balances, 0);
-  const range = (maxV - minV) || 1;
+  const dataMax = Math.max(...balances, 0), dataMin = Math.min(...balances, 0);
+  const ticks = cfpNiceTicks(dataMin, dataMax, 4);
+  const niceMin = ticks[0], niceMax = ticks[ticks.length - 1];
+  const range = (niceMax - niceMin) || 1;
   const x = i => padL + (i / (CFP_MONTHS.length - 1)) * plotW;
-  const y = v => padT + plotH - ((v - minV) / range) * plotH;
-  const zeroY = y(0);
+  const y = v => padT + plotH - ((v - niceMin) / range) * plotH;
 
   let svgContent = '';
-  svgContent += `<line x1="${padL}" y1="${zeroY}" x2="${w - padR}" y2="${zeroY}" stroke="var(--line)" stroke-width="1" stroke-dasharray="4,3"/>`;
-  svgContent += `<text x="${padL - 8}" y="${zeroY + 4}" text-anchor="end" font-size="10" fill="var(--ink-soft)">$0</text>`;
+  // Gridlines with $ labels at nice round values -- this is the fix for "the only $ I see is
+  // zero": every horizontal line now carries a readable number, not just the zero baseline.
+  ticks.forEach(t => {
+    const ty = y(t);
+    const isZero = Math.abs(t) < 1e-6;
+    svgContent += `<line x1="${padL}" y1="${ty}" x2="${w - padR}" y2="${ty}" stroke="var(--line)" stroke-width="1" ${isZero ? 'stroke-dasharray="4,3"' : ''}/>`;
+    svgContent += `<text x="${padL - 8}" y="${ty + 4}" text-anchor="end" font-size="10" fill="var(--ink-soft)">${cfpCompactMoney(t)}</text>`;
+  });
+
   const points = balances.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  const zeroY = y(0);
   const areaPoints = `${x(0)},${zeroY} ${points} ${x(balances.length - 1)},${zeroY}`;
   svgContent += `<polygon points="${areaPoints}" fill="var(--teal)" opacity="0.14"/>`;
   svgContent += `<polyline points="${points}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>`;
+
   balances.forEach((v, i) => {
     const neg = v < 0;
-    svgContent += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${neg ? 'var(--color-aa-dark)' : 'var(--teal-deep)'}" stroke="var(--panel)" stroke-width="1.5"/>`;
+    const py = y(v);
+    // Label goes above the point normally, but flips below when there's no headroom (near
+    // the plot's top edge) so it never clips out of the chart.
+    const labelAbove = py - padT > 16;
+    const labelY = labelAbove ? py - 10 : py + 16;
+    svgContent += `<circle cx="${x(i)}" cy="${py}" r="4" fill="${neg ? 'var(--color-aa-dark)' : 'var(--teal-deep)'}" stroke="var(--panel)" stroke-width="1.5"/>`;
+    svgContent += `<text x="${x(i)}" y="${labelY}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${neg ? 'var(--color-aa-dark)' : 'var(--ink)'}">${cfpCompactMoney(v)}</text>`;
   });
   CFP_MONTHS.forEach((m, i) => {
     svgContent += `<text x="${x(i)}" y="${h - 8}" text-anchor="middle" font-size="10" fill="var(--ink-soft)">${m.split(' ')[0]}</text>`;
