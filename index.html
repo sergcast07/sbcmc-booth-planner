@@ -975,6 +975,87 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .bg-remove-btn { background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 14px; padding: 0 4px; }
 .bg-remove-btn:hover { color: #a52620; }
 
+/* ==== Revenue Estimator ==== */
+.rev-page { max-width: 1280px; margin: 0 auto; padding: 22px 26px 60px; }
+.rev-page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.rev-page-head h2 { margin: 0; }
+.rev-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 60ch; }
+.rev-scenario-row { display: flex; gap: 6px; }
+.rev-scenario-btn { padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: var(--font-body); }
+.rev-scenario-btn.active { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+.rev-scenario-btn:hover:not(.active) { border-color: var(--teal); color: var(--ink); }
+
+.rev-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin-bottom: 18px; }
+.rev-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+.rev-stat-card.hero { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.rev-stat-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+.rev-stat-card.hero .rev-stat-label { color: rgba(255,255,255,0.68); }
+.rev-stat-value { font-family: var(--font-display); font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.rev-stat-card.hero .rev-stat-value { color: var(--gold-pale); font-size: 32px; }
+.rev-stat-sub { font-size: 11.5px; color: var(--ink-soft); }
+.rev-stat-card.hero .rev-stat-sub { color: rgba(255,255,255,0.62); }
+
+.rev-assumptions { background: rgba(229,57,53,0.07); border: 1px solid var(--color-aa); border-radius: 12px; padding: 12px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.rev-assumptions .rev-assump-title { font-size: 11.5px; font-weight: 700; color: var(--color-aa-dark); white-space: nowrap; }
+.rev-assump-field { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink); }
+.rev-assump-field label { color: var(--ink-soft); white-space: nowrap; }
+.rev-assump-field input { width: 56px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; background: var(--panel); color: var(--ink); }
+.rev-assumptions .rev-hint-inline { font-size: 11px; color: var(--ink-soft); margin-left: auto; }
+
+.rev-work-grid { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; margin-bottom: 20px; }
+@media (max-width: 1050px) { .rev-work-grid { grid-template-columns: 1fr; } }
+.rev-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.rev-panel-head { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rev-panel-head h3 { font-family: var(--font-display); font-size: 16.5px; font-weight: 600; margin: 0; }
+.rev-panel-head .rev-hint { font-size: 11px; color: var(--ink-soft); }
+.rev-table-scroll { overflow-x: auto; }
+
+table.rev-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 820px; }
+table.rev-table th { text-align: left; font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); padding: 7px 12px; border-bottom: 1px solid var(--line); background: var(--paper); }
+table.rev-table th.rev-grp { text-align: center; font-size: 9.5px; padding: 6px 12px; border-bottom: none; }
+table.rev-table th.rev-grp.rev { color: var(--teal-deep); }
+table.rev-table th.rev-grp.cost { color: var(--color-aa-dark); }
+table.rev-table th.num, table.rev-table td.num { text-align: right; }
+table.rev-table th.ctr, table.rev-table td.ctr { text-align: center; }
+table.rev-table td { padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; font-variant-numeric: tabular-nums; }
+table.rev-table tr.rev-group-head td { background: var(--teal-pale); font-weight: 700; color: var(--teal-deep); font-size: 11.5px; padding-top: 9px; padding-bottom: 9px; }
+.rev-col-divider { border-left: 1px solid var(--line); }
+.rev-phase-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: var(--gold-pale); color: var(--gold); margin-left: 7px; vertical-align: 1px; }
+.rev-phase-pill.regular { background: var(--paper); color: var(--ink-soft); }
+.rev-phase-pill.local { background: #E1EFE4; color: var(--color-b-dark); }
+
+input.rev-rate-input, input.rev-cost-input, input.rev-nights-input { width: 52px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; background: var(--paper); color: var(--ink); }
+input.rev-nights-input { width: 40px; text-align: center; }
+input.rev-rate-input:focus-visible, input.rev-cost-input:focus-visible, input.rev-nights-input:focus-visible, input.rev-count-number:focus-visible { border-color: var(--teal); }
+
+.rev-count-cell { display: flex; flex-direction: column; align-items: stretch; gap: 3px; min-width: 108px; }
+.rev-count-cell .rev-count-top { display: flex; justify-content: flex-end; }
+input.rev-count-number { width: 50px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; background: var(--paper); color: var(--ink); }
+input.rev-count-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 3px; background: var(--line); outline: none; margin: 0; }
+input.rev-count-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--teal-deep); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--teal-deep); cursor: pointer; }
+input.rev-count-slider::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--teal-deep); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--teal-deep); cursor: pointer; }
+
+td.rev-line-revenue { font-weight: 600; color: var(--teal-deep); }
+td.rev-line-cost { font-weight: 600; color: var(--color-aa-dark); }
+td.rev-line-net { font-weight: 700; }
+td.rev-line-net.pos { color: var(--color-b-dark); }
+td.rev-line-net.neg { color: var(--color-aa-dark); }
+tr.rev-group-total-row td { font-weight: 700; border-top: 2px solid var(--teal-deep); border-bottom: none; padding-top: 11px; }
+tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-cost, tr.rev-group-total-row td.rev-line-net { font-family: var(--font-display); font-size: 14.5px; }
+
+.rev-chart-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+.rev-chart-row { display: flex; flex-direction: column; gap: 4px; }
+.rev-chart-row-label { display: flex; justify-content: space-between; font-size: 11.5px; }
+.rev-chart-row-label .rev-name { font-weight: 600; }
+.rev-chart-row-label .rev-amt { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.rev-chart-track { height: 9px; border-radius: 5px; background: var(--paper); overflow: hidden; }
+.rev-chart-fill { height: 100%; border-radius: 5px; }
+.rev-chart-note { font-size: 11px; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 12px; margin-top: 2px; }
+.rev-legend-row { display: flex; gap: 14px; font-size: 10.5px; color: var(--ink-soft); margin-top: -4px; }
+.rev-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.rev-foot-note { margin-top: 4px; font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+.rev-foot-note svg { flex-shrink: 0; }
+
 /* ==== Print (Dashboard Report) ==== */
 @media print {
   @page { margin: 0.55in 0.6in; }
@@ -1339,6 +1420,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <button class="top-nav-btn" id="nav-applicants-btn" onclick="switchTopView('applicants')">Applicants<span class="sp-nav-badge" id="nav-applicants-pending-badge" title="Applications awaiting leader review"></span></button>
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
+  <button class="top-nav-btn" id="nav-revenue-btn" onclick="switchTopView('revenue')">Revenue Estimator</button>
   <!-- Budget tab disabled for now, per request -- code is intact below, just re-enable this button to bring it back
   <button class="top-nav-btn" id="nav-budget-btn" onclick="switchTopView('budget')">Budget</button>
   -->
@@ -1732,6 +1814,10 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
       <div id="bg-expenses"></div>
     </div>
   </div>
+</div>
+
+<div id="revenue-view" style="display:none;">
+  <div id="rev-root" class="rev-page"></div>
 </div>
 
 <div class="app" style="display:none;">
@@ -5339,6 +5425,8 @@ function switchTopView(view) {
   if (scheduleViewEl) scheduleViewEl.style.display = view === 'schedule' ? 'block' : 'none';
   const applicantsViewEl = document.getElementById('applicants-view');
   if (applicantsViewEl) applicantsViewEl.style.display = view === 'applicants' ? 'block' : 'none';
+  const revenueViewEl = document.getElementById('revenue-view');
+  if (revenueViewEl) revenueViewEl.style.display = view === 'revenue' ? 'block' : 'none';
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
   document.getElementById('nav-sponsors-btn').classList.toggle('active', view === 'sponsors');
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
@@ -5352,6 +5440,8 @@ function switchTopView(view) {
   if (scheduleBtnEl) scheduleBtnEl.classList.toggle('active', view === 'schedule');
   const applicantsBtnEl = document.getElementById('nav-applicants-btn');
   if (applicantsBtnEl) applicantsBtnEl.classList.toggle('active', view === 'applicants');
+  const revenueBtnEl = document.getElementById('nav-revenue-btn');
+  if (revenueBtnEl) revenueBtnEl.classList.toggle('active', view === 'revenue');
   if (view === 'sponsors') renderSponsorView();
   if (view === 'dashboard') renderDashboard();
   if (view === 'budget' && typeof renderBudget === 'function' && budgetViewEl) renderBudget();
@@ -5359,6 +5449,7 @@ function switchTopView(view) {
   if (view === 'transport' && typeof renderTransportationView === 'function' && transportViewEl) renderTransportationView();
   if (view === 'schedule' && typeof renderScheduleView === 'function' && scheduleViewEl) renderScheduleView();
   if (view === 'applicants' && typeof renderApplicantsView === 'function' && applicantsViewEl) renderApplicantsView();
+  if (view === 'revenue' && typeof initRevenueView === 'function' && revenueViewEl) initRevenueView();
   if (view === 'floorplan') {
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
     // The map only just became visible (was display:none), so its container had zero
@@ -6127,6 +6218,333 @@ function setFundraisingGoal(val) {
   } catch (e) { /* private browsing, etc -- local fallback just won't persist */ }
   pushFundraisingGoal(fundraisingGoal);
   renderSponsorshipProgressChart();
+}
+
+// ==== Revenue Estimator ====
+const REVENUE_GROUPS = [
+  { key: 'member', label: 'Member' },
+  { key: 'nonmember', label: 'Non-Member' },
+  { key: 'group', label: 'Group Rate' },
+  { key: 'other', label: 'Other' }
+];
+const REVENUE_TIER_DEFAULTS = [
+  { id: 'member_eb1', group: 'member', name: 'Early Bird', phase: 'Phase 1', rate: 200, count: 20 },
+  { id: 'member_eb2', group: 'member', name: 'Early Bird', phase: 'Phase 2', rate: 220, count: 80 },
+  { id: 'member_eb3', group: 'member', name: 'Early Bird', phase: 'Phase 3', rate: 240, count: 200 },
+  { id: 'member_reg', group: 'member', name: 'Regular', phase: 'Regular', rate: 250, count: 200 },
+  { id: 'nonmember_eb1', group: 'nonmember', name: 'Early Bird', phase: 'Phase 1', rate: 250, count: 125 },
+  { id: 'nonmember_eb2', group: 'nonmember', name: 'Early Bird', phase: 'Phase 2', rate: 270, count: 25 },
+  { id: 'nonmember_eb3', group: 'nonmember', name: 'Early Bird', phase: 'Phase 3', rate: 290, count: 25 },
+  { id: 'nonmember_reg', group: 'nonmember', name: 'Regular', phase: 'Regular', rate: 300, count: 25 },
+  { id: 'group_eb1', group: 'group', name: 'Early Bird', phase: 'Phase 1', rate: 230, count: 0 },
+  { id: 'group_eb2', group: 'group', name: 'Early Bird', phase: 'Phase 2', rate: 230, count: 50 },
+  { id: 'group_eb3', group: 'group', name: 'Early Bird', phase: 'Phase 3', rate: 230, count: 50 },
+  { id: 'group_reg', group: 'group', name: 'Regular', phase: 'Regular', rate: 230, count: 50 },
+  { id: 'spouse', group: 'other', name: 'Spouse', phase: '', rate: 150, count: 30 },
+  { id: 'lifetime', group: 'other', name: 'Lifetime Member', phase: '', rate: null, count: 20 },
+  { id: 'collegiate', group: 'other', name: 'Collegiate Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3 },
+  { id: 'collegiate_local', group: 'other', name: 'Collegiate Collective', phase: 'Local', rate: 60, count: 20 },
+  { id: 'sls', group: 'other', name: 'Student Leadership Summit', phase: '', rate: 0, count: 0, hasHotel: true, nights: 2 },
+  { id: 'sls_local', group: 'other', name: 'Student Leadership Summit', phase: 'Local', rate: 0, count: 15 }
+];
+
+let revenueState = null;
+let revenueLoaded = false;
+let revenuePushTimer = null;
+
+function revenueDefaultState() {
+  const tiers = {};
+  REVENUE_TIER_DEFAULTS.forEach(t => {
+    tiers[t.id] = { rate: t.rate, count: t.count, costPerDay: 45, nights: t.hasHotel ? t.nights : 0 };
+  });
+  return { globalDays: 3, globalHotelRate: 150, tiers };
+}
+
+async function initRevenueView() {
+  if (!revenueLoaded) {
+    const root = document.getElementById('rev-root');
+    if (root) root.innerHTML = '<div class="dv-loading">Loading revenue estimator…</div>';
+    await loadRevenueEstimator();
+    revenueLoaded = true;
+  }
+  renderRevenueView();
+}
+
+async function loadRevenueEstimator() {
+  revenueState = revenueDefaultState();
+  if (!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'revenue_estimator').maybeSingle();
+    if (error) { console.warn('Revenue estimator load failed:', errDetail(error)); return; }
+    if (data && data.value) {
+      const saved = JSON.parse(data.value);
+      const merged = revenueDefaultState();
+      if (saved.globalDays != null) merged.globalDays = saved.globalDays;
+      if (saved.globalHotelRate != null) merged.globalHotelRate = saved.globalHotelRate;
+      if (saved.tiers) {
+        Object.keys(merged.tiers).forEach(id => {
+          if (saved.tiers[id]) Object.assign(merged.tiers[id], saved.tiers[id]);
+        });
+      }
+      revenueState = merged;
+    }
+  } catch (err) {
+    console.warn('Revenue estimator load failed:', err);
+  }
+}
+
+let revenueSaveWarned = false;
+function pushRevenueEstimator() {
+  if (!sbClient) return;
+  clearTimeout(revenuePushTimer);
+  revenuePushTimer = setTimeout(() => {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'revenue_estimator', value: JSON.stringify(revenueState) }).then(({ error }) => {
+      if (error) {
+        console.error('Revenue estimator save failed:', error);
+        // Dragging a slider fires many saves in quick succession -- warn once per session
+        // instead of a toast per keystroke while the table doesn't exist yet.
+        if (!revenueSaveWarned) {
+          revenueSaveWarned = true;
+          toast('Couldn’t save the revenue estimator — changes won’t persist until the conference_settings table is set up. (' + errDetail(error) + ')');
+        }
+      }
+    });
+  }, 400);
+}
+
+function revenueMoney(n) { return (n < 0 ? '-$' : '$') + Math.round(Math.abs(n)).toLocaleString('en-US'); }
+
+function revenueTierRowHTML(t) {
+  const st = revenueState.tiers[t.id];
+  const pillClass = t.phase === 'Regular' ? 'regular' : t.phase === 'Local' ? 'local' : '';
+  const phasePill = t.phase ? `<span class="rev-phase-pill ${pillClass}">${escapeHtml(t.phase)}</span>` : '';
+  const rateCell = st.rate == null
+    ? `<td class="num rev-col-divider">&mdash;</td>`
+    : `<td class="num rev-col-divider"><input class="rev-rate-input" data-id="${t.id}" data-field="rate" value="${st.rate}"></td>`;
+  const nightsCell = t.hasHotel
+    ? `<td class="ctr"><input type="number" class="rev-nights-input" data-id="${t.id}" data-field="nights" value="${st.nights}" min="0"></td>`
+    : `<td class="ctr">&mdash;</td>`;
+  return `
+    <tr data-id="${t.id}" data-group="${t.group}">
+      <td>${escapeHtml(t.name)}${phasePill}</td>
+      ${rateCell}
+      <td class="ctr"><div class="rev-count-cell">
+        <span class="rev-count-top"><input class="rev-count-number" data-id="${t.id}" data-field="count" value="${st.count}"></span>
+        <input type="range" class="rev-count-slider" data-id="${t.id}" data-field="count" min="0" max="${Math.max(300, st.count * 3)}" value="${st.count}">
+      </div></td>
+      <td class="num rev-line-revenue" data-line="revenue">$0</td>
+      <td class="num rev-col-divider"><input class="rev-cost-input" data-id="${t.id}" data-field="costPerDay" value="${st.costPerDay}"></td>
+      ${nightsCell}
+      <td class="num rev-line-cost" data-line="cost">$0</td>
+      <td class="num rev-line-net rev-col-divider" data-line="net">$0</td>
+    </tr>`;
+}
+
+function renderRevenueView() {
+  const root = document.getElementById('rev-root');
+  if (!root || !revenueState) return;
+  const groupRows = REVENUE_GROUPS.map(g => {
+    const tiers = REVENUE_TIER_DEFAULTS.filter(t => t.group === g.key);
+    return `
+      <tr class="rev-group-head"><td colspan="8">${escapeHtml(g.label)}</td></tr>
+      ${tiers.map(revenueTierRowHTML).join('')}
+      <tr class="rev-group-total-row" data-group-total="${g.key}"><td colspan="2">${escapeHtml(g.label)} subtotal</td><td class="ctr" data-line="count">0</td><td class="num rev-line-revenue" data-line="revenue">$0</td><td class="rev-col-divider"></td><td></td><td class="num rev-line-cost" data-line="cost">$0</td><td class="num rev-line-net rev-col-divider" data-line="net">$0</td></tr>
+    `;
+  }).join('');
+
+  root.innerHTML = `
+    <div class="rev-page-head">
+      <div>
+        <h2 class="font-display">Revenue Estimator</h2>
+        <p>Drag any count to explore scenarios, or type an exact number. Set your per-day cost and hotel nights per tier to see net margin, not just revenue.</p>
+      </div>
+      <div class="rev-scenario-row" role="group" aria-label="Scenario">
+        <button class="rev-scenario-btn" data-scenario="0.85">Conservative</button>
+        <button class="rev-scenario-btn active" data-scenario="1">Expected</button>
+        <button class="rev-scenario-btn" data-scenario="1.18">Optimistic</button>
+      </div>
+    </div>
+
+    <div class="rev-stat-row">
+      <div class="rev-stat-card"><span class="rev-stat-label">Revenue</span><span class="rev-stat-value" id="rev-stat-revenue">$0</span><span class="rev-stat-sub" id="rev-stat-count-sub">0 registrants</span></div>
+      <div class="rev-stat-card"><span class="rev-stat-label">Cost</span><span class="rev-stat-value" id="rev-stat-cost">$0</span><span class="rev-stat-sub">meals/materials + covered hotel nights</span></div>
+      <div class="rev-stat-card hero"><span class="rev-stat-label">Net Margin</span><span class="rev-stat-value" id="rev-stat-net">$0</span><span class="rev-stat-sub" id="rev-stat-margin-pct">&mdash;% margin</span></div>
+      <div class="rev-stat-card"><span class="rev-stat-label">Avg. Net / Registrant</span><span class="rev-stat-value" id="rev-stat-avg-net">$0</span><span class="rev-stat-sub">blended across tiers</span></div>
+    </div>
+
+    <div class="rev-assumptions">
+      <span class="rev-assump-title">COST ASSUMPTIONS</span>
+      <div class="rev-assump-field"><label>Conference days</label><input type="number" id="rev-g-days" value="${revenueState.globalDays}" min="1"></div>
+      <div class="rev-assump-field"><label>Hotel $/night</label><input type="number" id="rev-g-hotel-rate" value="${revenueState.globalHotelRate}" min="0"></div>
+      <span class="rev-hint-inline">Only Collegiate Collective and Student Leadership Summit get lodging covered &mdash; set each one's own night count in its row.</span>
+    </div>
+
+    <div class="rev-work-grid">
+      <div class="rev-panel">
+        <div class="rev-panel-head"><h3>Rate Tiers</h3><span class="rev-hint">Drag counts, edit rates/costs, set nights</span></div>
+        <div class="rev-table-scroll">
+          <table class="rev-table" id="rev-table">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width:190px;">Tier</th>
+                <th class="rev-grp rev rev-col-divider" colspan="3">Revenue</th>
+                <th class="rev-grp cost rev-col-divider" colspan="3">Cost</th>
+                <th rowspan="2" class="num rev-col-divider" style="width:90px;">Net</th>
+              </tr>
+              <tr>
+                <th class="num rev-col-divider" style="width:70px;">Rate</th>
+                <th class="ctr" style="width:120px;">Count</th>
+                <th class="num" style="width:90px;">Revenue</th>
+                <th class="num rev-col-divider" style="width:64px;">$/Day</th>
+                <th class="ctr" style="width:56px;">Nights</th>
+                <th class="num" style="width:90px;">Total Cost</th>
+              </tr>
+            </thead>
+            <tbody id="rev-tbody">${groupRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="rev-panel">
+        <div class="rev-panel-head"><h3>Revenue vs. Cost</h3></div>
+        <div class="rev-chart-body" id="rev-chart-body">
+          <div class="rev-legend-row">
+            <span><span class="rev-legend-dot" style="background:var(--teal-deep);"></span>Revenue</span>
+            <span><span class="rev-legend-dot" style="background:var(--color-aa-dark);"></span>Cost</span>
+          </div>
+          ${REVENUE_GROUPS.map(g => `
+            <div class="rev-chart-row" data-cat="${g.key}">
+              <div class="rev-chart-row-label"><span class="rev-name">${escapeHtml(g.label)}</span><span class="rev-amt" data-cat-amt="${g.key}">$0</span></div>
+              <div class="rev-chart-track"><div class="rev-chart-fill" data-cat-rev="${g.key}" style="width:0%; background:var(--teal-deep);"></div></div>
+              <div class="rev-chart-track"><div class="rev-chart-fill" data-cat-cost="${g.key}" style="width:0%; background:var(--color-aa-dark);"></div></div>
+            </div>
+          `).join('')}
+          <div class="rev-chart-note" id="rev-chart-note">Set a $/day cost and hotel nights on any tier to see its cost bar appear here.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rev-foot-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Every number here saves automatically as you edit it.
+    </div>
+  `;
+
+  document.getElementById('rev-g-days').addEventListener('input', (e) => { revenueState.globalDays = parseFloat(e.target.value) || 0; revenueRecompute(); pushRevenueEstimator(); });
+  document.getElementById('rev-g-hotel-rate').addEventListener('input', (e) => { revenueState.globalHotelRate = parseFloat(e.target.value) || 0; revenueRecompute(); pushRevenueEstimator(); });
+
+  const tbody = document.getElementById('rev-tbody');
+  tbody.addEventListener('input', (e) => {
+    const el = e.target;
+    const id = el.dataset.id, field = el.dataset.field;
+    if (!id || !field) return;
+    const st = revenueState.tiers[id];
+    if (field === 'count') {
+      const v = parseInt(el.value) || 0;
+      st.count = v;
+      const row = el.closest('tr');
+      const num = row.querySelector('input.rev-count-number');
+      const slider = row.querySelector('input.rev-count-slider');
+      if (el.classList.contains('rev-count-slider')) { num.value = v; }
+      else { if (v > parseInt(slider.max)) slider.max = v; slider.value = v; }
+    } else {
+      st[field] = parseFloat(el.value) || 0;
+    }
+    revenueRecompute();
+    pushRevenueEstimator();
+  });
+
+  document.querySelectorAll('.rev-scenario-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.rev-scenario-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const factor = parseFloat(btn.dataset.scenario);
+      if (!revenueState.baseCounts) {
+        revenueState.baseCounts = {};
+        Object.keys(revenueState.tiers).forEach(id => { revenueState.baseCounts[id] = revenueState.tiers[id].count; });
+      }
+      Object.keys(revenueState.tiers).forEach(id => {
+        const base = revenueState.baseCounts[id] != null ? revenueState.baseCounts[id] : revenueState.tiers[id].count;
+        revenueState.tiers[id].count = Math.round(base * factor);
+      });
+      renderRevenueView();
+      pushRevenueEstimator();
+    });
+  });
+
+  revenueRecompute();
+}
+
+function revenueRecompute() {
+  const days = revenueState.globalDays, hotelRate = revenueState.globalHotelRate;
+  let grandRevenue = 0, grandCost = 0, grandCount = 0;
+  const catTotals = {};
+  REVENUE_GROUPS.forEach(g => { catTotals[g.key] = { rev: 0, cost: 0 }; });
+
+  REVENUE_TIER_DEFAULTS.forEach(t => {
+    const st = revenueState.tiers[t.id];
+    const row = document.querySelector('#rev-tbody tr[data-id="' + t.id + '"]');
+    if (!row) return;
+    const revenue = (st.rate || 0) * st.count;
+    const costPerPerson = (days * st.costPerDay) + ((st.nights || 0) * hotelRate);
+    const totalCost = costPerPerson * st.count;
+    const net = revenue - totalCost;
+
+    row.querySelector('[data-line="revenue"]').textContent = revenueMoney(revenue);
+    row.querySelector('[data-line="cost"]').textContent = revenueMoney(totalCost);
+    const netCell = row.querySelector('[data-line="net"]');
+    netCell.textContent = revenueMoney(net);
+    netCell.classList.toggle('pos', net >= 0);
+    netCell.classList.toggle('neg', net < 0);
+
+    grandRevenue += revenue; grandCost += totalCost; grandCount += st.count;
+    catTotals[t.group].rev += revenue; catTotals[t.group].cost += totalCost;
+  });
+
+  REVENUE_GROUPS.forEach(g => {
+    const totalRow = document.querySelector('tr[data-group-total="' + g.key + '"]');
+    if (!totalRow) return;
+    const tiersInGroup = REVENUE_TIER_DEFAULTS.filter(t => t.group === g.key);
+    const cnt = tiersInGroup.reduce((sum, t) => sum + revenueState.tiers[t.id].count, 0);
+    totalRow.querySelector('[data-line="count"]').textContent = cnt.toLocaleString('en-US');
+    totalRow.querySelector('[data-line="revenue"]').textContent = revenueMoney(catTotals[g.key].rev);
+    totalRow.querySelector('[data-line="cost"]').textContent = revenueMoney(catTotals[g.key].cost);
+    const net = catTotals[g.key].rev - catTotals[g.key].cost;
+    const netCell = totalRow.querySelector('[data-line="net"]');
+    netCell.textContent = revenueMoney(net);
+    netCell.classList.toggle('pos', net >= 0);
+    netCell.classList.toggle('neg', net < 0);
+  });
+
+  const grandNet = grandRevenue - grandCost;
+  const revStat = document.getElementById('rev-stat-revenue');
+  if (revStat) revStat.textContent = revenueMoney(grandRevenue);
+  const countSub = document.getElementById('rev-stat-count-sub');
+  if (countSub) countSub.textContent = grandCount.toLocaleString('en-US') + ' registrants';
+  const costStat = document.getElementById('rev-stat-cost');
+  if (costStat) costStat.textContent = revenueMoney(grandCost);
+  const netStat = document.getElementById('rev-stat-net');
+  if (netStat) netStat.textContent = revenueMoney(grandNet);
+  const marginPct = document.getElementById('rev-stat-margin-pct');
+  if (marginPct) marginPct.textContent = (grandRevenue ? Math.round(grandNet / grandRevenue * 100) : 0) + '% margin';
+  const avgNet = document.getElementById('rev-stat-avg-net');
+  if (avgNet) avgNet.textContent = grandCount ? revenueMoney(grandNet / grandCount) : '$0';
+
+  const maxBar = Math.max.apply(null, REVENUE_GROUPS.map(g => Math.max(catTotals[g.key].rev, catTotals[g.key].cost)).concat([1]));
+  let anyCost = false;
+  REVENUE_GROUPS.forEach(g => {
+    const rev = catTotals[g.key].rev, cost = catTotals[g.key].cost;
+    if (cost > 0) anyCost = true;
+    const amtEl = document.querySelector('[data-cat-amt="' + g.key + '"]');
+    if (amtEl) amtEl.textContent = revenueMoney(rev) + (cost ? ' / cost ' + revenueMoney(cost) : '');
+    const revFill = document.querySelector('[data-cat-rev="' + g.key + '"]');
+    if (revFill) revFill.style.width = (rev / maxBar * 100) + '%';
+    const costFill = document.querySelector('[data-cat-cost="' + g.key + '"]');
+    if (costFill) costFill.style.width = (cost / maxBar * 100) + '%';
+  });
+  const note = document.getElementById('rev-chart-note');
+  if (note) note.textContent = anyCost
+    ? 'Shorter cost bar relative to its revenue bar means fatter margin for that category.'
+    : 'Set a $/day cost and hotel nights on any tier to see its cost bar appear here.';
 }
 
 function renderNewReturningBreakdown() {
