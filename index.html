@@ -1423,7 +1423,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <button class="top-nav-btn" id="nav-applicants-btn" onclick="switchTopView('applicants')">Applicants<span class="sp-nav-badge" id="nav-applicants-pending-badge" title="Applications awaiting leader review"></span></button>
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
-  <button class="top-nav-btn" id="nav-revenue-btn" onclick="switchTopView('revenue')">Revenue Estimator</button>
+  <button class="top-nav-btn" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
   <!-- Budget tab disabled for now, per request -- code is intact below, just re-enable this button to bring it back
   <button class="top-nav-btn" id="nav-budget-btn" onclick="switchTopView('budget')">Budget</button>
   -->
@@ -6319,7 +6319,7 @@ function revenueMoney(n) { return (n < 0 ? '-$' : '$') + Math.round(Math.abs(n))
 function revenueTierRowHTML(t) {
   const st = revenueState.tiers[t.id];
   const pillClass = t.phase === 'Regular' ? 'regular' : t.phase === 'Local' ? 'local' : '';
-  const phasePill = t.phase ? `<span class="rev-phase-pill ${pillClass}">${escapeHtml(t.phase)}</span>` : '';
+  const phasePill = (t.phase && t.phase !== 'Regular') ? `<span class="rev-phase-pill ${pillClass}">${escapeHtml(t.phase)}</span>` : '';
   const rateCell = st.rate == null
     ? `<td class="num rev-col-divider">&mdash;</td>`
     : `<td class="num rev-col-divider"><span class="rev-money-input"><span class="rev-money-prefix">$</span><input class="rev-rate-input" data-id="${t.id}" data-field="rate" value="${st.rate}"></span></td>`;
@@ -6361,7 +6361,7 @@ function renderRevenueView() {
   root.innerHTML = `
     <div class="rev-page-head">
       <div>
-        <h2 class="font-display">Revenue Estimator</h2>
+        <h2 class="font-display">Conference Registration Revenue Estimator</h2>
         <p>Drag any count to explore scenarios, or type an exact number. Set your per-day cost and hotel nights per tier to see net margin, not just revenue.</p>
       </div>
       <div class="rev-scenario-row" role="group" aria-label="Scenario">
@@ -6412,7 +6412,7 @@ function renderRevenueView() {
         </div>
       </div>
       <div class="rev-panel">
-        <div class="rev-panel-head"><h3>Revenue vs. Cost</h3></div>
+        <div class="rev-panel-head"><h3>Registration Revenue vs. Per-Attendee Cost</h3></div>
         <div class="rev-chart-body" id="rev-chart-body">
           <div class="rev-legend-row">
             <span><span class="rev-legend-dot" style="background:var(--teal-deep);"></span>Revenue</span>
