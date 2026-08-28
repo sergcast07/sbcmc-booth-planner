@@ -6803,7 +6803,7 @@ function sponsorOutstanding(s) {
   return committed + adhocAmount + adhocItemsSum - paid;
 }
 function cfpSpeakerList() { return speakers.filter(sp => speakerOutstanding(sp) > 0); }
-function cfpSponsorList() { return sponsors.filter(s => sponsorOutstanding(s) > 0); }
+function cfpSponsorList() { return sponsors.filter(s => isCashCommitted(s) && sponsorOutstanding(s) > 0); }
 
 // Installment schedules (splits/dates) are lazily created on first render, one per person --
 // the base amount always comes fresh from the live speaker/sponsor record above.
