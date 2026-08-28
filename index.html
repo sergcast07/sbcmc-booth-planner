@@ -6255,6 +6255,7 @@ const REVENUE_TIER_DEFAULTS = [
 let revenueState = null;
 let revenueLoaded = false;
 let revenuePushTimer = null;
+let revenueActiveScenario = 1;
 
 function revenueDefaultState() {
   const tiers = {};
@@ -6367,9 +6368,9 @@ function renderRevenueView() {
         <p>Drag any count to explore scenarios, or type an exact number. Set your per-day cost and hotel nights per tier to see net margin, not just revenue.</p>
       </div>
       <div class="rev-scenario-row" role="group" aria-label="Scenario">
-        <button class="rev-scenario-btn" data-scenario="0.85">Conservative</button>
-        <button class="rev-scenario-btn active" data-scenario="1">Expected</button>
-        <button class="rev-scenario-btn" data-scenario="1.18">Optimistic</button>
+        <button class="rev-scenario-btn${revenueActiveScenario === 0.85 ? ' active' : ''}" data-scenario="0.85">Conservative</button>
+        <button class="rev-scenario-btn${revenueActiveScenario === 1 ? ' active' : ''}" data-scenario="1">Expected</button>
+        <button class="rev-scenario-btn${revenueActiveScenario === 1.18 ? ' active' : ''}" data-scenario="1.18">Optimistic</button>
       </div>
     </div>
 
@@ -6464,9 +6465,8 @@ function renderRevenueView() {
 
   document.querySelectorAll('.rev-scenario-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.rev-scenario-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
       const factor = parseFloat(btn.dataset.scenario);
+      revenueActiveScenario = factor;
       if (!revenueState.baseCounts) {
         revenueState.baseCounts = {};
         Object.keys(revenueState.tiers).forEach(id => { revenueState.baseCounts[id] = revenueState.tiers[id].count; });
