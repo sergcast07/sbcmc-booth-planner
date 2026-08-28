@@ -1024,12 +1024,12 @@ table.rev-table tr.rev-group-head td { background: var(--teal-pale); font-weight
 .rev-phase-pill.regular { background: var(--paper); color: var(--ink-soft); }
 .rev-phase-pill.local { background: #E1EFE4; color: var(--color-b-dark); }
 
-input.rev-rate-input, input.rev-cost-input, input.rev-nights-input { width: 52px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; background: var(--paper); color: var(--ink); }
+input.rev-rate-input, input.rev-cost-input, input.rev-nights-input, input.rev-occupancy-input { width: 52px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-body); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; background: var(--paper); color: var(--ink); }
 .rev-money-input { display: inline-flex; align-items: center; gap: 3px; }
 .rev-money-input .rev-money-prefix { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
 .rev-money-input input.rev-rate-input, .rev-money-input input.rev-cost-input { width: 46px; }
-input.rev-nights-input { width: 40px; text-align: center; }
-input.rev-rate-input:focus-visible, input.rev-cost-input:focus-visible, input.rev-nights-input:focus-visible, input.rev-count-number:focus-visible { border-color: var(--teal); }
+input.rev-nights-input, input.rev-occupancy-input { width: 40px; text-align: center; }
+input.rev-rate-input:focus-visible, input.rev-cost-input:focus-visible, input.rev-nights-input:focus-visible, input.rev-occupancy-input:focus-visible, input.rev-count-number:focus-visible { border-color: var(--teal); }
 
 .rev-count-cell { display: flex; flex-direction: column; align-items: stretch; gap: 3px; min-width: 108px; }
 .rev-count-cell .rev-count-top { display: flex; justify-content: flex-end; }
@@ -6246,7 +6246,7 @@ const REVENUE_TIER_DEFAULTS = [
   { id: 'group_reg', group: 'group', name: 'Regular', phase: 'Regular', rate: 230, count: 50 },
   { id: 'spouse', group: 'other', name: 'Spouse', phase: '', rate: 150, count: 30 },
   { id: 'lifetime', group: 'other', name: 'Lifetime Member', phase: '', rate: 0, count: 20 },
-  { id: 'collegiate', group: 'student', name: 'Collegiate Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3 },
+  { id: 'collegiate', group: 'student', name: 'Collegiate Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3, occupancy: 4 },
   { id: 'collegiate_local', group: 'student', name: 'Collegiate Collective', phase: 'Local', rate: 60, count: 20 },
   { id: 'sls', group: 'student', name: 'Student Leadership Summit', phase: '', rate: 0, count: 0, hasHotel: true, nights: 2 },
   { id: 'sls_local', group: 'student', name: 'Student Leadership Summit', phase: 'Local', rate: 0, count: 15 }
@@ -6259,7 +6259,7 @@ let revenuePushTimer = null;
 function revenueDefaultState() {
   const tiers = {};
   REVENUE_TIER_DEFAULTS.forEach(t => {
-    tiers[t.id] = { rate: t.rate, count: t.count, costPerDay: 20, nights: t.hasHotel ? t.nights : 0 };
+    tiers[t.id] = { rate: t.rate, count: t.count, costPerDay: 20, nights: t.hasHotel ? t.nights : 0, occupancy: t.hasHotel ? (t.occupancy || 1) : 1 };
   });
   return { globalDays: 3, globalHotelRate: 150, tiers };
 }
@@ -6328,6 +6328,9 @@ function revenueTierRowHTML(t) {
   const nightsCell = t.hasHotel
     ? `<td class="ctr"><input type="number" class="rev-nights-input" data-id="${t.id}" data-field="nights" value="${st.nights}" min="0"></td>`
     : `<td class="ctr">&mdash;</td>`;
+  const occupancyCell = t.hasHotel
+    ? `<td class="ctr"><input type="number" class="rev-occupancy-input" data-id="${t.id}" data-field="occupancy" value="${st.occupancy}" min="1"></td>`
+    : `<td class="ctr">&mdash;</td>`;
   return `
     <tr data-id="${t.id}" data-group="${t.group}">
       <td>${escapeHtml(t.name)}${phasePill}</td>
@@ -6339,6 +6342,7 @@ function revenueTierRowHTML(t) {
       <td class="num rev-line-revenue" data-line="revenue">$0</td>
       <td class="num rev-col-divider"><span class="rev-money-input"><span class="rev-money-prefix">$</span><input class="rev-cost-input" data-id="${t.id}" data-field="costPerDay" value="${st.costPerDay}"></span></td>
       ${nightsCell}
+      ${occupancyCell}
       <td class="num rev-line-cost" data-line="cost">$0</td>
       <td class="num rev-line-net rev-col-divider" data-line="net">$0</td>
     </tr>`;
@@ -6352,7 +6356,7 @@ function renderRevenueView() {
     return `
       <tr class="rev-group-head"><td colspan="8">${escapeHtml(g.label)}</td></tr>
       ${tiers.map(revenueTierRowHTML).join('')}
-      <tr class="rev-group-total-row" data-group-total="${g.key}"><td colspan="2">${escapeHtml(g.label)} subtotal</td><td class="ctr" data-line="count">0</td><td class="num rev-line-revenue" data-line="revenue">$0</td><td class="rev-col-divider"></td><td></td><td class="num rev-line-cost" data-line="cost">$0</td><td class="num rev-line-net rev-col-divider" data-line="net">$0</td></tr>
+      <tr class="rev-group-total-row" data-group-total="${g.key}"><td colspan="2">${escapeHtml(g.label)} subtotal</td><td class="ctr" data-line="count">0</td><td class="num rev-line-revenue" data-line="revenue">$0</td><td class="rev-col-divider"></td><td></td><td></td><td class="num rev-line-cost" data-line="cost">$0</td><td class="num rev-line-net rev-col-divider" data-line="net">$0</td></tr>
     `;
   }).join('');
 
@@ -6392,7 +6396,7 @@ function renderRevenueView() {
               <tr>
                 <th rowspan="2" style="width:190px;">Tier</th>
                 <th class="rev-grp rev rev-col-divider" colspan="3">Revenue</th>
-                <th class="rev-grp cost rev-col-divider" colspan="3">Cost</th>
+                <th class="rev-grp cost rev-col-divider" colspan="4">Cost</th>
                 <th rowspan="2" class="num rev-col-divider" style="width:90px;">Net</th>
               </tr>
               <tr>
@@ -6401,6 +6405,7 @@ function renderRevenueView() {
                 <th class="num" style="width:90px;">Revenue</th>
                 <th class="num rev-col-divider" style="width:64px;">$/Day</th>
                 <th class="ctr" style="width:56px;">Nights</th>
+                <th class="ctr" style="width:56px;">People/Room</th>
                 <th class="num" style="width:90px;">Total Cost</th>
               </tr>
             </thead>
@@ -6489,7 +6494,8 @@ function revenueRecompute() {
     const row = document.querySelector('#rev-tbody tr[data-id="' + t.id + '"]');
     if (!row) return;
     const revenue = (st.rate || 0) * st.count;
-    const costPerPerson = (days * st.costPerDay) + ((st.nights || 0) * hotelRate);
+    const occupancy = st.occupancy > 0 ? st.occupancy : 1;
+    const costPerPerson = (days * st.costPerDay) + ((st.nights || 0) * hotelRate / occupancy);
     const totalCost = costPerPerson * st.count;
     const net = revenue - totalCost;
 
