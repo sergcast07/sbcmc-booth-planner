@@ -6259,7 +6259,7 @@ let revenuePushTimer = null;
 function revenueDefaultState() {
   const tiers = {};
   REVENUE_TIER_DEFAULTS.forEach(t => {
-    tiers[t.id] = { rate: t.rate, count: t.count, costPerDay: 45, nights: t.hasHotel ? t.nights : 0 };
+    tiers[t.id] = { rate: t.rate, count: t.count, costPerDay: 20, nights: t.hasHotel ? t.nights : 0 };
   });
   return { globalDays: 3, globalHotelRate: 150, tiers };
 }
