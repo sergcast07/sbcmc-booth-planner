@@ -6782,6 +6782,36 @@ function pushCashflowState() {
   }, 400);
 }
 
+// Both pushRevenueEstimator and pushCashflowState debounce their save by 400ms so rapid
+// slider drags don't flood the network. If the tab is closed/switched/refreshed inside that
+// window, the pending edit is lost -- so flush any in-flight timer immediately once the page
+// is about to go away, instead of waiting out the rest of the debounce. A normal supabase-js
+// call uses plain fetch, which browsers can and do abort mid-navigation; `keepalive: true`
+// is the one fetch option browsers honor specifically to let a request finish during unload,
+// so the flush bypasses the client and hits the REST endpoint directly with that flag set.
+function flushEstimatorSaves() {
+  if (!sbClient) return;
+  const restUrl = SUPABASE_CONFIG.url + '/rest/v1/' + CONFERENCE_SETTINGS_TABLE;
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_CONFIG.anonKey,
+    'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey,
+    'Prefer': 'resolution=merge-duplicates,return=minimal'
+  };
+  if (revenuePushTimer) {
+    clearTimeout(revenuePushTimer);
+    revenuePushTimer = null;
+    fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'revenue_estimator', value: JSON.stringify(revenueState) }) });
+  }
+  if (cashflowPushTimer) {
+    clearTimeout(cashflowPushTimer);
+    cashflowPushTimer = null;
+    fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'cashflow_projection', value: JSON.stringify(cashflowState) }) });
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushEstimatorSaves(); });
+window.addEventListener('pagehide', flushEstimatorSaves);
+
 function cfpMoney(n) { return (n < 0 ? '-$' : '$') + Math.round(Math.abs(n)).toLocaleString('en-US'); }
 function cfpMonthIndexForDate(dateStr) {
   if (!dateStr) return -1;
