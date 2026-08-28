@@ -6252,7 +6252,40 @@ const REVENUE_TIER_DEFAULTS = [
 let revenueState = null;
 let revenueLoaded = false;
 let revenuePushTimer = null;
-let revenueActiveScenario = 1;
+let revenueActiveScenario = 'expected';
+
+// Named scenarios target a specific total-attendee count (750 / 900 / 1000), not just a flat
+// multiplier -- Member/Non-Member/Group/Spouse/Lifetime scale proportionally to hit that total,
+// while Collegiate Collective + Student Leadership Summit keep the SAME combined headcount in
+// every scenario (120 and 15) since that pool isn't really a "more/fewer registrants" lever --
+// only the Local-vs-hotel mix within it shifts toward more hotel-covered students as the
+// scenario gets more conservative, since that's the costlier (more cautious) assumption.
+const REVENUE_SCENARIO_PRESETS = {
+  conservative: {
+    member_eb1: 38, member_eb2: 77, member_reg: 156,
+    nonmember_eb1: 38, nonmember_eb2: 77, nonmember_reg: 77,
+    group_eb1: 38, group_eb2: 38, group_reg: 38,
+    spouse: 23, lifetime: 15,
+    collegiate: 114, collegiate_local: 6,
+    sls: 8, sls_local: 7
+  },
+  expected: {
+    member_eb1: 48, member_eb2: 96, member_reg: 189,
+    nonmember_eb1: 48, nonmember_eb2: 96, nonmember_reg: 96,
+    group_eb1: 48, group_eb2: 48, group_reg: 48,
+    spouse: 29, lifetime: 19,
+    collegiate: 108, collegiate_local: 12,
+    sls: 5, sls_local: 10
+  },
+  optimistic: {
+    member_eb1: 54, member_eb2: 108, member_reg: 217,
+    nonmember_eb1: 54, nonmember_eb2: 108, nonmember_reg: 108,
+    group_eb1: 54, group_eb2: 54, group_reg: 54,
+    spouse: 32, lifetime: 22,
+    collegiate: 100, collegiate_local: 20,
+    sls: 0, sls_local: 15
+  }
+};
 
 function revenueDefaultState() {
   const tiers = {};
@@ -6365,9 +6398,9 @@ function renderRevenueView() {
         <p>Drag any count to explore scenarios, or type an exact number. Set your per-day cost and hotel nights per tier to see net margin, not just revenue.</p>
       </div>
       <div class="rev-scenario-row" role="group" aria-label="Scenario">
-        <button class="rev-scenario-btn${revenueActiveScenario === 0.85 ? ' active' : ''}" data-scenario="0.85">Conservative</button>
-        <button class="rev-scenario-btn${revenueActiveScenario === 1 ? ' active' : ''}" data-scenario="1">Expected</button>
-        <button class="rev-scenario-btn${revenueActiveScenario === 1.18 ? ' active' : ''}" data-scenario="1.18">Optimistic</button>
+        <button class="rev-scenario-btn${revenueActiveScenario === 'conservative' ? ' active' : ''}" data-scenario="conservative">Conservative</button>
+        <button class="rev-scenario-btn${revenueActiveScenario === 'expected' ? ' active' : ''}" data-scenario="expected">Expected</button>
+        <button class="rev-scenario-btn${revenueActiveScenario === 'optimistic' ? ' active' : ''}" data-scenario="optimistic">Optimistic</button>
       </div>
     </div>
 
@@ -6462,15 +6495,12 @@ function renderRevenueView() {
 
   document.querySelectorAll('.rev-scenario-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const factor = parseFloat(btn.dataset.scenario);
-      revenueActiveScenario = factor;
-      if (!revenueState.baseCounts) {
-        revenueState.baseCounts = {};
-        Object.keys(revenueState.tiers).forEach(id => { revenueState.baseCounts[id] = revenueState.tiers[id].count; });
-      }
-      Object.keys(revenueState.tiers).forEach(id => {
-        const base = revenueState.baseCounts[id] != null ? revenueState.baseCounts[id] : revenueState.tiers[id].count;
-        revenueState.tiers[id].count = Math.round(base * factor);
+      const name = btn.dataset.scenario;
+      const preset = REVENUE_SCENARIO_PRESETS[name];
+      if (!preset) return;
+      revenueActiveScenario = name;
+      Object.keys(preset).forEach(id => {
+        if (revenueState.tiers[id]) revenueState.tiers[id].count = preset[id];
       });
       renderRevenueView();
       pushRevenueEstimator();
