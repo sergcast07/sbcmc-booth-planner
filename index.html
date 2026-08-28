@@ -6693,6 +6693,10 @@ function cashflowDefaultState() {
     // Real bank balance as of Aug 31, 2026, per the director's WF Business Checking statement.
     startingBalance: 63164.65,
     processingFeePct: 3,
+    // Membership renewal dues -- a separate revenue stream from conference registration,
+    // modeled as a flat recurring monthly amount since dues trickle in year-round rather
+    // than clustering around the Early Bird/Regular phase cutoffs. No default assumed.
+    membershipDuesMonthly: 0,
     // Which Revenue Estimator scenario (conservative/expected/optimistic) drives the
     // registration-revenue curve here -- independent of whatever's live on that tab.
     registrationScenario: 'expected',
@@ -6752,6 +6756,7 @@ async function loadCashflowState() {
       const merged = cashflowDefaultState();
       if (saved.startingBalance != null) merged.startingBalance = saved.startingBalance;
       if (saved.processingFeePct != null) merged.processingFeePct = saved.processingFeePct;
+      if (saved.membershipDuesMonthly != null) merged.membershipDuesMonthly = saved.membershipDuesMonthly;
       if (saved.registrationScenario) merged.registrationScenario = saved.registrationScenario;
       if (Array.isArray(saved.otherExpenses)) merged.otherExpenses = saved.otherExpenses;
       if (Array.isArray(saved.recurringOverhead)) merged.recurringOverhead = saved.recurringOverhead;
@@ -6993,7 +6998,7 @@ function renderCashflowView() {
     </div>
 
     <div class="cfp-stat-row">
-      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + committed sponsors</span></div>
+      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + dues + committed sponsors</span></div>
       <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speakers + expenses + overhead + fees</span></div>
       <div class="cfp-stat-card hero"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), scheduled items only</span></div>
       <div class="cfp-stat-card" id="cfp-stat-lowpoint-card"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
@@ -7003,6 +7008,7 @@ function renderCashflowView() {
       <span class="cfp-assump-title">STARTING CASH</span>
       <div class="cfp-assump-field"><label>Balance on Sep 1, 2026</label><input type="number" id="cfp-starting-balance" value="${cashflowState.startingBalance}"></div>
       <div class="cfp-assump-field"><label>Payment processing fee</label><input type="number" id="cfp-processing-fee" value="${cashflowState.processingFeePct}" min="0" step="0.1" style="width:56px;">%</div>
+      <div class="cfp-assump-field"><label>Membership dues (per month)</label><input type="number" id="cfp-membership-dues" value="${cashflowState.membershipDuesMonthly}" min="0" step="50"></div>
       <span class="cfp-hint-inline" id="cfp-unscheduled-hint"></span>
     </div>
 
@@ -7099,6 +7105,11 @@ function renderCashflowView() {
     cfpRecompute();
     pushCashflowState();
   });
+  document.getElementById('cfp-membership-dues').addEventListener('input', (e) => {
+    cashflowState.membershipDuesMonthly = parseFloat(e.target.value) || 0;
+    cfpRecompute();
+    pushCashflowState();
+  });
   document.querySelectorAll('.cfp-scenario-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       cashflowState.registrationScenario = btn.dataset.scenario;
@@ -7161,13 +7172,14 @@ function cfpRecompute() {
   const expenses = cashflowState.otherExpenses;
 
   const monthlyRegIn = cfpMonthlyRegistrationIn();
+  const monthlyDuesIn = CFP_MONTHS.map(() => cashflowState.membershipDuesMonthly || 0);
   const monthlySponsorIn = CFP_MONTHS.map((m, i) => sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
   const monthlySpeakerOut = CFP_MONTHS.map((m, i) => speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
   const monthlyExpOut = CFP_MONTHS.map((m, i) => expenses.filter(e => cfpMonthIndexForDate(e.date) === i).reduce((s, e) => s + e.amount, 0));
   const overheadPerMonth = cashflowState.recurringOverhead.reduce((s, o) => s + (o.monthlyAmount || 0), 0);
   const monthlyOverheadOut = CFP_MONTHS.map(() => overheadPerMonth);
   const feePct = (cashflowState.processingFeePct || 0) / 100;
-  const monthlyIn = CFP_MONTHS.map((m, i) => monthlyRegIn[i] + monthlySponsorIn[i]);
+  const monthlyIn = CFP_MONTHS.map((m, i) => monthlyRegIn[i] + monthlyDuesIn[i] + monthlySponsorIn[i]);
   const monthlyFeeOut = monthlyIn.map(v => v * feePct);
   const monthlyOut = CFP_MONTHS.map((m, i) => monthlySpeakerOut[i] + monthlyExpOut[i] + monthlyOverheadOut[i] + monthlyFeeOut[i]);
   const monthlyNet = CFP_MONTHS.map((m, i) => monthlyIn[i] - monthlyOut[i]);
@@ -7200,6 +7212,7 @@ function cfpRecompute() {
     const row = (label, values, cls) => `<tr class="${cls}"><td class="rowlabel">${label}</td>${values.map(v => `<td class="num${v < 0 ? ' neg' : ''}">${cfpMoney(v)}</td>`).join('')}</tr>`;
     tbody.innerHTML =
       row('Registrations', monthlyRegIn, 'cfp-in') +
+      row('Membership dues', monthlyDuesIn, 'cfp-in') +
       row('Sponsor payments', monthlySponsorIn, 'cfp-in') +
       row('Speaker/artist fees + travel', monthlySpeakerOut.map(v => -v), 'cfp-out') +
       row('Other expenses', monthlyExpOut.map(v => -v), 'cfp-out') +
