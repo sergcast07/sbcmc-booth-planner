@@ -1064,10 +1064,6 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 .cfp-page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .cfp-page-head h2 { margin: 0; }
 .cfp-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 74ch; }
-.cfp-scenario-row { display: flex; gap: 6px; }
-.cfp-scenario-btn { padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: var(--font-body); }
-.cfp-scenario-btn.active { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
-.cfp-scenario-btn:hover:not(.active) { border-color: var(--teal); color: var(--ink); }
 
 .cfp-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin: 18px 0; }
 .cfp-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
@@ -6696,9 +6692,6 @@ function cashflowDefaultState() {
     // Real bank balance as of Aug 31, 2026, per the director's WF Business Checking statement.
     startingBalance: 63164.65,
     processingFeePct: 3,
-    // Which Revenue Estimator scenario (conservative/expected/optimistic) drives the
-    // registration-revenue curve here -- independent of whatever's live on that tab.
-    registrationScenario: 'expected',
     // One-off/lump conference costs -- amounts are 2026 actuals from the director's statement,
     // used as a grounded starting point (not a prediction), dates are rough placeholders.
     // Deliberately excludes: Facility Rental (was $0), Programs/Concerts (per the coordinator,
@@ -6755,7 +6748,6 @@ async function loadCashflowState() {
       const merged = cashflowDefaultState();
       if (saved.startingBalance != null) merged.startingBalance = saved.startingBalance;
       if (saved.processingFeePct != null) merged.processingFeePct = saved.processingFeePct;
-      if (saved.registrationScenario) merged.registrationScenario = saved.registrationScenario;
       if (Array.isArray(saved.otherExpenses)) merged.otherExpenses = saved.otherExpenses;
       if (Array.isArray(saved.recurringOverhead)) merged.recurringOverhead = saved.recurringOverhead;
       if (saved.speakerInstallments) merged.speakerInstallments = saved.speakerInstallments;
@@ -6859,16 +6851,14 @@ function cfpPersonTotal(installments) { return installments.reduce((s, x) => s +
 // rather than a fixed snapshot, so this stays in sync automatically.
 // scenarioName lets Cash Flow view a different registration scenario than whatever's
 // currently live on the Revenue Estimator tab, without touching that tab's own state.
-// Rates are never scenario-specific (only counts are), so rate always comes from the live
-// tier data; only the count is swapped for the chosen scenario's preset.
-function computeRegistrationPhaseTotals(scenarioName) {
-  const preset = REVENUE_SCENARIO_PRESETS[scenarioName];
+// Always reflects whatever's live on the Revenue Estimator tab -- no separate scenario
+// override here, so Cash Flow just tracks that tab directly.
+function computeRegistrationPhaseTotals() {
   let phase1 = 0, phase2 = 0, regular = 0, other = 0;
   REVENUE_TIER_DEFAULTS.forEach(t => {
     const st = revenueState.tiers[t.id];
     if (!st) return;
-    const count = (preset && preset[t.id] != null) ? preset[t.id] : st.count;
-    const amt = (st.rate || 0) * count;
+    const amt = (st.rate || 0) * st.count;
     if (t.group === 'member' || t.group === 'nonmember' || t.group === 'group') {
       if (t.phase === 'Phase 1') phase1 += amt;
       else if (t.phase === 'Phase 2') phase2 += amt;
@@ -6880,7 +6870,7 @@ function computeRegistrationPhaseTotals(scenarioName) {
   return { phase1, phase2, regular, other };
 }
 function cfpMonthlyRegistrationIn() {
-  const p = computeRegistrationPhaseTotals(cashflowState.registrationScenario || 'expected');
+  const p = computeRegistrationPhaseTotals();
   return CFP_MONTHS.map((m, i) => {
     let amt = p.other / CFP_MONTHS.length;
     if (i === 0) amt += p.phase1;
@@ -7018,11 +7008,6 @@ function renderCashflowView() {
         <h2 class="font-display">Cash Flow Projection</h2>
         <p>Registration revenue plus your real committed sponsor payments and speaker/artist fees (including travel), projected against due dates through the conference. Split any person's total into a deposit + remainder, each with its own date.</p>
       </div>
-      <div class="cfp-scenario-row" role="group" aria-label="Registration scenario">
-        <button class="cfp-scenario-btn${cashflowState.registrationScenario === 'conservative' ? ' active' : ''}" data-scenario="conservative">Conservative</button>
-        <button class="cfp-scenario-btn${cashflowState.registrationScenario === 'expected' ? ' active' : ''}" data-scenario="expected">Expected</button>
-        <button class="cfp-scenario-btn${cashflowState.registrationScenario === 'optimistic' ? ' active' : ''}" data-scenario="optimistic">Optimistic</button>
-      </div>
     </div>
 
     <div class="cfp-stat-row">
@@ -7132,15 +7117,6 @@ function renderCashflowView() {
     cfpRecompute();
     pushCashflowState();
   });
-  document.querySelectorAll('.cfp-scenario-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      cashflowState.registrationScenario = btn.dataset.scenario;
-      document.querySelectorAll('.cfp-scenario-btn').forEach(b => b.classList.toggle('active', b === btn));
-      cfpRecompute();
-      pushCashflowState();
-    });
-  });
-
   document.getElementById('cfp-thead-row').innerHTML = '<th style="width:170px;">Line</th>' +
     CFP_MONTHS.map((m, i) => `<th class="num${i === CFP_CONFERENCE_MONTH_IDX ? ' month-hdr-conference' : ''}" style="width:90px;">${m}${i === CFP_CONFERENCE_MONTH_IDX ? ' 🎪' : ''}</th>`).join('');
 
