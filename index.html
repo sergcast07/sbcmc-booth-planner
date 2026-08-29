@@ -415,6 +415,15 @@
   #access-gate button:active { transform: scale(0.98); }
   #access-gate .gate-error { color: #a52620; font-size: 12px; margin-top: 10px; min-height: 16px; }
 
+  /* ==== View-only mode banner ==== */
+  #view-only-banner { display: none; }
+  body.view-only-mode #view-only-banner {
+    display: block; position: sticky; top: 0; z-index: 10000;
+    background: #a52620; color: #fff; text-align: center;
+    padding: 8px 14px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em;
+    font-family: 'Inter', sans-serif;
+  }
+
   /* ==== Driver public view (read-only, no login required) ==== */
   #driver-public-view { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   .dv-header { border-bottom: 2px solid var(--gold); padding-bottom: 14px; margin-bottom: 20px; }
@@ -1371,6 +1380,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
+<div id="view-only-banner">🔒 View-only mode — you're browsing with the read-only password. Nothing here will be saved.</div>
 <div id="access-gate">
   <div class="gate-card">
     <div class="gate-eyebrow">SBCMC 2027</div>
@@ -1448,6 +1458,11 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
   var GATE_HASH = '72f98362bb1cbc378e36035e1af9121832cc7e7f1d12a80364e840aa6e8ba77c';
   var GATE_KEY = 'sbcmcGateOk';
+  // Second password, view-only: unlocks the same app with every write blocked centrally
+  // (see the sbClient write-guard in the main script) rather than a separate build.
+  var VIEW_HASH = '171f5a77fe02a0042211b2084c704e66e6325f163c61644a8c63f8ff16b72df5';
+  var VIEW_KEY = 'sbcmcViewOk';
+  window.isViewOnlyMode = false;
 
   function sha256(str) {
     var enc = new TextEncoder().encode(str);
@@ -1456,8 +1471,10 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     });
   }
 
-  function unlock() {
+  function unlock(viewOnly) {
+    window.isViewOnlyMode = !!viewOnly;
     document.body.classList.remove('gate-locked');
+    if (viewOnly) document.body.classList.add('view-only-mode');
     document.getElementById('access-gate').style.display = 'none';
   }
 
@@ -1466,9 +1483,13 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     var errEl = document.getElementById('gate-error');
     sha256(input.value).then(function(hash) {
       if (hash === GATE_HASH) {
-        try { localStorage.setItem(GATE_KEY, GATE_HASH); } catch (e) { /* private browsing, etc -- just won't persist */ }
+        try { localStorage.setItem(GATE_KEY, GATE_HASH); localStorage.removeItem(VIEW_KEY); } catch (e) { /* private browsing, etc -- just won't persist */ }
         errEl.textContent = '';
-        unlock();
+        unlock(false);
+      } else if (hash === VIEW_HASH) {
+        try { localStorage.setItem(VIEW_KEY, VIEW_HASH); localStorage.removeItem(GATE_KEY); } catch (e) { /* private browsing, etc -- just won't persist */ }
+        errEl.textContent = '';
+        unlock(true);
       } else {
         errEl.textContent = 'Incorrect password. Try again.';
         input.value = '';
@@ -1478,10 +1499,12 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   };
 
   document.body.classList.add('gate-locked');
-  var stored = null;
-  try { stored = localStorage.getItem(GATE_KEY); } catch (e) { /* private browsing, etc */ }
+  var stored = null, storedView = null;
+  try { stored = localStorage.getItem(GATE_KEY); storedView = localStorage.getItem(VIEW_KEY); } catch (e) { /* private browsing, etc */ }
   if (stored === GATE_HASH) {
-    unlock();
+    unlock(false);
+  } else if (storedView === VIEW_HASH) {
+    unlock(true);
   } else {
     document.getElementById('gate-password-input').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { e.preventDefault(); checkGatePassword(); }
@@ -3048,6 +3071,32 @@ const SUPABASE_CONFIG = {
   url: "https://lflcemdvryrkgvlvbsnc.supabase.co",
   anonKey: "sb_publishable_ctBJO82JTI5sNF1ZQGF4FA_Dr3zwyBd"
 };
+
+// View-only mode (unlocked by the second gate password) needs to block every write, and this
+// app has ~40 separate call sites across sponsors/speakers/applicants/budget/floor-plan/
+// schedule/revenue-estimator/cash-flow that each build their own supabase-js query chain
+// (.update().eq(), .delete().eq(), .upsert(), plus a couple of raw keepalive fetches). Rather
+// than guard each one individually -- easy to miss one on a file this size -- every one of
+// those ultimately issues a real HTTP request, so blocking any non-GET request to the Supabase
+// REST endpoint here is a single choke point that can't be bypassed by a missed call site.
+(function() {
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    if (window.isViewOnlyMode) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      const method = ((init && init.method) || (typeof input === 'object' && input && input.method) || 'GET').toUpperCase();
+      if (url.indexOf(SUPABASE_CONFIG.url) === 0 && method !== 'GET' && method !== 'HEAD') {
+        console.warn('View-only mode: blocked ' + method + ' ' + url);
+        return Promise.resolve(new Response(JSON.stringify({ message: 'View-only mode — changes are not saved.', code: 'VIEW_ONLY' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        }));
+      }
+    }
+    return originalFetch(input, init);
+  };
+})();
+
 const SHARED_TABLE = 'booth_layouts';
 const SHARED_ROW_ID = 'shared-layout';
 const MAPS_TABLE = 'booth_layout_maps';
