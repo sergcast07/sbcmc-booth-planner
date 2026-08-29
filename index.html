@@ -431,6 +431,12 @@
     transition: opacity 0.15s;
   }
   #gate-logout-btn:hover { opacity: 1; }
+  body.view-only-mode input:read-only,
+  body.view-only-mode textarea:read-only,
+  body.view-only-mode select:disabled,
+  body.view-only-mode input:disabled {
+    opacity: 0.65; cursor: default;
+  }
 
   /* ==== Driver public view (read-only, no login required) ==== */
   #driver-public-view { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
@@ -1483,7 +1489,13 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   function unlock(viewOnly) {
     window.isViewOnlyMode = !!viewOnly;
     document.body.classList.remove('gate-locked');
-    if (viewOnly) document.body.classList.add('view-only-mode');
+    if (viewOnly) {
+      document.body.classList.add('view-only-mode');
+      // Only relevant for a same-session login (typed password after the main script has
+      // already run) -- a returning user with a stored password hits this before the main
+      // script even exists yet, which is fine, since that script does its own initial sweep.
+      if (typeof window.applyViewOnlyFieldLock === 'function') window.applyViewOnlyFieldLock();
+    }
     document.getElementById('access-gate').style.display = 'none';
     document.getElementById('gate-logout-btn').style.display = 'block';
   }
@@ -3110,6 +3122,35 @@ const SUPABASE_CONFIG = {
     }
     return originalFetch(input, init);
   };
+})();
+
+// View-only mode, cosmetic half: the write-guard above already makes editing harmless, but
+// fields still LOOK editable, which is confusing on its own. Most panels re-render their
+// entire innerHTML from scratch on every state change, so a one-time pass over today's DOM
+// would miss everything rendered after this runs -- a MutationObserver catches every field as
+// it's added, present now or later, from one place, the same reasoning as the fetch guard.
+// Search/sort controls (id contains "search" or "sort") are left alone -- those browse, they
+// don't edit. The observer always runs (not gated on isViewOnlyMode at this exact moment):
+// entering the password happens AFTER this script has already executed once, so gating the
+// whole block here would miss every field for a same-session login -- lockDownField checks
+// the live flag itself instead, and window.applyViewOnlyFieldLock lets the gate's unlock()
+// retroactively sweep whatever already rendered before the password was entered.
+(function() {
+  const isBrowseControl = (el) => /search|sort/i.test(el.id || '');
+  const lockDownField = (el) => {
+    if (!window.isViewOnlyMode || isBrowseControl(el)) return;
+    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') el.disabled = true;
+    else el.readOnly = true;
+  };
+  const lockDownTree = (root) => {
+    if (root.matches && root.matches('input, textarea, select')) lockDownField(root);
+    if (root.querySelectorAll) root.querySelectorAll('input, textarea, select').forEach(lockDownField);
+  };
+  window.applyViewOnlyFieldLock = () => lockDownTree(document.body);
+  lockDownTree(document.body);
+  new MutationObserver((mutations) => {
+    mutations.forEach((m) => m.addedNodes.forEach((node) => { if (node.nodeType === 1) lockDownTree(node); }));
+  }).observe(document.body, { childList: true, subtree: true });
 })();
 
 const SHARED_TABLE = 'booth_layouts';
