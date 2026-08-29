@@ -423,6 +423,14 @@
     padding: 8px 14px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em;
     font-family: 'Inter', sans-serif;
   }
+  #gate-logout-btn {
+    position: fixed; bottom: 14px; right: 14px; z-index: 10000;
+    background: rgba(20,24,33,0.82); color: #fff; border: none; border-radius: 8px;
+    padding: 7px 13px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em;
+    font-family: 'Inter', sans-serif; cursor: pointer; opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  #gate-logout-btn:hover { opacity: 1; }
 
   /* ==== Driver public view (read-only, no login required) ==== */
   #driver-public-view { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
@@ -1381,6 +1389,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 </head>
 <body>
 <div id="view-only-banner">🔒 View-only mode — you're browsing with the read-only password. Nothing here will be saved.</div>
+<button id="gate-logout-btn" onclick="gateLogout()" style="display:none;">Log out</button>
 <div id="access-gate">
   <div class="gate-card">
     <div class="gate-eyebrow">SBCMC 2027</div>
@@ -1476,7 +1485,13 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     document.body.classList.remove('gate-locked');
     if (viewOnly) document.body.classList.add('view-only-mode');
     document.getElementById('access-gate').style.display = 'none';
+    document.getElementById('gate-logout-btn').style.display = 'block';
   }
+
+  window.gateLogout = function() {
+    try { localStorage.removeItem(GATE_KEY); localStorage.removeItem(VIEW_KEY); } catch (e) { /* private browsing, etc */ }
+    location.reload();
+  };
 
   window.checkGatePassword = function() {
     var input = document.getElementById('gate-password-input');
