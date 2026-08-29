@@ -437,6 +437,8 @@
   body.view-only-mode input:disabled {
     opacity: 0.65; cursor: default;
   }
+  /* Applicant data includes minors -- not shown at all in view-only mode, see switchTopView(). */
+  body.view-only-mode #nav-applicants-btn { display: none !important; }
 
   /* ==== Driver public view (read-only, no login required) ==== */
   #driver-public-view { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
@@ -4028,8 +4030,10 @@ async function initSupabase() {
       (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
       (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
       (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
-      (typeof loadApplicantGroups === 'function' ? loadApplicantGroups() : Promise.resolve()),
-      (typeof loadApplicants === 'function' ? loadApplicants() : Promise.resolve())
+      // Applicant data includes minors (the high-school program) -- for view-only mode this
+      // isn't just hidden in the UI, it's never even downloaded to that browser.
+      (typeof loadApplicantGroups === 'function' && !window.isViewOnlyMode ? loadApplicantGroups() : Promise.resolve()),
+      (typeof loadApplicants === 'function' && !window.isViewOnlyMode ? loadApplicants() : Promise.resolve())
     ]);
     if (typeof renderApplicantStats === 'function') renderApplicantStats();
     rebuildMapRegistry();
@@ -4077,7 +4081,9 @@ async function initSupabase() {
     if (typeof subscribeSponsorRealtime === 'function') subscribeSponsorRealtime();
     if (typeof subscribeSpeakerRealtime === 'function') subscribeSpeakerRealtime();
     if (typeof updateSponsorPendingBadge === 'function') updateSponsorPendingBadge();
-    if (typeof subscribeApplicantsRealtime === 'function') subscribeApplicantsRealtime();
+    // Skipped in view-only mode too -- otherwise a live edit elsewhere would push applicant
+    // data into this browser over realtime even though the initial load was skipped above.
+    if (typeof subscribeApplicantsRealtime === 'function' && !window.isViewOnlyMode) subscribeApplicantsRealtime();
   } catch (err) {
     console.error('Supabase init failed:', err);
     updateSyncStatus('error');
@@ -5604,6 +5610,10 @@ function toggleSidebarSection(key) {
 applyCollapsedSectionsState();
 
 function switchTopView(view) {
+  // Applicant data includes minors (the high-school program) -- hidden from the nav for
+  // view-only mode below, but also blocked here directly so it can't be reached by manually
+  // calling switchTopView('applicants') from the console, bypassing the missing nav button.
+  if (window.isViewOnlyMode && view === 'applicants') view = 'dashboard';
   document.querySelector('.app').style.display = view === 'floorplan' ? 'flex' : 'none';
   document.getElementById('sponsor-view').style.display = view === 'sponsors' ? 'block' : 'none';
   document.getElementById('dashboard-view').style.display = view === 'dashboard' ? 'block' : 'none';
