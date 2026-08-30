@@ -4230,8 +4230,10 @@ function pushRemoteState(isSeed) {
     };
     const { error } = await sbClient.from(SHARED_TABLE).upsert(payload);
     if (error) {
-      console.error('Supabase write failed:', error);
       updateSyncStatus('error');
+      reportWriteError('booth-layout', 'Couldn’t save the booth layout — it’ll revert next reload.', error);
+    } else {
+      reportWriteSuccess('booth-layout');
     }
   };
   if (isSeed) return doPush();
@@ -4507,7 +4509,38 @@ let clipboard = null;      // deep-cloned booth or label awaiting paste
 let lastSelected = null;   // { id, kind } of the most recently selected item (fallback for copy)
 
 // --- tiny on-screen toast so actions are visible ---
-function toast(msg) {
+// type 'error' is a separate, non-fading toast (own element, own slot) so a save-failure
+// alert can never be silently overwritten a few seconds later by the next unrelated
+// success toast -- it has to be dismissed on purpose. The badge in reportWriteError below
+// is the durable record if this toast is missed anyway.
+function toast(msg, type) {
+  if (type === 'error') {
+    let e = document.getElementById('kb-toast-error');
+    if (!e) {
+      e = document.createElement('div');
+      e.id = 'kb-toast-error';
+      e.setAttribute('role', 'alert');
+      e.setAttribute('aria-live', 'assertive');
+      e.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);'
+        + 'max-width:min(90vw,480px);background:#c0392b;color:#fff;padding:9px 12px 9px 16px;border-radius:8px;font-size:13px;'
+        + 'font-family:system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.35);z-index:10001;'
+        + 'display:flex;align-items:flex-start;gap:10px;';
+      const span = document.createElement('span');
+      span.id = 'kb-toast-error-text';
+      span.style.cssText = 'flex:1;word-break:break-word;';
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '×';
+      closeBtn.setAttribute('aria-label', 'Dismiss');
+      closeBtn.style.cssText = 'background:none;border:none;color:#fff;font-size:17px;line-height:1;cursor:pointer;padding:0;flex-shrink:0;';
+      closeBtn.onclick = () => { e.style.display = 'none'; };
+      e.appendChild(span);
+      e.appendChild(closeBtn);
+      document.body.appendChild(e);
+    }
+    e.querySelector('#kb-toast-error-text').textContent = '⚠️ ' + msg;
+    e.style.display = 'flex';
+    return;
+  }
   let t = document.getElementById('kb-toast');
   if (!t) {
     t = document.createElement('div');
@@ -5538,6 +5571,82 @@ function errDetail(error) {
   if (error.code) parts.push('code: ' + error.code);
   return parts.length ? parts.join(', ') : 'unknown error';
 }
+
+// --- persistent write-failure badge: the error toast above is easy to miss if a save
+// fails while you're not looking at the screen. This is the durable record -- it stays
+// on screen (bottom-left, always-visible count) until the same key either saves
+// successfully on a later attempt or is dismissed on purpose, so a failed edit can never
+// quietly look "saved" just because the toast already faded.
+const writeFailures = new Map(); // key -> { label, error }
+
+function registerWriteFailure(key, label, error) {
+  writeFailures.set(key, { label, error });
+  renderWriteFailureBadge();
+}
+function clearWriteFailure(key) {
+  if (writeFailures.delete(key)) renderWriteFailureBadge();
+}
+function renderWriteFailureBadge() {
+  let b = document.getElementById('write-fail-badge');
+  if (!writeFailures.size) { if (b) b.remove(); return; }
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'write-fail-badge';
+    b.style.cssText = 'position:fixed;bottom:14px;left:14px;z-index:10000;background:#c0392b;color:#fff;'
+      + 'border-radius:8px;font-family:system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.35);'
+      + 'max-width:min(90vw,340px);overflow:hidden;';
+    const header = document.createElement('div');
+    header.id = 'write-fail-badge-header';
+    header.style.cssText = 'padding:8px 12px;cursor:pointer;font-weight:700;font-size:12px;';
+    header.onclick = () => {
+      const d = document.getElementById('write-fail-badge-detail');
+      d.style.display = d.style.display === 'none' ? 'block' : 'none';
+    };
+    const detail = document.createElement('div');
+    detail.id = 'write-fail-badge-detail';
+    detail.style.cssText = 'display:none;border-top:1px solid rgba(255,255,255,0.25);max-height:220px;overflow-y:auto;';
+    b.appendChild(header);
+    b.appendChild(detail);
+    document.body.appendChild(b);
+  }
+  const n = writeFailures.size;
+  b.querySelector('#write-fail-badge-header').textContent = '⚠️ ' + n + ' save' + (n === 1 ? '' : 's') + ' failed — click for detail';
+  const detail = b.querySelector('#write-fail-badge-detail');
+  detail.innerHTML = '';
+  writeFailures.forEach((v, k) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:6px 12px;font-size:11.5px;border-bottom:1px solid rgba(255,255,255,0.15);'
+      + 'display:flex;justify-content:space-between;gap:8px;align-items:flex-start;';
+    const text = document.createElement('span');
+    text.textContent = v.label + ' — ' + errDetail(v.error);
+    text.style.cssText = 'flex:1;word-break:break-word;';
+    const dismiss = document.createElement('button');
+    dismiss.textContent = '×';
+    dismiss.setAttribute('aria-label', 'Dismiss this failure');
+    dismiss.style.cssText = 'background:none;border:none;color:#fff;font-size:14px;line-height:1;cursor:pointer;padding:0;flex-shrink:0;';
+    dismiss.onclick = (ev) => { ev.stopPropagation(); clearWriteFailure(k); };
+    row.appendChild(text);
+    row.appendChild(dismiss);
+    detail.appendChild(row);
+  });
+}
+
+// Call from a write's error branch: logs, shows the non-fading error toast, and lights
+// the persistent badge for `key` until a later reportWriteSuccess(key) clears it.
+function reportWriteError(key, label, error) {
+  if (window.isViewOnlyMode) {
+    // Expected: the view-only write-guard synthesizes this exact error shape for every
+    // blocked write attempt. Not a real failure -- don't alarm a read-only visitor over it.
+    console.warn(label + ' blocked (view-only mode)');
+    return;
+  }
+  console.error(label + ' failed:', error);
+  toast(label + ' — ' + errDetail(error), 'error');
+  registerWriteFailure(key, label, error);
+}
+function reportWriteSuccess(key) {
+  clearWriteFailure(key);
+}
 let sponsors = [];
 let sponsorFilter = 'all';
 let sponsorSearch = '';
@@ -6412,7 +6521,8 @@ function pushFundraisingGoal(val) {
   clearTimeout(fundraisingGoalPushTimer);
   fundraisingGoalPushTimer = setTimeout(() => {
     sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'fundraising_goal', value: val == null ? '' : String(val) }).then(({ error }) => {
-      if (error) { console.error('Fundraising goal save failed:', error); toast('Couldn’t save the fundraising goal — it’ll revert next reload. (' + errDetail(error) + ')'); }
+      if (error) { reportWriteError('fundraising_goal', 'Couldn’t save the fundraising goal — it’ll revert next reload.', error); }
+      else { reportWriteSuccess('fundraising_goal'); }
     });
   }, 400);
 }
@@ -6542,13 +6652,17 @@ function pushRevenueEstimator() {
   revenuePushTimer = setTimeout(() => {
     sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'revenue_estimator', value: JSON.stringify(revenueState) }).then(({ error }) => {
       if (error) {
-        console.error('Revenue estimator save failed:', error);
         // Dragging a slider fires many saves in quick succession -- warn once per session
-        // instead of a toast per keystroke while the table doesn't exist yet.
+        // instead of a toast per keystroke while the table doesn't exist yet. The badge
+        // still lights up every time so it can't be missed once the toast is dismissed.
         if (!revenueSaveWarned) {
           revenueSaveWarned = true;
-          toast('Couldn’t save the revenue estimator — changes won’t persist until the conference_settings table is set up. (' + errDetail(error) + ')');
+          reportWriteError('revenue_estimator', 'Couldn’t save the revenue estimator — changes won’t persist until the conference_settings table is set up.', error);
+        } else {
+          registerWriteFailure('revenue_estimator', 'Couldn’t save the revenue estimator — changes won’t persist until the conference_settings table is set up.', error);
         }
+      } else {
+        reportWriteSuccess('revenue_estimator');
       }
     });
   }, 400);
@@ -6880,8 +6994,10 @@ function pushCashflowState() {
   cashflowPushTimer = setTimeout(() => {
     sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'cashflow_projection', value: JSON.stringify(cashflowState) }).then(({ error }) => {
       if (error) {
-        console.error('Cash flow save failed:', error);
-        if (!cashflowSaveWarned) { cashflowSaveWarned = true; toast('Couldn’t save the cash flow projection — changes won’t persist. (' + errDetail(error) + ')'); }
+        if (!cashflowSaveWarned) { cashflowSaveWarned = true; reportWriteError('cashflow_projection', 'Couldn’t save the cash flow projection — changes won’t persist.', error); }
+        else { registerWriteFailure('cashflow_projection', 'Couldn’t save the cash flow projection — changes won’t persist.', error); }
+      } else {
+        reportWriteSuccess('cashflow_projection');
       }
     });
   }, 400);
@@ -6894,7 +7010,12 @@ function pushCashflowState() {
 // call uses plain fetch, which browsers can and do abort mid-navigation; `keepalive: true`
 // is the one fetch option browsers honor specifically to let a request finish during unload,
 // so the flush bypasses the client and hits the REST endpoint directly with that flag set.
-function flushEstimatorSaves() {
+// `backgrounding` is true only when called from visibilitychange (tab hidden, page still
+// alive) -- there, a failure response can still reach the page, so it's worth attaching a
+// best-effort alert. On true pagehide/unload there's no page left to show anything on, so
+// that call stays fire-and-forget by necessity (a known, unavoidable limitation, not an
+// oversight).
+function flushEstimatorSaves(backgrounding) {
   if (!sbClient) return;
   const restUrl = SUPABASE_CONFIG.url + '/rest/v1/' + CONFERENCE_SETTINGS_TABLE;
   const headers = {
@@ -6906,16 +7027,18 @@ function flushEstimatorSaves() {
   if (revenuePushTimer) {
     clearTimeout(revenuePushTimer);
     revenuePushTimer = null;
-    fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'revenue_estimator', value: JSON.stringify(revenueState) }) });
+    const p = fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'revenue_estimator', value: JSON.stringify(revenueState) }) });
+    if (backgrounding) p.then(res => { if (!res.ok) reportWriteError('revenue_estimator', 'The revenue estimator didn’t save before the tab was backgrounded — changes may be lost.', { message: 'HTTP ' + res.status }); else reportWriteSuccess('revenue_estimator'); }).catch(() => {});
   }
   if (cashflowPushTimer) {
     clearTimeout(cashflowPushTimer);
     cashflowPushTimer = null;
-    fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'cashflow_projection', value: JSON.stringify(cashflowState) }) });
+    const p = fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'cashflow_projection', value: JSON.stringify(cashflowState) }) });
+    if (backgrounding) p.then(res => { if (!res.ok) reportWriteError('cashflow_projection', 'The cash flow projection didn’t save before the tab was backgrounded — changes may be lost.', { message: 'HTTP ' + res.status }); else reportWriteSuccess('cashflow_projection'); }).catch(() => {});
   }
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushEstimatorSaves(); });
-window.addEventListener('pagehide', flushEstimatorSaves);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushEstimatorSaves(true); });
+window.addEventListener('pagehide', () => flushEstimatorSaves(false));
 
 function cfpMoney(n) { return (n < 0 ? '-$' : '$') + Math.round(Math.abs(n)).toLocaleString('en-US'); }
 function cfpMonthIndexForDate(dateStr) {
@@ -7746,9 +7869,11 @@ function pushSponsor(s) {
       updated_at: new Date().toISOString()
     };
     const { error } = await sbClient.from(SPONSORS_TABLE).upsert(row);
+    const key = 'sponsor:' + s.id;
     if (error) {
-      console.error('Sponsor save failed:', error);
-      toast('Couldn\u2019t save that change to ' + (s.org || 'this sponsor') + ' \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+      reportWriteError(key, 'Couldn\u2019t save that change to ' + (s.org || 'this sponsor') + ' \u2014 it\u2019ll revert next reload.', error);
+    } else {
+      reportWriteSuccess(key);
     }
   }, 300);
 }
@@ -7782,10 +7907,7 @@ function deleteSponsor(id) {
   if (!confirm('Delete "' + s.org + '" from the sponsor tracker? This cannot be undone.')) return;
   sponsors = sponsors.filter(x => x.id !== id);
   if (sbClient) sbClient.from(SPONSORS_TABLE).delete().eq('id', id).then(({ error }) => {
-    if (error) {
-      console.error('Delete sponsor failed:', error);
-      toast('Couldn\u2019t delete that sponsor \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
-    }
+    if (error) reportWriteError('sponsor-delete:' + id, 'Couldn\u2019t delete that sponsor \u2014 it\u2019ll reappear next reload.', error);
   });
   openSponsorId = null;
   renderSponsorView();
@@ -8697,7 +8819,7 @@ function approveSponsorPendingChange(id, key) {
   const map = SPONSOR_PENDING_FIELD_MAP[key];
   if (!pending || !map) return;
   if ((key === 'boothAdFile' || key === 'displayGraphicFile') && pending.old && pending.old.filePath && (!pending.new || pending.new.filePath !== pending.old.filePath) && sbClient) {
-    sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([pending.old.filePath]).then(({ error }) => { if (error) console.error('Storage cleanup failed:', error); });
+    sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([pending.old.filePath]).then(({ error }) => { if (error) reportWriteError('sponsor-file-cleanup:' + id + ':' + key, 'Couldn’t remove the old file for ' + (s.org || 'this sponsor') + ' from storage — it may be orphaned.', error); });
   }
   map.apply(s, pending.new);
   delete s.data.pendingChanges[key];
@@ -8713,7 +8835,7 @@ function rejectSponsorPendingChange(id, key) {
   const map = SPONSOR_PENDING_FIELD_MAP[key];
   if (!pending) return;
   if ((key === 'boothAdFile' || key === 'displayGraphicFile') && pending.new && pending.new.filePath && (!pending.old || pending.old.filePath !== pending.new.filePath) && sbClient) {
-    sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([pending.new.filePath]).then(({ error }) => { if (error) console.error('Storage cleanup failed:', error); });
+    sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([pending.new.filePath]).then(({ error }) => { if (error) reportWriteError('sponsor-file-cleanup:' + id + ':' + key, 'Couldn’t remove the rejected file for ' + (s.org || 'this sponsor') + ' from storage — it may be orphaned.', error); });
   }
   delete s.data.pendingChanges[key];
   if (sponsorActiveTab === 'pending' && sponsorPendingCount(s) === 0) sponsorActiveTab = 'overview';
@@ -8952,8 +9074,7 @@ async function uploadSponsorFile(id, kind) {
   toast('Uploading ' + file.name + '...');
   const { error: uploadError } = await sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).upload(path, file, { upsert: true });
   if (uploadError) {
-    console.error('Upload failed:', uploadError);
-    toast('Upload failed — ' + (uploadError.message || 'see console') + '. If this bucket doesn’t exist yet, it needs to be created in Supabase Storage first.');
+    reportWriteError('sponsor-upload:' + id + ':' + kind, 'Upload of ' + file.name + ' failed for ' + (s.org || 'this sponsor') + '. If this bucket doesn’t exist yet, it needs to be created in Supabase Storage first.', uploadError);
     return;
   }
   const { data: urlData } = sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).getPublicUrl(path);
@@ -8976,7 +9097,7 @@ async function removeSponsorFile(id, kind) {
   if (!material) return;
   if (sbClient && material.filePath) {
     const { error } = await sbClient.storage.from(SPONSOR_MATERIALS_BUCKET).remove([material.filePath]);
-    if (error) console.error('Storage delete failed:', error);
+    if (error) reportWriteError('sponsor-file:' + id + ':' + kind, 'Couldn’t remove that file from storage for ' + (s.org || 'this sponsor') + ' — it may be orphaned.', error);
   }
   s.data.materials[kind] = null;
   pushSponsor(s);
@@ -9278,8 +9399,9 @@ function pushBudget() {
   budgetPushTimer = setTimeout(async () => {
     const { error } = await sbClient.from(BUDGET_TABLE).upsert({ id: BUDGET_ROW_ID, data: budgetData, updated_at: new Date().toISOString() });
     if (error) {
-      console.error('Budget save failed:', error);
-      toast('Couldn\u2019t save that budget change \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+      reportWriteError('budget', 'Couldn\u2019t save that budget change \u2014 it\u2019ll revert next reload.', error);
+    } else {
+      reportWriteSuccess('budget');
     }
   }, 300);
 }
@@ -9842,9 +9964,11 @@ function pushApplicant(a) {
       data: a.data, sort_order: a.sortOrder || 0, updated_at: new Date().toISOString()
     };
     const { error } = await sbClient.from(APPLICANTS_TABLE).upsert(row);
+    const key = 'applicant:' + a.id;
     if (error) {
-      console.error('Applicant save failed:', error);
-      toast('Couldn’t save that change to ' + (a.name || 'this applicant') + ' — it’ll revert next reload. (' + errDetail(error) + ')');
+      reportWriteError(key, 'Couldn’t save that change to ' + (a.name || 'this applicant') + ' — it’ll revert next reload.', error);
+    } else {
+      reportWriteSuccess(key);
     }
   }, 300);
 }
@@ -9874,10 +9998,7 @@ function addApplicantGroup() {
   applicantGroups.push(g);
   if (sbClient) {
     sbClient.from(APPLICANT_GROUPS_TABLE).upsert({ id: g.id, name: g.name, sort_order: g.sortOrder, public_token: '' }).then(({ error }) => {
-      if (error) {
-        console.error('Program save failed:', error);
-        toast('Couldn’t save that program — it’ll disappear next reload. (' + errDetail(error) + ')');
-      }
+      if (error) reportWriteError('applicant-group:' + g.id, 'Couldn’t save that program — it’ll disappear next reload.', error);
     });
   }
   input.value = '';
@@ -9890,7 +10011,7 @@ function ensureApplicantGroupToken(g) {
     g.publicToken = generateRandomToken();
     if (sbClient) {
       sbClient.from(APPLICANT_GROUPS_TABLE).update({ public_token: g.publicToken }).eq('id', g.id).then(({ error }) => {
-        if (error) console.error('Token save failed:', error);
+        if (error) reportWriteError('applicant-group-token:' + g.id, 'Couldn’t save the leader review link for ' + (g.name || 'this program') + ' — it may not work until this is retried.', error);
       });
     }
   }
@@ -10156,10 +10277,7 @@ function deleteApplicant(id) {
   applicants = applicants.filter(x => x.id !== id);
   if (sbClient) {
     sbClient.from(APPLICANTS_TABLE).delete().eq('id', id).then(({ error }) => {
-      if (error) {
-        console.error('Delete applicant failed:', error);
-        toast('Couldn’t delete that applicant — it’ll reappear next reload. (' + errDetail(error) + ')');
-      }
+      if (error) reportWriteError('applicant-delete:' + id, 'Couldn’t delete that applicant — it’ll reappear next reload.', error);
     });
   }
   openApplicantId = null;
@@ -10799,10 +10917,7 @@ function addDriver() {
   renderTransportationView();
   if (sbClient) {
     sbClient.from(DRIVERS_TABLE).upsert({ id: driver.id, name: driver.name, phone: driver.phone, seats: driver.seats, notes: driver.notes }).then(({ error }) => {
-      if (error) {
-        console.error('Driver save failed:', error);
-        toast('Couldn\u2019t save that driver \u2014 it\u2019ll disappear next reload. (' + errDetail(error) + ')');
-      }
+      if (error) reportWriteError('driver:' + driver.id, 'Couldn\u2019t save that driver \u2014 it\u2019ll disappear next reload.', error);
     });
   }
   nameInput.value = ''; phoneInput.value = ''; seatsInput.value = '';
@@ -10822,9 +10937,9 @@ function editDriver(id) {
   if (sbClient) {
     sbClient.from(DRIVERS_TABLE).upsert({ id: d.id, name: d.name, phone: d.phone, seats: d.seats, notes: d.notes || '' }).then(({ error }) => {
       if (error) {
-        console.error('Driver update failed:', error);
-        toast('Couldn\u2019t save that change \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+        reportWriteError('driver:' + d.id, 'Couldn\u2019t save that change \u2014 it\u2019ll revert next reload.', error);
       } else {
+        reportWriteSuccess('driver:' + d.id);
         toast('Driver updated.');
       }
     });
@@ -10841,10 +10956,7 @@ function removeDriver(id) {
   renderTransportationView();
   if (sbClient) {
     sbClient.from(DRIVERS_TABLE).delete().eq('id', id).then(({ error }) => {
-      if (error) {
-        console.error('Driver delete failed:', error);
-        toast('Couldn\u2019t delete that driver \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
-      }
+      if (error) reportWriteError('driver-delete:' + id, 'Couldn\u2019t delete that driver \u2014 it\u2019ll reappear next reload.', error);
     });
   }
 }
@@ -10859,10 +10971,7 @@ function addHotel() {
   renderTransportationView();
   if (sbClient) {
     sbClient.from(HOTELS_TABLE).upsert({ id: hotel.id, name: hotel.name, address: hotel.address }).then(({ error }) => {
-      if (error) {
-        console.error('Hotel save failed:', error);
-        toast('Couldn\u2019t save that hotel \u2014 it\u2019ll disappear next reload. (' + errDetail(error) + ')');
-      }
+      if (error) reportWriteError('hotel:' + hotel.id, 'Couldn\u2019t save that hotel \u2014 it\u2019ll disappear next reload.', error);
     });
   }
   nameInput.value = ''; addrInput.value = '';
@@ -10879,9 +10988,9 @@ function editHotel(id) {
   if (sbClient) {
     sbClient.from(HOTELS_TABLE).upsert({ id: h.id, name: h.name, address: h.address }).then(({ error }) => {
       if (error) {
-        console.error('Hotel update failed:', error);
-        toast('Couldn\u2019t save that change \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+        reportWriteError('hotel:' + h.id, 'Couldn\u2019t save that change \u2014 it\u2019ll revert next reload.', error);
       } else {
+        reportWriteSuccess('hotel:' + h.id);
         toast('Hotel updated.');
       }
     });
@@ -10892,10 +11001,7 @@ function removeHotel(id) {
   renderTransportationView();
   if (sbClient) {
     sbClient.from(HOTELS_TABLE).delete().eq('id', id).then(({ error }) => {
-      if (error) {
-        console.error('Hotel delete failed:', error);
-        toast('Couldn\u2019t delete that hotel \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
-      }
+      if (error) reportWriteError('hotel-delete:' + id, 'Couldn\u2019t delete that hotel \u2014 it\u2019ll reappear next reload.', error);
     });
   }
 }
@@ -10928,8 +11034,7 @@ async function uploadProductionRider() {
   // upsert:true so re-uploading a new version replaces the old file at the same path
   const { error: uploadError } = await sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).upload(path, file, { upsert: true });
   if (uploadError) {
-    console.error('Rider upload failed:', uploadError);
-    toast('Upload failed \u2014 ' + (uploadError.message || 'see console'));
+    reportWriteError('rider-upload', 'Production rider upload failed.', uploadError);
     return;
   }
   const { data: urlData } = sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).getPublicUrl(path);
@@ -10940,8 +11045,7 @@ async function uploadProductionRider() {
       id: 'production-rider', label, file_name: file.name, url: urlData.publicUrl, uploaded_at: uploadedAt
     });
     if (error) {
-      console.error('Rider metadata save failed:', error);
-      toast('The file uploaded, but saving its details failed \u2014 it may not show up after a reload. (' + errDetail(error) + ')');
+      reportWriteError('rider-metadata', 'The production rider file uploaded, but saving its details failed \u2014 it may not show up after a reload.', error);
       return;
     }
   }
@@ -11095,9 +11199,11 @@ function pushSpeaker(sp) {
       tracker_status: sp.trackerStatus, data: sp.data, sort_order: sp.sortOrder,
       updated_at: new Date().toISOString()
     });
+    const key = 'speaker:' + sp.id;
     if (error) {
-      console.error('Speaker save failed:', error);
-      toast('Couldn\u2019t save that change to ' + (sp.name || 'this speaker') + ' \u2014 it\u2019ll revert next reload. (' + errDetail(error) + ')');
+      reportWriteError(key, 'Couldn\u2019t save that change to ' + (sp.name || 'this speaker') + ' \u2014 it\u2019ll revert next reload.', error);
+    } else {
+      reportWriteSuccess(key);
     }
   }, 300);
 }
@@ -11137,14 +11243,13 @@ function removeSpeaker(id) {
       ...(sp.data.materialsToShare || []).map(m => m.filePath),
       ...(sp.data.internalDocuments || []).map(m => m.filePath)
     ].filter(Boolean);
-    if (paths.length) sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove(paths);
+    if (paths.length) sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove(paths).then(({ error }) => {
+      if (error) reportWriteError('speaker-files:' + id, 'Couldn\u2019t remove ' + (sp.name || 'this speaker') + '\u2019s uploaded files from storage \u2014 they may be orphaned.', error);
+    });
   }
   speakers = speakers.filter(s => s.id !== id);
   if (sbClient) sbClient.from(SPEAKERS_TABLE).delete().eq('id', id).then(({ error }) => {
-    if (error) {
-      console.error('Speaker delete failed:', error);
-      toast('Couldn\u2019t delete that speaker/artist \u2014 it\u2019ll reappear next reload. (' + errDetail(error) + ')');
-    }
+    if (error) reportWriteError('speaker-delete:' + id, 'Couldn\u2019t delete that speaker/artist \u2014 it\u2019ll reappear next reload.', error);
   });
   if (openSpeakerId === id) openSpeakerId = null;
   renderSpeakerView();
@@ -11256,7 +11361,7 @@ async function removeSpeakerFile(id, kind, materialId) {
   if (!material) return;
   if (sbClient && material.filePath) {
     const { error } = await sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove([material.filePath]);
-    if (error) console.error('Storage delete failed:', error);
+    if (error) reportWriteError('speaker-file:' + materialId, 'Couldn’t remove that file from storage — it may be orphaned.', error);
   }
   sp.data[kind] = sp.data[kind].filter(m => m.id !== materialId);
   pushSpeaker(sp);
@@ -11414,7 +11519,7 @@ function addSessionRoom() {
   renderSpeakerView();
   if (sbClient) {
     sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: room.id, name: room.name }).then(({ error }) => {
-      if (error) { console.error('Room save failed:', error); toast('Couldn’t save that room — it’ll disappear next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('session-room:' + room.id, 'Couldn’t save that room — it’ll disappear next reload.', error);
     });
   }
   input.value = '';
@@ -11428,7 +11533,7 @@ function editSessionRoom(id) {
   renderSpeakerRows();
   if (sbClient) {
     sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: r.id, name: r.name }).then(({ error }) => {
-      if (error) { console.error('Room update failed:', error); toast('Couldn’t save that change — it’ll revert next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('session-room:' + r.id, 'Couldn’t save that change — it’ll revert next reload.', error);
     });
   }
 }
@@ -11437,7 +11542,7 @@ function removeSessionRoom(id) {
   renderSpeakerView();
   if (sbClient) {
     sbClient.from(SESSION_ROOMS_TABLE).delete().eq('id', id).then(({ error }) => {
-      if (error) { console.error('Room delete failed:', error); toast('Couldn’t delete that room — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('session-room-delete:' + id, 'Couldn’t delete that room — it’ll reappear next reload.', error);
     });
   }
 }
@@ -11450,7 +11555,7 @@ function addSessionTrack() {
   renderSpeakerView();
   if (sbClient) {
     sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: track.id, name: track.name }).then(({ error }) => {
-      if (error) { console.error('Track save failed:', error); toast('Couldn’t save that track — it’ll disappear next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('session-track:' + track.id, 'Couldn’t save that track — it’ll disappear next reload.', error);
     });
   }
   input.value = '';
@@ -11477,7 +11582,7 @@ function editSessionTrack(id) {
   if (typeof renderScheduleView === 'function' && document.getElementById('schedule-view') && document.getElementById('schedule-view').style.display !== 'none') renderScheduleView();
   if (sbClient) {
     sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: t.id, name: t.name }).then(({ error }) => {
-      if (error) { console.error('Track update failed:', error); toast('Couldn’t save that change — it’ll revert next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('session-track:' + t.id, 'Couldn’t save that change — it’ll revert next reload.', error);
     });
   }
 }
@@ -11486,7 +11591,7 @@ function removeSessionTrack(id) {
   renderSpeakerView();
   if (sbClient) {
     sbClient.from(SESSION_TRACKS_TABLE).delete().eq('id', id).then(({ error }) => {
-      if (error) { console.error('Track delete failed:', error); toast('Couldn’t delete that track — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('session-track-delete:' + id, 'Couldn’t delete that track — it’ll reappear next reload.', error);
     });
   }
 }
@@ -11521,12 +11626,12 @@ function pushScheduleAudience(aud) {
   if (!sbClient) return;
   const base = { id: aud.id, name: aud.name };
   sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ ...base, sort_order: aud.sortOrder || 0 }).then(({ error }) => {
-    if (!error) return;
+    if (!error) { reportWriteSuccess('schedule-audience:' + aud.id); return; }
     // Older schema without a sort_order column yet -- retry without it so the name/id still
     // save; order just won't persist until that column exists.
     sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert(base).then(({ error: err2 }) => {
-      if (err2) { console.error('Audience save failed:', err2); toast('Couldn’t save that group — it’ll revert next reload. (' + errDetail(err2) + ')'); }
-      else console.warn('Group order didn’t save — "schedule_audiences.sort_order" column may be missing. (' + errDetail(error) + ')');
+      if (err2) { reportWriteError('schedule-audience:' + aud.id, 'Couldn’t save that group — it’ll revert next reload.', err2); }
+      else { reportWriteSuccess('schedule-audience:' + aud.id); console.warn('Group order didn’t save — "schedule_audiences.sort_order" column may be missing. (' + errDetail(error) + ')'); }
     });
   });
 }
@@ -11590,7 +11695,7 @@ function removeScheduleAudience(id) {
   renderScheduleView();
   if (sbClient) {
     sbClient.from(SCHEDULE_AUDIENCES_TABLE).delete().eq('id', id).then(({ error }) => {
-      if (error) { console.error('Audience delete failed:', error); toast('Couldn’t delete that group — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('schedule-audience-delete:' + id, 'Couldn’t delete that group — it’ll reappear next reload.', error);
     });
   }
 }
@@ -11677,16 +11782,17 @@ function pushScheduleSlot(slot) {
   };
   const audiences = slot.audiences && slot.audiences.length ? slot.audiences : [MAIN_AUDIENCE_ID];
   const subOptions = slot.subOptions || [];
+  const key = 'schedule-slot:' + slot.id;
   sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({ ...base, audiences, sub_options: subOptions }).then(({ error }) => {
-    if (!error) return;
+    if (!error) { reportWriteSuccess(key); return; }
     // Older schema missing one or both of "audiences"/"sub_options" -- retry with just
     // audiences (the more established of the two), then with neither, so core fields (time,
     // label, kind) always save while a migration is pending.
     sbClient.from(SCHEDULE_SLOTS_TABLE).upsert({ ...base, audiences }).then(({ error: err2 }) => {
-      if (!err2) { console.warn('Sub-options didn’t save — "schedule_slots.sub_options" column may be missing. (' + errDetail(error) + ')'); return; }
+      if (!err2) { reportWriteSuccess(key); console.warn('Sub-options didn’t save — "schedule_slots.sub_options" column may be missing. (' + errDetail(error) + ')'); return; }
       sbClient.from(SCHEDULE_SLOTS_TABLE).upsert(base).then(({ error: err3 }) => {
-        if (err3) { console.error('Schedule slot save failed:', err3); toast('Couldn’t save that schedule change — it’ll revert next reload. (' + errDetail(err3) + ')'); }
-        else console.warn('Audience tag and sub-options didn’t save — columns may be missing. (' + errDetail(error) + ')');
+        if (err3) { reportWriteError(key, 'Couldn’t save that schedule change — it’ll revert next reload.', err3); }
+        else { reportWriteSuccess(key); console.warn('Audience tag and sub-options didn’t save — columns may be missing. (' + errDetail(error) + ')'); }
       });
     });
   });
@@ -11734,7 +11840,7 @@ function removeScheduleSlot(id) {
   renderScheduleView();
   if (sbClient) {
     sbClient.from(SCHEDULE_SLOTS_TABLE).delete().eq('id', id).then(({ error }) => {
-      if (error) { console.error('Schedule slot delete failed:', error); toast('Couldn’t delete that slot — it’ll reappear next reload. (' + errDetail(error) + ')'); }
+      if (error) reportWriteError('schedule-slot-delete:' + id, 'Couldn’t delete that slot — it’ll reappear next reload.', error);
     });
   }
 }
