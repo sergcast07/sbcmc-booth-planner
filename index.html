@@ -462,6 +462,7 @@
   body.schedule-view-mode > *:not(#schedule-public-view):not(#kb-toast) { display: none !important; }
   #schedule-public-view { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   body.sponsor-view-mode > *:not(#sponsor-public-view):not(#kb-toast) { display: none !important; }
+  body.speaker-view-mode > *:not(#speaker-public-view):not(#kb-toast) { display: none !important; }
   #sponsor-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   .spv-org-name { font-size: 15px; color: var(--ink-soft); margin: 0; }
   .spv-field { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 12px; }
@@ -1481,6 +1482,16 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     <div class="dv-loading">Loading your sponsor info&hellip;</div>
   </div>
 </div>
+
+<div id="speaker-public-view" style="display:none;">
+  <div class="dv-header">
+    <h1>SBCMC 2027 &mdash; Speaker/Artist Portal</h1>
+    <p id="skv-name" class="spv-org-name"></p>
+  </div>
+  <div id="skv-body" class="dv-body">
+    <div class="dv-loading">Loading your info&hellip;</div>
+  </div>
+</div>
 <script>
 // SUPABASE_CONFIG/sbClient are declared here (with `var`, not `const`/`let`) specifically so
 // they're visible from BOTH inline <script> tags on this page -- classic (non-module) scripts
@@ -1505,14 +1516,15 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 // "client-side is not the security boundary by itself" framing as before, now backed by an
 // actual login instead of a hash anyone can read in page source.
 (function() {
-  // Driver-view, schedule-view, and sponsor-portal links (?view=drivers / ?view=schedule /
-  // ?view=sponsor) skip the gate entirely -- see initDriverPublicView()/
-  // initSchedulePublicView()/initSponsorPublicView(), called separately at the bottom of the
-  // page once the rest of the app has loaded. The equivalent no-login applicant-review link
-  // (?view=applicants) was removed once every reviewer had a real logged-in account.
+  // Driver-view, schedule-view, sponsor-portal, and speaker-portal links (?view=drivers /
+  // ?view=schedule / ?view=sponsor / ?view=speaker) skip the gate entirely -- see
+  // initDriverPublicView()/initSchedulePublicView()/initSponsorPublicView()/
+  // initSpeakerPublicView(), called separately at the bottom of the page once the rest of the
+  // app has loaded. The equivalent no-login applicant-review link (?view=applicants) was
+  // removed once every reviewer had a real logged-in account.
   try {
     const publicView = new URLSearchParams(window.location.search).get('view');
-    if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor') return;
+    if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor' || publicView === 'speaker') return;
   } catch (e) {}
 
   document.body.classList.add('gate-locked');
@@ -3465,7 +3477,14 @@ function redactSpeakerFinancials(sp) {
       const restMatch = url.match(/\/rest\/v1\/([^?]+)/);
       const table = restMatch ? restMatch[1] : null;
       const sectionKeys = table ? TABLE_TO_SECTION_KEYS[table] : null;
-      if (sectionKeys && !canEditAny(sectionKeys)) {
+      // The sponsor/speaker self-service portals write to their own table with no
+      // window.userPermissions set at all (there's no admin session in that context) -- their
+      // security model is "possession of the row's token", not the team-permission system this
+      // guard exists to enforce. Without this bypass, every portal write (staging a change,
+      // uploading a file, even minting the link's own token) gets silently blocked here.
+      const portalBypass = (table === 'sponsors' && typeof isSponsorViewMode === 'function' && isSponsorViewMode())
+        || (table === 'speakers' && typeof isSpeakerViewMode === 'function' && isSpeakerViewMode());
+      if (sectionKeys && !canEditAny(sectionKeys) && !portalBypass) {
         console.warn('Blocked ' + method + ' ' + url + ' -- no edit access to ' + sectionKeys.join('/'));
         return Promise.resolve(new Response(JSON.stringify({ message: 'You don’t have edit access to this section.', code: 'PERMISSION_DENIED_CLIENT' }), {
           status: 403,
@@ -11622,6 +11641,12 @@ function defaultSpeakerData() {
     materialsNeeded: {}, // keyed dynamically per material item -- see materialsForTypes()
     materialsToShare: [], // [{id, label, fileName, filePath, fileSize, uploadedAt}] -- for attendees
     internalDocuments: [], // same shape, but internal-only (rider, contract, W9) -- never shown to attendees
+    // Fixed upload slots, one per materialsForTypes()/MATERIAL_ITEM_LABELS checklist key (bio,
+    // headshot, w9, stagePlot, etc.) -- separate from the free-label arrays above, so each
+    // checklist row can carry one real uploaded file: {fileName, filePath, fileSize, url, uploadedAt}.
+    materials: {},
+    // Self-service portal (?view=speaker&t=...) -- same shape as sponsors' equivalent fields.
+    publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
     specialNotes: '', flagged: false,
     // '' (standard: flat fee, travel not tracked here), 'travel' (fee + travel is arranged and
     // tracked), or 'sponsor' (presenting as part of a sponsorship -- see linkedSponsorId, no fee
@@ -11717,6 +11742,331 @@ function subscribeSpeakerRealtime() {
 }
 
 function getSpeaker(id) { return speakers.find(s => s.id === id); }
+
+// ==================== Speaker/Artist Public Portal (magic link) ====================
+// Mirrors the sponsor portal (see isSponsorViewMode/initSponsorPublicView above): write-capable,
+// scoped to ONE speaker's own record via a random token in the URL matched against
+// data->>publicToken, held in speakerPublicRecord (never in the global `speakers` array).
+// Reached via ?view=speaker&t=TOKEN.
+function isSpeakerViewMode() {
+  try { return new URLSearchParams(window.location.search).get('view') === 'speaker'; }
+  catch (e) { return false; }
+}
+
+let speakerPublicRecord = null;
+let speakerPublicChannel = null;
+// Session-only, same reasoning as sponsorPortalJustCompleted above.
+let speakerPortalJustCompleted = false;
+
+async function initSpeakerPublicView() {
+  document.body.classList.add('speaker-view-mode');
+  document.getElementById('speaker-public-view').style.display = 'block';
+
+  const token = new URLSearchParams(window.location.search).get('t');
+  const bodyEl = document.getElementById('skv-body');
+  if (!token || !isSupabaseConfigured()) {
+    bodyEl.innerHTML = '<div class="dv-loading">This link is missing or invalid — please ask the conference coordinator for a fresh link.</div>';
+    return;
+  }
+  try {
+    const { data: row, error } = await sbClient.from(SPEAKERS_TABLE).select('*').eq('data->>publicToken', token).maybeSingle();
+    if (error) throw error;
+    if (!row) {
+      bodyEl.innerHTML = '<div class="dv-loading">This link isn’t active — please ask the conference coordinator for a fresh link.</div>';
+      return;
+    }
+    speakerPublicRecord = rowToSpeaker(row);
+    renderSpeakerPublicView();
+
+    // Stay live so edits made on this page (or by staff in the admin tracker) show up without
+    // a manual refresh -- filtered to this one row only, never the whole table.
+    speakerPublicChannel = sbClient.channel('speaker-portal-' + speakerPublicRecord.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: SPEAKERS_TABLE, filter: 'id=eq.' + speakerPublicRecord.id }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          bodyEl.innerHTML = '<div class="dv-loading">This speaker record is no longer available.</div>';
+          return;
+        }
+        speakerPublicRecord = rowToSpeaker(payload.new);
+        renderSpeakerPublicView();
+      })
+      .subscribe();
+  } catch (err) {
+    console.error('Speaker portal load failed:', err);
+    bodyEl.innerHTML = '<div class="dv-loading">Couldn’t load your info — try refreshing.</div>';
+  }
+}
+
+function renderSpeakerPublicView() {
+  const sp = speakerPublicRecord;
+  if (!sp) return;
+  document.getElementById('skv-name').textContent = sp.name || 'Your Info';
+
+  const pending = sp.data.pendingChanges || {};
+  const pendingTag = key => pending[key] ? ' <span class="spv-pending-tag">Pending review</span>' : '';
+  const materials = sp.data.materials || {};
+  const relevantKeys = materialsForTypes(sp.types);
+
+  function materialBlock(itemKey) {
+    const key = 'materials.' + itemKey;
+    const label = MATERIAL_ITEM_LABELS[itemKey] || itemKey;
+    const filePending = pending[key];
+    const file = filePending ? filePending.new : (materials[itemKey] || null);
+    const isPendingRemoval = filePending && !filePending.new;
+    return `
+      <div class="spv-file-block">
+        <b>${escapeHtml(label)}</b>${pendingTag(key)}
+        ${isPendingRemoval ? '<div class="sp-sub">Removal pending review.</div>' : file ? `<div class="sp-sub">${filePending ? 'Proposed' : 'Uploaded'}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="portalRemoveSpeakerMaterial('${sp.id}', '${itemKey}')">Remove</button>` : '<div class="sp-sub">Not uploaded yet.</div>'}
+        <input type="file" id="skv-material-input-${sp.id}-${itemKey}" style="margin-top:6px;">
+        <button class="sp-add-btn" onclick="portalUploadSpeakerMaterial('${sp.id}', '${itemKey}')">Upload</button>
+      </div>
+    `;
+  }
+
+  const pendingCount = Object.keys(pending).length;
+
+  document.getElementById('skv-body').innerHTML = `
+    ${pendingCount > 0 ? `<div class="spv-pending-banner">Thanks! Our team will take a quick look at your update${pendingCount === 1 ? '' : 's'} shortly.</div>` : ''}
+
+    <div class="dv-section">
+      <div class="dv-section-title">Your Contact Info</div>
+      <label class="spv-field">Contact Name${pendingTag('contactName')}<input type="text" value="${escapeHtml(portalStagedSpeakerValue(sp, 'contactName', sp.contactName))}" onchange="portalUpdateSpeakerContactField('${sp.id}', 'contactName', this.value)"></label>
+      <label class="spv-field">Contact Email${pendingTag('contactEmail')}<input type="email" value="${escapeHtml(portalStagedSpeakerValue(sp, 'contactEmail', sp.contactEmail))}" onchange="portalUpdateSpeakerContactField('${sp.id}', 'contactEmail', this.value)"></label>
+      <label class="spv-field">Contact Phone${pendingTag('contactPhone')}<input type="tel" value="${escapeHtml(portalStagedSpeakerValue(sp, 'contactPhone', sp.contactPhone))}" onchange="portalUpdateSpeakerContactField('${sp.id}', 'contactPhone', this.value)"></label>
+    </div>
+
+    <div class="dv-section">
+      <div class="dv-section-title">Your Documents</div>
+      <p class="sp-sub sp-sub-wrap">Upload whatever you have ready — you can always come back and add more later.</p>
+      ${relevantKeys.map(materialBlock).join('')}
+    </div>
+
+    <div class="dv-section">
+      <div class="dv-section-title">Notes for the Conference Team${pendingTag('publicNotes')}</div>
+      <textarea class="spv-textarea" rows="3" onchange="portalUpdateSpeakerNotes('${sp.id}', this.value)" placeholder="Anything else we should know?">${escapeHtml(portalStagedSpeakerValue(sp, 'publicNotes', sp.data.publicNotes || ''))}</textarea>
+    </div>
+
+    <div class="dv-section spv-done-section">
+      ${speakerPortalJustCompleted ? `
+        <div class="spv-done-banner">✓ Marked complete on ${escapeHtml(new Date(sp.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}. You can still come back and make changes anytime — just click below again when you’re done.</div>
+      ` : ''}
+      <p class="sp-sub sp-sub-wrap">Every field above is saved as a suggested update — our team reviews and approves it before it's official. Click below when you're finished so they know it's ready to look at.</p>
+      <button class="qa-modal-done spv-done-btn" onclick="markSpeakerPortalComplete('${sp.id}')">✓ I'm Done — Ready for Review</button>
+    </div>
+  `;
+}
+
+// Admin-side: generate (if needed) and copy this speaker's self-service link. Token minted
+// lazily on first copy, same reasoning as ensureSponsorPublicToken above.
+function ensureSpeakerPublicToken(sp) {
+  if (!sp.data.publicToken) {
+    sp.data.publicToken = generateRandomToken();
+    pushSpeaker(sp);
+  }
+  return sp.data.publicToken;
+}
+function speakerPortalUrl(sp) {
+  return window.location.origin + window.location.pathname + '?view=speaker&t=' + ensureSpeakerPublicToken(sp);
+}
+function copySpeakerPublicLink(id) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const url = speakerPortalUrl(sp);
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Self-service link for ' + (sp.name || 'this speaker') + ' copied — send it to their contact.');
+  }).catch(() => {
+    prompt('Copy this link to send to ' + (sp.name || 'this speaker') + ':', url);
+  });
+}
+function revokeSpeakerPublicLink(id) {
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!sp.data.publicToken) return;
+  if (!confirm('Revoke this speaker’s self-service link? Their old link will stop working immediately. You can generate a new one anytime.')) return;
+  sp.data.publicToken = '';
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+  toast('Link revoked for ' + (sp.name || 'this speaker') + '.');
+}
+
+// The public speaker portal (?view=speaker) never loads the full speakers array -- only the
+// one record its token resolves to, held in speakerPublicRecord. Field-update functions shared
+// between the admin tracker and the portal resolve through here instead of calling getSpeaker()
+// directly, so the same handler works in both.
+function resolveSpeakerForEdit(id) {
+  if (typeof isSpeakerViewMode === 'function' && isSpeakerViewMode() && speakerPublicRecord && speakerPublicRecord.id === id) return speakerPublicRecord;
+  return getSpeaker(id);
+}
+function refreshSpeakerAfterEdit(id) {
+  if (typeof isSpeakerViewMode === 'function' && isSpeakerViewMode() && typeof renderSpeakerPublicView === 'function') renderSpeakerPublicView();
+  else if (typeof renderSpeakerRows === 'function') renderSpeakerRows(id);
+}
+// Every field on the portal already autosaves on change -- this button doesn't save anything
+// new, it just gives the speaker a clear "you're done" moment.
+function markSpeakerPortalComplete(id) {
+  const sp = resolveSpeakerForEdit(id); if (!sp) return;
+  sp.data.publicPortalCompletedAt = new Date().toISOString();
+  speakerPortalJustCompleted = true;
+  pushSpeaker(sp);
+  refreshSpeakerAfterEdit(id);
+}
+
+// ==================== Speaker Portal: Pending Changes (approval queue) ====================
+// Edits a speaker makes on their self-service portal don't write straight to the live record --
+// they're staged in data.pendingChanges (keyed by field, or 'materials.<itemKey>' for uploads)
+// until a staff member approves or rejects each one from the tracker.
+const SPEAKER_PENDING_FIELD_MAP = {
+  contactName: { label: 'Contact Name', apply: (sp, v) => { sp.contactName = v; } },
+  contactEmail: { label: 'Contact Email', apply: (sp, v) => { sp.contactEmail = v; } },
+  contactPhone: { label: 'Contact Phone', apply: (sp, v) => { sp.contactPhone = v; } },
+  publicNotes: { label: 'Notes for the Conference Team', apply: (sp, v) => { sp.data.publicNotes = v; } }
+};
+function speakerPendingFieldLabel(key) {
+  const map = SPEAKER_PENDING_FIELD_MAP[key];
+  if (map) return map.label;
+  if (key.indexOf('materials.') === 0) return MATERIAL_ITEM_LABELS[key.slice('materials.'.length)] || key;
+  return key;
+}
+function speakerLiveFieldValue(sp, key) {
+  if (key === 'contactName') return sp.contactName;
+  if (key === 'contactEmail') return sp.contactEmail;
+  if (key === 'contactPhone') return sp.contactPhone;
+  if (key === 'publicNotes') return sp.data.publicNotes || '';
+  if (key.indexOf('materials.') === 0) return (sp.data.materials || {})[key.slice('materials.'.length)] || null;
+  return undefined;
+}
+// Same staging mechanics as stageSponsorChange above -- keeps the original live value as `old`
+// across repeated edits, drops the pending entry entirely if reverted back to that value.
+function stageSpeakerChange(id, key, newValue) {
+  const sp = resolveSpeakerForEdit(id); if (!sp) return;
+  if (!sp.data.pendingChanges) sp.data.pendingChanges = {};
+  const liveValue = speakerLiveFieldValue(sp, key);
+  const existing = sp.data.pendingChanges[key];
+  const oldValue = existing ? existing.old : liveValue;
+  if (JSON.stringify(newValue) === JSON.stringify(oldValue)) {
+    delete sp.data.pendingChanges[key];
+  } else {
+    sp.data.pendingChanges[key] = { old: oldValue, new: newValue, changedAt: new Date().toISOString() };
+  }
+  pushSpeaker(sp);
+  refreshSpeakerAfterEdit(id);
+}
+function portalStagedSpeakerValue(sp, key, fallback) {
+  const pc = sp.data.pendingChanges && sp.data.pendingChanges[key];
+  return pc ? pc.new : fallback;
+}
+function formatSpeakerPendingValue(key, value) {
+  if (key.indexOf('materials.') === 0) return value ? value.fileName : '(none)';
+  return value ? value : '(blank)';
+}
+function speakerPendingCount(sp) { return Object.keys(sp.data.pendingChanges || {}).length; }
+
+// Admin-side: apply one proposed change to the live record, or discard it. Both clean up any
+// now-orphaned uploaded file in storage so rejected/overwritten uploads don't pile up unseen.
+// Approving a materials.<itemKey> change also checks that item off materialsNeeded, since the
+// checklist item is now genuinely satisfied with a real file, not just manually ticked.
+function approveSpeakerPendingChange(id, key) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const pending = sp.data.pendingChanges && sp.data.pendingChanges[key];
+  if (!pending) return;
+  const isMaterial = key.indexOf('materials.') === 0;
+  if (isMaterial && pending.old && pending.old.filePath && (!pending.new || pending.new.filePath !== pending.old.filePath) && sbClient) {
+    sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove([pending.old.filePath]).then(({ error }) => { if (error) reportWriteError('speaker-file-cleanup:' + id + ':' + key, 'Couldn’t remove the old file for ' + (sp.name || 'this speaker') + ' from storage — it may be orphaned.', error); });
+  }
+  if (isMaterial) {
+    const itemKey = key.slice('materials.'.length);
+    if (!sp.data.materials) sp.data.materials = {};
+    sp.data.materials[itemKey] = pending.new;
+    if (pending.new) {
+      if (!sp.data.materialsNeeded) sp.data.materialsNeeded = {};
+      sp.data.materialsNeeded[itemKey] = true;
+    }
+  } else {
+    const map = SPEAKER_PENDING_FIELD_MAP[key];
+    if (!map) return;
+    map.apply(sp, pending.new);
+  }
+  delete sp.data.pendingChanges[key];
+  if (speakerActiveTab === 'pending' && speakerPendingCount(sp) === 0) speakerActiveTab = 'overview';
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+  toast('Approved: ' + speakerPendingFieldLabel(key) + ' for ' + (sp.name || 'this speaker') + '.');
+}
+function rejectSpeakerPendingChange(id, key) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const pending = sp.data.pendingChanges && sp.data.pendingChanges[key];
+  if (!pending) return;
+  const isMaterial = key.indexOf('materials.') === 0;
+  if (isMaterial && pending.new && pending.new.filePath && (!pending.old || pending.old.filePath !== pending.new.filePath) && sbClient) {
+    sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove([pending.new.filePath]).then(({ error }) => { if (error) reportWriteError('speaker-file-cleanup:' + id + ':' + key, 'Couldn’t remove the rejected file for ' + (sp.name || 'this speaker') + ' from storage — it may be orphaned.', error); });
+  }
+  delete sp.data.pendingChanges[key];
+  if (speakerActiveTab === 'pending' && speakerPendingCount(sp) === 0) speakerActiveTab = 'overview';
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+  toast('Rejected: ' + speakerPendingFieldLabel(key) + ' for ' + (sp.name || 'this speaker') + '. Their record is unchanged.');
+}
+function approveAllSpeakerPendingChanges(id) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const keys = Object.keys(sp.data.pendingChanges || {});
+  if (!keys.length) return;
+  if (!confirm('Approve all ' + keys.length + ' proposed change' + (keys.length === 1 ? '' : 's') + ' from ' + (sp.name || 'this speaker') + '?')) return;
+  keys.forEach(k => approveSpeakerPendingChange(id, k));
+}
+function rejectAllSpeakerPendingChanges(id) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const keys = Object.keys(sp.data.pendingChanges || {});
+  if (!keys.length) return;
+  if (!confirm('Reject all ' + keys.length + ' proposed change' + (keys.length === 1 ? '' : 's') + ' from ' + (sp.name || 'this speaker') + '? Their record stays as-is.')) return;
+  keys.forEach(k => rejectSpeakerPendingChange(id, k));
+}
+
+// ==================== Speaker Portal: staged (non-live) write functions ====================
+// Mirror the admin update functions, but stage into pendingChanges instead of writing live.
+// Only used by the public portal's own onclick handlers -- admin edits keep using the direct
+// updateSpeaker* functions, unaffected by any of this.
+function portalUpdateSpeakerContactField(id, field, value) { stageSpeakerChange(id, field, value); }
+function portalUpdateSpeakerNotes(id, value) { stageSpeakerChange(id, 'publicNotes', value); }
+async function portalUploadSpeakerMaterial(id, itemKey) {
+  const sp = resolveSpeakerForEdit(id); if (!sp) return;
+  const input = document.getElementById('skv-material-input-' + id + '-' + itemKey);
+  if (!input || !input.files || !input.files[0]) { toast('Choose a file first.'); return; }
+  if (!sbClient) { toast('Not connected to shared storage — can’t upload right now.'); return; }
+  const file = input.files[0];
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = id + '/materials/' + itemKey + '/' + Date.now() + '_' + safeName;
+
+  toast('Uploading ' + file.name + '...');
+  const { error: uploadError } = await sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).upload(path, file, { upsert: true });
+  if (uploadError) {
+    console.error('Upload failed:', uploadError);
+    toast('Upload failed — ' + (uploadError.message || 'see console') + '. If this bucket doesn’t exist yet, it needs to be created in Supabase Storage first.');
+    return;
+  }
+  const { data: urlData } = sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).getPublicUrl(path);
+  const fileInfo = {
+    fileName: file.name, filePath: path, fileSize: file.size,
+    url: urlData.publicUrl, uploadedAt: new Date().toISOString().slice(0, 10)
+  };
+  input.value = '';
+  stageSpeakerChange(id, 'materials.' + itemKey, fileInfo);
+  toast('Uploaded ' + file.name + ' — pending review by our team.');
+}
+async function portalRemoveSpeakerMaterial(id, itemKey) {
+  const sp = resolveSpeakerForEdit(id); if (!sp) return;
+  const key = 'materials.' + itemKey;
+  const pending = sp.data.pendingChanges && sp.data.pendingChanges[key];
+  if (pending) {
+    if (pending.new && sbClient && pending.new.filePath) {
+      const { error } = await sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove([pending.new.filePath]);
+      if (error) console.error('Storage cleanup failed:', error);
+    }
+    delete sp.data.pendingChanges[key];
+    pushSpeaker(sp);
+    refreshSpeakerAfterEdit(id);
+    return;
+  }
+  const live = (sp.data.materials || {})[itemKey];
+  if (!live) return;
+  stageSpeakerChange(id, key, null);
+}
 
 function addSpeaker() {
   if (!canEditOrWarn('speakers.roster', 'speakers')) return;
@@ -13389,10 +13739,12 @@ function speakerDetailHTML(sp) {
   ).join('') || '<div class="sp-sub">No open questions.</div>';
 
   const mn = sp.data.materialsNeeded || {};
+  const spMaterials = sp.data.materials || {};
   const relevantMaterialKeys = materialsForTypes(sp.types);
-  const materialsNeededHtml = relevantMaterialKeys.map(key => `
-    <div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}</div>
-  `).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
+  const materialsNeededHtml = relevantMaterialKeys.map(key => {
+    const file = spMaterials[key];
+    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a>` : ''}</div>`;
+  }).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
 
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
     <div class="sk-file-row">
@@ -13413,12 +13765,14 @@ function speakerDetailHTML(sp) {
   const completeness = speakerCompleteness(sp);
   const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
   const activeTab = speakerActiveTab;
+  const pendingCount = speakerPendingCount(sp);
   const tabs = [['overview', 'Overview']];
   if (canView('speakers.financial')) tabs.push(['financial', 'Financials']);
   tabs.push(['logistics', 'Logistics'], ['production', 'Production'], ['files', 'Files']);
+  if (pendingCount > 0) tabs.push(['pending', '🔔 Pending Updates (' + pendingCount + ')']);
   const tabBarHtml = tabs.map(([key, label]) => {
-    const alert = speakerTabAlert(sp, key);
-    return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''}" onclick="setSpeakerTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
+    const alert = key === 'pending' ? false : speakerTabAlert(sp, key);
+    return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''} ${key === 'pending' ? 'sk-tab-btn-pending' : ''}" onclick="setSpeakerTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
   }).join('');
   const showTransportForm = openTransportAddForms.has(sp.id);
 
@@ -13458,6 +13812,14 @@ function speakerDetailHTML(sp) {
         <fieldset class="sp-fieldset">
           <legend>Notes</legend>
           <textarea rows="3" onchange="updateSpeakerData('${sp.id}','specialNotes',this.value)">${escapeHtml(sp.data.specialNotes)}</textarea>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Self-Service Portal</legend>
+          <p class="sp-sub sp-sub-wrap">Send them a private link to update their own contact info and upload documents (bio, headshot, W9, rider items, etc.) — every change is held for your review before it's official.</p>
+          <button class="sp-mini-btn" onclick="copySpeakerPublicLink('${sp.id}')">🔗 Copy Self-Service Link</button>
+          ${sp.data.publicToken ? `<button class="sp-mini-btn" onclick="revokeSpeakerPublicLink('${sp.id}')">Revoke Link</button>` : ''}
+          ${sp.data.publicPortalCompletedAt ? `<div class="sp-sub" style="margin-top:6px;">They marked this complete on ${escapeHtml(new Date(sp.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}.</div>` : ''}
         </fieldset>
 
         <fieldset class="sp-fieldset" style="grid-column:1/-1;">
@@ -13686,6 +14048,37 @@ function speakerDetailHTML(sp) {
             <button class="sp-mini-btn" onclick="uploadSpeakerInternalDoc('${sp.id}')">Upload</button>
           </div>
         </fieldset>
+      </div>
+    </div>
+    `}
+
+    ${activeTab !== 'pending' ? '' : `
+    <div class="sk-tab-panel">
+      <div class="sp-detail-grid">
+      <fieldset class="sp-fieldset">
+        <legend>\ud83d\udd14 Pending Updates from ${escapeHtml(sp.name)}</legend>
+        <p class="sp-sub sp-sub-wrap">Proposed by them through their self-service link. Nothing here is live yet \u2014 approve to apply it to the record, or reject to discard it and keep the current value.</p>
+        ${Object.keys(sp.data.pendingChanges || {}).length > 1 ? `
+          <div class="sp-add-row" style="margin-bottom:10px;">
+            <button class="sp-mini-btn" onclick="approveAllSpeakerPendingChanges('${sp.id}')">\u2713 Approve All</button>
+            <button class="sp-mini-btn" onclick="rejectAllSpeakerPendingChanges('${sp.id}')">\u2715 Reject All</button>
+          </div>
+        ` : ''}
+        ${Object.entries(sp.data.pendingChanges || {}).map(([key, change]) => `
+          <div class="spv-pending-review-row">
+            <div class="spv-pending-review-label">${escapeHtml(speakerPendingFieldLabel(key))}</div>
+            <div class="spv-pending-review-diff">
+              <span class="spv-pending-old">${escapeHtml(formatSpeakerPendingValue(key, change.old))}</span>
+              <span class="spv-pending-arrow">\u2192</span>
+              <span class="spv-pending-new">${escapeHtml(formatSpeakerPendingValue(key, change.new))}</span>
+            </div>
+            <div class="sp-add-row">
+              <button class="sp-mini-btn" onclick="approveSpeakerPendingChange('${sp.id}','${key}')">\u2713 Approve</button>
+              <button class="sp-mini-btn" onclick="rejectSpeakerPendingChange('${sp.id}','${key}')">\u2715 Reject</button>
+            </div>
+          </div>
+        `).join('') || '<div class="sp-sub">Nothing pending.</div>'}
+      </fieldset>
       </div>
     </div>
     `}
@@ -14312,6 +14705,11 @@ if (isDriverViewMode()) {
   // in the URL, with limited edit controls (contact info, badge names, shipping notes,
   // materials upload, notes). No financial data, no other sponsors' data, ever loaded here.
   initSponsorPublicView();
+} else if (isSpeakerViewMode()) {
+  // Speaker/artist self-service portal -- same pattern as the sponsor portal above, scoped to
+  // exactly one speaker's own record via a token in the URL. No fee/financial data, no other
+  // speakers' data, ever loaded here.
+  initSpeakerPublicView();
 } else {
   renderPackageSidebar();
   buildTabs();
