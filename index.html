@@ -9983,7 +9983,7 @@ function speakerCompleteness(sp) {
   checks.push((sp.types || []).length > 0);
   checks.push((sp.data.sessions || []).some(s => s.title));
   if (!skipFee) checks.push(!!sp.data.financial.feeStatus);
-  const mat = materialsForTypes(sp.types);
+  const mat = materialsForTypes(sp.types, sp.data.arrangement);
   const mn = sp.data.materialsNeeded || {};
   checks.push(mat.length === 0 || mat.every(k => mn[k]));
   if (!skipTravel) checks.push(!!lg.travelMethod);
@@ -10003,7 +10003,7 @@ function speakerTabAlert(sp, tab) {
   if (sp.data.arrangement === 'sponsor' && tab === 'financial') return false; // collapsed to a note, nothing to flag
   if (sp.data.arrangement !== 'travel' && tab === 'logistics') return false; // collapsed to a note, nothing to flag
   if (tab === 'production') {
-    const mat = materialsForTypes(sp.types);
+    const mat = materialsForTypes(sp.types, sp.data.arrangement);
     const mn = sp.data.materialsNeeded || {};
     return mat.some(k => !mn[k]);
   }
@@ -11613,10 +11613,14 @@ const MATERIALS_BY_TYPE = {
   'Panelist': ['bio', 'headshot', 'w9', 'contract', 'sessionDescription'],
   'Other': ['bio', 'headshot', 'w9', 'contract']
 };
-function materialsForTypes(types) {
+// arrangement: pass sp.data.arrangement when known. W9/Contract only make sense when a fee is
+// actually being paid -- a 'sponsor'-provided speaker has no fee tracked at all, so both are
+// dropped from their checklist regardless of type.
+function materialsForTypes(types, arrangement) {
   const set = new Set();
   (types || []).forEach(t => (MATERIALS_BY_TYPE[t] || []).forEach(k => set.add(k)));
   if (set.size === 0) ['bio', 'headshot', 'w9', 'contract'].forEach(k => set.add(k)); // no type picked yet -- fall back to the common baseline
+  if (arrangement === 'sponsor') { set.delete('w9'); set.delete('contract'); }
   return Array.from(set);
 }
 
@@ -11822,7 +11826,7 @@ function renderSpeakerPublicView() {
   const pending = sp.data.pendingChanges || {};
   const pendingTag = key => pending[key] ? ' <span class="spv-pending-tag">Pending review</span>' : '';
   const materials = sp.data.materials || {};
-  const relevantKeys = materialsForTypes(sp.types);
+  const relevantKeys = materialsForTypes(sp.types, sp.data.arrangement);
 
   function materialBlock(itemKey) {
     const key = 'materials.' + itemKey;
@@ -12315,7 +12319,7 @@ function earliestSpeakerSession(sp) {
 
 function materialsNeededCount(sp) {
   const mn = sp.data.materialsNeeded || {};
-  const keys = materialsForTypes(sp.types);
+  const keys = materialsForTypes(sp.types, sp.data.arrangement);
   const done = keys.filter(k => mn[k]).length;
   return { done, total: keys.length };
 }
@@ -13758,7 +13762,7 @@ function speakerDetailHTML(sp) {
 
   const mn = sp.data.materialsNeeded || {};
   const spMaterials = sp.data.materials || {};
-  const relevantMaterialKeys = materialsForTypes(sp.types);
+  const relevantMaterialKeys = materialsForTypes(sp.types, sp.data.arrangement);
   const materialsNeededHtml = relevantMaterialKeys.map(key => {
     const file = spMaterials[key];
     return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a>` : ''}</div>`;
@@ -14546,7 +14550,7 @@ function emailSpeakerSummary(id) {
     lines.push('');
   }
 
-  const allMaterials = materialsForTypes(sp.types);
+  const allMaterials = materialsForTypes(sp.types, sp.data.arrangement);
   const mn = sp.data.materialsNeeded || {};
   const stillNeeded = allMaterials.filter(k => !mn[k]);
   const received = allMaterials.filter(k => mn[k]);
