@@ -4390,6 +4390,10 @@ function updateSyncStatus(state, detail) {
   text.textContent = detail || labels[state] || state;
 }
 
+// Flips true once the initial sponsors/speakers/booths load has finished -- see renderDashboard()'s
+// loading-guard for why this exists.
+let initialDataLoaded = false;
+
 async function initSupabase() {
   if (!isSupabaseConfigured()) {
     updateSyncStatus('not-configured');
@@ -4418,6 +4422,7 @@ async function initSupabase() {
       (typeof loadApplicantGroups === 'function' && canView('applicants.all') ? loadApplicantGroups() : Promise.resolve()),
       (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve())
     ]);
+    initialDataLoaded = true;
     if (typeof renderApplicantStats === 'function') renderApplicantStats();
     rebuildMapRegistry();
     renderPackageSidebar();
@@ -6841,6 +6846,18 @@ function dbCard(icon, iconColor, label, value, sub, valueColor, drillKey, drillT
 }
 
 function renderDashboard() {
+  // finishUnlock() switches to this tab immediately on login, before initSupabase() has
+  // actually loaded sponsors/speakers/booths -- without this guard, that first call would
+  // compute every total from empty arrays and show "$0"/"0" everywhere for the second or two
+  // it takes real data to arrive, easy to misread as data loss. initialDataLoaded flips true
+  // right after that load finishes (see initSupabase()), and this function gets called again
+  // then with real numbers. Not Supabase-configured is a different case -- there's nothing to
+  // wait on, so render immediately from whatever local defaults exist.
+  if (isSupabaseConfigured() && !initialDataLoaded) {
+    const cardsEl = document.getElementById('db-cards');
+    if (cardsEl) cardsEl.innerHTML = '<div class="dv-loading" style="grid-column:1/-1;">Loading dashboard…</div>';
+    return;
+  }
   // "Active" sponsors = the ones the totals on this page are scoped to: Registered (cash)
   // and In-Kind. Prospective/lapsed/declined sponsors are tracked elsewhere in the app but
   // intentionally excluded from every dashboard total below.
