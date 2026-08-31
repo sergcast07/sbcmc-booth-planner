@@ -1371,6 +1371,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
    swatch next to that group's name in the filter bar above. */
 .sch-row-aud-dots { display: flex; align-items: center; gap: 5px; }
 .sch-aud-dot { width: 11px; height: 11px; border-radius: 50%; cursor: pointer; border: 1.5px solid var(--dot-color); background: transparent; box-sizing: border-box; }
+.sch-aud-dot-readonly { cursor: default; }
 .sch-aud-dot.on { background: var(--dot-color); }
 .sch-aud-dot.off { opacity: 0.4; }
 .sch-aud-dot.off:hover { opacity: 0.8; }
@@ -12366,6 +12367,7 @@ function toggleScheduleAudienceFilter(audId) {
 }
 function slotAudiences(slot) { return slot.audiences && slot.audiences.length ? slot.audiences : [MAIN_AUDIENCE_ID]; }
 function toggleSlotAudience(slotId, audId) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
   const current = new Set(slotAudiences(slot));
   if (current.has(audId)) {
@@ -12489,7 +12491,8 @@ function sortByLastName(list) {
 function buildScheduleRosterChipsHtml() {
   const filtered = speakers.filter(sp => !scheduleRosterSearch || sp.name.toLowerCase().includes(scheduleRosterSearch.toLowerCase()));
   if (!filtered.length) return '<span class="sp-sub">No speakers match.</span>';
-  return sortByLastName(filtered).map(sp => `<div class="sch-chip" draggable="true" ondragstart="schDragStart(event, {type:'speaker', speakerId:'${sp.id}'})">${escapeHtml(sp.name)}</div>`).join('');
+  const editable = canEdit('schedule.all');
+  return sortByLastName(filtered).map(sp => `<div class="sch-chip" draggable="${editable}" ${editable ? `ondragstart="schDragStart(event, {type:'speaker', speakerId:'${sp.id}'})"` : ''}>${escapeHtml(sp.name)}</div>`).join('');
 }
 
 function sortCellOccupants(occs) {
@@ -12505,6 +12508,7 @@ function sortCellOccupants(occs) {
 }
 
 function assignSpeakerToBreakoutCell(speakerId, trackId, slotId) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   if (!speakerId) return;
   const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
   const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
@@ -12535,8 +12539,13 @@ function renderBreakoutGrid() {
     });
   });
   const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
+  // Breakout Grid's editing affordances (drag, the rename/edit pencils, the delete ×, the
+  // "+ assign" dropdown) aren't plain form inputs, so the generic readOnly/disabled lockdown
+  // never touches them -- without this check they'd stay fully interactive-looking (and
+  // interactive) for a view-only session, only to have every action silently fail to save.
+  const canEditSchedule = canEdit('schedule.all');
 
-  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<span class="sch-edit-icon" style="margin-left:4px;" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename this breakout slot">✎</span><div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
+  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:4px;" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename this breakout slot">✎</span>` : ''}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
 
   const sortedSpeakers = sortByLastName(speakers);
   const rows = sessionTracks.map((track, trackIdx) => {
@@ -12549,32 +12558,33 @@ function renderBreakoutGrid() {
       // Show it once, on the first card, and just the name for the rest. Drag a card onto
       // another one in the same cell to change who's "first" (and reorder generally).
       const titlesMatch = occs.length > 1 && !!occs[0].sess.title && occs.every(o => o.sess.title === occs[0].sess.title);
-      const canReorder = occs.length > 1;
+      const canReorder = occs.length > 1 && canEditSchedule;
       const cards = occs.map((occ, occIdx) => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
         const showTitle = !titlesMatch || occIdx === 0;
-        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="true" ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" ${canReorder ? `ondragover="schCardDragOver(event)" ondragleave="schCardDragLeave(event)" ondrop="schCardDrop(event,'${track.id}','${slot.id}',${occIdx})"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record — drag to move to another cell${canReorder ? ', or drag onto a neighbor here to reorder' : ''}">
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="${canEditSchedule}" ${canEditSchedule ? `ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})"` : ''} ${canReorder ? `ondragover="schCardDragOver(event)" ondragleave="schCardDragLeave(event)" ondrop="schCardDrop(event,'${track.id}','${slot.id}',${occIdx})"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}${canEditSchedule ? `Click to open their full record — drag to move to another cell${canReorder ? ', or drag onto a neighbor here to reorder' : ''}` : 'Click to open their full record'}">
           ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
-          <span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Delete this session">×</span>
+          ${canEditSchedule ? `<span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Delete this session">×</span>` : ''}
           <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
           ${showTitle ? `<div class="sch-card-title">${escapeHtml(occ.sess.title || '')}</div>` : ''}
-          <span class="sch-card-edit" onclick="event.stopPropagation(); schEditSessionTitle('${occ.speakerId}', ${occ.sessionIndex})" title="Edit title">✎</span>
+          ${canEditSchedule ? `<span class="sch-card-edit" onclick="event.stopPropagation(); schEditSessionTitle('${occ.speakerId}', ${occ.sessionIndex})" title="Edit title">✎</span>` : ''}
         </div>`;
       }).join('');
       const occupantIds = new Set(occs.map(o => o.speakerId));
       const addOptions = sortedSpeakers.filter(sp => !occupantIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
-      const addSelect = `<select class="sch-cell-add" onchange="assignSpeakerToBreakoutCell(this.value,'${track.id}','${slot.id}'); this.value='';" onclick="event.stopPropagation();"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>`;
+      const addSelect = canEditSchedule ? `<select class="sch-cell-add" onchange="assignSpeakerToBreakoutCell(this.value,'${track.id}','${slot.id}'); this.value='';" onclick="event.stopPropagation();"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>` : '';
       const cls = occs.length ? 'sch-cell' : 'sch-cell sch-cell-empty';
-      return `<td><div class="${cls}" ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schDrop(event,'${track.id}','${slot.id}')">${cards}${addSelect}</div></td>`;
+      const dragHandlers = canEditSchedule ? `ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schDrop(event,'${track.id}','${slot.id}')"` : '';
+      return `<td><div class="${cls}" ${dragHandlers}>${cards}${addSelect}</div></td>`;
     }).join('');
-    return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span></td>${cells}</tr>`;
+    return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span>` : ''}</td>${cells}</tr>`;
   }).join('');
 
   body.innerHTML = `
     <div class="sch-roster-strip">
       <div class="sch-roster-header">
-        <strong style="font-size:12.5px; color:var(--teal-deep);">Speaker/artist roster — drag one or more names onto a cell to assign</strong>
+        <strong style="font-size:12.5px; color:var(--teal-deep);">Speaker/artist roster${canEditSchedule ? ' — drag one or more names onto a cell to assign' : ''}</strong>
         <input type="text" id="sch-roster-search-input" placeholder="Search…" value="${escapeHtml(scheduleRosterSearch)}" oninput="setScheduleRosterSearch(this.value)">
       </div>
       <div class="sch-roster-chips" id="sch-roster-chips-list">${buildScheduleRosterChipsHtml()}</div>
@@ -12596,6 +12606,7 @@ function renderBreakoutGrid() {
 function jsAttrString(str) { return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 
 function assignSpeakerToSubOption(speakerId, slotId, optionName) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   if (!speakerId) return;
   const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
   const sp = getSpeaker(speakerId); if (!sp) return;
@@ -12615,6 +12626,7 @@ function secondaryBreakoutGridsHtml() {
   if (!slotsWithOptions.length) return '';
   const sortedSpeakers = sortByLastName(speakers);
   const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
+  const canEditSchedule = canEdit('schedule.all');
 
   return slotsWithOptions.map(slot => {
     const rows = slot.subOptions.map((optionName, idx) => {
@@ -12631,15 +12643,15 @@ function secondaryBreakoutGridsHtml() {
         const showTitle = !titlesMatch || occIdx === 0;
         return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record">
           ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
-          <span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Delete this session">×</span>
+          ${canEditSchedule ? `<span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Delete this session">×</span>` : ''}
           <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
           ${showTitle ? `<div class="sch-card-title">${escapeHtml(occ.sess.title || '')}</div>` : ''}
-          <span class="sch-card-edit" onclick="event.stopPropagation(); schEditSessionTitle('${occ.speakerId}', ${occ.sessionIndex})" title="Edit title">✎</span>
+          ${canEditSchedule ? `<span class="sch-card-edit" onclick="event.stopPropagation(); schEditSessionTitle('${occ.speakerId}', ${occ.sessionIndex})" title="Edit title">✎</span>` : ''}
         </div>`;
       }).join('');
       const occupantIds = new Set(occs.map(o => o.speakerId));
       const addOptions = sortedSpeakers.filter(sp => !occupantIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
-      const addSelect = `<select class="sch-cell-add" onchange="assignSpeakerToSubOption(this.value,'${slot.id}','${jsAttrString(optionName)}'); this.value='';"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>`;
+      const addSelect = canEditSchedule ? `<select class="sch-cell-add" onchange="assignSpeakerToSubOption(this.value,'${slot.id}','${jsAttrString(optionName)}'); this.value='';"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>` : '';
       const cls = occs.length ? 'sch-cell' : 'sch-cell sch-cell-empty';
       return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(optionName)}</td><td><div class="${cls}">${cards}${addSelect}</div></td></tr>`;
     }).join('');
@@ -12677,6 +12689,7 @@ function schDrop(e, trackId, slotId, targetOccIdx) {
   if (e.currentTarget) e.currentTarget.classList.remove('sch-cell-hover');
   const payload = schDragPayload; schDragPayload = null;
   if (!payload) return;
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
   const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
 
@@ -12729,6 +12742,7 @@ function reorderSessionWithinCell(trackName, slotId, speakerId, sessionIndex, ta
   renderScheduleView();
 }
 function schUnscheduleSession(speakerId, sessionIndex) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const sp = getSpeaker(speakerId); if (!sp || !sp.data.sessions) return;
   if (!sp.data.sessions[sessionIndex]) return;
   sp.data.sessions.splice(sessionIndex, 1);
@@ -12739,6 +12753,7 @@ function schUnscheduleSession(speakerId, sessionIndex) {
   renderScheduleView();
 }
 function schEditSessionTitle(speakerId, sessionIndex) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const sp = getSpeaker(speakerId); if (!sp) return;
   const sess = sp.data.sessions && sp.data.sessions[sessionIndex]; if (!sess) return;
   const newTitle = prompt('Session title:', sess.title || '');
@@ -12749,6 +12764,7 @@ function schEditSessionTitle(speakerId, sessionIndex) {
 }
 
 function schTimelineAddAssignment(slotId, speakerId) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
   const sp = getSpeaker(speakerId); if (!sp) return;
   if (!sp.data.sessions) sp.data.sessions = [];
@@ -12763,6 +12779,7 @@ function schTimelineAddAssignment(slotId, speakerId) {
   renderScheduleView();
 }
 function schTimelineRemoveAssignment(slotId, speakerId) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === slotId); if (!slot) return;
   const sp = getSpeaker(speakerId); if (!sp) return;
   const idx = (sp.data.sessions || []).findIndex(s => s.slotId === slot.id || (!s.slotId && !s.track && s.sessionDate === slot.date && s.timeSlot === slot.start));
@@ -12774,6 +12791,7 @@ function schTimelineRemoveAssignment(slotId, speakerId) {
 }
 
 function editScheduleSlotLabel(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
   const newLabel = prompt('Name/title for this scheduled item:', slot.label);
   if (newLabel === null || !newLabel.trim()) return;
@@ -12798,12 +12816,14 @@ function editScheduleSlotLabel(id) {
   renderScheduleView();
 }
 function updateScheduleSlotKind(id, kind) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
   slot.kind = kind;
   pushScheduleSlot(slot);
   renderScheduleView();
 }
 function updateScheduleSlotTime(id, field, value) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
   if (!value) { renderScheduleView(); return; } // ignore a cleared/incomplete time input
   const nextStart = field === 'start' ? value : slot.start;
@@ -12860,8 +12880,9 @@ function renderScheduleTimeline() {
   const dateKeys = Object.keys(days).sort();
   const speakerOptions = sortByLastName(speakers);
 
+  const canEditSchedule = canEdit('schedule.all');
   const kindSelect = (slot) => `<select class="sch-timeline-kind-select sch-kind-${slot.kind}" onchange="updateScheduleSlotKind('${slot.id}', this.value)">${SCHEDULE_SLOT_KINDS.map(k => `<option value="${k}" ${k === slot.kind ? 'selected' : ''}>${k.charAt(0).toUpperCase() + k.slice(1)}</option>`).join('')}</select>`;
-  const labelWithEdit = (slot, extra) => `<div class="sch-timeline-label">${escapeHtml(slot.label)}<span class="sch-edit-icon" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename">✎</span>${extra || ''}</div>`;
+  const labelWithEdit = (slot, extra) => `<div class="sch-timeline-label">${escapeHtml(slot.label)}${canEditSchedule ? `<span class="sch-edit-icon" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename">✎</span>` : ''}${extra || ''}</div>`;
   const timeInputs = (slot) => `<div class="sch-timeline-time-edit">
     <input type="time" class="sch-timeline-time-input" value="${slot.start}" onchange="updateScheduleSlotTime('${slot.id}','start',this.value)" title="Start time">
     <span>–</span>
@@ -12869,7 +12890,7 @@ function renderScheduleTimeline() {
   </div>`;
   const audienceTags = (slot) => {
     const current = new Set(slotAudiences(slot));
-    return `<div class="sch-row-aud-dots">${orderedScheduleAudiences().map(a => `<span class="sch-aud-dot ${current.has(a.id) ? 'on' : 'off'}" style="--dot-color:${audienceColorForId(a.id)};" onclick="toggleSlotAudience('${slot.id}','${a.id}')" title="${current.has(a.id) ? 'Remove' : 'Add'} ${escapeHtml(a.name)}"></span>`).join('')}</div>`;
+    return `<div class="sch-row-aud-dots">${orderedScheduleAudiences().map(a => `<span class="sch-aud-dot ${current.has(a.id) ? 'on' : 'off'} ${canEditSchedule ? '' : 'sch-aud-dot-readonly'}" style="--dot-color:${audienceColorForId(a.id)};" ${canEditSchedule ? `onclick="toggleSlotAudience('${slot.id}','${a.id}')"` : ''} title="${canEditSchedule ? (current.has(a.id) ? 'Remove' : 'Add') + ' ' + escapeHtml(a.name) : escapeHtml(a.name)}"></span>`).join('')}</div>`;
   };
 
   const dayBlocks = dateKeys.map(date => {
@@ -12880,7 +12901,7 @@ function renderScheduleTimeline() {
           ${labelWithEdit(slot, ' <span class="sp-sub">— see Breakout Grid above</span>')}
           ${kindSelect(slot)}
           ${audienceTags(slot)}
-          <span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>
+          ${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>` : ''}
         </div>`;
       }
       const assignedSpeakers = [];
@@ -12889,15 +12910,15 @@ function renderScheduleTimeline() {
       }));
       const assignedIds = new Set(assignedSpeakers.map(sp => sp.id));
       const addOptions = `<option value="">+ add person…</option>` + speakerOptions.filter(sp => !assignedIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
-      const chips = assignedSpeakers.map(sp => `<span class="sch-chip-sm" onclick="jumpToSpeaker('${sp.id}')" title="Click to open ${escapeHtml(sp.name)}'s full record">${escapeHtml(sp.name)}<span class="sch-chip-x" onclick="event.stopPropagation(); schTimelineRemoveAssignment('${slot.id}','${sp.id}')" title="Remove">×</span></span>`).join('');
-      const canAssign = slot.kind === 'keynote' || slot.kind === 'panel';
+      const chips = assignedSpeakers.map(sp => `<span class="sch-chip-sm" onclick="jumpToSpeaker('${sp.id}')" title="Click to open ${escapeHtml(sp.name)}'s full record">${escapeHtml(sp.name)}${canEditSchedule ? `<span class="sch-chip-x" onclick="event.stopPropagation(); schTimelineRemoveAssignment('${slot.id}','${sp.id}')" title="Remove">×</span>` : ''}</span>`).join('');
+      const canAssign = (slot.kind === 'keynote' || slot.kind === 'panel') && canEditSchedule;
       return `<div class="sch-timeline-row">
         ${timeInputs(slot)}
         ${labelWithEdit(slot)}
         ${kindSelect(slot)}
-        ${canAssign ? `<div class="sch-timeline-assign">${chips}<select onchange="if(this.value){schTimelineAddAssignment('${slot.id}', this.value); this.value='';}">${addOptions}</select></div>` : ''}
+        ${canAssign ? `<div class="sch-timeline-assign">${chips}<select onchange="if(this.value){schTimelineAddAssignment('${slot.id}', this.value); this.value='';}">${addOptions}</select></div>` : (chips ? `<div class="sch-timeline-assign">${chips}</div>` : '')}
         ${audienceTags(slot)}
-        <span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>
+        ${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>` : ''}
       </div>`;
     }).join('');
     return `<div class="sch-timeline-day"><div class="sch-timeline-day-title">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}</div>`;
