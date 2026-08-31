@@ -6373,6 +6373,7 @@ function speakersForFeeDrillKey(key) {
   return [];
 }
 function openSpeakerFeeDrill(key, title) {
+  if (!canView('speakers.financial')) return; // cards that trigger this are hidden; guards a direct call too
   const list = speakersForFeeDrillKey(key);
   document.getElementById('dashboard-drill-title').textContent = title;
   const body = document.getElementById('dashboard-drill-body');
@@ -6614,9 +6615,11 @@ function renderDashboard() {
     dbCard(ICON_CHECK, '#2E8B57', 'Collected', fmt(totalCollected), 'marked as Paid', '#2E8B57', 'collected', 'Collected (Paid in Full)') +
     dbCard(ICON_CLOCK, '#a52620', 'Outstanding', fmt(totalOutstanding), 'committed, not yet collected', '#a52620', 'outstanding', 'Outstanding Payments') +
     dbCard(ICON_GIFT, '#8B5E13', 'In-Kind Sponsors', inKindSponsors.length, 'non-cash trades', null, 'inkind', 'In-Kind Sponsors') +
-    dbCard(ICON_DOLLAR, '#A17A26', 'Speaker &amp; Artist Fees Owed', fmt(speakerFees.committed), 'fee + travel · excludes sponsor-provided', null, 'speakerFee:total', 'Speaker & Artist Fees (Owed)') +
-    dbCard(ICON_CHECK, '#2E8B57', 'Speaker &amp; Artist Fees Paid', fmt(speakerFees.paid), 'marked Paid in Full', '#2E8B57', 'speakerFee:paid', 'Speaker & Artist Fees — Paid in Full') +
-    dbCard(ICON_CLOCK, '#a52620', 'Speaker &amp; Artist Fees Outstanding', fmt(speakerFees.outstanding), 'not yet marked paid in full', '#a52620', 'speakerFee:outstanding', 'Speaker & Artist Fees — Outstanding');
+    (canView('speakers.financial') ? (
+      dbCard(ICON_DOLLAR, '#A17A26', 'Speaker &amp; Artist Fees Owed', fmt(speakerFees.committed), 'fee + travel · excludes sponsor-provided', null, 'speakerFee:total', 'Speaker & Artist Fees (Owed)') +
+      dbCard(ICON_CHECK, '#2E8B57', 'Speaker &amp; Artist Fees Paid', fmt(speakerFees.paid), 'marked Paid in Full', '#2E8B57', 'speakerFee:paid', 'Speaker & Artist Fees — Paid in Full') +
+      dbCard(ICON_CLOCK, '#a52620', 'Speaker &amp; Artist Fees Outstanding', fmt(speakerFees.outstanding), 'not yet marked paid in full', '#a52620', 'speakerFee:outstanding', 'Speaker & Artist Fees — Outstanding')
+    ) : '');
 
   // Progress bar
   const pct = totalCommitted > 0 ? Math.min(100, (totalCollected / totalCommitted) * 100) : 0;
