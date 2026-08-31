@@ -13672,7 +13672,7 @@ function speakerDetailHTML(sp) {
     </div>
 
     <div style="padding: 4px 22px 16px;">
-      <button class="sp-add-btn" onclick="emailSpeakerSummary('${sp.id}')">\u2709\uFE0F Email Them Their Summary</button>
+      ${window.isAdminUser ? `<button class="sp-add-btn" onclick="emailSpeakerSummary('${sp.id}')">\u2709\uFE0F Email Them Their Summary</button>` : ''}
       <button class="sp-mini-btn" style="margin-left:8px; color:#a52620;" onclick="removeSpeaker('${sp.id}')">Remove this speaker/artist</button>
     </div>
   `;
@@ -14048,6 +14048,7 @@ function renderTransportationView() {
 }
 
 function emailSpeakerSummary(id) {
+  if (!window.isAdminUser) return; // button is hidden for non-admins; this guards a direct call too
   const sp = getSpeaker(id); if (!sp) return;
   if (!sp.contactEmail) { toast('No contact email on file for ' + sp.name + '.'); return; }
 
