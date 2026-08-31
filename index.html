@@ -476,10 +476,6 @@
   .spv-done-btn { width: 100%; padding: 13px 20px; font-size: 14px; }
   .spv-pending-banner { background: rgba(197,161,84,0.15); color: #8a6d1f; border: 1px solid rgba(197,161,84,0.4); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 20px; }
   .spv-pending-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #8a6d1f; background: rgba(197,161,84,0.18); border-radius: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
-  body.applicants-view-mode > *:not(#applicants-public-view):not(#kb-toast) { display: none !important; }
-  #applicants-public-view { font-family: 'Inter', sans-serif; }
-  #applicants-public-view > .dv-header { max-width: 1200px; margin: 0 auto; padding: 22px 26px 16px; }
-  #applicants-public-view .sp-wrap { min-height: 0; }
   .spv-applicant-card { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; background: var(--panel); }
   .spv-applicant-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
   .ap-raw-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
@@ -1485,17 +1481,6 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     <div class="dv-loading">Loading your sponsor info&hellip;</div>
   </div>
 </div>
-
-<div id="applicants-public-view" style="display:none;">
-  <div class="dv-header">
-    <h1>SBCMC 2027 &mdash; Applicant Review</h1>
-    <p id="apv-group-name" class="spv-org-name"></p>
-  </div>
-  <div id="apv-body" class="dv-body">
-    <div class="dv-loading">Loading applicants&hellip;</div>
-  </div>
-  <div id="apv-room-modal-root"></div>
-</div>
 <script>
 // SUPABASE_CONFIG/sbClient are declared here (with `var`, not `const`/`let`) specifically so
 // they're visible from BOTH inline <script> tags on this page -- classic (non-module) scripts
@@ -1520,14 +1505,14 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 // "client-side is not the security boundary by itself" framing as before, now backed by an
 // actual login instead of a hash anyone can read in page source.
 (function() {
-  // Driver-view, schedule-view, sponsor-portal, and applicant-review links (?view=drivers /
-  // ?view=schedule / ?view=sponsor / ?view=applicants) skip the gate entirely -- see
-  // initDriverPublicView()/initSchedulePublicView()/initSponsorPublicView()/
-  // initApplicantsPublicView(), called separately at the bottom of the page once the rest of
-  // the app has loaded.
+  // Driver-view, schedule-view, and sponsor-portal links (?view=drivers / ?view=schedule /
+  // ?view=sponsor) skip the gate entirely -- see initDriverPublicView()/
+  // initSchedulePublicView()/initSponsorPublicView(), called separately at the bottom of the
+  // page once the rest of the app has loaded. The equivalent no-login applicant-review link
+  // (?view=applicants) was removed once every reviewer had a real logged-in account.
   try {
     const publicView = new URLSearchParams(window.location.search).get('view');
-    if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor' || publicView === 'applicants') return;
+    if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor') return;
   } catch (e) {}
 
   document.body.classList.add('gate-locked');
@@ -10751,16 +10736,11 @@ function pushApplicant(a) {
   }, 300);
 }
 function getApplicant(id) { return applicants.find(a => a.id === id); }
-// Same dual-context trick as sponsors: the leader portal never loads the admin's full
-// `applicants` array, only its own group's records in `applicantsPublicRecords` -- so shared
-// update handlers resolve through here instead of calling getApplicant() directly.
 function resolveApplicantForEdit(id) {
-  if (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode()) return (applicantsPublicRecords || []).find(a => a.id === id);
   return getApplicant(id);
 }
 function refreshApplicantAfterEdit(id) {
-  if (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode() && typeof renderApplicantsPublicRows === 'function') renderApplicantsPublicRows();
-  else if (typeof renderApplicantRows === 'function') renderApplicantRows();
+  if (typeof renderApplicantRows === 'function') renderApplicantRows();
 }
 
 function orderedApplicantGroups() { return applicantGroups.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)); }
@@ -10783,30 +10763,6 @@ function addApplicantGroup() {
   input.value = '';
   renderApplicantsView();
 }
-// Lazily mints a leader-review token the first time it's actually copied, same reasoning as
-// the sponsor portal: unused programs don't carry a live credential in the database.
-function ensureApplicantGroupToken(g) {
-  if (!g.publicToken) {
-    g.publicToken = generateRandomToken();
-    if (sbClient) {
-      sbClient.from(APPLICANT_GROUPS_TABLE).update({ public_token: g.publicToken }).eq('id', g.id).then(({ error }) => {
-        if (error) reportWriteError('applicant-group-token:' + g.id, 'Couldn’t save the leader review link for ' + (g.name || 'this program') + ' — it may not work until this is retried.', error);
-      });
-    }
-  }
-  return g.publicToken;
-}
-function copyApplicantGroupLink(groupId) {
-  const g = applicantGroups.find(x => x.id === groupId); if (!g) return;
-  const token = ensureApplicantGroupToken(g);
-  const url = window.location.origin + window.location.pathname + '?view=applicants&group=' + encodeURIComponent(g.id) + '&t=' + token;
-  navigator.clipboard.writeText(url).then(() => {
-    toast('Leader review link for ' + g.name + ' copied — send it to both leaders.');
-  }).catch(() => {
-    prompt('Copy this link to send to ' + g.name + '’s leaders:', url);
-  });
-}
-
 function setApplicantGroupFilter(id) {
   applicantGroupFilter = id;
   renderApplicantsView();
@@ -10872,10 +10828,7 @@ function renderApplicantGroupFilterList() {
   const buttons = [`<button class="sp-filter-btn ${applicantGroupFilter === 'all' ? 'active' : ''}" data-f="all" onclick="setApplicantGroupFilter('all')">All Programs</button>`]
     .concat(orderedApplicantGroups().map(g => {
       const count = applicants.filter(a => a.groupId === g.id).length;
-      return `<div class="sp-add-row" style="margin-bottom:2px;">
-        <button class="sp-filter-btn ${applicantGroupFilter === g.id ? 'active' : ''}" data-f="${g.id}" style="flex:1; text-align:left;" onclick="setApplicantGroupFilter('${g.id}')">${escapeHtml(g.name)} (${count})</button>
-        <button class="sp-mini-btn" title="Copy leader review link for ${escapeHtml(g.name)}" onclick="event.stopPropagation(); copyApplicantGroupLink('${g.id}')">🔗</button>
-      </div>`;
+      return `<button class="sp-filter-btn ${applicantGroupFilter === g.id ? 'active' : ''}" data-f="${g.id}" onclick="setApplicantGroupFilter('${g.id}')">${escapeHtml(g.name)} (${count})</button>`;
     }));
   list.innerHTML = buttons.join('');
 }
@@ -11044,7 +10997,7 @@ function updateApplicantLodging(id, value) {
 function setApplicantStatus(id, status) {
   const a = resolveApplicantForEdit(id); if (!a) return;
   a.data.status = status;
-  a.data.reviewedBy = (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode() && applicantsPublicLeaderName) ? applicantsPublicLeaderName : 'Staff';
+  a.data.reviewedBy = 'Staff';
   a.data.reviewedAt = new Date().toISOString();
   pushApplicant(a);
   refreshApplicantAfterEdit(id);
@@ -11195,14 +11148,11 @@ function renderApplicantImportModal() {
 }
 
 // ---- Room assignments ----
-// Dual-context, same trick as resolveApplicantForEdit: in the leader portal this naturally
-// scopes to just that leader's own group, since applicantsPublicRecords only ever holds one group.
 function roomAssignmentCandidates() {
-  const source = (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode()) ? (applicantsPublicRecords || []) : applicants;
-  return source.filter(a => a.data.status === 'Approved' && a.data.needsLodging === true);
+  return applicants.filter(a => a.data.status === 'Approved' && a.data.needsLodging === true);
 }
 function roomModalRootId() {
-  return (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode()) ? 'apv-room-modal-root' : 'ap-room-modal-root';
+  return 'ap-room-modal-root';
 }
 let roomModalSelected = new Set();
 let roomModalViewMode = 'board';
@@ -11262,8 +11212,7 @@ function assignRoomModalSelected() {
   selected.forEach(a => { a.data.roomLabel = label; pushApplicant(a); });
   roomModalSelected.clear();
   input.value = '';
-  if (typeof isApplicantsViewMode === 'function' && isApplicantsViewMode() && typeof renderApplicantsPublicRows === 'function') renderApplicantsPublicRows();
-  else renderApplicantRows();
+  renderApplicantRows();
   refreshRoomAssignmentModal();
   toast('Assigned ' + selected.length + ' to "' + label + '".');
 }
@@ -11424,249 +11373,6 @@ function exportRoomAssignmentsCSV() {
   document.body.appendChild(link); link.click(); document.body.removeChild(link);
   URL.revokeObjectURL(url);
   toast('Exported ' + list.length + ' room assignment' + (list.length === 1 ? '' : 's') + '.');
-}
-
-// ==================== Leader review portal (?view=applicants) ====================
-// Scoped to exactly one program's applicants via a token, same targeted-fetch approach as the
-// sponsor and schedule public views -- never loads the admin's full `applicants` array.
-function isApplicantsViewMode() {
-  try { return new URLSearchParams(window.location.search).get('view') === 'applicants'; }
-  catch (e) { return false; }
-}
-let applicantsPublicGroupId = null;
-let applicantsPublicRecords = [];
-let applicantsPublicLeaderName = '';
-let applicantsPublicChannel = null;
-let apPublicStatusFilter = 'all';
-let apPublicSearch = '';
-let apPublicSort = '';
-let openApplicantPortalId = null;
-
-async function initApplicantsPublicView() {
-  document.body.classList.add('applicants-view-mode');
-  document.getElementById('applicants-public-view').style.display = 'block';
-  const params = new URLSearchParams(window.location.search);
-  const groupId = params.get('group');
-  const token = params.get('t');
-  const bodyEl = document.getElementById('apv-body');
-  if (!groupId || !token || !isSupabaseConfigured()) {
-    bodyEl.innerHTML = '<div class="dv-loading">This link is missing or invalid — please ask for a fresh link.</div>';
-    return;
-  }
-  try {
-    const { data: groupRow, error: groupErr } = await sbClient.from(APPLICANT_GROUPS_TABLE).select('*').eq('id', groupId).eq('public_token', token).maybeSingle();
-    if (groupErr) throw groupErr;
-    if (!groupRow) {
-      bodyEl.innerHTML = '<div class="dv-loading">This link isn’t active — please ask for a fresh link.</div>';
-      return;
-    }
-    applicantsPublicGroupId = groupId;
-    // Room-assignment CSV export etc. resolve program names via applicantGroups; the portal
-    // only ever knows its own group, so seed it with just that one row.
-    applicantGroups = [{ id: groupRow.id, name: groupRow.name, sortOrder: 0, publicToken: groupRow.public_token || '' }];
-    document.getElementById('apv-group-name').textContent = groupRow.name;
-    try { applicantsPublicLeaderName = localStorage.getItem('sbcmcLeaderName_' + groupId) || ''; } catch (e) { /* private browsing, etc */ }
-    const { data: rows, error: rowsErr } = await sbClient.from(APPLICANTS_TABLE).select('*').eq('group_id', groupId).order('sort_order', { ascending: true });
-    if (rowsErr) throw rowsErr;
-    applicantsPublicRecords = (rows || []).map(rowToApplicant);
-    renderApplicantsPublicShell();
-    renderApplicantsPublicRows();
-
-    applicantsPublicChannel = sbClient.channel('applicants-portal-' + groupId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: APPLICANTS_TABLE, filter: 'group_id=eq.' + groupId }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          applicantsPublicRecords = applicantsPublicRecords.filter(a => a.id !== payload.old.id);
-        } else {
-          const updated = rowToApplicant(payload.new);
-          const idx = applicantsPublicRecords.findIndex(a => a.id === updated.id);
-          if (idx >= 0) applicantsPublicRecords[idx] = updated; else applicantsPublicRecords.push(updated);
-        }
-        renderApplicantsPublicRows();
-      })
-      .subscribe();
-  } catch (err) {
-    console.error('Applicants portal load failed:', err);
-    bodyEl.innerHTML = '<div class="dv-loading">Couldn’t load applicants — try refreshing.</div>';
-  }
-}
-function updateApplicantsPublicLeaderName(value) {
-  applicantsPublicLeaderName = value;
-  try { if (applicantsPublicGroupId) localStorage.setItem('sbcmcLeaderName_' + applicantsPublicGroupId, value); } catch (e) { /* private browsing, etc */ }
-}
-function setApPublicStatusFilter(f) {
-  apPublicStatusFilter = f;
-  renderApplicantsPublicRows();
-}
-function setApPublicSearch(v) {
-  apPublicSearch = v;
-  renderApplicantsPublicRows();
-}
-function setApPublicSortFromDropdown(v) {
-  apPublicSort = v;
-  renderApplicantsPublicRows();
-}
-function toggleApplicantPortalDetail(id) {
-  openApplicantPortalId = openApplicantPortalId === id ? null : id;
-  renderApplicantsPublicRows();
-}
-function currentFilteredApplicantsPortal() {
-  let filtered = applicantsPublicRecords.filter(a => {
-    let matchesStatus;
-    if (apPublicStatusFilter === 'all') matchesStatus = true;
-    else if (apPublicStatusFilter === '__lodging__') matchesStatus = a.data.needsLodging === true;
-    else matchesStatus = (a.data.status || 'Pending') === apPublicStatusFilter;
-    const matchesSearch = !apPublicSearch || applicantSearchHaystack(a).includes(apPublicSearch.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-  if (apPublicSort === 'name-asc') filtered = filtered.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  else if (apPublicSort === 'name-desc') filtered = filtered.slice().sort((a, b) => (b.name || '').localeCompare(a.name || ''));
-  return filtered;
-}
-function applicantPortalDetailHTML(a) {
-  const status = a.data.status || 'Pending';
-  return `
-    <div class="sp-detail-inner">
-      <div class="sk-detail-header">
-        <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span>
-        <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleApplicantPortalDetail('${a.id}')">▴ Close</button>
-      </div>
-      <div class="sp-detail-grid sp-detail-2col">
-        <fieldset class="sp-fieldset">
-          <legend>Applicant</legend>
-          <div class="sp-field-grid">
-            <div class="sp-field"><label>Name</label><div class="sp-sub sp-sub-wrap" style="font-size:13.5px; color:var(--ink);">${escapeHtml(a.name || '—')}</div></div>
-            <div class="sp-field"><label>Email</label><div class="sp-sub sp-sub-wrap" style="font-size:13.5px; color:var(--ink);">${escapeHtml(a.email || '—')}</div></div>
-            <div class="sp-field"><label>Phone</label><div class="sp-sub sp-sub-wrap" style="font-size:13.5px; color:var(--ink);">${escapeHtml(a.phone || '—')}</div></div>
-          </div>
-        </fieldset>
-        <fieldset class="sp-fieldset">
-          <legend>Review</legend>
-          <div class="sp-field-grid">
-            <div class="sp-add-row" style="grid-column:1/-1;">
-              <button class="sp-mini-btn" style="background:#E1EFE4; color:#256B3F; border-color:#256B3F;" onclick="setApplicantStatus('${a.id}','Approved')">✓ Approve</button>
-              <button class="sp-mini-btn" style="background:#F6E3DF; color:#9C3A2E; border-color:#9C3A2E;" onclick="setApplicantStatus('${a.id}','Declined')">✕ Decline</button>
-              ${status !== 'Pending' ? `<button class="sp-mini-btn" onclick="setApplicantStatus('${a.id}','Pending')">Reset to Pending</button>` : ''}
-            </div>
-            ${a.data.reviewedBy ? `<div class="sp-sub sp-sub-wrap" style="grid-column:1/-1;">Last reviewed by ${escapeHtml(a.data.reviewedBy)}${a.data.reviewedAt ? ' on ' + escapeHtml(new Date(a.data.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) : ''}</div>` : ''}
-            <div class="sp-field" style="grid-column:1/-1;"><label for="apv-notes-${a.id}">Notes (visible to your co-leader and our team)</label><textarea id="apv-notes-${a.id}" rows="2" onchange="updateApplicantData('${a.id}','reviewNotes',this.value)">${escapeHtml(a.data.reviewNotes || '')}</textarea></div>
-            <div class="sp-field"><label for="apv-lodging-${a.id}">Needs lodging?</label><select id="apv-lodging-${a.id}" onchange="updateApplicantLodging('${a.id}',this.value)">
-              <option value="" ${a.data.needsLodging == null ? 'selected' : ''}>— not set —</option>
-              <option value="yes" ${a.data.needsLodging === true ? 'selected' : ''}>Yes</option>
-              <option value="no" ${a.data.needsLodging === false ? 'selected' : ''}>No</option>
-            </select></div>
-            <div class="sp-field"><label for="apv-gender-${a.id}">Gender</label><select id="apv-gender-${a.id}" onchange="updateApplicantData('${a.id}','gender',this.value)">
-              <option value="" ${!a.data.gender ? 'selected' : ''}>— not set —</option>
-              <option value="Male" ${a.data.gender === 'Male' ? 'selected' : ''}>Male</option>
-              <option value="Female" ${a.data.gender === 'Female' ? 'selected' : ''}>Female</option>
-            </select></div>
-            <div class="sp-field"><label for="apv-room-${a.id}">Room / group label</label><input id="apv-room-${a.id}" type="text" placeholder="e.g. Room 214, Group A" value="${escapeHtml(a.data.roomLabel || '')}" onchange="updateApplicantRoomLabel('${a.id}',this.value)"></div>
-          </div>
-        </fieldset>
-      </div>
-      <div class="sp-detail-grid sp-detail-1col">
-        <fieldset class="sp-fieldset">
-          <legend>Submitted Answers</legend>
-          ${applicantRawAnswersHTML(a.data.raw)}
-        </fieldset>
-      </div>
-    </div>
-  `;
-}
-function buildApplicantPortalRowPair(a) {
-  const status = a.data.status || 'Pending';
-  const tr = document.createElement('tr');
-  tr.className = 'sp-row';
-  tr.dataset.id = a.id;
-  tr.innerHTML = `
-    <td data-label=""><span class="sp-chevron ${openApplicantPortalId === a.id ? 'open' : ''}">▸</span></td>
-    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
-    <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
-    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
-    <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
-  `;
-  tr.addEventListener('click', () => toggleApplicantPortalDetail(a.id));
-  const dtr = document.createElement('tr');
-  dtr.className = 'sp-detail-row' + (openApplicantPortalId === a.id ? ' open' : '');
-  dtr.id = 'apv-detail-' + a.id;
-  dtr.innerHTML = `<td class="sp-detail-cell" colspan="5">${openApplicantPortalId === a.id ? applicantPortalDetailHTML(a) : ''}</td>`;
-  return [tr, dtr];
-}
-function renderApplicantsPublicShell() {
-  document.getElementById('apv-body').innerHTML = `
-    <div class="sp-wrap">
-      <div class="sp-side">
-        <div class="sp-side-section">
-          <div class="sp-side-label">Overview</div>
-          <div class="sp-stat-block">
-            <div class="sp-stat"><span>Total</span><b id="apv-stat-total">0</b></div>
-            <div class="sp-stat"><span>Pending review</span><b id="apv-stat-pending">0</b></div>
-            <div class="sp-stat"><span>Approved</span><b id="apv-stat-approved">0</b></div>
-            <div class="sp-stat"><span>Need lodging</span><b id="apv-stat-lodging">0</b></div>
-          </div>
-        </div>
-        <div class="sp-side-section">
-          <div class="sp-side-label">Reviewing As</div>
-          <div class="sp-add-row" style="margin-top:6px;">
-            <input type="text" id="apv-leader-name" value="${escapeHtml(applicantsPublicLeaderName)}" onchange="updateApplicantsPublicLeaderName(this.value)" placeholder="Your name">
-          </div>
-        </div>
-        <div class="hint">Both leaders can review. Either leader’s decision is final — no need to double-check with each other before approving or declining.</div>
-      </div>
-      <div class="sp-main">
-        <div class="sp-topbar">
-          <input class="sp-search" id="apv-search" placeholder="Search name, email, answers…" oninput="setApPublicSearch(this.value)">
-          <select class="sp-sort-select" id="apv-sort-select" onchange="setApPublicSortFromDropdown(this.value)">
-            <option value="">Sort by…</option>
-            <option value="name-asc">Name (A–Z)</option>
-            <option value="name-desc">Name (Z–A)</option>
-          </select>
-          <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
-        </div>
-        <div class="sch-view-toggle" style="margin-bottom:16px;" id="apv-status-filter-row">
-          <button class="sch-toggle-btn active" data-sf="all" onclick="setApPublicStatusFilter('all')">All Statuses</button>
-          <button class="sch-toggle-btn" data-sf="Pending" onclick="setApPublicStatusFilter('Pending')">Pending</button>
-          <button class="sch-toggle-btn" data-sf="Approved" onclick="setApPublicStatusFilter('Approved')">Approved</button>
-          <button class="sch-toggle-btn" data-sf="Declined" onclick="setApPublicStatusFilter('Declined')">Declined</button>
-          <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApPublicStatusFilter('__lodging__')">🏨 Needs Lodging</button>
-        </div>
-        <div class="sp-table-wrap">
-          <table class="sp-table" id="apv-table">
-            <thead><tr>
-              <th style="width:56px;"></th>
-              <th style="width:190px;">Name</th>
-              <th style="width:190px;">Contact</th>
-              <th style="width:120px;">Status</th>
-              <th style="width:110px;">Lodging</th>
-            </tr></thead>
-            <tbody id="apv-rows"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-}
-function renderApplicantsPublicRows() {
-  const tbody = document.getElementById('apv-rows');
-  if (!tbody) return;
-  const all = applicantsPublicRecords;
-  document.getElementById('apv-stat-total').textContent = all.length;
-  document.getElementById('apv-stat-pending').textContent = all.filter(a => (a.data.status || 'Pending') === 'Pending').length;
-  document.getElementById('apv-stat-approved').textContent = all.filter(a => a.data.status === 'Approved').length;
-  document.getElementById('apv-stat-lodging').textContent = all.filter(a => a.data.needsLodging === true).length;
-  document.querySelectorAll('#apv-status-filter-row .sch-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sf === apPublicStatusFilter);
-  });
-  const filtered = currentFilteredApplicantsPortal();
-  tbody.innerHTML = '';
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;" class="sp-sub">Nothing here for this filter.</td></tr>';
-    return;
-  }
-  filtered.forEach(a => {
-    const [tr, dtr] = buildApplicantPortalRowPair(a);
-    tbody.appendChild(tr);
-    tbody.appendChild(dtr);
-  });
 }
 
 async function loadDriversAndHotels() {
@@ -14606,11 +14312,6 @@ if (isDriverViewMode()) {
   // in the URL, with limited edit controls (contact info, badge names, shipping notes,
   // materials upload, notes). No financial data, no other sponsors' data, ever loaded here.
   initSponsorPublicView();
-} else if (isApplicantsViewMode()) {
-  // Leader applicant-review portal -- scoped to exactly one program's applicants via a
-  // group id + token in the URL. Never loads any other program's applicants, sponsors,
-  // speakers, or anything else in the app.
-  initApplicantsPublicView();
 } else {
   renderPackageSidebar();
   buildTabs();
