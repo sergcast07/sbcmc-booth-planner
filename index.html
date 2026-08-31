@@ -503,6 +503,27 @@
 }
 .top-nav-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
 .top-nav-btn.active { background: rgba(255,255,255,0.12); color: #fff; box-shadow: inset 0 -2px 0 var(--gold); }
+.nav-dropdown { position: relative; }
+.nav-caret { font-size: 9px; margin-left: 1px; }
+.nav-dropdown-menu {
+  position: absolute; top: 100%; left: 0; margin-top: 6px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  min-width: 200px; padding: 6px; z-index: 50; display: none;
+}
+.nav-dropdown-menu.open { display: block; }
+.nav-dropdown-item {
+  display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 7px;
+  border: none; background: transparent; color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.nav-dropdown-item:hover { background: var(--teal-pale); }
+.nav-dropdown-item.active { background: var(--teal-pale); color: var(--teal-deep); }
+.top-nav-icon-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: none; background: transparent;
+  color: rgba(255,255,255,0.72); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s; margin-left: auto;
+}
+.top-nav-icon-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.top-nav-icon-btn.active { background: rgba(255,255,255,0.12); color: #fff; box-shadow: inset 0 0 0 1.5px var(--gold); }
 #sponsor-view { display: none; }
 .sp-wrap { display: flex; min-height: calc(100vh - 53px); }
 .sp-side {
@@ -1677,9 +1698,16 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   <button class="top-nav-btn" id="nav-applicants-btn" onclick="switchTopView('applicants')">Applicants<span class="sp-nav-badge" id="nav-applicants-pending-badge" title="Applications awaiting leader review"></span></button>
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
-  <button class="top-nav-btn" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
-  <button class="top-nav-btn" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
-  <button class="top-nav-btn" id="nav-team-access-btn" onclick="switchTopView('team_access')" style="display:none;">Team Access</button>
+  <div class="nav-dropdown">
+    <button class="top-nav-btn" id="nav-money-btn" onclick="toggleMoneyDropdown(event)">Money <span class="nav-caret">▾</span></button>
+    <div class="nav-dropdown-menu" id="nav-money-menu">
+      <button class="nav-dropdown-item" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
+      <button class="nav-dropdown-item" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
+    </div>
+  </div>
+  <button class="top-nav-icon-btn" id="nav-team-access-btn" onclick="switchTopView('team_access')" style="display:none;" title="Team Access">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+  </button>
 </div>
 <div id="sponsor-view" data-section="sponsors.contact">
   <div class="sp-wrap">
@@ -6102,6 +6130,21 @@ function firstAccessibleView() {
 // Tracks whichever tab is currently showing, so initSupabase() can re-render it (not just
 // Dashboard) once real data has actually loaded -- see the call site around line 4228.
 let currentTopView = 'dashboard';
+
+// Registration Revenue + Cash Flow share one "Money" nav slot as a dropdown, to keep the top
+// nav from growing another pill -- switchTopView still routes to 'revenue'/'cashflow' exactly
+// as before, this just changes how you get there.
+function toggleMoneyDropdown(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('nav-money-menu');
+  if (menu) menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('nav-money-menu');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'nav-money-btn') {
+    menu.classList.remove('open');
+  }
+});
 // Applicant data includes minors (the high-school program) -- worth calling out specifically,
 // though the check below is now the same general one every tab gets.
 function switchTopView(view) {
@@ -6148,6 +6191,10 @@ function switchTopView(view) {
   if (revenueBtnEl) revenueBtnEl.classList.toggle('active', view === 'revenue');
   const cashflowBtnEl = document.getElementById('nav-cashflow-btn');
   if (cashflowBtnEl) cashflowBtnEl.classList.toggle('active', view === 'cashflow');
+  const moneyBtnEl = document.getElementById('nav-money-btn');
+  if (moneyBtnEl) moneyBtnEl.classList.toggle('active', view === 'revenue' || view === 'cashflow');
+  const moneyMenuEl = document.getElementById('nav-money-menu');
+  if (moneyMenuEl) moneyMenuEl.classList.remove('open');
   const teamAccessBtnEl = document.getElementById('nav-team-access-btn');
   if (teamAccessBtnEl) teamAccessBtnEl.classList.toggle('active', view === 'team_access');
   if (view === 'sponsors') renderSponsorView();
@@ -6175,6 +6222,8 @@ function applyNavVisibility() {
     const btn = document.getElementById('nav-' + view + '-btn');
     if (btn) btn.style.display = canViewAny(VIEW_SECTION_KEYS[view]) ? '' : 'none';
   });
+  const moneyBtn = document.getElementById('nav-money-btn');
+  if (moneyBtn) moneyBtn.style.display = canViewAny(['revenue.all', 'cashflow.all']) ? '' : 'none';
   const teamBtn = document.getElementById('nav-team-access-btn');
   if (teamBtn) teamBtn.style.display = window.isAdminUser ? '' : 'none';
   // Sponsor Tracker's Amount/Status and Due column headers are static HTML (unlike the row
