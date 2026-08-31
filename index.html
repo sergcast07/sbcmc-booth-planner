@@ -1502,7 +1502,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 
   var ALL_SECTION_KEYS = ['dashboard.all', 'sponsors.contact', 'sponsors.financial', 'speakers.roster',
     'speakers.logistics', 'speakers.financial', 'speakers.internal_docs', 'schedule.all', 'applicants.all',
-    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'budget.all', 'team_access.all'];
+    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'team_access.all'];
 
   // ---- Legacy shared-password fallback -- Phase B/C transition only. Delete this whole
   // block (and the two hash constants) once every real user has an individual Supabase Auth
@@ -1668,7 +1668,6 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
   <button class="top-nav-btn" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
   <button class="top-nav-btn" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
-  <button class="top-nav-btn" id="nav-budget-btn" onclick="switchTopView('budget')">Budget</button>
   <button class="top-nav-btn" id="nav-team-access-btn" onclick="switchTopView('team_access')" style="display:none;">Team Access</button>
 </div>
 <div id="sponsor-view" data-section="sponsors.contact">
@@ -2034,31 +2033,6 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="admin-close" onclick="closeDashboardDrill()">&times;</button>
     </div>
     <div class="admin-modal-body" id="dashboard-drill-body"></div>
-  </div>
-</div>
-
-<div id="budget-view" style="display:none;" data-section="budget.all">
-  <div class="bg-wrap">
-    <div class="bg-hero">
-      <svg class="db-staff-lines" viewBox="0 0 320 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <line x1="0" y1="40" x2="320" y2="20" stroke="white" stroke-width="1.5"/>
-        <line x1="0" y1="70" x2="320" y2="50" stroke="white" stroke-width="1.5"/>
-        <line x1="0" y1="100" x2="320" y2="80" stroke="white" stroke-width="1.5"/>
-        <line x1="0" y1="130" x2="320" y2="110" stroke="white" stroke-width="1.5"/>
-        <line x1="0" y1="160" x2="320" y2="140" stroke="white" stroke-width="1.5"/>
-      </svg>
-      <div class="db-header">
-        <h2>2027 Conference Budget</h2>
-        <p class="db-caveat">Exhibitor/Vendor "Actual" pulls live from the Sponsor Tracker automatically — no need to enter that twice. Everything else here is editable.</p>
-      </div>
-    </div>
-    <div class="bg-body">
-      <div class="bg-netbar" id="bg-netbar"></div>
-      <div class="bg-section-title">Income</div>
-      <div id="bg-income"></div>
-      <div class="bg-section-title">Expenses</div>
-      <div id="bg-expenses"></div>
-    </div>
   </div>
 </div>
 
@@ -3234,13 +3208,27 @@ const TABLE_TO_SECTION_KEYS = {
   booth_layouts: ['floorplan.all'], booth_layout_maps: ['floorplan.all'],
   booth_layout_packages: ['floorplan.all'], booth_layout_versions: ['floorplan.all'],
   conference_settings: ['revenue.all', 'cashflow.all'],
-  budget_data: ['budget.all'],
   conference_documents: ['speakers.internal_docs']
 };
 function canView(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey]); }
 function canEdit(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey] === 'edit'); }
 function canEditAny(sectionKeys) { return (sectionKeys || []).some(canEdit); }
 function canViewAny(sectionKeys) { return (sectionKeys || []).some(canView); }
+
+// Call at the very top of any add/remove/delete handler, before it touches local state.
+// Field edits are already protected by the MutationObserver lockdown (readOnly/disabled, so
+// they never look editable to begin with) -- but destructive/list-mutating actions like a
+// "Remove" button aren't locked down that way, and those functions typically update the local
+// array and re-render immediately, with the actual save/delete happening async afterward. Without
+// this check, someone without edit access would see the item vanish (or a new one appear) right
+// away, only to have it silently revert on the next reload once the write guard blocks the real
+// request -- looks like it worked, wasn't, and nothing ever told them why. This stops the local
+// mutation from happening at all and says so immediately, instead of a confusing delayed revert.
+function canEditOrWarn(sectionKey, label) {
+  if (canEdit(sectionKey)) return true;
+  toast('You don’t have edit access to ' + label + '.', 'error');
+  return false;
+}
 
 // Sub-section permissions (sponsors.financial / speakers.financial) are enforced client-side
 // only -- the cosmetic tab-hiding elsewhere isn't enough by itself, since the real values would
@@ -5925,14 +5913,13 @@ const VIEW_SECTION_KEYS = {
   transport: ['transportation.all'],
   floorplan: ['floorplan.all'],
   revenue: ['revenue.all'],
-  cashflow: ['cashflow.all'],
-  budget: ['budget.all']
+  cashflow: ['cashflow.all']
 };
 // Order matters: the first entry here that the signed-in user can actually view is where
 // switchTopView lands them when the tab they asked for is denied -- 'dashboard' can no longer
 // be assumed to always be safe now that it's gated too (see VIEW_SECTION_KEYS above).
 const FALLBACK_VIEW_ORDER = ['dashboard', 'sponsors', 'speakers', 'schedule', 'applicants',
-  'transport', 'floorplan', 'revenue', 'cashflow', 'budget'];
+  'transport', 'floorplan', 'revenue', 'cashflow'];
 function firstAccessibleView() {
   return FALLBACK_VIEW_ORDER.find(v => canViewAny(VIEW_SECTION_KEYS[v])) || null;
 }
@@ -5956,8 +5943,6 @@ function switchTopView(view) {
   document.querySelector('.app').style.display = view === 'floorplan' ? 'flex' : 'none';
   document.getElementById('sponsor-view').style.display = view === 'sponsors' ? 'block' : 'none';
   document.getElementById('dashboard-view').style.display = view === 'dashboard' ? 'block' : 'none';
-  const budgetViewEl = document.getElementById('budget-view');
-  if (budgetViewEl) budgetViewEl.style.display = view === 'budget' ? 'block' : 'none';
   const speakerViewEl = document.getElementById('speaker-view');
   if (speakerViewEl) speakerViewEl.style.display = view === 'speakers' ? 'block' : 'none';
   const transportViewEl = document.getElementById('transport-view');
@@ -5975,8 +5960,6 @@ function switchTopView(view) {
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
   document.getElementById('nav-sponsors-btn').classList.toggle('active', view === 'sponsors');
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
-  const budgetBtnEl = document.getElementById('nav-budget-btn');
-  if (budgetBtnEl) budgetBtnEl.classList.toggle('active', view === 'budget');
   const speakerBtnEl = document.getElementById('nav-speakers-btn');
   if (speakerBtnEl) speakerBtnEl.classList.toggle('active', view === 'speakers');
   const transportBtnEl = document.getElementById('nav-transport-btn');
@@ -5993,7 +5976,6 @@ function switchTopView(view) {
   if (teamAccessBtnEl) teamAccessBtnEl.classList.toggle('active', view === 'team_access');
   if (view === 'sponsors') renderSponsorView();
   if (view === 'dashboard') renderDashboard();
-  if (view === 'budget' && typeof renderBudget === 'function' && budgetViewEl) renderBudget();
   if (view === 'speakers' && typeof renderSpeakerView === 'function' && speakerViewEl) renderSpeakerView();
   if (view === 'transport' && typeof renderTransportationView === 'function' && transportViewEl) renderTransportationView();
   if (view === 'schedule' && typeof renderScheduleView === 'function' && scheduleViewEl) renderScheduleView();
@@ -6044,7 +6026,6 @@ const ALL_SECTION_KEYS_LIST = [
   ['floorplan.all', 'Floor Plan'],
   ['revenue.all', 'Registration Revenue'],
   ['cashflow.all', 'Cash Flow'],
-  ['budget.all', 'Budget'],
   ['team_access.all', 'Team Access (admin)']
 ];
 let teamAccessState = { roles: [], profiles: [], rolePermissions: [], editingRoleId: null, draftPerms: {} };
@@ -8351,6 +8332,7 @@ function pushSponsor(s) {
 function makeSponsorId() { return 'sp_' + Date.now() + '_' + Math.floor(Math.random() * 10000); }
 
 function addSponsor() {
+  if (!canEditOrWarn('sponsors.contact', 'sponsors')) return;
   const s = {
     id: makeSponsorId(), org: 'New Sponsor', contactName: '', contactEmail: '', contactPhone: '',
     package: '', trackerStatus: 'Prospective Sponsor', linkedBoothId: '', sortOrder: sponsors.length,
@@ -8372,6 +8354,7 @@ function addSponsor() {
 }
 
 function deleteSponsor(id) {
+  if (!canEditOrWarn('sponsors.contact', 'sponsors')) return;
   const s = sponsors.find(x => x.id === id);
   if (!s) return;
   if (!confirm('Delete "' + s.org + '" from the sponsor tracker? This cannot be undone.')) return;
@@ -10462,6 +10445,7 @@ function orderedApplicantGroups() { return applicantGroups.slice().sort((a, b) =
 function applicantGroupName(groupId) { const g = applicantGroups.find(x => x.id === groupId); return g ? g.name : '—'; }
 
 function addApplicantGroup() {
+  if (!canEditOrWarn('applicants.all', 'applicants')) return;
   const input = document.getElementById('ap-new-group-input');
   const name = input.value.trim();
   if (!name) return;
@@ -10745,6 +10729,7 @@ function setApplicantStatus(id, status) {
   toast(status + ': ' + (a.name || 'Applicant') + '.');
 }
 function deleteApplicant(id) {
+  if (!canEditOrWarn('applicants.all', 'applicants')) return;
   const a = getApplicant(id); if (!a) return;
   if (!confirm('Delete ' + (a.name || 'this applicant') + '? This cannot be undone.')) return;
   applicants = applicants.filter(x => x.id !== id);
@@ -11379,6 +11364,7 @@ async function loadDriversAndHotels() {
 }
 
 function addDriver() {
+  if (!canEditOrWarn('transportation.all', 'transportation')) return;
   const nameInput = document.getElementById('tr-driver-name');
   const phoneInput = document.getElementById('tr-driver-phone');
   const seatsInput = document.getElementById('tr-driver-seats');
@@ -11395,6 +11381,7 @@ function addDriver() {
   nameInput.value = ''; phoneInput.value = ''; seatsInput.value = '';
 }
 function editDriver(id) {
+  if (!canEditOrWarn('transportation.all', 'transportation')) return;
   const d = drivers.find(x => x.id === id); if (!d) return;
   const newName = prompt('Driver name:', d.name);
   if (newName === null) return;
@@ -11418,6 +11405,7 @@ function editDriver(id) {
   }
 }
 function removeDriver(id) {
+  if (!canEditOrWarn('transportation.all', 'transportation')) return;
   drivers = drivers.filter(d => d.id !== id);
   // Unassign this driver from anything they were on
   speakers.forEach(sp => {
@@ -11434,6 +11422,7 @@ function removeDriver(id) {
 }
 
 function addHotel() {
+  if (!canEditOrWarn('transportation.all', 'transportation')) return;
   const nameInput = document.getElementById('tr-hotel-name');
   const addrInput = document.getElementById('tr-hotel-address');
   const name = nameInput.value.trim();
@@ -11449,6 +11438,7 @@ function addHotel() {
   nameInput.value = ''; addrInput.value = '';
 }
 function editHotel(id) {
+  if (!canEditOrWarn('transportation.all', 'transportation')) return;
   const h = hotels.find(x => x.id === id); if (!h) return;
   const newName = prompt('Hotel name:', h.name);
   if (newName === null) return;
@@ -11469,6 +11459,7 @@ function editHotel(id) {
   }
 }
 function removeHotel(id) {
+  if (!canEditOrWarn('transportation.all', 'transportation')) return;
   hotels = hotels.filter(h => h.id !== id);
   renderTransportationView();
   if (sbClient) {
@@ -11700,6 +11691,7 @@ function subscribeSpeakerRealtime() {
 function getSpeaker(id) { return speakers.find(s => s.id === id); }
 
 function addSpeaker() {
+  if (!canEditOrWarn('speakers.roster', 'speakers')) return;
   const id = makeId();
   const sp = {
     id, name: 'New Speaker', types: [], contactName: '', contactEmail: '', contactPhone: '',
@@ -11714,6 +11706,7 @@ function addSpeaker() {
 }
 
 function removeSpeaker(id) {
+  if (!canEditOrWarn('speakers.roster', 'speakers')) return;
   if (!confirm('Remove this speaker/artist? This cannot be undone.')) return;
   const sp = getSpeaker(id);
   // Clean up any uploaded files in Storage too, not just the database record -- both the
@@ -11991,6 +11984,7 @@ async function loadSessionRoomsAndTracks() {
 }
 
 function addSessionRoom() {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const input = document.getElementById('sk-room-name');
   const name = input.value.trim();
   if (!name) { toast('Enter a room name first.'); return; }
@@ -12005,6 +11999,7 @@ function addSessionRoom() {
   input.value = '';
 }
 function editSessionRoom(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const r = sessionRooms.find(x => x.id === id); if (!r) return;
   const newName = prompt('Room name:', r.name);
   if (newName === null || !newName.trim()) return;
@@ -12018,6 +12013,7 @@ function editSessionRoom(id) {
   }
 }
 function removeSessionRoom(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   sessionRooms = sessionRooms.filter(r => r.id !== id);
   renderSpeakerView();
   if (sbClient) {
@@ -12027,6 +12023,7 @@ function removeSessionRoom(id) {
   }
 }
 function addSessionTrack() {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const input = document.getElementById('sk-track-name');
   const name = input.value.trim();
   if (!name) { toast('Enter a track name first.'); return; }
@@ -12041,6 +12038,7 @@ function addSessionTrack() {
   input.value = '';
 }
 function editSessionTrack(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const t = sessionTracks.find(x => x.id === id); if (!t) return;
   const newName = prompt('Track name:', t.name);
   if (newName === null || !newName.trim()) return;
@@ -12067,6 +12065,7 @@ function editSessionTrack(id) {
   }
 }
 function removeSessionTrack(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   sessionTracks = sessionTracks.filter(t => t.id !== id);
   renderSpeakerView();
   if (sbClient) {
@@ -12116,6 +12115,7 @@ function pushScheduleAudience(aud) {
   });
 }
 function addScheduleAudience() {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const input = document.getElementById('sch-audience-name');
   const name = input.value.trim();
   if (!name) { toast('Enter a group name first.'); return; }
@@ -12129,6 +12129,7 @@ function addScheduleAudience() {
   input.value = '';
 }
 function editScheduleAudience(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const aud = scheduleAudiences.find(a => a.id === id); if (!aud) return;
   const newName = prompt('Group name:', aud.name);
   if (newName === null || !newName.trim()) return;
@@ -12160,6 +12161,7 @@ function schAudDrop(e, targetId) {
   renderScheduleView();
 }
 function removeScheduleAudience(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   if (id === MAIN_AUDIENCE_ID) { toast('Main Conference can’t be removed — it’s the default group every slot falls back to.'); return; }
   const aud = scheduleAudiences.find(a => a.id === id); if (!aud) return;
   if (!confirm(`Remove "${aud.name}"? Any slot tagged only with this group will fall back to Main Conference.`)) return;
@@ -12279,6 +12281,7 @@ function pushScheduleSlot(slot) {
 }
 
 function addScheduleSlot() {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const dateEl = document.getElementById('sch-slot-date'), labelEl = document.getElementById('sch-slot-label'),
     startEl = document.getElementById('sch-slot-start'), endEl = document.getElementById('sch-slot-end'), kindEl = document.getElementById('sch-slot-kind'),
     audEl = document.getElementById('sch-slot-audiences');
@@ -12295,6 +12298,7 @@ function addScheduleSlot() {
   labelEl.value = '';
 }
 function removeScheduleSlot(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
   if (!confirm('Remove this slot from the schedule? Anyone already assigned to it will be deleted from it too — not left as a dangling, still-conflicting entry.')) return;
   const slot = scheduleSlots.find(s => s.id === id);
   scheduleSlots = scheduleSlots.filter(s => s.id !== id);
