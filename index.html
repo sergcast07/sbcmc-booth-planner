@@ -3345,6 +3345,43 @@ function renderAuditHistoryModal() {
   `;
 }
 
+// ==== Storage usage (admin-only): one aggregate query via the get_storage_usage RPC
+// (see phase_e_storage_usage.sql) instead of walking both buckets file-by-file. Manual,
+// not auto-loaded -- nobody needs this on every Team Access visit.
+const STORAGE_USAGE_BUCKETS = ['sponsor-materials', 'speaker-materials'];
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+async function calculateStorageUsage() {
+  if (!window.isAdminUser) return;
+  const resultEl = document.getElementById('storage-calc-result');
+  const btn = document.getElementById('storage-calc-btn');
+  if (!resultEl) return;
+  if (btn) btn.disabled = true;
+  resultEl.innerHTML = '<p class="hint">Calculating…</p>';
+  const { data, error } = await sbClient.rpc('get_storage_usage');
+  if (btn) btn.disabled = false;
+  if (error) {
+    resultEl.innerHTML = '<p class="hint">Couldn’t calculate storage usage right now.</p>';
+    return;
+  }
+  const byBucket = new Map((data || []).map(function(row) { return [row.bucket_id, row]; }));
+  let grandTotal = 0;
+  const rowsHtml = STORAGE_USAGE_BUCKETS.map(function(bucket) {
+    const row = byBucket.get(bucket);
+    const count = row ? Number(row.file_count) : 0;
+    const bytes = row ? Number(row.total_bytes) : 0;
+    grandTotal += bytes;
+    return '<div>' + escapeHtml(bucket) + ': ' + count + ' file' + (count === 1 ? '' : 's') + ', ' + formatBytes(bytes) + '</div>';
+  }).join('');
+  resultEl.innerHTML = rowsHtml +
+    '<div style="margin-top:6px;"><b>Total: ' + formatBytes(grandTotal) + '</b></div>' +
+    '<p class="hint" style="margin-top:6px;">Compare against your plan’s storage cap under Settings → Usage in the Supabase dashboard.</p>';
+}
+
 // Sub-section permissions (sponsors.financial / speakers.financial) are enforced client-side
 // only -- the cosmetic tab-hiding elsewhere isn't enough by itself, since the real values would
 // still sit in memory and leak through the list table's Amount/Status column, Dashboard's
@@ -6226,6 +6263,13 @@ function renderTeamAccessContent() {
       <h3 style="margin-bottom:4px;">Activity Log</h3>
       <p class="hint">Recent edits across the whole planner — most recent first.</p>
       ${renderAuditEntries(teamAccessState.auditLog, { showRecord: true })}
+    </section>
+
+    <section style="margin:18px 0;">
+      <h3 style="margin-bottom:4px;">Storage</h3>
+      <p class="hint">Sponsor and speaker file uploads live in Supabase Storage, which has its own plan limit separate from the database.</p>
+      <button class="sp-mini-btn" id="storage-calc-btn" onclick="calculateStorageUsage()">Calculate storage usage</button>
+      <div id="storage-calc-result" style="margin-top:8px;"></div>
     </section>
   `;
 }
