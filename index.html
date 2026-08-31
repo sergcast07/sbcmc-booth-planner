@@ -1122,6 +1122,15 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 .cfp-panel-body { border-top: 1px solid var(--line); }
 .cfp-panel-body.collapsed { display: none !important; }
 .cfp-person-list { max-height: 380px; overflow-y: auto; }
+.ta-head-icon { display: inline-flex; width: 16px; height: 16px; color: var(--teal-deep); }
+.ta-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); border-radius: 6px; }
+.ta-row:last-child { border-bottom: none; }
+.ta-row:hover { background: var(--teal-pale); }
+.ta-role-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.ta-perm-cat { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--gold); padding: 10px 0 4px; }
+.ta-perm-row:hover { background: var(--teal-pale); }
+.ta-sub-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 4px 0 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ta-sub-title:first-child { padding-top: 0; border-top: none; }
 
 .cfp-person-block { border-bottom: 1px solid var(--line); padding: 10px 18px; }
 .cfp-person-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
@@ -6195,6 +6204,17 @@ const ALL_SECTION_KEYS_LIST = [
   ['cashflow.all', 'Cash Flow'],
   ['team_access.all', 'Team Access (admin)']
 ];
+// Groups the same keys/labels above under headers, purely for scanability in the permission
+// table -- every key from ALL_SECTION_KEYS_LIST appears in exactly one category here.
+const PERMISSION_CATEGORIES = [
+  ['Dashboard', ['dashboard.all']],
+  ['Sponsors', ['sponsors.contact', 'sponsors.financial']],
+  ['Speakers & Artists', ['speakers.roster', 'speakers.logistics', 'speakers.financial', 'speakers.internal_docs']],
+  ['Schedule & Applicants', ['schedule.all', 'applicants.all']],
+  ['Logistics', ['transportation.all', 'floorplan.all']],
+  ['Money', ['revenue.all', 'cashflow.all']],
+  ['Admin', ['team_access.all']]
+];
 let teamAccessState = { roles: [], profiles: [], rolePermissions: [], editingRoleId: null, draftPerms: {}, auditLog: [] };
 
 async function loadTeamAccessData() {
@@ -6230,87 +6250,104 @@ async function renderTeamAccessView() {
 function renderTeamAccessContent() {
   const root = document.getElementById('team-access-root');
   if (!root) return;
-  const unassigned = teamAccessState.profiles.filter(p => !p.role_id);
+  // One merged, de-duplicated list -- unassigned people used to also show up in a separate
+  // "Unassigned People" section above this one, which meant every unassigned person appeared
+  // twice with the same role-picker. Sorting them first (via a "Needs a role" badge, not a
+  // separate section) keeps them just as visible without the duplication.
+  const people = teamAccessState.profiles.slice().sort((a, b) => {
+    const aUnassigned = !a.role_id, bUnassigned = !b.role_id;
+    if (aUnassigned !== bUnassigned) return aUnassigned ? -1 : 1;
+    return (a.email || '').localeCompare(b.email || '');
+  });
+  const roleCountByRoleId = new Map();
+  teamAccessState.profiles.forEach(p => { if (p.role_id) roleCountByRoleId.set(p.role_id, (roleCountByRoleId.get(p.role_id) || 0) + 1); });
+
   root.innerHTML = `
     <h2 style="margin-bottom:2px;">Team Access</h2>
     <p class="hint">Manage who can sign in and what they can see or edit.</p>
 
-    ${unassigned.length ? `
-    <section style="margin:18px 0;">
-      <h3 style="margin-bottom:4px;">Unassigned People (${unassigned.length})</h3>
-      <p class="hint">Created in Supabase Auth but not yet given a role — they can sign in but can't do anything until assigned.</p>
-      ${unassigned.map(p => `
-        <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line);">
-          <span style="flex:1;">${escapeHtml(p.email)}</span>
-          <select onchange="assignProfileRole('${p.id}', this.value)">
-            <option value="">— pick a role —</option>
-            ${teamAccessState.roles.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('')}
-          </select>
-        </div>
-      `).join('')}
-    </section>
-    ` : ''}
-
-    <section style="margin:18px 0;">
-      <h3 style="margin-bottom:4px;">Roles</h3>
-      <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <input type="text" id="ta-new-role-name" placeholder="New role name (e.g. Speaker Coordinator)" style="flex:1; max-width:320px;">
-        <button class="sp-mini-btn" onclick="createRole()">+ Add role</button>
+    <div class="cfp-panel">
+      <div class="cfp-panel-head" data-section-toggle="ta-people" onclick="toggleSidebarSection('ta-people')">
+        <h3><span class="ta-head-icon">${ICON_USERS}</span><span class="sp-chevron">▸</span>People <span class="sp-sub">(${people.length})</span></h3>
+        <span class="hint">Who can sign in, and what role they're assigned</span>
       </div>
-      ${teamAccessState.roles.map(r => renderRoleCard(r)).join('')}
-    </section>
+      <div class="cfp-panel-body" data-section-key="ta-people" style="padding:6px 18px 16px;">
+        ${people.length ? people.map(p => `
+          <div class="ta-row">
+            <span style="flex:1; min-width:0;">${escapeHtml(p.email)}</span>
+            ${!p.role_id ? '<span class="sp-badge sp-badge-inkind">Needs a role</span>' : ''}
+            ${p.must_reset_password ? '<span class="sp-badge sp-badge-recruit">Hasn’t signed in yet</span>' : ''}
+            <select onchange="assignProfileRole('${p.id}', this.value)">
+              <option value="">— no role —</option>
+              ${teamAccessState.roles.map(r => `<option value="${r.id}" ${p.role_id === r.id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')}
+            </select>
+            ${!p.must_reset_password ? `<button class="sp-mini-btn" onclick="forcePasswordReset('${p.id}')">Force password reset</button>` : ''}
+          </div>
+        `).join('') : '<p class="hint">No one has signed in yet.</p>'}
+      </div>
+    </div>
 
-    <section style="margin:18px 0;">
-      <h3 style="margin-bottom:4px;">All People (${teamAccessState.profiles.length})</h3>
-      ${teamAccessState.profiles.map(p => `
-        <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line);">
-          <span style="flex:1;">${escapeHtml(p.email)}${p.must_reset_password ? ' <span class="sp-sub">(hasn’t set a password yet)</span>' : ''}${p.roles ? ' <span class="sp-sub">— ' + escapeHtml(p.roles.name) + '</span>' : ''}</span>
-          <select onchange="assignProfileRole('${p.id}', this.value)">
-            <option value="">— no role —</option>
-            ${teamAccessState.roles.map(r => `<option value="${r.id}" ${p.role_id === r.id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')}
-          </select>
-          ${!p.must_reset_password ? `<button class="sp-mini-btn" onclick="forcePasswordReset('${p.id}')">Force password reset</button>` : ''}
+    <div class="cfp-panel">
+      <div class="cfp-panel-head" data-section-toggle="ta-roles" onclick="toggleSidebarSection('ta-roles')">
+        <h3><span class="ta-head-icon">${ICON_SHIELD}</span><span class="sp-chevron">▸</span>Roles &amp; Permissions <span class="sp-sub">(${teamAccessState.roles.length})</span></h3>
+        <span class="hint">What each role can see or edit</span>
+      </div>
+      <div class="cfp-panel-body" data-section-key="ta-roles" style="padding:14px 18px 16px;">
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <input type="text" id="ta-new-role-name" placeholder="New role name (e.g. Speaker Coordinator)" style="flex:1; max-width:320px;">
+          <button class="sp-mini-btn" onclick="createRole()">+ Add role</button>
         </div>
-      `).join('')}
-    </section>
+        ${teamAccessState.roles.length ? teamAccessState.roles.map(r => renderRoleCard(r, roleCountByRoleId.get(r.id) || 0)).join('') : '<p class="hint">No roles yet — create one above to get started.</p>'}
+      </div>
+    </div>
 
-    <section style="margin:18px 0;">
-      <h3 style="margin-bottom:4px;">Activity Log</h3>
-      <p class="hint">Recent edits across the whole planner — most recent first.</p>
-      ${renderAuditEntries(teamAccessState.auditLog, { showRecord: true })}
-    </section>
+    <div class="cfp-panel">
+      <div class="cfp-panel-head" data-section-toggle="ta-monitoring" onclick="toggleSidebarSection('ta-monitoring')">
+        <h3><span class="ta-head-icon">${ICON_LAYERS}</span><span class="sp-chevron">▸</span>Monitoring</h3>
+        <span class="hint">Recent changes and how much room you have left</span>
+      </div>
+      <div class="cfp-panel-body" data-section-key="ta-monitoring" style="padding:14px 18px 16px;">
+        <div class="ta-sub-title">Activity Log</div>
+        ${renderAuditEntries(teamAccessState.auditLog, { showRecord: true })}
 
-    <section style="margin:18px 0;">
-      <h3 style="margin-bottom:4px;">Usage</h3>
-      <p class="hint">Database size (all your records) and file storage (uploads) are billed and capped separately on Supabase.</p>
-      <button class="sp-mini-btn" id="storage-calc-btn" onclick="calculateStorageUsage()">Calculate usage</button>
-      <div id="storage-calc-result" style="margin-top:10px;"></div>
-    </section>
+        <div class="ta-sub-title">Usage</div>
+        <button class="sp-mini-btn" id="storage-calc-btn" onclick="calculateStorageUsage()">Calculate usage</button>
+        <div id="storage-calc-result" style="margin-top:10px;"></div>
+      </div>
+    </div>
   `;
+  applyCollapsedSectionsState();
 }
 
-function renderRoleCard(role) {
+function renderRoleCard(role, assignedCount) {
   const isEditing = teamAccessState.editingRoleId === role.id;
   const permsForRole = new Map(teamAccessState.rolePermissions.filter(p => p.role_id === role.id).map(p => [p.section_key, p.level]));
+  const labelByKey = new Map(ALL_SECTION_KEYS_LIST);
   return `
-    <div style="border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+    <div class="ta-role-card">
       <div style="display:flex; align-items:center; gap:10px;">
-        <b style="flex:1;">${escapeHtml(role.name)}</b>${role.is_admin ? ' <span class="sp-sub">(admin)</span>' : ''}
+        <b style="flex:1;">${escapeHtml(role.name)}</b>
+        ${role.is_admin ? '<span class="sp-badge sp-badge-committed">admin</span>' : ''}
+        <span class="sp-sub">${assignedCount} ${assignedCount === 1 ? 'person' : 'people'}</span>
         <button class="sp-mini-btn" onclick="toggleRoleEdit('${role.id}')">${isEditing ? 'Close' : 'Edit permissions'}</button>
       </div>
       ${isEditing ? `
       <table style="width:100%; margin-top:10px; font-size:13px; border-collapse:collapse;">
         <thead><tr style="text-align:left;"><th>Section</th><th style="width:50px;">None</th><th style="width:50px;">View</th><th style="width:50px;">Edit</th></tr></thead>
         <tbody>
-          ${ALL_SECTION_KEYS_LIST.map(([key, label]) => {
-            const current = permsForRole.get(key) || 'none';
-            return `<tr style="border-top:1px solid var(--line);">
-              <td style="padding:4px 0;">${escapeHtml(label)}</td>
-              <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'none' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','none')"></td>
-              <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'view' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','view')"></td>
-              <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'edit' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','edit')"></td>
-            </tr>`;
-          }).join('')}
+          ${PERMISSION_CATEGORIES.map(([category, keys]) => `
+            <tr><td colspan="4" class="ta-perm-cat">${escapeHtml(category)}</td></tr>
+            ${keys.map(key => {
+              const label = labelByKey.get(key) || key;
+              const current = permsForRole.get(key) || 'none';
+              return `<tr class="ta-perm-row">
+                <td style="padding:5px 0 5px 6px;">${escapeHtml(label)}</td>
+                <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'none' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','none')"></td>
+                <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'view' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','view')"></td>
+                <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'edit' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','edit')"></td>
+              </tr>`;
+            }).join('')}
+          `).join('')}
         </tbody>
       </table>
       <div style="display:flex; gap:8px; margin-top:10px;">
@@ -6740,6 +6777,7 @@ const ICON_GIFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_DATABASE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>';
 const ICON_FOLDER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>';
 const ICON_LAYERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>';
+const ICON_SHIELD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>';
 function dbCard(icon, iconColor, label, value, sub, valueColor, drillKey, drillTitle) {
   return `<div class="db-card" onclick="openDashboardDrill('${drillKey}', '${escapeHtml(drillTitle)}')" style="cursor:pointer;">
     <div style="width:30px; height:30px; border-radius:8px; background:${iconColor}18; color:${iconColor}; display:flex; align-items:center; justify-content:center; margin-bottom:10px;"><span style="width:16px; height:16px; display:block;">${icon}</span></div>
