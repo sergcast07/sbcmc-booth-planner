@@ -9983,9 +9983,13 @@ function speakerCompleteness(sp) {
   checks.push((sp.types || []).length > 0);
   checks.push((sp.data.sessions || []).some(s => s.title));
   if (!skipFee) checks.push(!!sp.data.financial.feeStatus);
-  const mat = materialsForTypes(sp.types, sp.data.arrangement);
+  // materialsNeeded[key] flags which items staff actually wants from this speaker -- not
+  // every item materialsForTypes() lists applies to every person of that type. Complete means
+  // every flagged item has a real file on record (data.materials[key]), not just checked.
   const mn = sp.data.materialsNeeded || {};
-  checks.push(mat.length === 0 || mat.every(k => mn[k]));
+  const mats = sp.data.materials || {};
+  const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k]);
+  checks.push(neededKeys.length === 0 || neededKeys.every(k => !!mats[k]));
   if (!skipTravel) checks.push(!!lg.travelMethod);
   // "Invited" alone just means the ask went out -- nothing's actually confirmed yet, so it
   // shouldn't read as done. Declined/Cancelled also count as settled -- there's nothing left
@@ -10005,7 +10009,8 @@ function speakerTabAlert(sp, tab) {
   if (tab === 'production') {
     const mat = materialsForTypes(sp.types, sp.data.arrangement);
     const mn = sp.data.materialsNeeded || {};
-    return mat.some(k => !mn[k]);
+    const mats = sp.data.materials || {};
+    return mat.some(k => mn[k] && !mats[k]);
   }
   if (tab === 'logistics') {
     return (sp.data.logistics.transportNeeds || []).some(t => !t.driverId);
@@ -12007,13 +12012,13 @@ function approveSpeakerPendingChange(id, key) {
     sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove([pending.old.filePath]).then(({ error }) => { if (error) reportWriteError('speaker-file-cleanup:' + id + ':' + key, 'Couldn’t remove the old file for ' + (sp.name || 'this speaker') + ' from storage — it may be orphaned.', error); });
   }
   if (isMaterial) {
+    // Deliberately doesn't touch materialsNeeded here -- that checkbox now means "we've
+    // flagged this as required from them," a staff decision independent of whether a file has
+    // actually shown up. The portal only ever offers an upload row for something already
+    // checked, so approving one doesn't need to check it again.
     const itemKey = key.slice('materials.'.length);
     if (!sp.data.materials) sp.data.materials = {};
     sp.data.materials[itemKey] = pending.new;
-    if (pending.new) {
-      if (!sp.data.materialsNeeded) sp.data.materialsNeeded = {};
-      sp.data.materialsNeeded[itemKey] = true;
-    }
   } else {
     const map = SPEAKER_PENDING_FIELD_MAP[key];
     if (!map) return;
@@ -12331,11 +12336,14 @@ function earliestSpeakerSession(sp) {
   return sessions.slice().sort(compareSessionsChrono)[0];
 }
 
+// "total" = items staff has flagged as actually needed from this speaker (checked in the
+// Production tab's checklist); "done" = how many of those already have a real file on record.
 function materialsNeededCount(sp) {
   const mn = sp.data.materialsNeeded || {};
-  const keys = materialsForTypes(sp.types, sp.data.arrangement);
-  const done = keys.filter(k => mn[k]).length;
-  return { done, total: keys.length };
+  const mats = sp.data.materials || {};
+  const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k]);
+  const done = neededKeys.filter(k => mats[k]).length;
+  return { done, total: neededKeys.length };
 }
 
 function addSpeakerBadgeName(id) {
@@ -14566,8 +14574,10 @@ function emailSpeakerSummary(id) {
 
   const allMaterials = materialsForTypes(sp.types, sp.data.arrangement);
   const mn = sp.data.materialsNeeded || {};
-  const stillNeeded = allMaterials.filter(k => !mn[k]);
-  const received = allMaterials.filter(k => mn[k]);
+  const mats = sp.data.materials || {};
+  const neededMaterials = allMaterials.filter(k => mn[k]);
+  const stillNeeded = neededMaterials.filter(k => !mats[k]);
+  const received = neededMaterials.filter(k => mats[k]);
   if (stillNeeded.length) {
     lines.push("STILL NEEDED FROM YOU");
     stillNeeded.forEach(k => lines.push('  \u2022 ' + MATERIAL_ITEM_LABELS[k]));
