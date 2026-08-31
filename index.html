@@ -1500,9 +1500,9 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 
   document.body.classList.add('gate-locked');
 
-  var ALL_SECTION_KEYS = ['sponsors.contact', 'sponsors.financial', 'speakers.roster', 'speakers.logistics',
-    'speakers.internal_docs', 'schedule.all', 'applicants.all', 'transportation.all', 'floorplan.all',
-    'revenue.all', 'cashflow.all', 'budget.all', 'team_access.all'];
+  var ALL_SECTION_KEYS = ['dashboard.all', 'sponsors.contact', 'sponsors.financial', 'speakers.roster',
+    'speakers.logistics', 'speakers.financial', 'speakers.internal_docs', 'schedule.all', 'applicants.all',
+    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'budget.all', 'team_access.all'];
 
   // ---- Legacy shared-password fallback -- Phase B/C transition only. Delete this whole
   // block (and the two hash constants) once every real user has an individual Supabase Auth
@@ -1576,6 +1576,13 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     // even exists yet, which is fine, since that script does its own initial sweep.
     if (typeof window.applyPermissionLock === 'function') window.applyPermissionLock();
     if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
+    // Dashboard is visible by default in the static HTML (no inline display:none, since it's
+    // the app's "home" tab) -- without this, someone denied dashboard.all would still see it
+    // fully rendered until they happened to click something else. Force the initial view to
+    // whichever tab this session can actually see, same fallback order switchTopView itself uses.
+    if (typeof window.firstAccessibleView === 'function' && typeof window.switchTopView === 'function') {
+      window.switchTopView(window.firstAccessibleView());
+    }
     // Admin data loading is deferred until permissions are actually known (see
     // window.onAppUnlocked, registered by the bottom-of-page bootstrap) rather than starting
     // immediately at page load like the old gate did -- this app has ~40 tables' worth of data
@@ -1932,7 +1939,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 <div id="ap-import-modal-root"></div>
 <div id="ap-room-modal-root"></div>
 
-<div id="dashboard-view">
+<div id="dashboard-view" data-section="dashboard.all">
   <div class="db-wrap">
     <div class="db-hero">
       <svg class="db-staff-lines" viewBox="0 0 320 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -3219,7 +3226,7 @@ function showStatus(msg) {
 // of finishing their first login.
 const TABLE_TO_SECTION_KEYS = {
   sponsors: ['sponsors.contact', 'sponsors.financial'],
-  speakers: ['speakers.roster', 'speakers.logistics', 'speakers.internal_docs'],
+  speakers: ['speakers.roster', 'speakers.logistics', 'speakers.financial', 'speakers.internal_docs'],
   session_rooms: ['schedule.all'], session_tracks: ['schedule.all'],
   schedule_slots: ['schedule.all'], schedule_audiences: ['schedule.all'],
   applicant_groups: ['applicants.all'], applicants: ['applicants.all'],
@@ -3234,6 +3241,34 @@ function canView(sectionKey) { return !!(window.userPermissions && window.userPe
 function canEdit(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey] === 'edit'); }
 function canEditAny(sectionKeys) { return (sectionKeys || []).some(canEdit); }
 function canViewAny(sectionKeys) { return (sectionKeys || []).some(canView); }
+
+// Sub-section permissions (sponsors.financial / speakers.financial) are enforced client-side
+// only -- the cosmetic tab-hiding elsewhere isn't enough by itself, since the real values would
+// still sit in memory and leak through the list table's Amount/Status column, Dashboard's
+// aggregate totals, CSV export, etc. Blanking the values right where they're loaded protects
+// all of those downstream call sites at once, rather than needing each one patched separately.
+// Deliberately NOT called from rowToSponsor/rowToSpeaker themselves -- those are also used by
+// the sponsor's own public self-service portal, where a sponsor must see their own committed/
+// paid amounts regardless of the admin permission system (window.userPermissions doesn't even
+// apply there). Only wrap the admin-app load call sites with these.
+function redactSponsorFinancials(s) {
+  if (canView('sponsors.financial')) return s;
+  s.data.money = { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null };
+  // checkoutTier/amountStatus are legacy fields that sit outside data.money structurally but
+  // are read as fallbacks everywhere a dollar figure or payment status is shown (sponsorAmountCell,
+  // Dashboard aggregates, CSV export) -- redacting only data.money and leaving these alone would
+  // still leak real numbers through that fallback chain.
+  s.data.checkoutTier = '';
+  s.data.amountStatus = '';
+  return s;
+}
+function redactSpeakerFinancials(sp) {
+  if (canView('speakers.financial')) return sp;
+  sp.data.financial = Object.assign({}, sp.data.financial, {
+    fee: '', feeStatus: '', paid: '', travelReimbursement: '', dueDate: '', w9Received: false, invoiceSent: false
+  });
+  return sp;
+}
 
 // This app has ~40 separate call sites across sponsors/speakers/applicants/budget/floor-plan/
 // schedule/revenue-estimator/cash-flow that each build their own supabase-js query chain
@@ -4192,11 +4227,15 @@ async function initSupabase() {
     buildTabs();
     if (viewMode === 'edit') { planImg.src = MAP_IMGS[currentMapId]; }
 
-    // Kick off the booth-layout fetch now, but don't wait on it before doing the dashboard
-    // render below -- that render is pure CPU work with no network dependency, so it can
-    // run while this request is in flight instead of sitting blocked behind it.
+    // Kick off the booth-layout fetch now, but don't wait on it before doing the render below --
+    // that render is pure CPU work with no network dependency, so it can run while this request
+    // is in flight instead of sitting blocked behind it. Re-render whichever tab is actually
+    // showing (tracked by switchTopView), not just Dashboard -- since the initial tab is now
+    // whichever one this session's permissions land it on (see finishUnlock in the gate script),
+    // and that first render happened before this data had loaded, with empty arrays.
     const boothLayoutFetch = sbClient.from(SHARED_TABLE).select('data').eq('id', SHARED_ROW_ID).maybeSingle();
-    if (typeof renderDashboard === 'function') renderDashboard();
+    if (typeof switchTopView === 'function' && currentTopView) switchTopView(currentTopView);
+    else if (typeof renderDashboard === 'function') renderDashboard();
 
     const { data, error } = await boothLayoutFetch;
 
@@ -5877,8 +5916,9 @@ applyCollapsedSectionsState();
 // which nav buttons to show at all. "dashboard" is intentionally absent -- it's an aggregation
 // view with no section of its own, always reachable.
 const VIEW_SECTION_KEYS = {
+  dashboard: ['dashboard.all'],
   sponsors: ['sponsors.contact', 'sponsors.financial'],
-  speakers: ['speakers.roster', 'speakers.logistics', 'speakers.internal_docs'],
+  speakers: ['speakers.roster', 'speakers.logistics', 'speakers.financial', 'speakers.internal_docs'],
   schedule: ['schedule.all'],
   applicants: ['applicants.all'],
   transport: ['transportation.all'],
@@ -5887,11 +5927,31 @@ const VIEW_SECTION_KEYS = {
   cashflow: ['cashflow.all'],
   budget: ['budget.all']
 };
+// Order matters: the first entry here that the signed-in user can actually view is where
+// switchTopView lands them when the tab they asked for is denied -- 'dashboard' can no longer
+// be assumed to always be safe now that it's gated too (see VIEW_SECTION_KEYS above).
+const FALLBACK_VIEW_ORDER = ['dashboard', 'sponsors', 'speakers', 'schedule', 'applicants',
+  'transport', 'floorplan', 'revenue', 'cashflow', 'budget'];
+function firstAccessibleView() {
+  return FALLBACK_VIEW_ORDER.find(v => canViewAny(VIEW_SECTION_KEYS[v])) || null;
+}
+// Tracks whichever tab is currently showing, so initSupabase() can re-render it (not just
+// Dashboard) once real data has actually loaded -- see the call site around line 4228.
+let currentTopView = 'dashboard';
 // Applicant data includes minors (the high-school program) -- worth calling out specifically,
 // though the check below is now the same general one every tab gets.
 function switchTopView(view) {
   const requiredKeys = VIEW_SECTION_KEYS[view];
-  if (requiredKeys && !canViewAny(requiredKeys)) view = 'dashboard';
+  if (requiredKeys && !canViewAny(requiredKeys)) view = firstAccessibleView();
+  currentTopView = view;
+  if (!view) {
+    document.querySelectorAll('.top-nav-btn').forEach(b => b.classList.remove('active'));
+    ['sponsor-view', 'dashboard-view', 'budget-view', 'speaker-view', 'transport-view',
+      'schedule-view', 'applicants-view', 'revenue-view', 'cashflow-view', 'team-access-view']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    const appEl = document.querySelector('.app'); if (appEl) appEl.style.display = 'none';
+    return; // no section assigned at all -- nothing to show, nowhere safe to redirect to
+  }
   document.querySelector('.app').style.display = view === 'floorplan' ? 'flex' : 'none';
   document.getElementById('sponsor-view').style.display = view === 'sponsors' ? 'block' : 'none';
   document.getElementById('dashboard-view').style.display = view === 'dashboard' ? 'block' : 'none';
@@ -5962,10 +6022,12 @@ function applyNavVisibility() {
 
 // ==== Team Access (admin-only): manage roles, permissions, and who's assigned to which role ====
 const ALL_SECTION_KEYS_LIST = [
+  ['dashboard.all', 'Dashboard'],
   ['sponsors.contact', 'Sponsor Tracker — Contact & Status'],
   ['sponsors.financial', 'Sponsor Tracker — Financials'],
   ['speakers.roster', 'Speakers & Artists — Roster & Sessions'],
   ['speakers.logistics', 'Speakers & Artists — Logistics & Travel'],
+  ['speakers.financial', 'Speakers & Artists — Financials'],
   ['speakers.internal_docs', 'Speakers & Artists — Internal Documents'],
   ['schedule.all', 'Schedule'],
   ['applicants.all', 'Applicants'],
@@ -6684,6 +6746,11 @@ function renderSpeakerSummarySection() {
 function renderCapacitySection() {
   const el = document.getElementById('db-capacity');
   if (!el) return;
+  // Called unconditionally from ~9 booth-CRUD/realtime-sync call sites, none of which know or
+  // care what tab is currently showing -- without this guard, a session denied dashboard.all
+  // would still get real package-revenue $ figures written into the (hidden) dashboard DOM the
+  // moment any booth changed anywhere, regardless of which tab they're actually looking at.
+  if (!canView('dashboard.all')) { el.innerHTML = ''; return; }
   if (typeof booths === 'undefined' || booths.length === 0) {
     el.innerHTML = '<div class="db-caveat">No booths placed on the floor plan yet.</div>';
     return;
@@ -7946,6 +8013,9 @@ function renderNewReturningBreakdown() {
 function renderSponsorshipProgressChart() {
   const container = document.getElementById('db-timeline-chart');
   if (!container) return;
+  // Also called directly from setFundraisingGoal() (line ~6976), outside renderDashboard()'s
+  // own gating -- same reasoning as the guard in renderCapacitySection above.
+  if (!canView('dashboard.all')) { container.innerHTML = ''; return; }
   const goalInput = document.getElementById('db-goal-input');
   const goal = getFundraisingGoal();
   if (goalInput && document.activeElement !== goalInput) goalInput.value = goal || '';
@@ -8174,7 +8244,7 @@ async function loadSponsorsFromDb() {
       sponsors = DEFAULT_SPONSORS.map(s => ({ ...s, data: { ...s.data } }));
       return;
     }
-    sponsors = data.map(rowToSponsor);
+    sponsors = data.map(rowToSponsor).map(redactSponsorFinancials);
     await backfillRegisteredDates(); // fills in gaps on records created before these fields existed
     await normalizeContactFormatting(); // standardizes phone/email formatting on load
   } catch (err) {
@@ -8210,7 +8280,7 @@ function subscribeSponsorRealtime() {
       if (payload.eventType === 'DELETE') {
         sponsors = sponsors.filter(s => s.id !== payload.old.id);
       } else {
-        const updated = rowToSponsor(payload.new);
+        const updated = redactSponsorFinancials(rowToSponsor(payload.new));
         const idx = sponsors.findIndex(s => s.id === updated.id);
         const previous = idx >= 0 ? sponsors[idx] : null;
         if (idx >= 0) sponsors[idx] = updated; else sponsors.push(updated);
@@ -8234,10 +8304,26 @@ function pushSponsor(s) {
   if (!sbClient) return;
   clearTimeout(sponsorPushTimers[s.id]);
   sponsorPushTimers[s.id] = setTimeout(async () => {
+    let dataToSave = s.data;
+    if (!canView('sponsors.financial')) {
+      // This session's copy of `money` was blanked on load (see redactSponsorFinancials) --
+      // the whole `data` column gets overwritten wholesale on upsert, so saving it as-is would
+      // silently wipe this sponsor's real committed/paid amounts in the database. Pull the
+      // current server-side value and splice it back in before saving anything else this
+      // session actually did change. Falls back to the (blank) local value for a brand-new
+      // sponsor that has no server row yet, which is correct -- nothing real to preserve there.
+      const { data: current } = await sbClient.from(SPONSORS_TABLE).select('data').eq('id', s.id).maybeSingle();
+      const currentData = (current && current.data) || {};
+      dataToSave = Object.assign({}, s.data, {
+        money: currentData.money || s.data.money,
+        checkoutTier: currentData.checkoutTier !== undefined ? currentData.checkoutTier : s.data.checkoutTier,
+        amountStatus: currentData.amountStatus !== undefined ? currentData.amountStatus : s.data.amountStatus
+      });
+    }
     const row = {
       id: s.id, org: s.org, contact_name: s.contactName, contact_email: s.contactEmail,
       contact_phone: s.contactPhone, package: s.package, tracker_status: s.trackerStatus,
-      linked_booth_id: s.linkedBoothId, data: s.data, sort_order: s.sortOrder || 0,
+      linked_booth_id: s.linkedBoothId, data: dataToSave, sort_order: s.sortOrder || 0,
       updated_at: new Date().toISOString()
     };
     const { error } = await sbClient.from(SPONSORS_TABLE).upsert(row);
@@ -8840,7 +8926,9 @@ function sponsorDetailHTML(s) {
         const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
         const activeTab = sponsorActiveTab;
         const pendingCount = sponsorPendingCount(s);
-        const tabs = [['overview', 'Overview'], ['money', 'Financials'], ['program', 'Program & Logistics']];
+        const tabs = [['overview', 'Overview']];
+        if (canView('sponsors.financial')) tabs.push(['money', 'Financials']);
+        tabs.push(['program', 'Program & Logistics']);
         if (pendingCount > 0) tabs.push(['pending', '🔔 Pending Updates (' + pendingCount + ')']);
         const tabBarHtml = tabs.map(([key, label]) => {
           const alert = key === 'pending' ? false : sponsorTabAlert(s, key);
@@ -11552,7 +11640,7 @@ async function loadSpeakersFromDb() {
   try {
     const { data, error } = await sbClient.from(SPEAKERS_TABLE).select('*').order('sort_order', { ascending: true });
     if (error) { console.warn('Speakers table not available:', errDetail(error)); speakers = []; return; }
-    speakers = (data || []).map(rowToSpeaker);
+    speakers = (data || []).map(rowToSpeaker).map(redactSpeakerFinancials);
   } catch (err) {
     console.warn('Speakers load failed:', err);
     speakers = [];
@@ -11564,10 +11652,18 @@ function pushSpeaker(sp) {
   if (!sbClient) return;
   clearTimeout(speakerPushTimers[sp.id]);
   speakerPushTimers[sp.id] = setTimeout(async () => {
+    let dataToSave = sp.data;
+    if (!canView('speakers.financial')) {
+      // Same reasoning as pushSponsor's equivalent guard -- this session's copy of `financial`
+      // was blanked on load, and the whole `data` column is overwritten wholesale on upsert, so
+      // saving it as-is would silently wipe this speaker's real fee/payment info.
+      const { data: current } = await sbClient.from(SPEAKERS_TABLE).select('data').eq('id', sp.id).maybeSingle();
+      dataToSave = Object.assign({}, sp.data, { financial: (current && current.data && current.data.financial) || sp.data.financial });
+    }
     const { error } = await sbClient.from(SPEAKERS_TABLE).upsert({
       id: sp.id, name: sp.name, type: (sp.types || []).join(','),
       contact_name: sp.contactName, contact_email: sp.contactEmail, contact_phone: sp.contactPhone,
-      tracker_status: sp.trackerStatus, data: sp.data, sort_order: sp.sortOrder,
+      tracker_status: sp.trackerStatus, data: dataToSave, sort_order: sp.sortOrder,
       updated_at: new Date().toISOString()
     });
     const key = 'speaker:' + sp.id;
@@ -13251,10 +13347,9 @@ function speakerDetailHTML(sp) {
   const completeness = speakerCompleteness(sp);
   const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
   const activeTab = speakerActiveTab;
-  const tabs = [
-    ['overview', 'Overview'], ['financial', 'Financials'], ['logistics', 'Logistics'],
-    ['production', 'Production'], ['files', 'Files']
-  ];
+  const tabs = [['overview', 'Overview']];
+  if (canView('speakers.financial')) tabs.push(['financial', 'Financials']);
+  tabs.push(['logistics', 'Logistics'], ['production', 'Production'], ['files', 'Files']);
   const tabBarHtml = tabs.map(([key, label]) => {
     const alert = speakerTabAlert(sp, key);
     return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''}" onclick="setSpeakerTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
@@ -13332,7 +13427,7 @@ function speakerDetailHTML(sp) {
     `}
 
     ${activeTab !== 'financial' ? '' : `
-    <div class="sk-tab-panel" data-section="speakers.logistics">
+    <div class="sk-tab-panel" data-section="speakers.financial">
       ${sp.data.arrangement === 'sponsor' ? `<div class="sp-linked-group-box">${speakerFinancialArrangementNote(sp)}</div>` : `
       <div class="sp-detail-grid sp-detail-1col">
         <fieldset class="sp-fieldset">
