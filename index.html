@@ -11836,12 +11836,13 @@ function renderSpeakerPublicView() {
     const filePending = pending[key];
     const file = filePending ? filePending.new : (materials[itemKey] || null);
     const isPendingRemoval = filePending && !filePending.new;
-    // Staff can mark an item received by hand (e.g. it came in over email) without ever
-    // routing a file through this portal. There's nothing left for the speaker to do about
-    // an item like that, so rather than show it with a reassuring note, just drop it from
-    // their list entirely -- only genuinely outstanding items (or ones they've already
-    // uploaded/staged through this portal) show up at all.
-    if (!file && !isPendingRemoval && materialsNeeded[itemKey]) return null;
+    // The checkbox on the admin Production tab ("Materials We Need From Them") marks which
+    // items actually apply to this specific speaker -- materialsForTypes() is just a
+    // type-based starting menu, not every item on it is necessarily wanted from every person
+    // of that type. Only show a row here if staff has checked it as needed, or if there's
+    // already a file/pending upload against it (so they can still see/manage their own upload
+    // even if staff unchecks it after the fact).
+    if (!file && !isPendingRemoval && !materialsNeeded[itemKey]) return null;
     const statusHtml = isPendingRemoval ? '<div class="sp-sub">Removal pending review.</div>'
       : file ? `<div class="sp-sub">${filePending ? 'Proposed' : 'Uploaded'}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="portalRemoveSpeakerMaterial('${sp.id}', '${itemKey}')">Remove</button>`
       : '<div class="sp-sub">Not uploaded yet.</div>';
@@ -11855,7 +11856,7 @@ function renderSpeakerPublicView() {
     `;
   }
   const materialBlocksHtml = relevantKeys.map(materialBlock).filter(Boolean).join('')
-    || '<p class="sp-sub">✓ Our team has everything they need from you right now.</p>';
+    || '<p class="sp-sub">Nothing needed from you at this time.</p>';
 
   const pendingCount = Object.keys(pending).length;
 
