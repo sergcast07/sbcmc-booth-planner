@@ -6307,12 +6307,12 @@ function renderTeamAccessContent() {
         <span class="hint">Recent changes and how much room you have left</span>
       </div>
       <div class="cfp-panel-body" data-section-key="ta-monitoring" style="padding:14px 18px 16px;">
-        <div class="ta-sub-title">Activity Log</div>
-        ${renderAuditEntries(teamAccessState.auditLog, { showRecord: true })}
-
         <div class="ta-sub-title">Usage</div>
         <button class="sp-mini-btn" id="storage-calc-btn" onclick="calculateStorageUsage()">Calculate usage</button>
         <div id="storage-calc-result" style="margin-top:10px;"></div>
+
+        <div class="ta-sub-title">Activity Log</div>
+        ${renderAuditEntries(teamAccessState.auditLog, { showRecord: true })}
       </div>
     </div>
   `;
