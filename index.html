@@ -431,14 +431,13 @@
     transition: opacity 0.15s;
   }
   #gate-logout-btn:hover { opacity: 1; }
-  body.view-only-mode input:read-only,
-  body.view-only-mode textarea:read-only,
-  body.view-only-mode select:disabled,
-  body.view-only-mode input:disabled {
+  /* Any field locked by the permission system (readOnly/disabled, set in the MutationObserver
+     lockdown -- see canEdit()/lockDownField()) gets dimmed so it visibly LOOKS locked, not just
+     functions that way -- applies globally now that lockdown is per-section, not one global
+     on/off flag, so no body-class gate is needed here. */
+  input:read-only, textarea:read-only, select:disabled, input:disabled {
     opacity: 0.65; cursor: default;
   }
-  /* Applicant data includes minors -- not shown at all in view-only mode, see switchTopView(). */
-  body.view-only-mode #nav-applicants-btn { display: none !important; }
 
   /* ==== Driver public view (read-only, no login required) ==== */
   #driver-public-view { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
@@ -1403,10 +1402,20 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     <div class="gate-eyebrow">SBCMC 2027</div>
     <h1>The Southern Baptist Church Music Collective</h1>
     <div class="gate-subname">2027 Conference</div>
-    <p>This planner is shared with the conference team only. Enter the password to continue.</p>
-    <input type="password" id="gate-password-input" placeholder="Password" autocomplete="off">
-    <button onclick="checkGatePassword()">Enter</button>
-    <div class="gate-error" id="gate-error"></div>
+    <div id="gate-login-panel">
+      <p>This planner is shared with the conference team only. Sign in to continue.</p>
+      <input type="email" id="gate-email-input" placeholder="Email" autocomplete="username">
+      <input type="password" id="gate-password-input" placeholder="Password" autocomplete="current-password">
+      <button onclick="checkGatePassword()">Sign in</button>
+      <div class="gate-error" id="gate-error"></div>
+    </div>
+    <div id="gate-reset-panel" style="display:none;">
+      <p>First time signing in — set a password only you know.</p>
+      <input type="password" id="gate-new-password" placeholder="New password" autocomplete="new-password">
+      <input type="password" id="gate-confirm-password" placeholder="Confirm new password" autocomplete="new-password">
+      <button onclick="submitPasswordReset()">Set password</button>
+      <div class="gate-error" id="gate-reset-error"></div>
+    </div>
   </div>
 </div>
 
@@ -1456,12 +1465,28 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <div id="apv-room-modal-root"></div>
 </div>
 <script>
-// Shared-password gate, like a locked spreadsheet: one password for the whole team,
-// entered once per browser (stored via localStorage so it persists across visits).
-// Honest limitation: this is a client-side deterrent, not real access control -- anyone
-// who views this file's source can read the hash below, and the Supabase anon key later
-// in this page grants direct API access independent of this gate. It stops a random
-// person who stumbles on the link; it will not stop someone specifically targeting this site.
+// SUPABASE_CONFIG/sbClient are declared here (with `var`, not `const`/`let`) specifically so
+// they're visible from BOTH inline <script> tags on this page -- classic (non-module) scripts
+// share one global object across <script> tags for `var`/function declarations, but `let`/
+// `const` are scoped to the tag that declared them. The gate logic below needs sbClient.auth.*
+// before the main app script (further down the page) ever runs, so the client has to be built
+// up here, not there. The main script just reuses this same global -- see the note by
+// isSupabaseConfigured() further down for where the old per-tag duplicates were removed.
+var SUPABASE_CONFIG = {
+  url: "https://lflcemdvryrkgvlvbsnc.supabase.co",
+  anonKey: "sb_publishable_ctBJO82JTI5sNF1ZQGF4FA_Dr3zwyBd"
+};
+var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabase)
+  ? supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+  : null;
+
+// Real per-person login via Supabase Auth, replacing the old shared-password gate. A signed-in
+// user's access is defined by window.userPermissions, a {section_key: 'view'|'edit'} map loaded
+// from their assigned role -- see role_permissions in Supabase. window.isAdminUser gates the
+// Team Access tab. Real enforcement of table-level access happens in Postgres via RLS (once the
+// Phase C cutover SQL runs); this script only decides what the UI shows/allows, same honest
+// "client-side is not the security boundary by itself" framing as before, now backed by an
+// actual login instead of a hash anyone can read in page source.
 (function() {
   // Driver-view, schedule-view, sponsor-portal, and applicant-review links (?view=drivers /
   // ?view=schedule / ?view=sponsor / ?view=applicants) skip the gate entirely -- see
@@ -1473,76 +1498,156 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
     if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor' || publicView === 'applicants') return;
   } catch (e) {}
 
-  var GATE_HASH = '72f98362bb1cbc378e36035e1af9121832cc7e7f1d12a80364e840aa6e8ba77c';
-  var GATE_KEY = 'sbcmcGateOk';
-  // Second password, view-only: unlocks the same app with every write blocked centrally
-  // (see the sbClient write-guard in the main script) rather than a separate build.
-  var VIEW_HASH = '171f5a77fe02a0042211b2084c704e66e6325f163c61644a8c63f8ff16b72df5';
-  var VIEW_KEY = 'sbcmcViewOk';
-  window.isViewOnlyMode = false;
+  document.body.classList.add('gate-locked');
 
+  var ALL_SECTION_KEYS = ['sponsors.contact', 'sponsors.financial', 'speakers.roster', 'speakers.logistics',
+    'speakers.internal_docs', 'schedule.all', 'applicants.all', 'transportation.all', 'floorplan.all',
+    'revenue.all', 'cashflow.all', 'budget.all', 'team_access.all'];
+
+  // ---- Legacy shared-password fallback -- Phase B/C transition only. Delete this whole
+  // block (and the two hash constants) once every real user has an individual Supabase Auth
+  // account with a role assigned -- see the rollout plan. Its only purpose is to keep the two
+  // old passwords working for anyone not yet individually provisioned, so shipping this new
+  // login doesn't lock the whole team out on day one. A legacy session gets the exact same
+  // full-access (or view-only) permission shape a real Admin role would get. ----
+  var LEGACY_GATE_HASH = '72f98362bb1cbc378e36035e1af9121832cc7e7f1d12a80364e840aa6e8ba77c';
+  var LEGACY_VIEW_HASH = '171f5a77fe02a0042211b2084c704e66e6325f163c61644a8c63f8ff16b72df5';
   function sha256(str) {
     var enc = new TextEncoder().encode(str);
     return crypto.subtle.digest('SHA-256', enc).then(function(buf) {
       return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
     });
   }
+  function tryLegacyPassword(value) {
+    return sha256(value).then(function(hash) {
+      if (hash === LEGACY_GATE_HASH) { applyLegacySession(false); return true; }
+      if (hash === LEGACY_VIEW_HASH) { applyLegacySession(true); return true; }
+      return false;
+    });
+  }
+  function applyLegacySession(viewOnly) {
+    window.isLegacySession = true;
+    window.isAdminUser = !viewOnly;
+    window.userPermissions = {};
+    ALL_SECTION_KEYS.forEach(function(k) { window.userPermissions[k] = viewOnly ? 'view' : 'edit'; });
+    // Applicant data includes minors (the high-school program) -- the legacy view-only password
+    // never got access to it at all, not even to view, and that stricter rule carries over
+    // here rather than being downgraded to the general 'view' every other section gets.
+    if (viewOnly) delete window.userPermissions['applicants.all'];
+    document.body.classList.toggle('view-only-mode', viewOnly);
+    finishUnlock();
+  }
+  // ---- end legacy fallback ----
 
-  function unlock(viewOnly) {
-    window.isViewOnlyMode = !!viewOnly;
+  var gateEl = document.getElementById('access-gate');
+
+  function showLoginPanel(errMsg) {
+    document.getElementById('gate-login-panel').style.display = 'block';
+    document.getElementById('gate-reset-panel').style.display = 'none';
+    document.getElementById('gate-error').textContent = errMsg || '';
+    gateEl.style.display = 'flex';
+  }
+  function showResetPanel() {
+    document.getElementById('gate-login-panel').style.display = 'none';
+    document.getElementById('gate-reset-panel').style.display = 'block';
+    gateEl.style.display = 'flex';
+  }
+
+  async function loadPermissionsAndUnlock(userId) {
+    const { data: profile, error } = await sbClient.from('profiles').select('*, roles(*)').eq('id', userId).maybeSingle();
+    if (error || !profile) { showLoginPanel('Account not fully set up yet — contact an admin.'); return; }
+    if (profile.must_reset_password) { window.__pendingProfile = profile; showResetPanel(); return; }
+    if (!profile.role_id) { showLoginPanel('Your account has no role assigned yet — contact an admin.'); return; }
+    const { data: perms } = await sbClient.from('role_permissions').select('section_key, level').eq('role_id', profile.role_id);
+    window.userPermissions = {};
+    (perms || []).forEach(function(p) { window.userPermissions[p.section_key] = p.level; });
+    window.isAdminUser = !!(profile.roles && profile.roles.is_admin);
+    window.isLegacySession = false;
+    document.body.classList.remove('view-only-mode'); // that banner is a legacy-fallback-only concept, see applyLegacySession
+    finishUnlock();
+  }
+
+  function finishUnlock() {
     document.body.classList.remove('gate-locked');
-    if (viewOnly) {
-      document.body.classList.add('view-only-mode');
-      // Only relevant for a same-session login (typed password after the main script has
-      // already run) -- a returning user with a stored password hits this before the main
-      // script even exists yet, which is fine, since that script does its own initial sweep.
-      if (typeof window.applyViewOnlyFieldLock === 'function') window.applyViewOnlyFieldLock();
-    }
-    document.getElementById('access-gate').style.display = 'none';
+    gateEl.style.display = 'none';
     document.getElementById('gate-logout-btn').style.display = 'block';
+    // Only relevant for a same-session login (typed credentials after the main script has
+    // already run) -- a returning user with a stored session hits this before the main script
+    // even exists yet, which is fine, since that script does its own initial sweep.
+    if (typeof window.applyPermissionLock === 'function') window.applyPermissionLock();
+    if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
+    // Admin data loading is deferred until permissions are actually known (see
+    // window.onAppUnlocked, registered by the bottom-of-page bootstrap) rather than starting
+    // immediately at page load like the old gate did -- this app has ~40 tables' worth of data
+    // fetches behind initSupabase(), and there's no reason to pull any of it into a browser
+    // that hasn't proven who's asking yet.
+    if (typeof window.onAppUnlocked === 'function') window.onAppUnlocked();
   }
 
   window.gateLogout = function() {
-    try { localStorage.removeItem(GATE_KEY); localStorage.removeItem(VIEW_KEY); } catch (e) { /* private browsing, etc */ }
-    location.reload();
+    if (window.isLegacySession) { window.isLegacySession = false; window.userPermissions = null; location.reload(); return; }
+    if (sbClient) sbClient.auth.signOut().then(function() { location.reload(); });
+    else location.reload();
   };
 
-  window.checkGatePassword = function() {
-    var input = document.getElementById('gate-password-input');
-    var errEl = document.getElementById('gate-error');
-    sha256(input.value).then(function(hash) {
-      if (hash === GATE_HASH) {
-        try { localStorage.setItem(GATE_KEY, GATE_HASH); localStorage.removeItem(VIEW_KEY); } catch (e) { /* private browsing, etc -- just won't persist */ }
-        errEl.textContent = '';
-        unlock(false);
-      } else if (hash === VIEW_HASH) {
-        try { localStorage.setItem(VIEW_KEY, VIEW_HASH); localStorage.removeItem(GATE_KEY); } catch (e) { /* private browsing, etc -- just won't persist */ }
-        errEl.textContent = '';
-        unlock(true);
+  window.checkGatePassword = async function() {
+    var emailInput = document.getElementById('gate-email-input');
+    var passwordInput = document.getElementById('gate-password-input');
+    var email = emailInput.value.trim();
+    var password = passwordInput.value;
+    if (!email || !sbClient) {
+      // No email typed (or Supabase isn't configured at all) -- treat the password field as a
+      // legacy shared-password attempt, which needs no backend of its own.
+      var matched = await tryLegacyPassword(password);
+      if (!matched) { showLoginPanel('Incorrect password. Try again.'); passwordInput.value = ''; passwordInput.focus(); }
+      return;
+    }
+    const { data, error } = await sbClient.auth.signInWithPassword({ email: email, password: password });
+    if (error) {
+      // Also try it as a legacy password, in case someone types the shared password into the
+      // email field's neighboring field out of habit -- harmless to attempt, either path is safe.
+      var matchedLegacy = await tryLegacyPassword(password);
+      if (!matchedLegacy) { showLoginPanel('Incorrect email or password.'); passwordInput.value = ''; }
+      return;
+    }
+    await loadPermissionsAndUnlock(data.user.id);
+  };
+
+  window.submitPasswordReset = async function() {
+    var newPw = document.getElementById('gate-new-password').value;
+    var confirmPw = document.getElementById('gate-confirm-password').value;
+    var resetErrEl = document.getElementById('gate-reset-error');
+    resetErrEl.textContent = '';
+    if (!newPw || newPw.length < 8) { resetErrEl.textContent = 'Password must be at least 8 characters.'; return; }
+    if (newPw !== confirmPw) { resetErrEl.textContent = 'Passwords don’t match.'; return; }
+    const { error: updateErr } = await sbClient.auth.updateUser({ password: newPw });
+    if (updateErr) { resetErrEl.textContent = 'Could not set new password: ' + updateErr.message; return; }
+    const profile = window.__pendingProfile;
+    await sbClient.from('profiles').update({ must_reset_password: false }).eq('id', profile.id);
+    profile.must_reset_password = false;
+    if (!profile.role_id) { showLoginPanel('Password updated. Your account has no role assigned yet — contact an admin.'); return; }
+    await loadPermissionsAndUnlock(profile.id);
+  };
+
+  if (sbClient) {
+    sbClient.auth.getSession().then(function(res) {
+      var session = res && res.data && res.data.session;
+      if (session && session.user) {
+        loadPermissionsAndUnlock(session.user.id);
       } else {
-        errEl.textContent = 'Incorrect password. Try again.';
-        input.value = '';
-        input.focus();
+        showLoginPanel();
       }
     });
-  };
-
-  document.body.classList.add('gate-locked');
-  var stored = null, storedView = null;
-  try { stored = localStorage.getItem(GATE_KEY); storedView = localStorage.getItem(VIEW_KEY); } catch (e) { /* private browsing, etc */ }
-  if (stored === GATE_HASH) {
-    unlock(false);
-  } else if (storedView === VIEW_HASH) {
-    unlock(true);
   } else {
-    document.getElementById('gate-password-input').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { e.preventDefault(); checkGatePassword(); }
-    });
-    setTimeout(function() {
-      var el = document.getElementById('gate-password-input');
-      if (el) el.focus();
-    }, 50);
+    showLoginPanel('Not connected to the shared database -- see SUPABASE_CONFIG. The shared password still works.');
   }
+  document.getElementById('gate-password-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); checkGatePassword(); }
+  });
+  setTimeout(function() {
+    var el = document.getElementById('gate-email-input');
+    if (el) el.focus();
+  }, 50);
 })();
 </script>
 <div class="top-nav">
@@ -1556,11 +1661,10 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
   <button class="top-nav-btn" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
   <button class="top-nav-btn" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
-  <!-- Budget tab disabled for now, per request -- code is intact below, just re-enable this button to bring it back
   <button class="top-nav-btn" id="nav-budget-btn" onclick="switchTopView('budget')">Budget</button>
-  -->
+  <button class="top-nav-btn" id="nav-team-access-btn" onclick="switchTopView('team_access')" style="display:none;">Team Access</button>
 </div>
-<div id="sponsor-view">
+<div id="sponsor-view" data-section="sponsors.contact">
   <div class="sp-wrap">
     <div class="sp-side">
       <div class="sp-side-section">
@@ -1633,7 +1737,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   </div>
 </div>
 
-<div id="speaker-view" style="display:none;">
+<div id="speaker-view" style="display:none;" data-section="speakers.roster">
   <div class="sp-wrap">
     <div class="sp-side">
       <div class="sp-side-section">
@@ -1734,7 +1838,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   </div>
 </div>
 
-<div id="transport-view" style="display:none; padding: 22px 26px;">
+<div id="transport-view" style="display:none; padding: 22px 26px;" data-section="transportation.all">
   <div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px;">
     <h2 style="font-family: var(--font-display); color: var(--teal-deep); margin: 0 0 6px;">Transportation</h2>
     <button class="sp-add-btn" onclick="copyDriverViewLink()">🔗 Copy Driver-Only Link</button>
@@ -1743,7 +1847,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <div id="transport-view-body"></div>
 </div>
 
-<div id="schedule-view" style="display:none; padding: 22px 26px;">
+<div id="schedule-view" style="display:none; padding: 22px 26px;" data-section="schedule.all">
   <div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px;">
     <h2 style="font-family: var(--font-display); color: var(--teal-deep); margin: 0 0 6px;">Conference Schedule</h2>
     <div class="sch-view-toggle">
@@ -1762,7 +1866,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   <div id="sch-itinerary-body" style="display:none;"></div>
 </div>
 
-<div id="applicants-view" style="display:none;">
+<div id="applicants-view" style="display:none;" data-section="applicants.all">
   <div class="sp-wrap">
     <div class="sp-side">
       <div class="sp-side-section">
@@ -1926,7 +2030,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   </div>
 </div>
 
-<div id="budget-view" style="display:none;">
+<div id="budget-view" style="display:none;" data-section="budget.all">
   <div class="bg-wrap">
     <div class="bg-hero">
       <svg class="db-staff-lines" viewBox="0 0 320 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -1951,15 +2055,19 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   </div>
 </div>
 
-<div id="revenue-view" style="display:none;">
+<div id="revenue-view" style="display:none;" data-section="revenue.all">
   <div id="rev-root" class="rev-page"></div>
 </div>
 
-<div id="cashflow-view" style="display:none;">
+<div id="cashflow-view" style="display:none;" data-section="cashflow.all">
   <div id="cfp-root" class="cfp-page"></div>
 </div>
 
-<div class="app" style="display:none;">
+<div id="team-access-view" style="display:none; padding: 22px 26px;" data-section="team_access.all">
+  <div id="team-access-root"></div>
+</div>
+
+<div class="app" style="display:none;" data-section="floorplan.all">
   <div class="sidebar">
     <div class="brand sp-side-section">
       <div class="sp-side-label-row">
@@ -3096,27 +3204,58 @@ function showStatus(msg) {
 //   7. Re-publish this file. Everyone who opens the page now reads/writes the same shared layout live.
 // Leave SUPABASE_CONFIG empty (as shipped) and the tool works exactly as before \u2014 autosave to
 // this browser only, no sharing. Nothing breaks either way.
-const SUPABASE_CONFIG = {
-  url: "https://lflcemdvryrkgvlvbsnc.supabase.co",
-  anonKey: "sb_publishable_ctBJO82JTI5sNF1ZQGF4FA_Dr3zwyBd"
-};
+// SUPABASE_CONFIG and sbClient are declared once, in the gate <script> tag near the top of the
+// page (search for "var SUPABASE_CONFIG"), not here -- the login screen needs sbClient.auth.*
+// before this script even runs, and `var` at that tag's top level is the only way to share a
+// binding across two separate <script> tags in a classic (non-module) page like this one.
 
-// View-only mode (unlocked by the second gate password) needs to block every write, and this
-// app has ~40 separate call sites across sponsors/speakers/applicants/budget/floor-plan/
+// Maps a Supabase table name to the section_key(s) that govern editing it -- the fetch guard
+// below uses this to decide whether to block a write, and it's the single source of truth for
+// "which permission does this table belong to" (see the role_permissions section_key taxonomy).
+// Deliberately excludes roles/role_permissions/profiles: those are gated by window.isAdminUser
+// in the Team Access tab's own UI code, not by this generic guard -- profiles in particular is
+// also written to by the gate's own forced-password-reset flow, before window.userPermissions
+// has even been populated, so routing it through this section-based check would lock people out
+// of finishing their first login.
+const TABLE_TO_SECTION_KEYS = {
+  sponsors: ['sponsors.contact', 'sponsors.financial'],
+  speakers: ['speakers.roster', 'speakers.logistics', 'speakers.internal_docs'],
+  session_rooms: ['schedule.all'], session_tracks: ['schedule.all'],
+  schedule_slots: ['schedule.all'], schedule_audiences: ['schedule.all'],
+  applicant_groups: ['applicants.all'], applicants: ['applicants.all'],
+  conference_drivers: ['transportation.all'], conference_hotels: ['transportation.all'],
+  booth_layouts: ['floorplan.all'], booth_layout_maps: ['floorplan.all'],
+  booth_layout_packages: ['floorplan.all'], booth_layout_versions: ['floorplan.all'],
+  conference_settings: ['revenue.all', 'cashflow.all'],
+  budget_data: ['budget.all'],
+  conference_documents: ['speakers.internal_docs']
+};
+function canView(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey]); }
+function canEdit(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey] === 'edit'); }
+function canEditAny(sectionKeys) { return (sectionKeys || []).some(canEdit); }
+function canViewAny(sectionKeys) { return (sectionKeys || []).some(canView); }
+
+// This app has ~40 separate call sites across sponsors/speakers/applicants/budget/floor-plan/
 // schedule/revenue-estimator/cash-flow that each build their own supabase-js query chain
 // (.update().eq(), .delete().eq(), .upsert(), plus a couple of raw keepalive fetches). Rather
 // than guard each one individually -- easy to miss one on a file this size -- every one of
-// those ultimately issues a real HTTP request, so blocking any non-GET request to the Supabase
-// REST endpoint here is a single choke point that can't be bypassed by a missed call site.
+// those ultimately issues a real HTTP request, so blocking any non-GET request here, by looking
+// up which section(s) the target table belongs to, is a single choke point that can't be
+// bypassed by a missed call site. A table with no TABLE_TO_SECTION_KEYS entry (or a Supabase
+// Storage URL, which doesn't match the /rest/v1/ pattern below) is let through unconditionally
+// -- this guard only gates the tables this migration actually manages permissions for.
 (function() {
   const originalFetch = window.fetch.bind(window);
   window.fetch = function(input, init) {
-    if (window.isViewOnlyMode) {
-      const url = typeof input === 'string' ? input : (input && input.url) || '';
-      const method = ((init && init.method) || (typeof input === 'object' && input && input.method) || 'GET').toUpperCase();
-      if (url.indexOf(SUPABASE_CONFIG.url) === 0 && method !== 'GET' && method !== 'HEAD') {
-        console.warn('View-only mode: blocked ' + method + ' ' + url);
-        return Promise.resolve(new Response(JSON.stringify({ message: 'View-only mode — changes are not saved.', code: 'VIEW_ONLY' }), {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const method = ((init && init.method) || (typeof input === 'object' && input && input.method) || 'GET').toUpperCase();
+    if (url.indexOf(SUPABASE_CONFIG.url) === 0 && method !== 'GET' && method !== 'HEAD') {
+      const restMatch = url.match(/\/rest\/v1\/([^?]+)/);
+      const table = restMatch ? restMatch[1] : null;
+      const sectionKeys = table ? TABLE_TO_SECTION_KEYS[table] : null;
+      if (sectionKeys && !canEditAny(sectionKeys)) {
+        console.warn('Blocked ' + method + ' ' + url + ' -- no edit access to ' + sectionKeys.join('/'));
+        return Promise.resolve(new Response(JSON.stringify({ message: 'You don’t have edit access to this section.', code: 'PERMISSION_DENIED_CLIENT' }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' }
         }));
@@ -3126,29 +3265,45 @@ const SUPABASE_CONFIG = {
   };
 })();
 
-// View-only mode, cosmetic half: the write-guard above already makes editing harmless, but
-// fields still LOOK editable, which is confusing on its own. Most panels re-render their
-// entire innerHTML from scratch on every state change, so a one-time pass over today's DOM
-// would miss everything rendered after this runs -- a MutationObserver catches every field as
-// it's added, present now or later, from one place, the same reasoning as the fetch guard.
-// Search/sort controls (id contains "search" or "sort") are left alone -- those browse, they
-// don't edit. The observer always runs (not gated on isViewOnlyMode at this exact moment):
-// entering the password happens AFTER this script has already executed once, so gating the
-// whole block here would miss every field for a same-session login -- lockDownField checks
-// the live flag itself instead, and window.applyViewOnlyFieldLock lets the gate's unlock()
-// retroactively sweep whatever already rendered before the password was entered.
+// Cosmetic half: the write-guard above already makes editing harmless, but fields still LOOK
+// editable, which is confusing on its own. Most panels re-render their entire innerHTML from
+// scratch on every state change, so a one-time pass over today's DOM would miss everything
+// rendered after this runs -- a MutationObserver catches every field as it's added, present now
+// or later, from one place, the same reasoning as the fetch guard. Search/sort controls (id
+// contains "search" or "sort") are left alone -- those browse, they don't edit. Each tab's
+// container carries a data-section attribute naming its default section (e.g. sponsors.contact
+// on #sponsor-view); the few sub-panels that split more finely (Sponsor Financials, Speaker
+// Logistics, Speaker Internal Docs) carry their own more-specific data-section closer to the
+// field, which wins since the walk-up stops at the nearest match. A field with no data-section
+// ancestor at all (rare -- something outside every tab) is left alone; whole-tab gating for
+// those lives in switchTopView's nav-hiding instead. The observer always runs (not gated on
+// window.userPermissions at this exact moment): a same-session login happens AFTER this script
+// has already executed once, so gating the whole block here would miss every field for it --
+// lockDownField checks the live permissions object itself instead, and
+// window.applyPermissionLock lets the gate's finishUnlock() retroactively sweep whatever
+// already rendered before login completed.
 (function() {
   const isBrowseControl = (el) => /search|sort/i.test(el.id || '');
+  const nearestSectionKey = (el) => {
+    let node = el;
+    while (node && node !== document.body) {
+      if (node.dataset && node.dataset.section) return node.dataset.section;
+      node = node.parentElement;
+    }
+    return null;
+  };
   const lockDownField = (el) => {
-    if (!window.isViewOnlyMode || isBrowseControl(el)) return;
-    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') el.disabled = true;
-    else el.readOnly = true;
+    if (!window.userPermissions || isBrowseControl(el)) return;
+    const key = nearestSectionKey(el);
+    const allowed = key ? canEdit(key) : true;
+    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') el.disabled = !allowed;
+    else el.readOnly = !allowed;
   };
   const lockDownTree = (root) => {
     if (root.matches && root.matches('input, textarea, select')) lockDownField(root);
     if (root.querySelectorAll) root.querySelectorAll('input, textarea, select').forEach(lockDownField);
   };
-  window.applyViewOnlyFieldLock = () => lockDownTree(document.body);
+  window.applyPermissionLock = () => lockDownTree(document.body);
   lockDownTree(document.body);
   new MutationObserver((mutations) => {
     mutations.forEach((m) => m.addedNodes.forEach((node) => { if (node.nodeType === 1) lockDownTree(node); }));
@@ -3160,7 +3315,7 @@ const SHARED_ROW_ID = 'shared-layout';
 const MAPS_TABLE = 'booth_layout_maps';
 const PACKAGES_TABLE = 'booth_layout_packages';
 
-let sbClient = null, sbReady = false, sbChannel = null;
+let sbReady = false, sbChannel = null;
 let suppressNextRealtime = false;
 let pushDebounceTimer = null;
 
@@ -3187,7 +3342,6 @@ async function initDriverPublicView() {
     return;
   }
   try {
-    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     // Only load what this view actually shows -- no sponsors, packages, or booth data.
     await Promise.all([
       loadSpeakersFromDb(),
@@ -3331,7 +3485,6 @@ async function initSchedulePublicView() {
     return;
   }
   try {
-    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     // Only what Breakout Grid/Timeline/Itinerary actually need -- no sponsors, packages,
     // booths, drivers, or hotels.
     await Promise.all([
@@ -3610,7 +3763,6 @@ async function initSponsorPublicView() {
     return;
   }
   try {
-    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     const { data: row, error } = await sbClient.from(SPONSORS_TABLE).select('*').eq('data->>publicToken', token).maybeSingle();
     if (error) throw error;
     if (!row) {
@@ -4012,7 +4164,6 @@ async function initSupabase() {
     return;
   }
   try {
-    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     updateSyncStatus('connecting');
 
     // Packages, custom maps, and sponsors don't depend on each other -- fetching them in
@@ -4030,10 +4181,10 @@ async function initSupabase() {
       (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
       (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
       (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
-      // Applicant data includes minors (the high-school program) -- for view-only mode this
-      // isn't just hidden in the UI, it's never even downloaded to that browser.
-      (typeof loadApplicantGroups === 'function' && !window.isViewOnlyMode ? loadApplicantGroups() : Promise.resolve()),
-      (typeof loadApplicants === 'function' && !window.isViewOnlyMode ? loadApplicants() : Promise.resolve())
+      // Applicant data includes minors (the high-school program) -- without view access to this
+      // section, it isn't just hidden in the UI, it's never even downloaded to that browser.
+      (typeof loadApplicantGroups === 'function' && canView('applicants.all') ? loadApplicantGroups() : Promise.resolve()),
+      (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve())
     ]);
     if (typeof renderApplicantStats === 'function') renderApplicantStats();
     rebuildMapRegistry();
@@ -4083,7 +4234,7 @@ async function initSupabase() {
     if (typeof updateSponsorPendingBadge === 'function') updateSponsorPendingBadge();
     // Skipped in view-only mode too -- otherwise a live edit elsewhere would push applicant
     // data into this browser over realtime even though the initial load was skipped above.
-    if (typeof subscribeApplicantsRealtime === 'function' && !window.isViewOnlyMode) subscribeApplicantsRealtime();
+    if (typeof subscribeApplicantsRealtime === 'function' && canView('applicants.all')) subscribeApplicantsRealtime();
   } catch (err) {
     console.error('Supabase init failed:', err);
     updateSyncStatus('error');
@@ -5634,10 +5785,12 @@ function renderWriteFailureBadge() {
 // Call from a write's error branch: logs, shows the non-fading error toast, and lights
 // the persistent badge for `key` until a later reportWriteSuccess(key) clears it.
 function reportWriteError(key, label, error) {
-  if (window.isViewOnlyMode) {
-    // Expected: the view-only write-guard synthesizes this exact error shape for every
-    // blocked write attempt. Not a real failure -- don't alarm a read-only visitor over it.
-    console.warn(label + ' blocked (view-only mode)');
+  if (error && error.code === 'PERMISSION_DENIED_CLIENT') {
+    // Expected: the client-side fetch guard synthesizes this exact error shape for every
+    // write blocked by a missing edit permission. Not a real failure -- don't alarm someone
+    // over a restriction that's working as intended. A genuine server-side denial (a real RLS
+    // error, e.g. from a permission-mapping bug) has a different code and still surfaces below.
+    console.warn(label + ' blocked (no edit access)');
     return;
   }
   console.error(label + ' failed:', error);
@@ -5718,11 +5871,27 @@ function toggleSidebarSection(key) {
 }
 applyCollapsedSectionsState();
 
+// Which section(s) grant access to each top-level tab -- switchTopView uses this to redirect
+// away from a tab you can't view (even if reached by calling switchTopView(...) directly from
+// devtools, bypassing a hidden nav button), and applyNavVisibility uses the same map to decide
+// which nav buttons to show at all. "dashboard" is intentionally absent -- it's an aggregation
+// view with no section of its own, always reachable.
+const VIEW_SECTION_KEYS = {
+  sponsors: ['sponsors.contact', 'sponsors.financial'],
+  speakers: ['speakers.roster', 'speakers.logistics', 'speakers.internal_docs'],
+  schedule: ['schedule.all'],
+  applicants: ['applicants.all'],
+  transport: ['transportation.all'],
+  floorplan: ['floorplan.all'],
+  revenue: ['revenue.all'],
+  cashflow: ['cashflow.all'],
+  budget: ['budget.all']
+};
+// Applicant data includes minors (the high-school program) -- worth calling out specifically,
+// though the check below is now the same general one every tab gets.
 function switchTopView(view) {
-  // Applicant data includes minors (the high-school program) -- hidden from the nav for
-  // view-only mode below, but also blocked here directly so it can't be reached by manually
-  // calling switchTopView('applicants') from the console, bypassing the missing nav button.
-  if (window.isViewOnlyMode && view === 'applicants') view = 'dashboard';
+  const requiredKeys = VIEW_SECTION_KEYS[view];
+  if (requiredKeys && !canViewAny(requiredKeys)) view = 'dashboard';
   document.querySelector('.app').style.display = view === 'floorplan' ? 'flex' : 'none';
   document.getElementById('sponsor-view').style.display = view === 'sponsors' ? 'block' : 'none';
   document.getElementById('dashboard-view').style.display = view === 'dashboard' ? 'block' : 'none';
@@ -5740,6 +5909,8 @@ function switchTopView(view) {
   if (revenueViewEl) revenueViewEl.style.display = view === 'revenue' ? 'block' : 'none';
   const cashflowViewEl = document.getElementById('cashflow-view');
   if (cashflowViewEl) cashflowViewEl.style.display = view === 'cashflow' ? 'block' : 'none';
+  const teamAccessViewEl = document.getElementById('team-access-view');
+  if (teamAccessViewEl) teamAccessViewEl.style.display = view === 'team_access' ? 'block' : 'none';
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
   document.getElementById('nav-sponsors-btn').classList.toggle('active', view === 'sponsors');
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
@@ -5757,6 +5928,8 @@ function switchTopView(view) {
   if (revenueBtnEl) revenueBtnEl.classList.toggle('active', view === 'revenue');
   const cashflowBtnEl = document.getElementById('nav-cashflow-btn');
   if (cashflowBtnEl) cashflowBtnEl.classList.toggle('active', view === 'cashflow');
+  const teamAccessBtnEl = document.getElementById('nav-team-access-btn');
+  if (teamAccessBtnEl) teamAccessBtnEl.classList.toggle('active', view === 'team_access');
   if (view === 'sponsors') renderSponsorView();
   if (view === 'dashboard') renderDashboard();
   if (view === 'budget' && typeof renderBudget === 'function' && budgetViewEl) renderBudget();
@@ -5773,6 +5946,205 @@ function switchTopView(view) {
     // otherwise the map can lock in at a tiny size and stay that way until zoomed manually.
     requestAnimationFrame(() => { if (typeof applyZoom === 'function') applyZoom(); });
   }
+  if (view === 'team_access' && typeof renderTeamAccessView === 'function') renderTeamAccessView();
+}
+
+// Hides nav buttons for tabs you have no view access to at all -- called once permissions are
+// known (see finishUnlock() in the gate script). Team Access is admin-only, not section-based.
+function applyNavVisibility() {
+  Object.keys(VIEW_SECTION_KEYS).forEach(view => {
+    const btn = document.getElementById('nav-' + view + '-btn');
+    if (btn) btn.style.display = canViewAny(VIEW_SECTION_KEYS[view]) ? '' : 'none';
+  });
+  const teamBtn = document.getElementById('nav-team-access-btn');
+  if (teamBtn) teamBtn.style.display = window.isAdminUser ? '' : 'none';
+}
+
+// ==== Team Access (admin-only): manage roles, permissions, and who's assigned to which role ====
+const ALL_SECTION_KEYS_LIST = [
+  ['sponsors.contact', 'Sponsor Tracker — Contact & Status'],
+  ['sponsors.financial', 'Sponsor Tracker — Financials'],
+  ['speakers.roster', 'Speakers & Artists — Roster & Sessions'],
+  ['speakers.logistics', 'Speakers & Artists — Logistics & Travel'],
+  ['speakers.internal_docs', 'Speakers & Artists — Internal Documents'],
+  ['schedule.all', 'Schedule'],
+  ['applicants.all', 'Applicants'],
+  ['transportation.all', 'Transportation'],
+  ['floorplan.all', 'Floor Plan'],
+  ['revenue.all', 'Registration Revenue'],
+  ['cashflow.all', 'Cash Flow'],
+  ['budget.all', 'Budget'],
+  ['team_access.all', 'Team Access (admin)']
+];
+let teamAccessState = { roles: [], profiles: [], rolePermissions: [], editingRoleId: null, draftPerms: {} };
+
+async function loadTeamAccessData() {
+  if (!sbClient) return;
+  const [rolesRes, profilesRes, permsRes] = await Promise.all([
+    sbClient.from('roles').select('*').order('name'),
+    sbClient.from('profiles').select('*, roles(name)').order('email'),
+    sbClient.from('role_permissions').select('*')
+  ]);
+  teamAccessState.roles = rolesRes.data || [];
+  teamAccessState.profiles = profilesRes.data || [];
+  teamAccessState.rolePermissions = permsRes.data || [];
+}
+
+async function renderTeamAccessView() {
+  const root = document.getElementById('team-access-root');
+  if (!root) return;
+  if (!window.isAdminUser) { root.innerHTML = '<p>Admin access required.</p>'; return; }
+  root.innerHTML = '<p class="hint">Loading…</p>';
+  await loadTeamAccessData();
+  renderTeamAccessContent();
+}
+
+function renderTeamAccessContent() {
+  const root = document.getElementById('team-access-root');
+  if (!root) return;
+  const unassigned = teamAccessState.profiles.filter(p => !p.role_id);
+  root.innerHTML = `
+    <h2 style="margin-bottom:2px;">Team Access</h2>
+    <p class="hint">Manage who can sign in and what they can see or edit.</p>
+
+    ${unassigned.length ? `
+    <section style="margin:18px 0;">
+      <h3 style="margin-bottom:4px;">Unassigned People (${unassigned.length})</h3>
+      <p class="hint">Created in Supabase Auth but not yet given a role — they can sign in but can't do anything until assigned.</p>
+      ${unassigned.map(p => `
+        <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line);">
+          <span style="flex:1;">${escapeHtml(p.email)}</span>
+          <select onchange="assignProfileRole('${p.id}', this.value)">
+            <option value="">— pick a role —</option>
+            ${teamAccessState.roles.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('')}
+          </select>
+        </div>
+      `).join('')}
+    </section>
+    ` : ''}
+
+    <section style="margin:18px 0;">
+      <h3 style="margin-bottom:4px;">Roles</h3>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="ta-new-role-name" placeholder="New role name (e.g. Speaker Coordinator)" style="flex:1; max-width:320px;">
+        <button class="sp-mini-btn" onclick="createRole()">+ Add role</button>
+      </div>
+      ${teamAccessState.roles.map(r => renderRoleCard(r)).join('')}
+    </section>
+
+    <section style="margin:18px 0;">
+      <h3 style="margin-bottom:4px;">All People (${teamAccessState.profiles.length})</h3>
+      ${teamAccessState.profiles.map(p => `
+        <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line);">
+          <span style="flex:1;">${escapeHtml(p.email)}${p.must_reset_password ? ' <span class="sp-sub">(hasn’t set a password yet)</span>' : ''}${p.roles ? ' <span class="sp-sub">— ' + escapeHtml(p.roles.name) + '</span>' : ''}</span>
+          <select onchange="assignProfileRole('${p.id}', this.value)">
+            <option value="">— no role —</option>
+            ${teamAccessState.roles.map(r => `<option value="${r.id}" ${p.role_id === r.id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')}
+          </select>
+          ${!p.must_reset_password ? `<button class="sp-mini-btn" onclick="forcePasswordReset('${p.id}')">Force password reset</button>` : ''}
+        </div>
+      `).join('')}
+    </section>
+  `;
+}
+
+function renderRoleCard(role) {
+  const isEditing = teamAccessState.editingRoleId === role.id;
+  const permsForRole = new Map(teamAccessState.rolePermissions.filter(p => p.role_id === role.id).map(p => [p.section_key, p.level]));
+  return `
+    <div style="border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <b style="flex:1;">${escapeHtml(role.name)}</b>${role.is_admin ? ' <span class="sp-sub">(admin)</span>' : ''}
+        <button class="sp-mini-btn" onclick="toggleRoleEdit('${role.id}')">${isEditing ? 'Close' : 'Edit permissions'}</button>
+      </div>
+      ${isEditing ? `
+      <table style="width:100%; margin-top:10px; font-size:13px; border-collapse:collapse;">
+        <thead><tr style="text-align:left;"><th>Section</th><th style="width:50px;">None</th><th style="width:50px;">View</th><th style="width:50px;">Edit</th></tr></thead>
+        <tbody>
+          ${ALL_SECTION_KEYS_LIST.map(([key, label]) => {
+            const current = permsForRole.get(key) || 'none';
+            return `<tr style="border-top:1px solid var(--line);">
+              <td style="padding:4px 0;">${escapeHtml(label)}</td>
+              <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'none' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','none')"></td>
+              <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'view' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','view')"></td>
+              <td><input type="radio" name="ta-perm-${role.id}-${key}" ${current === 'edit' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','${key}','edit')"></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn primary" onclick="saveRolePermissions('${role.id}')">Save permissions</button>
+        ${!role.is_admin ? `<button class="sp-mini-btn" onclick="deleteRole('${role.id}')">Delete role</button>` : ''}
+      </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function createRole() {
+  const input = document.getElementById('ta-new-role-name');
+  const name = input.value.trim();
+  if (!name) { toast('Enter a role name first.'); return; }
+  const { error } = await sbClient.from('roles').insert({ name, is_admin: false });
+  if (error) { reportWriteError('role:new', 'Couldn’t create that role.', error); return; }
+  input.value = '';
+  toast('Role “' + name + '” created.');
+  await renderTeamAccessView();
+}
+
+function toggleRoleEdit(roleId) {
+  teamAccessState.editingRoleId = teamAccessState.editingRoleId === roleId ? null : roleId;
+  teamAccessState.draftPerms = {};
+  renderTeamAccessContent();
+}
+
+function setRolePermDraft(roleId, sectionKey, level) {
+  teamAccessState.draftPerms[sectionKey] = level;
+}
+
+async function saveRolePermissions(roleId) {
+  const draft = teamAccessState.draftPerms || {};
+  // Merge draft on top of what's currently loaded for this role, so an untouched radio (still
+  // showing its loaded value, never re-clicked) doesn't get reset to 'none'.
+  const merged = new Map(teamAccessState.rolePermissions.filter(p => p.role_id === roleId).map(p => [p.section_key, p.level]));
+  Object.keys(draft).forEach(k => merged.set(k, draft[k]));
+
+  const { error: delErr } = await sbClient.from('role_permissions').delete().eq('role_id', roleId);
+  if (delErr) { reportWriteError('role-perms:' + roleId, 'Couldn’t save permissions for that role.', delErr); return; }
+  const rows = [];
+  merged.forEach((level, key) => { if (level === 'view' || level === 'edit') rows.push({ role_id: roleId, section_key: key, level }); });
+  if (rows.length) {
+    const { error: insErr } = await sbClient.from('role_permissions').insert(rows);
+    if (insErr) { reportWriteError('role-perms:' + roleId, 'Couldn’t save permissions for that role.', insErr); return; }
+  }
+  toast('Permissions saved.');
+  teamAccessState.editingRoleId = null;
+  teamAccessState.draftPerms = {};
+  await renderTeamAccessView();
+}
+
+async function deleteRole(roleId) {
+  const role = teamAccessState.roles.find(r => r.id === roleId);
+  if (!confirm('Delete the “' + (role ? role.name : '') + '” role? Anyone currently assigned to it becomes unassigned.')) return;
+  const { error } = await sbClient.from('roles').delete().eq('id', roleId);
+  if (error) { reportWriteError('role-delete:' + roleId, 'Couldn’t delete that role.', error); return; }
+  toast('Role deleted.');
+  await renderTeamAccessView();
+}
+
+async function assignProfileRole(profileId, roleId) {
+  const { error } = await sbClient.from('profiles').update({ role_id: roleId || null }).eq('id', profileId);
+  if (error) { reportWriteError('profile-role:' + profileId, 'Couldn’t update that person’s role.', error); return; }
+  toast('Role updated.');
+  await renderTeamAccessView();
+}
+
+async function forcePasswordReset(profileId) {
+  if (!confirm('Force this person to set a new password the next time they sign in?')) return;
+  const { error } = await sbClient.from('profiles').update({ must_reset_password: true }).eq('id', profileId);
+  if (error) { reportWriteError('profile-reset:' + profileId, 'Couldn’t force a password reset for that person.', error); return; }
+  toast('They’ll be asked to set a new password next time they sign in.');
+  await renderTeamAccessView();
 }
 
 function parseMoneyNum(v) {
@@ -8526,7 +8898,7 @@ function sponsorDetailHTML(s) {
       `}
 
       ${sponsorActiveTab !== 'money' ? '' : `
-      <div class="sk-tab-panel">
+      <div class="sk-tab-panel" data-section="sponsors.financial">
         <div class="sp-detail-grid sp-detail-1col">
         <fieldset class="sp-fieldset">
           <legend>Financials</legend>
@@ -10674,7 +11046,6 @@ async function initApplicantsPublicView() {
     return;
   }
   try {
-    sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     const { data: groupRow, error: groupErr } = await sbClient.from(APPLICANT_GROUPS_TABLE).select('*').eq('id', groupId).eq('public_token', token).maybeSingle();
     if (groupErr) throw groupErr;
     if (!groupRow) {
@@ -12961,7 +13332,7 @@ function speakerDetailHTML(sp) {
     `}
 
     ${activeTab !== 'financial' ? '' : `
-    <div class="sk-tab-panel">
+    <div class="sk-tab-panel" data-section="speakers.logistics">
       ${sp.data.arrangement === 'sponsor' ? `<div class="sp-linked-group-box">${speakerFinancialArrangementNote(sp)}</div>` : `
       <div class="sp-detail-grid sp-detail-1col">
         <fieldset class="sp-fieldset">
@@ -12986,7 +13357,7 @@ function speakerDetailHTML(sp) {
     `}
 
     ${activeTab !== 'logistics' ? '' : `
-    <div class="sk-tab-panel">
+    <div class="sk-tab-panel" data-section="speakers.logistics">
       ${(() => {
         const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
         const otherOptions = sortByLastName(speakers.filter(s => s.id !== sp.id))
@@ -13143,7 +13514,7 @@ function speakerDetailHTML(sp) {
           </div>
         </fieldset>
 
-        <fieldset class="sp-fieldset">
+        <fieldset class="sp-fieldset" data-section="speakers.internal_docs">
           <legend>Internal Documents <span class="sp-sub" style="font-weight:400;">(rider, contract, W9 \u2014 never shown to attendees)</span></legend>
           ${internalFilesHtml}
           <div class="sp-subhead" style="margin-top:10px;">Upload a File</div>
@@ -13787,23 +14158,28 @@ if (isDriverViewMode()) {
   renderPackageSidebar();
   buildTabs();
   planImg.src = MAP_IMGS[currentMapId];
-  if (!isSupabaseConfigured()) {
-    // No Supabase configured -- render immediately from local defaults, nothing to wait on.
-    renderAll();
-    if (typeof loadSponsorsFromDb === 'function') {
-      loadSponsorsFromDb().then(() => {
-        renderAll();
-        if (typeof renderDashboard === 'function') renderDashboard();
-        if (typeof updateSponsorPendingBadge === 'function') updateSponsorPendingBadge();
-      });
-    }
-    if (typeof loadSpeakersFromDb === 'function') loadSpeakersFromDb();
-  }
-  // When Supabase IS configured, skip rendering here entirely -- booths/packages/sponsors are
-  // all still empty at this point, so this would just be a throwaway render of default state
-  // that initSupabase() immediately overwrites once real data has actually loaded.
   applyZoom();
-  initSupabase();
+  // Actual data loading waits for the gate to resolve (see window.onAppUnlocked, called from
+  // finishUnlock() in the gate script) rather than starting immediately at page load -- nothing
+  // pulls real records into this browser until it's known who's asking and what they can see.
+  window.onAppUnlocked = function() {
+    if (!isSupabaseConfigured()) {
+      // No Supabase configured -- render immediately from local defaults, nothing to wait on.
+      renderAll();
+      if (typeof loadSponsorsFromDb === 'function') {
+        loadSponsorsFromDb().then(() => {
+          renderAll();
+          if (typeof renderDashboard === 'function') renderDashboard();
+          if (typeof updateSponsorPendingBadge === 'function') updateSponsorPendingBadge();
+        });
+      }
+      if (typeof loadSpeakersFromDb === 'function') loadSpeakersFromDb();
+    }
+    // When Supabase IS configured, skip rendering here entirely -- booths/packages/sponsors are
+    // all still empty at this point, so this would just be a throwaway render of default state
+    // that initSupabase() immediately overwrites once real data has actually loaded.
+    initSupabase();
+  };
 }
 </script>
 </body>
