@@ -8970,7 +8970,7 @@ function sponsorCompleteness(s) {
   checks.push(!!s.package);
   checks.push(/in-kind/i.test(s.trackerStatus) ? !!s.data.amountStatus : !!s.data.money.paymentStatus);
   checks.push(!s.data.program.type || (s.data.program.fulfilled && s.data.program.delivered));
-  checks.push(!!s.linkedBoothId || !isActiveThisYear(s));
+  checks.push(!!s.linkedBoothId || s.data.noBoothNeeded || !isActiveThisYear(s));
   // A status of "Sent" isn't enough to call this done -- only a countersigned agreement means
   // there's nothing left to chase.
   checks.push(s.data.agreement.status === 'Signed' || !isActiveThisYear(s));
@@ -9114,8 +9114,13 @@ function sponsorDetailHTML(s) {
           <div class="sp-field"><label for="sp-agreedate-${s.id}">Signed date</label><input id="sp-agreedate-${s.id}" type="date" value="${escapeHtml(s.data.agreement.signedDate)}" onchange="updateSponsorNested('${s.id}','agreement','signedDate',this.value)"></div>
 
           <div class="sp-subhead">Linked Booth</div>
+          <div class="sp-check" style="grid-column:1/-1;"><input id="sp-noboothneeded-${s.id}" type="checkbox" ${s.data.noBoothNeeded ? 'checked' : ''} onchange="updateSponsorNoBoothNeeded('${s.id}',this.checked)"><label for="sp-noboothneeded-${s.id}"> This sponsor doesn't need a booth</label></div>
+          ${s.data.noBoothNeeded ? `
+          <div class="sp-linked-booth" style="grid-column:1/-1;">No booth needed \u2014 excluded from booth assignment and completeness.</div>
+          ` : `
           <div class="sp-field" style="grid-column:1/-1;"><label for="sp-linkedbooth-${s.id}" class="sr-only">Linked booth</label><select id="sp-linkedbooth-${s.id}" onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
           <div class="sp-linked-booth" style="grid-column:1/-1;">${linkedBooth ? 'Currently on ' + escapeHtml(MAPS[linkedBooth.mapId].label) + ', ' + escapeHtml(linkedBooth.spotName || getPkg(linkedBooth.type).label) : 'No booth linked yet \u2014 place their booth on the floor plan, then link it here.'}</div>
+          `}
           </div>
         </fieldset>
 
@@ -9727,6 +9732,19 @@ function linkBoothToSponsor(sponsorId, boothId) {
   pushSponsor(s);
   renderSponsorRows(sponsorId);
   if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
+}
+
+function updateSponsorNoBoothNeeded(sponsorId, checked) {
+  const s = getSponsor(sponsorId); if (!s) return;
+  s.data.noBoothNeeded = checked;
+  // Mutually exclusive with an actual link -- flagging "doesn't need a booth" frees up
+  // whatever spot they were on, same as picking "-- not linked --" from the dropdown.
+  if (checked && s.linkedBoothId) {
+    s.linkedBoothId = '';
+    if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
+  }
+  pushSponsor(s);
+  renderSponsorRows(sponsorId);
 }
 
 function addComm(id) {
