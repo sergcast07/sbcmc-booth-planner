@@ -13061,12 +13061,13 @@ function renderSpeakerView() {
   const el = document.getElementById('sk-stat-total');
   if (el) el.textContent = stats.total;
   const fees = speakerFeeTotals();
+  const showFees = canView('speakers.financial');
   const feesTotalEl = document.getElementById('sk-stat-fees-total');
-  if (feesTotalEl) feesTotalEl.textContent = fmt(fees.committed);
+  if (feesTotalEl) { feesTotalEl.textContent = fmt(fees.committed); feesTotalEl.closest('.sp-stat').style.display = showFees ? '' : 'none'; }
   const feesPaidEl = document.getElementById('sk-stat-fees-paid');
-  if (feesPaidEl) feesPaidEl.textContent = fmt(fees.paid);
+  if (feesPaidEl) { feesPaidEl.textContent = fmt(fees.paid); feesPaidEl.closest('.sp-stat').style.display = showFees ? '' : 'none'; }
   const feesOutstandingEl = document.getElementById('sk-stat-fees-outstanding');
-  if (feesOutstandingEl) feesOutstandingEl.textContent = fmt(fees.outstanding);
+  if (feesOutstandingEl) { feesOutstandingEl.textContent = fmt(fees.outstanding); feesOutstandingEl.closest('.sp-stat').style.display = showFees ? '' : 'none'; }
   const riderEl = document.getElementById('sk-rider-current');
   if (riderEl) {
     riderEl.innerHTML = conferenceProductionRider
