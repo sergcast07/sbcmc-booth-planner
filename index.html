@@ -11828,16 +11828,28 @@ function renderSpeakerPublicView() {
   const materials = sp.data.materials || {};
   const relevantKeys = materialsForTypes(sp.types, sp.data.arrangement);
 
+  const materialsNeeded = sp.data.materialsNeeded || {};
+
   function materialBlock(itemKey) {
     const key = 'materials.' + itemKey;
     const label = MATERIAL_ITEM_LABELS[itemKey] || itemKey;
     const filePending = pending[key];
     const file = filePending ? filePending.new : (materials[itemKey] || null);
     const isPendingRemoval = filePending && !filePending.new;
+    // Staff can mark an item received by hand (e.g. it came in over email) without ever
+    // routing a file through this portal -- without this check the portal would flatly say
+    // "Not uploaded yet" for something our own team already has on file, which reads as if
+    // nothing had been received at all.
+    const alreadyOnFile = !file && !isPendingRemoval && materialsNeeded[itemKey];
+    let statusHtml;
+    if (isPendingRemoval) statusHtml = '<div class="sp-sub">Removal pending review.</div>';
+    else if (file) statusHtml = `<div class="sp-sub">${filePending ? 'Proposed' : 'Uploaded'}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="portalRemoveSpeakerMaterial('${sp.id}', '${itemKey}')">Remove</button>`;
+    else if (alreadyOnFile) statusHtml = '<div class="sp-sub">✓ Our team already has this on file — upload here only if you need to send an updated version.</div>';
+    else statusHtml = '<div class="sp-sub">Not uploaded yet.</div>';
     return `
       <div class="spv-file-block">
         <b>${escapeHtml(label)}</b>${pendingTag(key)}
-        ${isPendingRemoval ? '<div class="sp-sub">Removal pending review.</div>' : file ? `<div class="sp-sub">${filePending ? 'Proposed' : 'Uploaded'}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="portalRemoveSpeakerMaterial('${sp.id}', '${itemKey}')">Remove</button>` : '<div class="sp-sub">Not uploaded yet.</div>'}
+        ${statusHtml}
         <input type="file" id="skv-material-input-${sp.id}-${itemKey}" style="margin-top:6px;">
         <button class="sp-add-btn" onclick="portalUploadSpeakerMaterial('${sp.id}', '${itemKey}')">Upload</button>
       </div>
