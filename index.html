@@ -1424,6 +1424,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 <div id="exp-sort-modal-root"></div>
 <div id="email-gen-modal-root"></div>
 <div id="sch-link-modal-root"></div>
+<div id="audit-history-modal-root"></div>
 
 <div id="driver-public-view" style="display:none;">
   <div class="dv-header">
@@ -3229,6 +3230,119 @@ function canEditOrWarn(sectionKey, label) {
   if (canEdit(sectionKey)) return true;
   toast('You don’t have edit access to ' + label + '.', 'error');
   return false;
+}
+
+// ==== Audit log (admin-only): reads the audit_log table populated by DB triggers.
+// See phase_d_audit_log.sql. Table doesn't exist until that migration is run --
+// every read here fails soft (empty list) rather than breaking the surrounding view.
+const AUDIT_TABLE_LABELS = {
+  sponsors: 'Sponsor', speakers: 'Speaker/Artist', session_rooms: 'Session Room',
+  session_tracks: 'Session Track', schedule_slots: 'Schedule Slot', schedule_audiences: 'Schedule Audience',
+  applicant_groups: 'Applicant Group', applicants: 'Applicant', conference_drivers: 'Driver',
+  conference_hotels: 'Hotel', booth_layouts: 'Booth Layout', booth_layout_maps: 'Booth Map',
+  booth_layout_packages: 'Booth Package', conference_settings: 'Conference Settings',
+  conference_documents: 'Conference Document'
+};
+
+function auditActorLabel(row) {
+  if (row.profiles && (row.profiles.display_name || row.profiles.email)) return row.profiles.display_name || row.profiles.email;
+  return row.changed_by ? 'Unknown user' : 'Shared login';
+}
+
+function auditValueLabel(v) {
+  if (v === undefined || v === null || v === '') return '—';
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+// Shallow diff: top-level keys, plus one level into any nested plain object
+// (covers this app's `data.money`, `data.logistics`, etc. jsonb shape).
+function diffAuditRow(oldData, newData) {
+  const out = [];
+  const isPlainObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  const keys = new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]);
+  keys.forEach(function(key) {
+    if (key === 'updated_at' || key === 'created_at' || key === 'id') return;
+    const ov = oldData ? oldData[key] : undefined;
+    const nv = newData ? newData[key] : undefined;
+    if (isPlainObj(ov) && isPlainObj(nv)) {
+      const subKeys = new Set([...Object.keys(ov), ...Object.keys(nv)]);
+      subKeys.forEach(function(sk) {
+        const sov = ov[sk], snv = nv[sk];
+        if (JSON.stringify(sov) !== JSON.stringify(snv)) out.push({ path: key + '.' + sk, oldVal: sov, newVal: snv });
+      });
+    } else if (JSON.stringify(ov) !== JSON.stringify(nv)) {
+      out.push({ path: key, oldVal: ov, newVal: nv });
+    }
+  });
+  return out;
+}
+
+function renderAuditEntries(rows, opts) {
+  opts = opts || {};
+  if (!rows || !rows.length) return '<p class="hint">No activity recorded yet.</p>';
+  return rows.map(function(row) {
+    const label = AUDIT_TABLE_LABELS[row.table_name] || row.table_name;
+    const actionLabel = row.action === 'insert' ? 'Added' : row.action === 'delete' ? 'Removed' : 'Edited';
+    const badgeClass = row.action === 'insert' ? 'sp-badge-reg' : row.action === 'delete' ? 'sp-badge-lapsed' : 'sp-badge-committed';
+    const when = new Date(row.changed_at).toLocaleString();
+    let detail = '';
+    if (row.action === 'update') {
+      const diffs = diffAuditRow(row.old_data, row.new_data);
+      detail = diffs.length
+        ? '<ul class="hint" style="margin:6px 0 0; padding-left:18px;">' + diffs.map(function(d) {
+            return '<li><b>' + escapeHtml(d.path) + ':</b> ' + escapeHtml(auditValueLabel(d.oldVal)) + ' → ' + escapeHtml(auditValueLabel(d.newVal)) + '</li>';
+          }).join('') + '</ul>'
+        : '<p class="hint" style="margin:4px 0 0;">No field changes detected.</p>';
+    } else if (row.action === 'delete') {
+      detail = '<p class="hint" style="margin:4px 0 0;">Record permanently removed.</p>';
+    }
+    return '<div style="padding:8px 0; border-bottom:1px solid var(--line);">' +
+      '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+        '<span class="sp-badge ' + badgeClass + '">' + actionLabel + '</span>' +
+        (opts.showRecord ? '<b>' + escapeHtml(label) + '</b>' : '') +
+        '<span>' + escapeHtml(auditActorLabel(row)) + '</span>' +
+        '<span class="sp-sub" style="margin-left:auto;">' + when + '</span>' +
+      '</div>' + detail +
+    '</div>';
+  }).join('');
+}
+
+let auditHistoryModalState = null; // { tableName, recordId, label, rows } | null
+
+async function openAuditHistory(tableName, recordId, label) {
+  if (!window.isAdminUser) return; // icon is hidden for non-admins; this guards a direct call too
+  auditHistoryModalState = { tableName, recordId, label, rows: null };
+  renderAuditHistoryModal();
+  const { data, error } = await sbClient.from('audit_log').select('*, profiles(display_name,email)')
+    .eq('table_name', tableName).eq('record_id', String(recordId))
+    .order('changed_at', { ascending: false }).limit(50);
+  if (!auditHistoryModalState || auditHistoryModalState.recordId !== recordId) return;
+  auditHistoryModalState.rows = error ? [] : (data || []);
+  renderAuditHistoryModal();
+}
+function closeAuditHistoryModal() {
+  auditHistoryModalState = null;
+  const root = document.getElementById('audit-history-modal-root');
+  if (root) root.innerHTML = '';
+}
+function renderAuditHistoryModal() {
+  const root = document.getElementById('audit-history-modal-root');
+  if (!root) return;
+  const st = auditHistoryModalState;
+  if (!st) { root.innerHTML = ''; return; }
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeAuditHistoryModal();">
+      <div class="qa-modal-card email-gen-card">
+        <h3>History — ${escapeHtml(st.label)}</h3>
+        ${st.rows === null ? '<p class="hint">Loading…</p>' : renderAuditEntries(st.rows)}
+        <div style="margin-top:14px; text-align:right;">
+          <button class="sp-mini-btn" onclick="closeAuditHistoryModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // Sub-section permissions (sponsors.financial / speakers.financial) are enforced client-side
@@ -6029,7 +6143,7 @@ const ALL_SECTION_KEYS_LIST = [
   ['cashflow.all', 'Cash Flow'],
   ['team_access.all', 'Team Access (admin)']
 ];
-let teamAccessState = { roles: [], profiles: [], rolePermissions: [], editingRoleId: null, draftPerms: {} };
+let teamAccessState = { roles: [], profiles: [], rolePermissions: [], editingRoleId: null, draftPerms: {}, auditLog: [] };
 
 async function loadTeamAccessData() {
   if (!sbClient) return;
@@ -6041,6 +6155,15 @@ async function loadTeamAccessData() {
   teamAccessState.roles = rolesRes.data || [];
   teamAccessState.profiles = profilesRes.data || [];
   teamAccessState.rolePermissions = permsRes.data || [];
+  // Separate try/catch: the audit_log table only exists after the phase_d_audit_log.sql
+  // migration is run, and shouldn't take down Roles/People if it's missing or still pending.
+  try {
+    const auditRes = await sbClient.from('audit_log').select('*, profiles(display_name,email)')
+      .order('changed_at', { ascending: false }).limit(100);
+    teamAccessState.auditLog = auditRes.error ? [] : (auditRes.data || []);
+  } catch (e) {
+    teamAccessState.auditLog = [];
+  }
 }
 
 async function renderTeamAccessView() {
@@ -6097,6 +6220,12 @@ function renderTeamAccessContent() {
           ${!p.must_reset_password ? `<button class="sp-mini-btn" onclick="forcePasswordReset('${p.id}')">Force password reset</button>` : ''}
         </div>
       `).join('')}
+    </section>
+
+    <section style="margin:18px 0;">
+      <h3 style="margin-bottom:4px;">Activity Log</h3>
+      <p class="hint">Recent edits across the whole planner — most recent first.</p>
+      ${renderAuditEntries(teamAccessState.auditLog, { showRecord: true })}
     </section>
   `;
 }
@@ -8946,7 +9075,8 @@ function sponsorDetailHTML(s) {
         <div class="sk-detail-header">
           <div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
           <span class="sp-sub">${completeness}% complete</span>
-          <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleSponsorDetail('${s.id}')">\u25B4 Close</button>
+          ${window.isAdminUser ? `<button class="sp-mini-btn" style="margin-left:auto;" onclick="openAuditHistory('sponsors','${s.id}','${jsAttrString(s.org)}')" title="View edit history">\uD83D\uDD54 History</button>` : ''}
+          <button class="sp-mini-btn" style="${window.isAdminUser ? '' : 'margin-left:auto;'}" onclick="toggleSponsorDetail('${s.id}')">\u25B4 Close</button>
         </div>
         <div class="sk-tabs">${tabBarHtml}</div>
         `;
@@ -13423,7 +13553,8 @@ function speakerDetailHTML(sp) {
     <div class="sk-detail-header">
       <div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
       <span class="sp-sub">${completeness}% complete</span>
-      <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleSpeakerDetail('${sp.id}')">▴ Close</button>
+      ${window.isAdminUser ? `<button class="sp-mini-btn" style="margin-left:auto;" onclick="openAuditHistory('speakers','${sp.id}','${jsAttrString(sp.name)}')" title="View edit history">🕔 History</button>` : ''}
+      <button class="sp-mini-btn" style="${window.isAdminUser ? '' : 'margin-left:auto;'}" onclick="toggleSpeakerDetail('${sp.id}')">▴ Close</button>
     </div>
     <div class="sk-tabs">${tabBarHtml}</div>
 
