@@ -8842,6 +8842,12 @@ function sponsorCompleteness(s) {
   checks.push(/in-kind/i.test(s.trackerStatus) ? !!s.data.amountStatus : !!s.data.money.paymentStatus);
   checks.push(!s.data.program.type || (s.data.program.fulfilled && s.data.program.delivered));
   checks.push(!!s.linkedBoothId || !isActiveThisYear(s));
+  // A status of "Sent" isn't enough to call this done -- only a countersigned agreement means
+  // there's nothing left to chase.
+  checks.push(s.data.agreement.status === 'Signed' || !isActiveThisYear(s));
+  checks.push((!!s.data.materials.boothAdFile && !!s.data.materials.displayGraphicFile) || !isActiveThisYear(s));
+  const badgeLimit = sponsorBadgeLimit(s);
+  checks.push(badgeLimit === 0 || (s.data.logistics.badgeNames || []).length >= badgeLimit);
   const done = checks.filter(Boolean).length;
   return Math.round((done / checks.length) * 100);
 }
@@ -8850,7 +8856,14 @@ function sponsorTabAlert(s, tab) {
     if (/in-kind/i.test(s.trackerStatus)) return !s.data.amountStatus;
     return !s.data.money.paymentStatus || s.data.money.paymentStatus === 'Not Paid';
   }
-  if (tab === 'program') return !!s.data.program.type && !(s.data.program.fulfilled && s.data.program.delivered);
+  if (tab === 'overview') return isActiveThisYear(s) && s.data.agreement.status !== 'Signed';
+  if (tab === 'program') {
+    if (!!s.data.program.type && !(s.data.program.fulfilled && s.data.program.delivered)) return true;
+    if (!isActiveThisYear(s)) return false;
+    if (!s.data.materials.boothAdFile || !s.data.materials.displayGraphicFile) return true;
+    const badgeLimit = sponsorBadgeLimit(s);
+    return badgeLimit > 0 && (s.data.logistics.badgeNames || []).length < badgeLimit;
+  }
   return false;
 }
 
@@ -8965,6 +8978,10 @@ function sponsorDetailHTML(s) {
             <input id="sp-returning-${s.id}" type="checkbox" ${isReturningSponsor(s) ? 'checked' : ''} onchange="updateSponsorReturningOverride('${s.id}',this.checked)">
             <label for="sp-returning-${s.id}">Returning sponsor (was here last year)</label>
           </div>
+
+          <div class="sp-subhead">Agreement</div>
+          <div class="sp-field"><label for="sp-agreestatus-${s.id}">Agreement status</label><select id="sp-agreestatus-${s.id}" onchange="updateSponsorNested('${s.id}','agreement','status',this.value)"><option value="" ${!s.data.agreement.status ? 'selected' : ''}>— not sent —</option><option value="Sent" ${s.data.agreement.status === 'Sent' ? 'selected' : ''}>Sent</option><option value="Signed" ${s.data.agreement.status === 'Signed' ? 'selected' : ''}>Signed</option></select></div>
+          <div class="sp-field"><label for="sp-agreedate-${s.id}">Signed date</label><input id="sp-agreedate-${s.id}" type="date" value="${escapeHtml(s.data.agreement.signedDate)}" onchange="updateSponsorNested('${s.id}','agreement','signedDate',this.value)"></div>
 
           <div class="sp-subhead">Linked Booth</div>
           <div class="sp-field" style="grid-column:1/-1;"><label for="sp-linkedbooth-${s.id}" class="sr-only">Linked booth</label><select id="sp-linkedbooth-${s.id}" onchange="linkBoothToSponsor('${s.id}',this.value)"><option value="">\u2014 not linked \u2014</option>${boothOptions}</select></div>
@@ -9641,6 +9658,7 @@ function speakerCompleteness(sp) {
   // attention without opening every single record to check.
   const skipFee = sp.data.arrangement === 'sponsor'; // sponsor-provided has no fee
   const skipTravel = sp.data.arrangement !== 'travel'; // travel is only tracked for the 'travel' arrangement
+  const lg = sp.data.logistics;
   const checks = [];
   checks.push(!!sp.contactEmail);
   checks.push((sp.types || []).length > 0);
@@ -9649,7 +9667,13 @@ function speakerCompleteness(sp) {
   const mat = materialsForTypes(sp.types);
   const mn = sp.data.materialsNeeded || {};
   checks.push(mat.length === 0 || mat.every(k => mn[k]));
-  if (!skipTravel) checks.push(!!sp.data.logistics.travelMethod);
+  if (!skipTravel) checks.push(!!lg.travelMethod);
+  // "Invited" alone just means the ask went out -- nothing's actually confirmed yet, so it
+  // shouldn't read as done. Declined/Cancelled also count as settled -- there's nothing left
+  // to chase either way once it's off the table.
+  checks.push(sp.trackerStatus !== 'Invited');
+  if (!skipTravel) checks.push(!lg.lodgingNeeded || (!!lg.hotelId && !!lg.nightsNeeded));
+  checks.push(!lg.hostNeeded || !!lg.hostName);
   const done = checks.filter(Boolean).length;
   return Math.round((done / checks.length) * 100);
 }
