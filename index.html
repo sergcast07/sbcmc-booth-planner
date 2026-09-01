@@ -326,12 +326,6 @@
   .admin-close:hover { color: #1c2733; }
   .admin-modal-body { padding: 16px 18px; overflow-y: auto; }
 
-  .admin-gate-input {
-    width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 15px; letter-spacing: 1px;
-    border: 1px solid #cfd6e0; border-radius: 8px; margin-bottom: 10px; text-align: center;
-  }
-  .admin-error { color: #c0392b; font-size: 12.5px; margin-bottom: 8px; min-height: 16px; }
-
   .admin-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
   .admin-tab { padding: 7px 14px; font-size: 12.5px; font-weight: 600; background: white; border: none; cursor: pointer; color: #4b5563; }
   .admin-tab + .admin-tab { border-left: 1px solid var(--line); }
@@ -2090,7 +2084,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     <div class="brand sp-side-section">
       <div class="sp-side-label-row">
         <span>SBCMC Booth Layout Planner</span>
-        <button class="admin-link" onclick="openAdminPanel()" title="Admin: manage floor plans and packages">Admin</button>
+        <button class="admin-link" id="floorplan-admin-link" onclick="openAdminPanel()" title="Admin: manage floor plans and packages" style="display:none;">Admin</button>
         <div class="sp-side-toolbar sp-side-toolbar-compact"><button class="sp-side-toggle" onclick="toggleSidebar()" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line><rect x="4.3" y="5.3" width="3.4" height="13.4" rx="0.8" fill="currentColor" stroke="none" opacity="0.45"></rect><path class="toggle-chevron" d="M14 9l-3 3 3 3" stroke-width="2"></path></svg><span class="sp-side-toggle-label">Collapse</span></button></div>
       </div>
       <span class="sub">Hunter Street campus &mdash; five levels. Drag boxes to plan booth placement; sizes are proportional to each map's own confirmed scale (see note under the map).</span>
@@ -3214,9 +3208,11 @@ function showStatus(msg) {
 //        create policy "public delete packages" on booth_layout_packages for delete using (true);
 //      (Realtime is not enabled for these two \u2014 admin changes like a new floor plan or an edited
 //      package appear for other people the next time they load the page, not instantly like booths do.
-//      The Admin panel is behind a code (see ADMIN_CODE below) but that's a UI deterrent, not real
-//      security \u2014 anyone with your anon key and a little effort could still write to these tables
-//      directly. Don't put anything truly sensitive behind it.)
+//      The Admin panel is gated on window.isAdminUser (the same real Supabase Auth admin role
+//      used everywhere else in this app), but these tables' own RLS policies above are still
+//      wide open (`using (true)`) -- anyone with your anon key and a little effort could still
+//      write to them directly, same honest limit as the rest of this app's client-side gating.
+//      Don't put anything truly sensitive behind it.)
 //   5. Project Settings \u2192 API \u2192 copy the Project URL and the anon/public key
 //   6. Paste them into SUPABASE_CONFIG below
 //   7. Re-publish this file. Everyone who opens the page now reads/writes the same shared layout live.
@@ -5151,20 +5147,22 @@ document.addEventListener('keydown', (e) => {
 // out of destructive controls, but not real security (anyone who views the
 // page source can see the code check). Don't rely on this to protect
 // anything sensitive; it's a deterrent for an internal planning tool.
-const ADMIN_CODE = 'SBCMC';
-let isAdmin = false;
-let adminView = 'gate'; // 'gate' | 'home' | 'maps' | 'packages' | 'calibrate' | 'edit-map'
+// Admin: manage floor plans and booth packages. Used to be its own separate password
+// (ADMIN_CODE, unlocked into sessionStorage) -- now gated purely on window.isAdminUser, the
+// same real Supabase Auth admin role every other admin-only surface in this app already uses.
+// The "Admin" link itself is hidden entirely for non-admins (:floorplan-admin-link in
+// applyNavVisibility()); this check is defense-in-depth against a direct call.
+let adminView = 'home'; // 'home' | 'maps' | 'packages' | 'calibrate' | 'edit-map'
 let calibratingMapId = null;
 let calibMeasurements = [];
 let calibPendingPoint = null;
 let editingMapId = null;
 let editingPackageKey = null;
 
-try { isAdmin = sessionStorage.getItem('sbcmcAdmin') === '1'; } catch (e) { /* sessionStorage unavailable */ }
-
 function openAdminPanel() {
+  if (!window.isAdminUser) return;
   document.getElementById('admin-overlay').style.display = 'flex';
-  adminView = isAdmin ? 'home' : 'gate';
+  adminView = 'home';
   renderAdminModal();
   // Deferred from initial load -- version history is only ever looked at from inside
   // this panel, so there's no reason to spend a network round-trip on it before anyone
@@ -5174,25 +5172,6 @@ function openAdminPanel() {
 function closeAdminPanel() {
   document.getElementById('admin-overlay').style.display = 'none';
 }
-function lockAdmin() {
-  isAdmin = false;
-  try { sessionStorage.removeItem('sbcmcAdmin'); } catch (e) {}
-  adminView = 'gate';
-  renderAdminModal();
-}
-function submitAdminCode() {
-  const input = document.getElementById('admin-code-input');
-  const err = document.getElementById('admin-code-error');
-  const code = input ? input.value.trim() : '';
-  if (code === ADMIN_CODE) {
-    isAdmin = true;
-    try { sessionStorage.setItem('sbcmcAdmin', '1'); } catch (e) {}
-    adminView = 'home';
-    renderAdminModal();
-  } else if (err) {
-    err.textContent = 'Incorrect code.';
-  }
-}
 
 function renderAdminModal() {
   const title = document.getElementById('admin-modal-title');
@@ -5200,11 +5179,7 @@ function renderAdminModal() {
   if (!title || !body) return;
   body.innerHTML = '';
 
-  if (!isAdmin) {
-    title.textContent = 'Admin access';
-    body.appendChild(buildAdminGate());
-    return;
-  }
+  if (!window.isAdminUser) { closeAdminPanel(); return; }
 
   if (adminView === 'calibrate') {
     title.textContent = 'Calibrate scale';
@@ -5233,46 +5208,6 @@ function renderAdminModal() {
   body.appendChild(tabs);
 
   body.appendChild(adminView === 'packages' ? buildPackagesAdminView() : buildMapsAdminView());
-
-  const lockRow = document.createElement('div');
-  lockRow.style.cssText = 'margin-top:16px; text-align:right;';
-  const lockBtn = document.createElement('button');
-  lockBtn.style.cssText = 'font-size:11px; padding:5px 10px; border-radius:6px; border:1px solid var(--line); background:white; cursor:pointer; color:#6b7280;';
-  lockBtn.textContent = 'Lock admin';
-  lockBtn.onclick = lockAdmin;
-  lockRow.appendChild(lockBtn);
-  body.appendChild(lockRow);
-}
-
-function buildAdminGate() {
-  const wrap = document.createElement('div');
-  const p = document.createElement('p');
-  p.style.cssText = 'font-size:12.5px; color:#4b5563; margin:0 0 10px;';
-  p.textContent = 'Enter the admin code to manage floor plans and booth packages.';
-  wrap.appendChild(p);
-
-  const input = document.createElement('input');
-  input.type = 'password';
-  input.id = 'admin-code-input';
-  input.className = 'admin-gate-input';
-  input.placeholder = 'Admin code';
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitAdminCode(); } });
-  wrap.appendChild(input);
-
-  const err = document.createElement('div');
-  err.className = 'admin-error';
-  err.id = 'admin-code-error';
-  wrap.appendChild(err);
-
-  const btn = document.createElement('button');
-  btn.className = 'btn primary';
-  btn.style.width = '100%';
-  btn.textContent = 'Unlock';
-  btn.onclick = submitAdminCode;
-  wrap.appendChild(btn);
-
-  setTimeout(() => input.focus(), 30);
-  return wrap;
 }
 
 // ---- Floor plans (maps) admin ----
@@ -6236,6 +6171,8 @@ function applyNavVisibility() {
   if (moneyBtn) moneyBtn.style.display = canViewAny(['revenue.all', 'cashflow.all']) ? '' : 'none';
   const teamBtn = document.getElementById('nav-team-access-btn');
   if (teamBtn) teamBtn.style.display = window.isAdminUser ? '' : 'none';
+  const floorplanAdminLink = document.getElementById('floorplan-admin-link');
+  if (floorplanAdminLink) floorplanAdminLink.style.display = window.isAdminUser ? '' : 'none';
   // Sponsor Tracker's Amount/Status and Due column headers are static HTML (unlike the row
   // cells, which are regenerated by buildSponsorRowPair on every render and already skip these
   // two <td>s directly) -- toggle them once here, since they don't get rebuilt on their own.
