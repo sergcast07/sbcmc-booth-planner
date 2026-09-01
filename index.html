@@ -11838,7 +11838,7 @@ const SPEAKER_TYPES = ['Keynote', 'Breakout Leader', 'Musician', 'Panelist', 'Ot
 // stays a plain checkbox on the Financials tab instead; collect the actual document some other,
 // non-public way. See sp.data.financial.w9Received.
 const MATERIAL_ITEM_LABELS = {
-  bio: 'Bio', headshot: 'Headshot', contract: 'Signed contract',
+  bio: 'Bio', headshot: 'Headshot',
   sessionDescription: 'Session description', slideDeck: 'Slide deck', handouts: 'Attendee handouts',
   stagePlot: 'Stage plot', inputList: 'Input list', rfRequest: 'RF (wireless) request',
   lyricsProPresenter: 'Lyrics / ProPresenter files', playbackDetails: 'Playback details (tracks, click, stems)',
@@ -11857,20 +11857,19 @@ const MATERIAL_ITEM_LABELS = {
 const MATERIAL_ITEM_TYPES = { bio: 'text', sessionDescription: 'text', headshot: 'file-or-link' };
 function materialItemType(key) { return MATERIAL_ITEM_TYPES[key] || 'file'; }
 const MATERIALS_BY_TYPE = {
-  'Keynote': ['bio', 'headshot', 'contract', 'sessionDescription', 'slideDeck'],
-  'Breakout Leader': ['bio', 'headshot', 'contract', 'sessionDescription', 'slideDeck', 'handouts'],
-  'Musician': ['bio', 'headshot', 'contract', 'stagePlot', 'inputList', 'rfRequest', 'lyricsProPresenter', 'playbackDetails', 'lightingNotes'],
-  'Panelist': ['bio', 'headshot', 'contract', 'sessionDescription'],
-  'Other': ['bio', 'headshot', 'contract']
+  'Keynote': ['bio', 'headshot', 'sessionDescription', 'slideDeck'],
+  'Breakout Leader': ['bio', 'headshot', 'sessionDescription', 'slideDeck', 'handouts'],
+  'Musician': ['bio', 'headshot', 'stagePlot', 'inputList', 'rfRequest', 'lyricsProPresenter', 'playbackDetails', 'lightingNotes'],
+  'Panelist': ['bio', 'headshot', 'sessionDescription'],
+  'Other': ['bio', 'headshot']
 };
-// arrangement: pass sp.data.arrangement when known. Contract only makes sense when a fee is
-// actually being paid -- a 'sponsor'-provided speaker has no fee tracked at all, so it's
-// dropped from their checklist regardless of type.
+// arrangement: pass sp.data.arrangement when known -- accepted for callers that still pass it,
+// though nothing here currently varies by it (the one item that used to, the signed contract,
+// was dropped from this checklist entirely; that's tracked elsewhere, never through the portal).
 function materialsForTypes(types, arrangement) {
   const set = new Set();
   (types || []).forEach(t => (MATERIALS_BY_TYPE[t] || []).forEach(k => set.add(k)));
-  if (set.size === 0) ['bio', 'headshot', 'contract'].forEach(k => set.add(k)); // no type picked yet -- fall back to the common baseline
-  if (arrangement === 'sponsor') set.delete('contract');
+  if (set.size === 0) ['bio', 'headshot'].forEach(k => set.add(k)); // no type picked yet -- fall back to the common baseline
   return Array.from(set);
 }
 
