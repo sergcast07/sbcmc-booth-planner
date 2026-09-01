@@ -6253,7 +6253,7 @@ function renderTeamAccessContent() {
   const people = teamAccessState.profiles.slice().sort((a, b) => {
     const aUnassigned = !a.role_id, bUnassigned = !b.role_id;
     if (aUnassigned !== bUnassigned) return aUnassigned ? -1 : 1;
-    return (a.email || '').localeCompare(b.email || '');
+    return (a.display_name || a.email || '').localeCompare(b.display_name || b.email || '');
   });
   const roleCountByRoleId = new Map();
   teamAccessState.profiles.forEach(p => { if (p.role_id) roleCountByRoleId.set(p.role_id, (roleCountByRoleId.get(p.role_id) || 0) + 1); });
@@ -6270,7 +6270,10 @@ function renderTeamAccessContent() {
       <div class="cfp-panel-body" data-section-key="ta-people" style="padding:6px 18px 16px;">
         ${people.length ? people.map(p => `
           <div class="ta-row">
-            <span style="flex:1; min-width:0;">${escapeHtml(p.email)}</span>
+            <div style="flex:1; min-width:0;">
+              <input type="text" value="${escapeHtml(p.display_name || '')}" placeholder="Add a name" onchange="updateProfileDisplayName('${p.id}', this.value)" style="width:100%; max-width:220px; font-weight:600; margin-bottom:2px;">
+              <div class="sp-sub">${escapeHtml(p.email)}</div>
+            </div>
             ${!p.role_id ? '<span class="sp-badge sp-badge-inkind">Needs a role</span>' : ''}
             ${p.must_reset_password ? '<span class="sp-badge sp-badge-recruit">Hasn’t signed in yet</span>' : ''}
             <select onchange="assignProfileRole('${p.id}', this.value)">
@@ -6410,6 +6413,13 @@ async function assignProfileRole(profileId, roleId) {
   const { error } = await sbClient.from('profiles').update({ role_id: roleId || null }).eq('id', profileId);
   if (error) { reportWriteError('profile-role:' + profileId, 'Couldn’t update that person’s role.', error); return; }
   toast('Role updated.');
+  await renderTeamAccessView();
+}
+async function updateProfileDisplayName(profileId, value) {
+  const name = value.trim();
+  const { error } = await sbClient.from('profiles').update({ display_name: name || null }).eq('id', profileId);
+  if (error) { reportWriteError('profile-name:' + profileId, 'Couldn’t update that person’s name.', error); return; }
+  toast('Name updated.');
   await renderTeamAccessView();
 }
 
@@ -11541,28 +11551,32 @@ const SPEAKER_TYPES = ['Keynote', 'Breakout Leader', 'Musician', 'Panelist', 'Ot
 // Item set for Worship Artist/Headliner comes straight from Hunter Street's real production
 // rider: stage plots, input lists, and RF requests are due Feb 1; lyrics/ProPresenter files
 // are due Feb 1; lighting notes and playback details (tracks/click/stems) are due Mar 1.
+// W9 is deliberately not tracked here -- it's a tax document (SSN/EIN), and this checklist's
+// uploads flow through a fully public storage bucket (no auth on the file URL). "W9 received"
+// stays a plain checkbox on the Financials tab instead; collect the actual document some other,
+// non-public way. See sp.data.financial.w9Received.
 const MATERIAL_ITEM_LABELS = {
-  bio: 'Bio', headshot: 'Headshot', w9: 'W9', contract: 'Signed contract',
+  bio: 'Bio', headshot: 'Headshot', contract: 'Signed contract',
   sessionDescription: 'Session description', slideDeck: 'Slide deck', handouts: 'Attendee handouts',
   stagePlot: 'Stage plot', inputList: 'Input list', rfRequest: 'RF (wireless) request',
   lyricsProPresenter: 'Lyrics / ProPresenter files', playbackDetails: 'Playback details (tracks, click, stems)',
   lightingNotes: 'Lighting notes / special requests'
 };
 const MATERIALS_BY_TYPE = {
-  'Keynote': ['bio', 'headshot', 'w9', 'contract', 'sessionDescription', 'slideDeck'],
-  'Breakout Leader': ['bio', 'headshot', 'w9', 'contract', 'sessionDescription', 'slideDeck', 'handouts'],
-  'Musician': ['bio', 'headshot', 'w9', 'contract', 'stagePlot', 'inputList', 'rfRequest', 'lyricsProPresenter', 'playbackDetails', 'lightingNotes'],
-  'Panelist': ['bio', 'headshot', 'w9', 'contract', 'sessionDescription'],
-  'Other': ['bio', 'headshot', 'w9', 'contract']
+  'Keynote': ['bio', 'headshot', 'contract', 'sessionDescription', 'slideDeck'],
+  'Breakout Leader': ['bio', 'headshot', 'contract', 'sessionDescription', 'slideDeck', 'handouts'],
+  'Musician': ['bio', 'headshot', 'contract', 'stagePlot', 'inputList', 'rfRequest', 'lyricsProPresenter', 'playbackDetails', 'lightingNotes'],
+  'Panelist': ['bio', 'headshot', 'contract', 'sessionDescription'],
+  'Other': ['bio', 'headshot', 'contract']
 };
-// arrangement: pass sp.data.arrangement when known. W9/Contract only make sense when a fee is
-// actually being paid -- a 'sponsor'-provided speaker has no fee tracked at all, so both are
+// arrangement: pass sp.data.arrangement when known. Contract only makes sense when a fee is
+// actually being paid -- a 'sponsor'-provided speaker has no fee tracked at all, so it's
 // dropped from their checklist regardless of type.
 function materialsForTypes(types, arrangement) {
   const set = new Set();
   (types || []).forEach(t => (MATERIALS_BY_TYPE[t] || []).forEach(k => set.add(k)));
-  if (set.size === 0) ['bio', 'headshot', 'w9', 'contract'].forEach(k => set.add(k)); // no type picked yet -- fall back to the common baseline
-  if (arrangement === 'sponsor') { set.delete('w9'); set.delete('contract'); }
+  if (set.size === 0) ['bio', 'headshot', 'contract'].forEach(k => set.add(k)); // no type picked yet -- fall back to the common baseline
+  if (arrangement === 'sponsor') set.delete('contract');
   return Array.from(set);
 }
 
