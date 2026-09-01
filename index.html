@@ -1349,6 +1349,8 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-card .sch-card-room-select { width: 100%; box-sizing: border-box; margin-top: 4px; font-size: 10.5px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink-soft); cursor: pointer; }
 .sch-card.sch-conflict { border-color: #c0392b; box-shadow: 0 0 0 1px #c0392b inset; padding-right: 26px; }
 .sch-card .sch-conflict-icon { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 11px; }
+.sch-cell.sch-room-conflict { background: rgba(192,57,43,0.08); outline: 1px dashed #c0392b; outline-offset: -1px; }
+.sch-room-conflict-flag { font-size: 10px; font-weight: 700; color: #a52620; }
 
 .sch-timeline-day { margin-bottom: 22px; }
 .sch-timeline-day-title { font-family: var(--font-display); font-size: 15px; color: var(--teal-deep); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--gold); }
@@ -3714,6 +3716,7 @@ function isScheduleViewMode() {
 }
 
 let svPublicSubview = 'timeline';
+let svPublicGridMode = 'track';
 let svPublicAudienceFilter = null;
 // Set by copyScheduleViewLink's group picker via the ?aud= URL param -- null means an
 // unscoped link (every group toggleable, matching the tool's original behavior and every link
@@ -3759,6 +3762,7 @@ async function initSchedulePublicView() {
 }
 
 function setSvPublicSubview(v) { svPublicSubview = v; renderSchedulePublicView(); }
+function setSvPublicGridMode(v) { svPublicGridMode = v; renderSchedulePublicView(); }
 function toggleSvPublicAudienceFilter(id) {
   if (svPublicAudienceFilter.has(id)) svPublicAudienceFilter.delete(id);
   else svPublicAudienceFilter.add(id);
@@ -3771,7 +3775,11 @@ function renderSchedulePublicView() {
       <button class="sch-toggle-btn ${svPublicSubview === 'grid' ? 'active' : ''}" onclick="setSvPublicSubview('grid')">Breakout Grid</button>
       <button class="sch-toggle-btn ${svPublicSubview === 'timeline' ? 'active' : ''}" onclick="setSvPublicSubview('timeline')">Timeline</button>
       <button class="sch-toggle-btn ${svPublicSubview === 'itinerary' ? 'active' : ''}" onclick="setSvPublicSubview('itinerary')">Itinerary</button>
-    </div>`;
+    </div>
+    ${svPublicSubview === 'grid' ? `<div class="sch-view-toggle" style="margin-bottom:14px;">
+      <button class="sch-toggle-btn ${svPublicGridMode === 'track' ? 'active' : ''}" onclick="setSvPublicGridMode('track')">By Track</button>
+      <button class="sch-toggle-btn ${svPublicGridMode === 'room' ? 'active' : ''}" onclick="setSvPublicGridMode('room')">By Room</button>
+    </div>` : ''}`;
   let content;
   if (svPublicSubview === 'grid') content = renderSvPublicGrid();
   else if (svPublicSubview === 'itinerary') content = renderSvPublicItinerary();
@@ -3803,6 +3811,7 @@ function renderSvPublicGrid() {
   if (!breakoutScheduleReady) return '<div class="dv-loading" style="padding:60px 20px;">The breakout schedule is still being finalized — check back soon!</div>';
   const breakoutSlots = scheduleSlots.filter(s => s.kind === 'breakout').sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   if (!breakoutSlots.length) return '<div class="dv-loading">No breakout slots yet.</div>';
+  if (svPublicGridMode === 'room') return renderSvPublicGridByRoom(breakoutSlots);
   const index = {};
   speakers.forEach(sp => (sp.data.sessions || []).forEach((sess, i) => {
     if (!sess.track) return;
@@ -3832,6 +3841,46 @@ function renderSvPublicGrid() {
     return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}</td>${cells}</tr>`;
   }).join('');
   return `<div class="sch-grid-wrap"><table class="sch-grid"><thead><tr><th class="sch-track-col">Track</th>${headerCells}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderSvPublicGridByRoom(breakoutSlots) {
+  const all = [];
+  speakers.forEach(sp => (sp.data.sessions || []).forEach((sess, i) => {
+    if (!sess.track) return;
+    const slot = findSlotForSession(sess);
+    if (!slot || slot.kind !== 'breakout') return;
+    all.push({ speakerId: sp.id, sess, slotId: slot.id });
+  }));
+  const roomIndex = {};
+  all.forEach(occ => {
+    const key = (occ.sess.room || '__none__') + '|' + occ.slotId;
+    (roomIndex[key] = roomIndex[key] || []).push(occ);
+  });
+  const hasUnassigned = all.some(o => !o.sess.room);
+  const rowRooms = sessionRooms.map(r => r.name).concat(hasUnassigned ? ['__none__'] : []);
+  if (!rowRooms.length) return '<div class="dv-loading">No rooms set up yet.</div>';
+  const trackColorByName = {};
+  sessionTracks.forEach((t, i) => { trackColorByName[t.name] = trackColorForIndex(i); });
+  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
+  const rows = rowRooms.map(roomKey => {
+    const isNone = roomKey === '__none__';
+    const cells = breakoutSlots.map(slot => {
+      const occs = (roomIndex[roomKey + '|' + slot.id] || []).slice();
+      sortCellOccupants(occs);
+      const cards = occs.map(occ => {
+        const occSp = getSpeaker(occ.speakerId);
+        const trackColor = trackColorByName[occ.sess.track] || 'var(--line)';
+        return `<div class="sch-card" style="border-left-color:${trackColor}; cursor:default;">
+          <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
+          <div class="sch-card-title">${escapeHtml(occ.sess.track || '')}</div>
+        </div>`;
+      }).join('');
+      return `<td><div class="sch-cell ${occs.length ? '' : 'sch-cell-empty'}">${cards || (isNone ? '' : '<span class="sp-sub">—</span>')}</div></td>`;
+    }).join('');
+    const label = isNone ? 'No room set' : roomKey;
+    return `<tr><td class="sch-track-label"${isNone ? ' style="font-style:italic; color:var(--ink-soft);"' : ''}>${escapeHtml(label)}</td>${cells}</tr>`;
+  }).join('');
+  return `<div class="sch-grid-wrap"><table class="sch-grid"><thead><tr><th class="sch-track-col">Room</th>${headerCells}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function renderSvPublicTimeline() {
@@ -12776,6 +12825,12 @@ function breakoutNumberForSlot(slot) {
 // there's only one copy of the data to begin with.
 let scheduleSubview = 'timeline';
 let scheduleRosterSearch = '';
+// Breakout Grid has two axes to view it by: the default groups rows by track (the original
+// grid), 'room' regroups the same underlying sessions by room instead -- useful for spotting
+// two different tracks double-booked into the same physical room at the same time, which the
+// by-track view has no way to surface.
+let breakoutGridViewMode = 'track';
+function setBreakoutGridViewMode(v) { breakoutGridViewMode = v; renderBreakoutGrid(); }
 // Which audience(s) the Timeline is currently showing -- starts on just Main Conference, so
 // the default view is exactly what it was before this feature existed. A slot renders only
 // when at least one of its tags is in this set; deselecting everything is allowed and just
@@ -13025,7 +13080,23 @@ function renderBreakoutGrid() {
     return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span>` : ''}</td>${cells}</tr>`;
   }).join('');
 
-  body.innerHTML = readyToggleHtml + `
+  const viewToggleHtml = `
+    <div class="sch-view-toggle" style="margin-bottom:12px;">
+      <button class="sch-toggle-btn ${breakoutGridViewMode === 'track' ? 'active' : ''}" onclick="setBreakoutGridViewMode('track')">By Track</button>
+      <button class="sch-toggle-btn ${breakoutGridViewMode === 'room' ? 'active' : ''}" onclick="setBreakoutGridViewMode('room')">By Room</button>
+    </div>`;
+
+  if (breakoutSlots.length === 0) {
+    body.innerHTML = readyToggleHtml + viewToggleHtml + '<div class="sch-conflicts-empty">No breakout slots defined yet — add one from the Timeline view below.</div>';
+    return;
+  }
+
+  if (breakoutGridViewMode === 'room') {
+    body.innerHTML = readyToggleHtml + viewToggleHtml + renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEditSchedule);
+    return;
+  }
+
+  body.innerHTML = readyToggleHtml + viewToggleHtml + `
     <div class="sch-roster-strip">
       <div class="sch-roster-header">
         <strong style="font-size:12.5px; color:var(--teal-deep);">Speaker/artist roster${canEditSchedule ? ' — drag one or more names onto a cell to assign' : ''}</strong>
@@ -13033,15 +13104,78 @@ function renderBreakoutGrid() {
       </div>
       <div class="sch-roster-chips" id="sch-roster-chips-list">${buildScheduleRosterChipsHtml()}</div>
     </div>
-    ${breakoutSlots.length === 0 ? '<div class="sch-conflicts-empty">No breakout slots defined yet — add one from the Timeline view below.</div>' : `
     <div class="sch-grid-wrap">
       <table class="sch-grid">
         <thead><tr><th class="sch-track-col">Track</th>${headerCells}</tr></thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`}
+    </div>
     ${secondaryBreakoutGridsHtml()}
   `;
+}
+
+function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEditSchedule) {
+  // Flatten every scheduled breakout occurrence once, independent of track, then regroup by room.
+  const all = [];
+  speakers.forEach(sp => {
+    (sp.data.sessions || []).forEach((sess, i) => {
+      if (!sess.track) return;
+      const slot = findSlotForSession(sess);
+      if (!slot || slot.kind !== 'breakout') return;
+      all.push({ speakerId: sp.id, sessionIndex: i, sess, slotId: slot.id });
+    });
+  });
+  const roomIndex = {}; // key: (room name, or '__none__' for not-yet-assigned) + '|' + slotId
+  all.forEach(occ => {
+    const key = (occ.sess.room || '__none__') + '|' + occ.slotId;
+    (roomIndex[key] = roomIndex[key] || []).push(occ);
+  });
+  const hasUnassigned = all.some(o => !o.sess.room);
+  const rowRooms = sessionRooms.map(r => r.name).concat(hasUnassigned ? ['__none__'] : []);
+  if (!rowRooms.length) return '<div class="sch-conflicts-empty">No rooms set up yet — add rooms from a session\'s Room dropdown in the Speakers & Artists tab, then assign them from here.</div>';
+
+  const trackColorByName = {};
+  sessionTracks.forEach((t, i) => { trackColorByName[t.name] = trackColorForIndex(i); });
+
+  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
+
+  const rows = rowRooms.map(roomKey => {
+    const isNone = roomKey === '__none__';
+    const cells = breakoutSlots.map(slot => {
+      const occs = (roomIndex[roomKey + '|' + slot.id] || []).slice();
+      sortCellOccupants(occs);
+      // A real room isn't allowed to host two different tracks at once -- flag that distinctly
+      // from a speaker conflict, since it's a logistics problem even when neither speaker
+      // individually double-booked.
+      const roomDoubleBooked = !isNone && new Set(occs.map(o => o.sess.track)).size > 1;
+      const cards = occs.map(occ => {
+        const occSp = getSpeaker(occ.speakerId);
+        const isConflict = conflictSpeakerIds.has(occ.speakerId);
+        const trackColor = trackColorByName[occ.sess.track] || 'var(--line)';
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record">
+          ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
+          <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
+          <div class="sch-card-title">${escapeHtml(occ.sess.track || '')}</div>
+          ${canEditSchedule
+            ? `<select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); updateSessionRoomFromGrid('${occ.speakerId}', ${occ.sessionIndex}, this.value)">${sessionRoomOptionsHtml(occ.sess.room)}</select>`
+            : ''}
+        </div>`;
+      }).join('');
+      const cls = 'sch-cell' + (occs.length ? '' : ' sch-cell-empty') + (roomDoubleBooked ? ' sch-room-conflict' : '');
+      const warnBadge = roomDoubleBooked ? `<div class="sch-room-conflict-flag" title="Two different tracks are both booked in this room at this time.">🚪⚠️ Double-booked room</div>` : '';
+      return `<td><div class="${cls}">${warnBadge}${cards || (isNone ? '' : '<span class="sp-sub">—</span>')}</div></td>`;
+    }).join('');
+    const label = isNone ? 'No room set' : roomKey;
+    return `<tr><td class="sch-track-label"${isNone ? ' style="font-style:italic; color:var(--ink-soft);"' : ''}>${escapeHtml(label)}</td>${cells}</tr>`;
+  }).join('');
+
+  return `
+    <div class="sch-grid-wrap">
+      <table class="sch-grid">
+        <thead><tr><th class="sch-track-col">Room</th>${headerCells}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 // A JS-string-literal-safe version of a value for embedding inside a single-quoted argument
