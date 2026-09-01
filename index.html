@@ -12823,7 +12823,17 @@ function findSlotForSession(sess) {
     if (bySlotId) return bySlotId;
   }
   if (!sess.sessionDate || !sess.timeSlot) return null;
-  return scheduleSlots.find(s => s.date === sess.sessionDate && s.start === sess.timeSlot) || null;
+  const candidates = scheduleSlots.filter(s => s.date === sess.sessionDate && s.start === sess.timeSlot);
+  if (candidates.length <= 1) return candidates[0] || null;
+  // More than one slot shares this date+time -- a session with a track can only ever be a
+  // breakout (only breakout slots have tracks), so prefer that match over, say, a keynote that
+  // happens to start at the same moment. Without this, a legacy (pre-slotId) breakout session
+  // could silently resolve to the wrong slot and vanish from the Breakout Grid entirely.
+  if (sess.track) {
+    const breakoutMatch = candidates.find(s => s.kind === 'breakout');
+    if (breakoutMatch) return breakoutMatch;
+  }
+  return candidates[0];
 }
 function breakoutNumberForSlot(slot) {
   const m = slot && slot.label.match(/Breakout (\d+)/);
