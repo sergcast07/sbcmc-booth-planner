@@ -481,13 +481,15 @@
   .spv-badge-row input { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
   .spv-file-block { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
   .spv-file-block input[type="file"] { display: block; font-size: 12px; }
+  .spv-or-link { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .spv-or-link-label { font-size: 11px; color: var(--ink-soft); width: 100%; }
+  .spv-or-link input[type="url"] { flex: 1; min-width: 140px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
   .spv-done-section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 8px; text-align: center; }
   .spv-done-banner { background: rgba(46,139,87,0.12); color: #2E8B57; border: 1px solid rgba(46,139,87,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 12px; }
   .spv-done-btn { width: 100%; padding: 13px 20px; font-size: 14px; }
   .spv-pending-banner { background: rgba(197,161,84,0.15); color: #8a6d1f; border: 1px solid rgba(197,161,84,0.4); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 20px; }
   .spv-pending-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #8a6d1f; background: rgba(197,161,84,0.18); border-radius: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
   .spv-rider-banner {
-    position: sticky; top: 10px; z-index: 50;
     background: var(--teal-deep); color: #fff; border-radius: 10px; padding: 18px 20px 20px; margin: 0 0 22px;
     border: 2px solid var(--gold); box-shadow: 0 8px 22px rgba(23,38,43,0.32);
   }
@@ -502,7 +504,7 @@
   .spv-rider-download { display: inline-flex; align-items: center; gap: 7px; background: var(--gold); color: var(--teal-deep); font-weight: 700; font-size: 13px; padding: 10px 18px; border-radius: 7px; text-decoration: none; transition: filter 0.15s, transform 0.15s; }
   .spv-rider-download:hover { filter: brightness(1.08); transform: translateY(-1px); }
   .spv-rider-meta { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 8px; }
-  @media (max-width: 480px) { .spv-rider-banner { top: 0; border-radius: 0; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; } }
+  @media (max-width: 480px) { .spv-rider-banner { border-radius: 0; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; } }
   .spv-applicant-card { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; background: var(--panel); }
   .spv-applicant-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
   .ap-raw-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
@@ -11842,6 +11844,18 @@ const MATERIAL_ITEM_LABELS = {
   lyricsProPresenter: 'Lyrics / ProPresenter files', playbackDetails: 'Playback details (tracks, click, stems)',
   lightingNotes: 'Lighting notes / special requests'
 };
+// Which checklist items are typed in as plain text vs. an uploaded file vs. either an uploaded
+// file or a pasted link, instead of the default "upload a file" -- drives how materialBlock()
+// (portal) and materialsNeededHtml (admin) render and store each one. Content still lives in
+// the same sp.data.materials[key] slot either way: a plain string for 'text', the usual
+// {fileName, filePath, fileSize, url, uploadedAt} shape for 'file'/'file-or-link' (a pasted
+// link gets that same shape with filePath left blank and isExternalLink:true, so storage
+// cleanup on reject/remove never tries to delete a path nothing was ever written to). Every
+// generic truthiness check elsewhere (completeness, tab alerts, materialsNeededCount) already
+// works unchanged across both shapes, since both a non-empty string and a non-null object are
+// truthy -- only the two rendering spots and the pending-value formatter need to know the type.
+const MATERIAL_ITEM_TYPES = { bio: 'text', sessionDescription: 'text', headshot: 'file-or-link' };
+function materialItemType(key) { return MATERIAL_ITEM_TYPES[key] || 'file'; }
 const MATERIALS_BY_TYPE = {
   'Keynote': ['bio', 'headshot', 'contract', 'sessionDescription', 'slideDeck'],
   'Breakout Leader': ['bio', 'headshot', 'contract', 'sessionDescription', 'slideDeck', 'handouts'],
@@ -12079,9 +12093,25 @@ function renderSpeakerPublicView() {
   function materialBlock(itemKey) {
     const key = 'materials.' + itemKey;
     const label = MATERIAL_ITEM_LABELS[itemKey] || itemKey;
+    const type = materialItemType(itemKey);
     const filePending = pending[key];
-    const file = filePending ? filePending.new : (materials[itemKey] || null);
+    const currentValue = filePending ? filePending.new : (materials[itemKey] != null ? materials[itemKey] : null);
+
+    // Free-form text items (bio, session description) skip the whole upload mechanism --
+    // the value is just the plain string itself, staged the same way as any other portal edit.
+    if (type === 'text') {
+      const textValue = currentValue || '';
+      if (!textValue && !materialsNeeded[itemKey]) return null;
+      return `
+        <div class="spv-file-block">
+          <b>${escapeHtml(label)}</b>${pendingTag(key)}
+          <textarea class="spv-textarea" rows="4" style="margin-top:6px;" placeholder="Type it in here…" onchange="portalUpdateSpeakerMaterialText('${sp.id}', '${itemKey}', this.value)">${escapeHtml(textValue)}</textarea>
+        </div>
+      `;
+    }
+
     const isPendingRemoval = filePending && !filePending.new;
+    const file = currentValue;
     // The checkbox on the admin Production tab ("Materials We Need From Them") marks which
     // items actually apply to this specific speaker -- materialsForTypes() is just a
     // type-based starting menu, not every item on it is necessarily wanted from every person
@@ -12090,14 +12120,24 @@ function renderSpeakerPublicView() {
     // even if staff unchecks it after the fact).
     if (!file && !isPendingRemoval && !materialsNeeded[itemKey]) return null;
     const statusHtml = isPendingRemoval ? '<div class="sp-sub">Removal pending review.</div>'
-      : file ? `<div class="sp-sub">${filePending ? 'Proposed' : 'Uploaded'}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a> on ${escapeHtml(file.uploadedAt || '')}</div><button class="sp-mini-btn" onclick="portalRemoveSpeakerMaterial('${sp.id}', '${itemKey}')">Remove</button>`
+      : file ? `<div class="sp-sub">${filePending ? 'Proposed' : (file.isExternalLink ? 'Linked' : 'Uploaded')}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? escapeHtml(file.url) : escapeHtml(file.fileName)}</a>${file.uploadedAt ? ' on ' + escapeHtml(file.uploadedAt) : ''}</div><button class="sp-mini-btn" onclick="portalRemoveSpeakerMaterial('${sp.id}', '${itemKey}')">Remove</button>`
       : '<div class="sp-sub">Not uploaded yet.</div>';
+    // file-or-link items (headshot) let them paste a URL instead of uploading a file --
+    // e.g. a headshot already living on their own site or a press kit.
+    const linkRowHtml = type === 'file-or-link' ? `
+      <div class="spv-or-link">
+        <span class="spv-or-link-label">— or paste a link instead —</span>
+        <input type="url" id="skv-material-link-${sp.id}-${itemKey}" placeholder="https://…">
+        <button class="sp-mini-btn" onclick="portalSetSpeakerMaterialLink('${sp.id}', '${itemKey}')">Save Link</button>
+      </div>
+    ` : '';
     return `
       <div class="spv-file-block">
         <b>${escapeHtml(label)}</b>${pendingTag(key)}
         ${statusHtml}
         <input type="file" id="skv-material-input-${sp.id}-${itemKey}" style="margin-top:6px;">
         <button class="sp-add-btn" onclick="portalUploadSpeakerMaterial('${sp.id}', '${itemKey}')">Upload</button>
+        ${linkRowHtml}
       </div>
     `;
   }
@@ -12252,7 +12292,12 @@ function portalStagedSpeakerValue(sp, key, fallback) {
   return pc ? pc.new : fallback;
 }
 function formatSpeakerPendingValue(key, value) {
-  if (key.indexOf('materials.') === 0) return value ? value.fileName : '(none)';
+  if (key.indexOf('materials.') === 0) {
+    if (materialItemType(key.slice('materials.'.length)) === 'text') {
+      return value ? (value.length > 60 ? value.slice(0, 60) + '…' : value) : '(none)';
+    }
+    return value ? value.fileName : '(none)';
+  }
   return value ? value : '(blank)';
 }
 function speakerPendingCount(sp) { return Object.keys(sp.data.pendingChanges || {}).length; }
@@ -12323,6 +12368,27 @@ function rejectAllSpeakerPendingChanges(id) {
 // updateSpeaker* functions, unaffected by any of this.
 function portalUpdateSpeakerContactField(id, field, value) { stageSpeakerChange(id, field, value); }
 function portalUpdateSpeakerNotes(id, value) { stageSpeakerChange(id, 'publicNotes', value); }
+// Text-type checklist items (bio, session description) -- see MATERIAL_ITEM_TYPES. Stores the
+// typed string directly under materials.<key>, staged through the exact same pendingChanges
+// path as a file upload; the generic approve/reject/cleanup logic doesn't care that the value
+// is a string instead of a file-info object.
+function portalUpdateSpeakerMaterialText(id, itemKey, value) {
+  stageSpeakerChange(id, 'materials.' + itemKey, value.trim());
+}
+// file-or-link items (headshot) -- a pasted URL is stored in the same file-info shape a real
+// upload would use, with filePath left blank and isExternalLink:true so storage cleanup on
+// reject/remove never tries to delete a path nothing was ever written to.
+function portalSetSpeakerMaterialLink(id, itemKey) {
+  const input = document.getElementById('skv-material-link-' + id + '-' + itemKey);
+  if (!input) return;
+  const url = input.value.trim();
+  if (!url) { toast('Paste a link first.'); return; }
+  if (!/^https?:\/\//i.test(url)) { toast('That doesn’t look like a valid link — make sure it starts with http:// or https://'); return; }
+  const fileInfo = { fileName: 'Linked file', filePath: '', fileSize: 0, url, uploadedAt: new Date().toISOString().slice(0, 10), isExternalLink: true };
+  input.value = '';
+  stageSpeakerChange(id, 'materials.' + itemKey, fileInfo);
+  toast('Link saved — pending review by our team.');
+}
 async function portalUploadSpeakerMaterial(id, itemKey) {
   const sp = resolveSpeakerForEdit(id); if (!sp) return;
   const input = document.getElementById('skv-material-input-' + id + '-' + itemKey);
@@ -14400,8 +14466,14 @@ function speakerDetailHTML(sp) {
   const spMaterials = sp.data.materials || {};
   const relevantMaterialKeys = materialsForTypes(sp.types, sp.data.arrangement);
   const materialsNeededHtml = relevantMaterialKeys.map(key => {
-    const file = spMaterials[key];
-    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(file.fileName)}</a>` : ''}</div>`;
+    const value = spMaterials[key];
+    // Text-type items (bio, session description) are editable right here as plain text --
+    // staff can type/correct it directly, same as anything else on this tab, no file involved.
+    if (materialItemType(key) === 'text') {
+      return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Not provided yet." onchange="updateSpeakerNested('${sp.id}','materials','${key}',this.value)">${escapeHtml(value || '')}</textarea></div></div>`;
+    }
+    const file = value;
+    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}</div>`;
   }).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
 
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
