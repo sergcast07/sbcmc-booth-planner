@@ -670,6 +670,11 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sk-always-visible { padding: 4px 22px 4px; border-top: 2px solid var(--gold); margin-top: 4px; }
 .sk-always-visible-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 10px 0 8px; }
 .sp-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; align-items: start; }
+.sp-secondary-contact summary { cursor: pointer; color: var(--teal-deep); font-size: 12.5px; font-weight: 600; list-style: none; padding: 4px 0; }
+.sp-secondary-contact summary::-webkit-details-marker { display: none; }
+.sp-secondary-contact summary::before { content: '▸ '; }
+.sp-secondary-contact[open] summary::before { content: '▾ '; }
+.sp-secondary-contact summary:hover { text-decoration: underline; }
 .sp-field-grid > .sp-subhead,
 .sp-field-grid > .sk-file-row,
 .sp-field-grid > .sp-add-row,
@@ -8721,6 +8726,7 @@ function rowToSponsor(row) {
       logistics: { power: false, av: false, loadInTime: '', badgeNames: [], badgeLimit: 2, shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
+      secondaryContact: { name: '', role: '', email: '', phone: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }, row.data || {})
@@ -8804,6 +8810,7 @@ function addSponsor() {
       logistics: { power: false, av: false, loadInTime: '', badgeNames: [], badgeLimit: 2, shipping: '', exhibitNumber: '', shipped: false, trackingInfo: '' },
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
+      secondaryContact: { name: '', role: '', email: '', phone: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
     }
@@ -9347,6 +9354,8 @@ function sponsorDetailHTML(s) {
   const statusOptions = statusChoices.map(st => `<option value="${escapeHtml(st)}" ${st === s.trackerStatus ? 'selected' : ''}>${escapeHtml(st)}</option>`).join('');
   const boothOptions = allBoothsForDropdown(s.id).map(b => `<option value="${b.id}" ${s.linkedBoothId === b.id ? 'selected' : ''} ${b.disabled ? 'disabled' : ''}>${b.disabled ? '\u26D4 ' : ''}${escapeHtml(b.label)}</option>`).join('');
   const linkedBooth = booths.find(b => b.id === s.linkedBoothId);
+  const spSc = s.data.secondaryContact || { name: '', role: '', email: '', phone: '' };
+  const hasSpSecondaryContact = !!(spSc.name || spSc.role || spSc.email || spSc.phone);
 
   const commsHtml = (s.data.comms || []).slice().reverse().map(c =>
     `<div class="sp-comm-item"><span class="ts">${c.ts}</span>${escapeHtml(c.note)}</div>`
@@ -9430,6 +9439,17 @@ function sponsorDetailHTML(s) {
             </div>
           </div>
           <div class="sp-field"><label for="sp-phone-${s.id}">Phone</label><input id="sp-phone-${s.id}" type="text" value="${escapeHtml(s.contactPhone)}" onchange="updateSponsorSimple('${s.id}','contactPhone',this.value)"></div>
+          <div class="sp-field" style="grid-column:1/-1;">
+            <details class="sp-secondary-contact" ${hasSpSecondaryContact ? 'open' : ''}>
+              <summary>${hasSpSecondaryContact ? 'Second contact' : '+ Add a second contact'}</summary>
+              <div class="sp-field-grid" style="margin-top:8px;">
+                <div class="sp-field"><label for="sp-sc-name-${s.id}">Name</label><input id="sp-sc-name-${s.id}" type="text" value="${escapeHtml(spSc.name)}" onchange="updateSponsorNested('${s.id}','secondaryContact','name',this.value)"></div>
+                <div class="sp-field"><label for="sp-sc-role-${s.id}">Role</label><input id="sp-sc-role-${s.id}" type="text" placeholder="e.g. Booth staffer, Booking contact" value="${escapeHtml(spSc.role)}" onchange="updateSponsorNested('${s.id}','secondaryContact','role',this.value)"></div>
+                <div class="sp-field"><label for="sp-sc-email-${s.id}">Email</label><input id="sp-sc-email-${s.id}" type="email" value="${escapeHtml(spSc.email)}" onchange="updateSponsorNested('${s.id}','secondaryContact','email',this.value)"></div>
+                <div class="sp-field"><label for="sp-sc-phone-${s.id}">Phone</label><input id="sp-sc-phone-${s.id}" type="text" value="${escapeHtml(spSc.phone)}" onchange="updateSponsorNested('${s.id}','secondaryContact','phone',this.value)"></div>
+              </div>
+            </details>
+          </div>
           <div class="sp-check"><input id="sp-flagged-${s.id}" type="checkbox" ${s.data.flagged ? 'checked' : ''} onchange="updateSponsorData('${s.id}','flagged',this.checked)"><label for="sp-flagged-${s.id}"> \ud83d\udea9 Flag for review</label></div>
 
           <div class="sp-subhead">Package &amp; Status</div>
@@ -11867,6 +11887,9 @@ function defaultSpeakerData() {
     // headshot, w9, stagePlot, etc.) -- separate from the free-label arrays above, so each
     // checklist row can carry one real uploaded file: {fileName, filePath, fileSize, url, uploadedAt}.
     materials: {},
+    // A second point of contact (manager, agent, assistant) alongside the primary contact
+    // fields above -- e.g. an artist's own number plus their manager's. Purely optional.
+    secondaryContact: { name: '', role: '', email: '', phone: '' },
     // Self-service portal (?view=speaker&t=...) -- same shape as sponsors' equivalent fields.
     publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
     specialNotes: '', flagged: false,
@@ -12350,6 +12373,7 @@ function updateSpeakerSimple(id, field, value) {
 }
 function updateSpeakerNested(id, group, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
+  if (!sp.data[group]) sp.data[group] = {}; // records saved before this nested group existed
   sp.data[group][field] = value;
   pushSpeaker(sp);
   renderSpeakerRows(id);
@@ -14291,6 +14315,8 @@ function speakerDetailHTML(sp) {
     `<label class="sp-check" style="margin-right:14px; display:inline-flex;"><input type="checkbox" ${(sp.types || []).includes(t) ? 'checked' : ''} onchange="toggleSpeakerType('${sp.id}','${t}',this.checked)"> ${t}</label>`
   ).join('');
   const statusOptions = SPEAKER_STATUS_PRESETS.map(st => `<option value="${st}" ${sp.trackerStatus === st ? 'selected' : ''}>${st}</option>`).join('');
+  const sc = sp.data.secondaryContact || { name: '', role: '', email: '', phone: '' };
+  const hasSecondaryContact = !!(sc.name || sc.role || sc.email || sc.phone);
 
   const commsHtml = (sp.data.comms || []).slice().reverse().map(c =>
     `<div class="sp-comm-item"><span class="ts">${escapeHtml(c.ts)}</span>${escapeHtml(c.note)}</div>`
@@ -14387,6 +14413,17 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label for="sk-contactname-${sp.id}">Contact name</label><input id="sk-contactname-${sp.id}" type="text" value="${escapeHtml(sp.contactName)}" onchange="updateSpeakerSimple('${sp.id}','contactName',this.value)"></div>
           <div class="sp-field"><label for="sk-contactemail-${sp.id}">Contact email</label><input id="sk-contactemail-${sp.id}" type="email" value="${escapeHtml(sp.contactEmail)}" onchange="updateSpeakerSimple('${sp.id}','contactEmail',this.value)"></div>
           <div class="sp-field"><label for="sk-contactphone-${sp.id}">Contact phone</label><input id="sk-contactphone-${sp.id}" type="text" value="${escapeHtml(sp.contactPhone)}" onchange="updateSpeakerSimple('${sp.id}','contactPhone',this.value)"></div>
+          <div class="sp-field" style="grid-column:1/-1;">
+            <details class="sp-secondary-contact" ${hasSecondaryContact ? 'open' : ''}>
+              <summary>${hasSecondaryContact ? 'Second contact' : '+ Add a second contact'}</summary>
+              <div class="sp-field-grid" style="margin-top:8px;">
+                <div class="sp-field"><label for="sk-sc-name-${sp.id}">Name</label><input id="sk-sc-name-${sp.id}" type="text" value="${escapeHtml(sc.name)}" onchange="updateSpeakerNested('${sp.id}','secondaryContact','name',this.value)"></div>
+                <div class="sp-field"><label for="sk-sc-role-${sp.id}">Role</label><input id="sk-sc-role-${sp.id}" type="text" placeholder="e.g. Manager, Booking agent" value="${escapeHtml(sc.role)}" onchange="updateSpeakerNested('${sp.id}','secondaryContact','role',this.value)"></div>
+                <div class="sp-field"><label for="sk-sc-email-${sp.id}">Email</label><input id="sk-sc-email-${sp.id}" type="email" value="${escapeHtml(sc.email)}" onchange="updateSpeakerNested('${sp.id}','secondaryContact','email',this.value)"></div>
+                <div class="sp-field"><label for="sk-sc-phone-${sp.id}">Phone</label><input id="sk-sc-phone-${sp.id}" type="text" value="${escapeHtml(sc.phone)}" onchange="updateSpeakerNested('${sp.id}','secondaryContact','phone',this.value)"></div>
+              </div>
+            </details>
+          </div>
           <div class="sp-field"><label for="sk-trackerstatus-${sp.id}">Tracker status</label><select id="sk-trackerstatus-${sp.id}" onchange="updateSpeakerSimple('${sp.id}','trackerStatus',this.value)">${statusOptions}</select></div>
           <div class="sp-field"><label for="sk-arrangement-${sp.id}">Speaker arrangement</label><select id="sk-arrangement-${sp.id}" onchange="updateSpeakerData('${sp.id}','arrangement',this.value)">
             <option value="" ${!sp.data.arrangement ? 'selected' : ''}>Standard (flat fee, no travel arranged)</option>
