@@ -12106,16 +12106,17 @@ function renderSpeakerPublicView() {
 
   const pendingCount = Object.keys(pending).length;
 
-  // Every performer needs to see this, front and center -- with several artists sharing the
-  // same stage in tight back-to-back slots, everyone working off the same rider (not their own)
-  // is what makes a fast changeover possible at all.
+  // Every performer needs to see this, front and center -- frames it as what HSBC/SBCMC's
+  // production is providing (not a restriction on what artists may ask for), since with this
+  // many concerts and stage changes across four days, building from one shared framework is
+  // what makes a fast, well-supported changeover possible for everyone.
   const riderBannerHtml = conferenceProductionRider ? `
     <div class="spv-rider-banner">
       <div class="spv-rider-banner-head">
-        <span class="spv-rider-badge">Required</span>
-        <div class="spv-rider-banner-title">📋 SBCMC 2027 Production Rider</div>
+        <span class="spv-rider-badge">HSBC &amp; SBCMC Production</span>
+        <div class="spv-rider-banner-title">📋 2027 Conference Production Rider</div>
       </div>
-      <p>With multiple artists sharing the stage in short, back-to-back slots, every performer works from <b>this one rider</b> — not a personal rider you may normally send. Please review it and plan your setup around it.</p>
+      <p>This rider outlines the sound, staging, and technical production HSBC and SBCMC are providing for the 2027 conference. With four days of concerts and frequent stage changes, every performer works from this shared framework rather than an individual rider — the approach that lets our team support each act efficiently and consistently. Please review it and plan your setup accordingly.</p>
       <a class="spv-rider-download" href="${escapeHtml(conferenceProductionRider.url)}" target="_blank" rel="noopener">⬇ Download the Production Rider</a>
       <div class="spv-rider-meta">${escapeHtml(conferenceProductionRider.fileName)} · posted ${escapeHtml(conferenceProductionRider.uploadedAt)}</div>
     </div>
