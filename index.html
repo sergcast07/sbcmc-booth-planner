@@ -11854,7 +11854,7 @@ const MATERIAL_ITEM_LABELS = {
 // generic truthiness check elsewhere (completeness, tab alerts, materialsNeededCount) already
 // works unchanged across both shapes, since both a non-empty string and a non-null object are
 // truthy -- only the two rendering spots and the pending-value formatter need to know the type.
-const MATERIAL_ITEM_TYPES = { bio: 'text', sessionDescription: 'text', headshot: 'file-or-link' };
+const MATERIAL_ITEM_TYPES = { bio: 'text', sessionDescription: 'text', headshot: 'file-or-link', slideDeck: 'file-or-link' };
 function materialItemType(key) { return MATERIAL_ITEM_TYPES[key] || 'file'; }
 const MATERIALS_BY_TYPE = {
   'Keynote': ['bio', 'headshot', 'sessionDescription', 'slideDeck'],
