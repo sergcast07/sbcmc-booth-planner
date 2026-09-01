@@ -417,8 +417,16 @@
     padding: 8px 14px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em;
     font-family: 'Inter', sans-serif;
   }
-  #gate-logout-btn {
+  #gate-user-bar {
     position: fixed; bottom: 14px; right: 14px; z-index: 10000;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #gate-user-badge {
+    background: rgba(20,24,33,0.6); color: #fff; border-radius: 8px;
+    padding: 7px 13px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em;
+    font-family: 'Inter', sans-serif; white-space: nowrap;
+  }
+  #gate-logout-btn {
     background: rgba(20,24,33,0.82); color: #fff; border: none; border-radius: 8px;
     padding: 7px 13px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em;
     font-family: 'Inter', sans-serif; cursor: pointer; opacity: 0.7;
@@ -1419,7 +1427,10 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 </head>
 <body>
 <div id="view-only-banner">🔒 In Read Only Mode — nothing here will be saved.</div>
-<button id="gate-logout-btn" onclick="gateLogout()" style="display:none;">Log out</button>
+<div id="gate-user-bar" style="display:none;">
+  <span id="gate-user-badge"></span>
+  <button id="gate-logout-btn" onclick="gateLogout()">Log out</button>
+</div>
 <div id="access-gate">
   <div class="gate-card">
     <div class="gate-eyebrow">SBCMC 2027</div>
@@ -1551,6 +1562,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   }
   function applyLegacySession(viewOnly) {
     window.isLegacySession = true;
+    window.currentUserLabel = 'Shared login';
     window.isAdminUser = !viewOnly;
     window.userPermissions = {};
     ALL_SECTION_KEYS.forEach(function(k) { window.userPermissions[k] = viewOnly ? 'view' : 'edit'; });
@@ -1587,6 +1599,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     (perms || []).forEach(function(p) { window.userPermissions[p.section_key] = p.level; });
     window.isAdminUser = !!(profile.roles && profile.roles.is_admin);
     window.isLegacySession = false;
+    window.currentUserLabel = profile.display_name || profile.email;
     document.body.classList.remove('view-only-mode'); // that banner is a legacy-fallback-only concept, see applyLegacySession
     finishUnlock();
   }
@@ -1594,7 +1607,9 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   function finishUnlock() {
     document.body.classList.remove('gate-locked');
     gateEl.style.display = 'none';
-    document.getElementById('gate-logout-btn').style.display = 'block';
+    const userBadge = document.getElementById('gate-user-badge');
+    if (userBadge) userBadge.textContent = window.currentUserLabel ? 'Signed in as ' + window.currentUserLabel : '';
+    document.getElementById('gate-user-bar').style.display = 'flex';
     // Only relevant for a same-session login (typed credentials after the main script has
     // already run) -- a returning user with a stored session hits this before the main script
     // even exists yet, which is fine, since that script does its own initial sweep.
