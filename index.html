@@ -750,7 +750,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 
 /* ==== Quick-add modal (new sponsor/speaker) ==== */
 .qa-modal-overlay { position: fixed; inset: 0; z-index: 9998; background: rgba(20,30,34,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; }
-.qa-modal-card { background: var(--panel); border-radius: 14px; padding: 28px 26px; width: 100%; max-width: 420px; box-shadow: 0 24px 70px rgba(0,0,0,0.4); border-top: 3px solid var(--gold); }
+.qa-modal-card { background: var(--panel); border-radius: 14px; padding: 28px 26px; width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto; box-shadow: 0 24px 70px rgba(0,0,0,0.4); border-top: 3px solid var(--gold); }
 .qa-modal-card h3 { font-family: var(--font-display); font-size: 19px; margin: 0 0 4px; color: var(--teal-deep); }
 .qa-modal-sub { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 18px; }
 .qa-modal-field { margin-bottom: 14px; }
@@ -3333,6 +3333,10 @@ function humanizeFieldWord(word) {
 function humanizeFieldPath(path) {
   return path.split('.').filter(function(p) { return p !== 'data'; }).map(humanizeFieldWord).join(' — ');
 }
+// A diff entry is either {path, oldVal, newVal} (humanize the path for display) or
+// {label, oldVal, newVal, noArrow} pre-built by diffIdArray below (an array-item add/remove/
+// change already has a readable description, and doesn't map onto a single dotted field path).
+function auditDiffLabel(d) { return d.label || humanizeFieldPath(d.path); }
 // The one-line, plain-English "what happened" summary shown up front -- the full technical
 // diff (exact field paths, every changed value) stays available by expanding the row.
 function auditRowSummary(row, diffs) {
@@ -3348,16 +3352,61 @@ function auditRowSummary(row, diffs) {
   if (!diffs.length) return 'No field changes detected.';
   if (diffs.length === 1) {
     const d = diffs[0];
-    return `Changed ${humanizeFieldPath(d.path)} from "${auditValueLabelShort(d.oldVal)}" to "${auditValueLabelShort(d.newVal)}"`;
+    if (d.noArrow) return auditDiffLabel(d);
+    return `Changed ${auditDiffLabel(d)} from "${auditValueLabelShort(d.oldVal)}" to "${auditValueLabelShort(d.newVal)}"`;
   }
-  if (diffs.length <= 3) return `Changed ${diffs.map(function(d) { return humanizeFieldPath(d.path); }).join(', ')}`;
+  if (diffs.length <= 3) return diffs.map(function(d) { return d.noArrow ? auditDiffLabel(d) : `Changed ${auditDiffLabel(d)}`; }).join('; ');
   return `Changed ${diffs.length} fields`;
 }
 
+// A short, human-readable tag for one entry of an id-keyed array (this app's most common shape
+// for that is a speaker's `sessions` array) so an add/remove/change on one entry can say WHICH
+// one, not just dump the whole array. Falls back gracefully for arrays this doesn't recognize.
+function auditArrayItemLabel(item) {
+  if (!item || typeof item !== 'object') return String(item);
+  if (item.track || item.title) {
+    const what = item.track || item.title;
+    const when = item.sessionDate ? friendlyDate(item.sessionDate) + (item.timeSlot ? ', ' + friendlyTime(item.timeSlot) : '') : '';
+    return when ? `${what} (${when})` : what;
+  }
+  if (item.label) return item.label;
+  if (item.name) return item.name;
+  return 'an item';
+}
+function isIdArray(v) {
+  return Array.isArray(v) && v.every(function(x) { return x && typeof x === 'object' && !Array.isArray(x) && 'id' in x; });
+}
+// Matches array entries by id (add/remove show up as exactly that; a changed entry is diffed
+// field-by-field, same recursion as the rest of diffAuditRow) instead of comparing the whole
+// array as one opaque blob -- that's what made a single room edit on one session render as an
+// unreadable full-array JSON dump.
+function diffIdArray(fieldLabel, oldArr, newArr, out) {
+  const oldById = {}, newById = {};
+  oldArr.forEach(function(x) { oldById[x.id] = x; });
+  newArr.forEach(function(x) { newById[x.id] = x; });
+  const ids = new Set([...Object.keys(oldById), ...Object.keys(newById)]);
+  ids.forEach(function(id) {
+    const ov = oldById[id], nv = newById[id];
+    if (ov && !nv) {
+      out.push({ label: `${fieldLabel}: removed ${auditArrayItemLabel(ov)}`, noArrow: true });
+    } else if (!ov && nv) {
+      out.push({ label: `${fieldLabel}: added ${auditArrayItemLabel(nv)}`, noArrow: true });
+    } else if (JSON.stringify(ov) !== JSON.stringify(nv)) {
+      const itemLabel = auditArrayItemLabel(nv);
+      Object.keys(Object.assign({}, ov, nv)).forEach(function(k) {
+        if (k === 'id') return;
+        if (JSON.stringify(ov[k]) !== JSON.stringify(nv[k])) {
+          out.push({ label: `${fieldLabel} — ${itemLabel} — ${humanizeFieldWord(k)}`, oldVal: ov[k], newVal: nv[k] });
+        }
+      });
+    }
+  });
+}
 // Recursive diff: walks all the way down through nested plain objects (this app's jsonb
 // `data` column nests category -> field, e.g. data.financial.feeStatus) so a change shows up
-// at the actual field that changed, not just "Financial changed" -- arrays are left as opaque
-// whole-value comparisons (diffing list contents field-by-field isn't meaningful here).
+// at the actual field that changed, not just "Financial changed". An array of id-keyed objects
+// (sessions, etc.) is decomposed per-item via diffIdArray; any other array is left as an opaque
+// whole-value comparison (diffing an unordered list of strings field-by-field isn't meaningful).
 function diffAuditRow(oldData, newData) {
   const out = [];
   const isPlainObj = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -3370,6 +3419,8 @@ function diffAuditRow(oldData, newData) {
       const nextPath = path ? path + '.' + key : key;
       if (isPlainObj(sov) && isPlainObj(snv)) {
         walk(sov, snv, nextPath);
+      } else if (isIdArray(sov) && isIdArray(snv)) {
+        if (JSON.stringify(sov) !== JSON.stringify(snv)) diffIdArray(humanizeFieldPath(nextPath), sov, snv, out);
       } else if (JSON.stringify(sov) !== JSON.stringify(snv)) {
         out.push({ path: nextPath, oldVal: sov, newVal: snv });
       }
@@ -3395,7 +3446,9 @@ function renderAuditEntries(rows, opts) {
     if (row.action === 'update' && diffs.length) {
       rawDetail = '<details class="audit-raw-detail"><summary>Show exact fields changed</summary>' +
         '<ul class="hint" style="margin:6px 0 0; padding-left:18px;">' + diffs.map(function(d) {
-          return '<li><b>' + escapeHtml(d.path) + ':</b> ' + escapeHtml(auditValueLabel(d.oldVal)) + ' → ' + escapeHtml(auditValueLabel(d.newVal)) + '</li>';
+          return d.noArrow
+            ? '<li>' + escapeHtml(auditDiffLabel(d)) + '</li>'
+            : '<li><b>' + escapeHtml(auditDiffLabel(d)) + ':</b> ' + escapeHtml(auditValueLabel(d.oldVal)) + ' → ' + escapeHtml(auditValueLabel(d.newVal)) + '</li>';
         }).join('') + '</ul></details>';
     } else if (row.action === 'delete' && row.old_data) {
       rawDetail = '<details class="audit-raw-detail"><summary>Show full record as last saved</summary>' +
