@@ -1359,6 +1359,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-card .sch-conflict-icon { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 11px; }
 .sch-cell.sch-room-conflict { background: rgba(192,57,43,0.08); outline: 1px dashed #c0392b; outline-offset: -1px; }
 .sch-room-conflict-flag { font-size: 10px; font-weight: 700; color: #a52620; }
+.sch-room-booking { background: var(--gold-pale); border: 1px dashed var(--gold); border-radius: 6px; padding: 6px 8px; font-size: 11px; color: var(--gold); font-weight: 600; display: flex; align-items: center; }
 
 .sch-timeline-day { margin-bottom: 22px; }
 .sch-timeline-day-title { font-family: var(--font-display); font-size: 15px; color: var(--teal-deep); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--gold); }
@@ -4596,6 +4597,7 @@ async function initSupabase() {
       (typeof loadConferenceDocuments === 'function' ? loadConferenceDocuments() : Promise.resolve()),
       (typeof loadDriversAndHotels === 'function' ? loadDriversAndHotels() : Promise.resolve()),
       (typeof loadSessionRoomsAndTracks === 'function' ? loadSessionRoomsAndTracks() : Promise.resolve()),
+      (typeof loadBreakoutRoomBookings === 'function' ? loadBreakoutRoomBookings() : Promise.resolve()),
       (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
       (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
       (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
@@ -10786,6 +10788,25 @@ const HOTELS_TABLE = 'conference_hotels';
 const SESSION_ROOMS_TABLE = 'session_rooms';
 const SESSION_TRACKS_TABLE = 'session_tracks';
 
+// Lets staff claim a room for a breakout slot before any track/speaker is assigned there --
+// e.g. holding a room for AV setup or capacity reasons while the lineup is still being worked
+// out. A real session landing in that same room+slot clears the booking automatically (see
+// clearRoomBookingIfAny), so it never lingers as a stale duplicate once it's fulfilled.
+// Deliberately its own table rather than a field on schedule_slots: one breakout slot spans
+// many rooms in parallel (one per track), so a booking has to be keyed by (room, slot), not by
+// slot alone. Requires its own table:
+//   create table if not exists breakout_room_bookings (
+//     id text primary key, room text not null, slot_id text not null, note text default ''
+//   );
+//   alter table breakout_room_bookings enable row level security;
+//   create policy "public read breakout_room_bookings" on breakout_room_bookings for select using (true);
+//   create policy "public write breakout_room_bookings" on breakout_room_bookings for insert with check (true);
+//   create policy "public update breakout_room_bookings" on breakout_room_bookings for update using (true);
+//   create policy "public delete breakout_room_bookings" on breakout_room_bookings for delete using (true);
+// Until that table exists, bookings made here still work for the current session but won't
+// persist across a reload (same graceful-degradation behavior as everything else in this app).
+const BREAKOUT_ROOM_BOOKINGS_TABLE = 'breakout_room_bookings';
+
 // Master conference schedule (Schedule tab): every named block of time across all four days --
 // keynotes/concerts, breakouts, meals, business meetings -- editable the same way rooms/tracks
 // are. Breakout sessions "belong" to a slot purely by sessionDate+timeSlot matching that slot's
@@ -12557,6 +12578,7 @@ const DEFAULT_SESSION_TRACKS = [
 ];
 let sessionRooms = DEFAULT_SESSION_ROOMS.map((name, i) => ({ id: 'room_default_' + i, name, capacity: '' }));
 let sessionTracks = DEFAULT_SESSION_TRACKS.map((name, i) => ({ id: 'track_default_' + i, name }));
+let breakoutRoomBookings = []; // [{id, room, slotId, note}] -- see BREAKOUT_ROOM_BOOKINGS_TABLE
 
 async function loadSessionRoomsAndTracks() {
   if (!sbClient) return;
@@ -12572,6 +12594,54 @@ async function loadSessionRoomsAndTracks() {
   } catch (err) {
     console.warn('Session rooms/tracks load failed:', err);
   }
+}
+
+async function loadBreakoutRoomBookings() {
+  if (!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).select('*');
+    if (!error && data) breakoutRoomBookings = data.map(r => ({ id: r.id, room: r.room, slotId: r.slot_id, note: r.note || '' }));
+    else if (error) console.warn('Breakout room bookings table not available:', errDetail(error));
+  } catch (err) {
+    console.warn('Breakout room bookings load failed:', err);
+  }
+}
+function findRoomBooking(room, slotId) {
+  return breakoutRoomBookings.find(function(b) { return b.room === room && b.slotId === slotId; });
+}
+function bookBreakoutRoom(room, slotId) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
+  if (findRoomBooking(room, slotId)) return;
+  const note = (prompt('Note for this reservation (optional) — e.g. "holding for AV setup":', '') || '').trim();
+  const booking = { id: makeId(), room: room, slotId: slotId, note: note };
+  breakoutRoomBookings.push(booking);
+  renderScheduleView();
+  if (sbClient) {
+    sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, room: booking.room, slot_id: booking.slotId, note: booking.note }).then(({ error }) => {
+      if (error) reportWriteError('room-booking:' + booking.id, 'Couldn’t save that reservation — it’ll disappear next reload.', error);
+      else reportWriteSuccess('room-booking:' + booking.id);
+    });
+  }
+}
+function releaseBreakoutRoomBooking(id) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
+  breakoutRoomBookings = breakoutRoomBookings.filter(function(b) { return b.id !== id; });
+  renderScheduleView();
+  if (sbClient) {
+    sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).delete().eq('id', id).then(({ error }) => {
+      if (error) reportWriteError('room-booking-delete:' + id, 'Couldn’t release that reservation — it’ll reappear next reload.', error);
+    });
+  }
+}
+// Called whenever a real session claims a room+slot (see propagateBreakoutCellRoom,
+// schRoomDrop, updateSessionRoomFromGrid) -- a placeholder reservation has served its purpose
+// once an actual track/session is there, so it clears automatically instead of sitting
+// alongside the real occupant as a stale duplicate.
+function clearRoomBookingIfAny(room, slotId) {
+  const existing = findRoomBooking(room, slotId);
+  if (!existing) return;
+  breakoutRoomBookings = breakoutRoomBookings.filter(function(b) { return b.id !== existing.id; });
+  if (sbClient) sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).delete().eq('id', existing.id).then(function() {});
 }
 
 // Shared upsert for a room, with graceful fallback if "session_rooms.capacity" hasn't been
@@ -13318,7 +13388,20 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
       const cls = 'sch-cell' + (occs.length ? '' : ' sch-cell-empty') + (roomDoubleBooked ? ' sch-room-conflict' : '');
       const warnBadge = roomDoubleBooked ? `<div class="sch-room-conflict-flag" title="Two different tracks are both booked in this room at this time.">🚪⚠️ Double-booked room</div>` : '';
       const dragHandlers = canEditSchedule ? `ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schRoomDrop(event, '${isNone ? '' : jsAttrString(roomKey)}', '${slot.id}')"` : '';
-      return `<td><div class="${cls}" ${dragHandlers}>${warnBadge}${cards || (isNone ? '' : '<span class="sp-sub">—</span>')}</div></td>`;
+      // An empty cell can still be claimed ahead of any track/session being assigned -- see
+      // bookBreakoutRoom. Only real rooms are bookable, not the "No room set" catch-all row.
+      let emptyHtml = '';
+      if (!occs.length) {
+        const booking = isNone ? null : findRoomBooking(roomKey, slot.id);
+        if (booking) {
+          emptyHtml = `<div class="sch-room-booking">🔒 Reserved${booking.note ? ': ' + escapeHtml(booking.note) : ''}${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="releaseBreakoutRoomBooking('${booking.id}')" title="Release this reservation">×</span>` : ''}</div>`;
+        } else if (!isNone && canEditSchedule) {
+          emptyHtml = `<button class="sch-cell-add" style="width:100%;" onclick="bookBreakoutRoom('${jsAttrString(roomKey)}', '${slot.id}')">+ Reserve</button>`;
+        } else {
+          emptyHtml = isNone ? '' : '<span class="sp-sub">—</span>';
+        }
+      }
+      return `<td><div class="${cls}" ${dragHandlers}>${warnBadge}${cards}${emptyHtml}</div></td>`;
     }).join('');
     const label = isNone ? 'No room set' : roomLabelWithCapacity(roomKey);
     return `<tr><td class="sch-track-label"${isNone ? ' style="font-style:italic; color:var(--ink-soft);"' : ''}>${escapeHtml(label)}</td>${cells}</tr>`;
@@ -13515,6 +13598,7 @@ function schRoomDrop(e, targetRoom, targetSlotId) {
     });
   });
   touchedSpeakerIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
+  if (targetRoom) clearRoomBookingIfAny(targetRoom, targetSlotId);
   renderScheduleView();
 }
 function schUnscheduleSession(speakerId, sessionIndex) {
@@ -13546,6 +13630,7 @@ function updateSessionRoomFromGrid(speakerId, sessionIndex, value) {
   const sess = sp.data.sessions && sp.data.sessions[sessionIndex]; if (!sess) return;
   sess.room = value;
   pushSpeaker(sp);
+  if (value) { const slot = findSlotForSession(sess); if (slot) clearRoomBookingIfAny(value, slot.id); }
   renderScheduleView();
 }
 // A breakout cell's room belongs to the session, not to any one co-presenter -- looked up live
@@ -13566,6 +13651,7 @@ function propagateBreakoutCellRoom(trackId, slotId, value) {
     });
   });
   touchedSpeakerIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
+  if (value) clearRoomBookingIfAny(value, slotId);
   renderScheduleView();
 }
 // Same idea as propagateBreakoutCellRoom above, but for a slot's sub-options grid (see
@@ -13579,6 +13665,7 @@ function propagateSubOptionRoom(slotId, optionName, value) {
     });
   });
   touchedSpeakerIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
+  if (value) clearRoomBookingIfAny(value, slotId);
   renderScheduleView();
 }
 
