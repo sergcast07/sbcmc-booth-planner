@@ -10139,11 +10139,18 @@ function speakerCompleteness(sp) {
   const skipFee = sp.data.arrangement === 'sponsor'; // sponsor-provided has no fee
   const skipTravel = sp.data.arrangement !== 'travel'; // travel is only tracked for the 'travel' arrangement
   const lg = sp.data.logistics;
+  const prod = sp.data.production || {};
   const checks = [];
   checks.push(!!sp.contactEmail);
   checks.push((sp.types || []).length > 0);
   checks.push((sp.data.sessions || []).some(s => s.title));
-  if (!skipFee) checks.push(!!sp.data.financial.feeStatus);
+  // "Partially Paid" is still money owed, not a finished fee -- only "Paid in Full" should read
+  // as done (matches how the dashboard's own fee totals already treat this status elsewhere).
+  if (!skipFee) checks.push(sp.data.financial.feeStatus === 'Paid in Full');
+  // Same "only if flagged" pattern as hostNeeded/lodgingNeeded below -- not every speaker/artist
+  // needs a sound check, so this only counts against completeness once staff has actually
+  // marked one as needed (see the Production tab's "A sound check is needed" checkbox).
+  checks.push(!prod.soundCheckNeeded || !!prod.soundCheckScheduled);
   // materialsNeeded[key] flags which items staff actually wants from this speaker -- not
   // every item materialsForTypes() lists applies to every person of that type. Complete means
   // every flagged item has a real file on record (data.materials[key]), not just checked.
@@ -10171,7 +10178,9 @@ function speakerTabAlert(sp, tab) {
     const mat = materialsForTypes(sp.types, sp.data.arrangement);
     const mn = sp.data.materialsNeeded || {};
     const mats = sp.data.materials || {};
-    return mat.some(k => mn[k] && !mats[k]);
+    if (mat.some(k => mn[k] && !mats[k])) return true;
+    const prod = sp.data.production || {};
+    return !!prod.soundCheckNeeded && !prod.soundCheckScheduled;
   }
   if (tab === 'logistics') {
     return (sp.data.logistics.transportNeeds || []).some(t => !t.driverId);
@@ -10788,15 +10797,16 @@ const HOTELS_TABLE = 'conference_hotels';
 const SESSION_ROOMS_TABLE = 'session_rooms';
 const SESSION_TRACKS_TABLE = 'session_tracks';
 
-// Lets staff claim a room for a breakout slot before any track/speaker is assigned there --
-// e.g. holding a room for AV setup or capacity reasons while the lineup is still being worked
-// out. A real session landing in that same room+slot clears the booking automatically (see
-// clearRoomBookingIfAny), so it never lingers as a stale duplicate once it's fulfilled.
+// Lets staff tie a track to a room for a breakout slot before any speaker has been assigned
+// there -- e.g. "Kids Worship is in E102 for Breakout 3" decided ahead of who's actually
+// presenting. Once a real session for that track+slot exists, it inherits the reserved room
+// automatically (see assignSpeakerToBreakoutCell) and the booking clears itself (see
+// clearRoomBookingIfFulfilled), so it never lingers as a stale duplicate once it's fulfilled.
 // Deliberately its own table rather than a field on schedule_slots: one breakout slot spans
-// many rooms in parallel (one per track), so a booking has to be keyed by (room, slot), not by
-// slot alone. Requires its own table:
+// many tracks/rooms in parallel, so a booking has to be keyed by (track, slot), not by slot
+// alone. Requires its own table:
 //   create table if not exists breakout_room_bookings (
-//     id text primary key, room text not null, slot_id text not null, note text default ''
+//     id text primary key, track_id text not null, slot_id text not null, room text not null
 //   );
 //   alter table breakout_room_bookings enable row level security;
 //   create policy "public read breakout_room_bookings" on breakout_room_bookings for select using (true);
@@ -11845,6 +11855,7 @@ function defaultSpeakerData() {
       local: false // no travel/lodging needed because they're local -- independent of fee arrangement; see arrangement below
     },
     production: {
+      soundCheckNeeded: false, // staff-set -- not every speaker/artist needs one, same "only if flagged" pattern as hostNeeded/lodgingNeeded below
       soundCheckScheduled: false, soundCheckTime: '',
       wirelessMics: '', wiredMics: '', iemMixes: '', diLines: '', // matches the venue rider's real categories (RF, wired, IEM, DI)
       productionNotes: '' // stage plot / input list references, special stage requests, anything not covered by the counts above
@@ -12578,7 +12589,7 @@ const DEFAULT_SESSION_TRACKS = [
 ];
 let sessionRooms = DEFAULT_SESSION_ROOMS.map((name, i) => ({ id: 'room_default_' + i, name, capacity: '' }));
 let sessionTracks = DEFAULT_SESSION_TRACKS.map((name, i) => ({ id: 'track_default_' + i, name }));
-let breakoutRoomBookings = []; // [{id, room, slotId, note}] -- see BREAKOUT_ROOM_BOOKINGS_TABLE
+let breakoutRoomBookings = []; // [{id, trackId, slotId, room}] -- see BREAKOUT_ROOM_BOOKINGS_TABLE
 
 async function loadSessionRoomsAndTracks() {
   if (!sbClient) return;
@@ -12600,28 +12611,45 @@ async function loadBreakoutRoomBookings() {
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).select('*');
-    if (!error && data) breakoutRoomBookings = data.map(r => ({ id: r.id, room: r.room, slotId: r.slot_id, note: r.note || '' }));
+    if (!error && data) breakoutRoomBookings = data.map(r => ({ id: r.id, trackId: r.track_id, slotId: r.slot_id, room: r.room }));
     else if (error) console.warn('Breakout room bookings table not available:', errDetail(error));
   } catch (err) {
     console.warn('Breakout room bookings load failed:', err);
   }
 }
-function findRoomBooking(room, slotId) {
+function findRoomBookingByTrack(trackId, slotId) {
+  return breakoutRoomBookings.find(function(b) { return b.trackId === trackId && b.slotId === slotId; });
+}
+function findRoomBookingByRoom(room, slotId) {
   return breakoutRoomBookings.find(function(b) { return b.room === room && b.slotId === slotId; });
 }
-function bookBreakoutRoom(room, slotId) {
+function pushRoomBooking(booking) {
+  if (!sbClient) return;
+  sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, track_id: booking.trackId, slot_id: booking.slotId, room: booking.room }).then(({ error }) => {
+    if (error) reportWriteError('room-booking:' + booking.id, 'Couldn’t save that reservation — it’ll disappear next reload.', error);
+    else reportWriteSuccess('room-booking:' + booking.id);
+  });
+}
+// Sets (or clears, with an empty room) which room a track is reserved into for a slot, ahead
+// of any speaker being assigned there. One booking per track+slot -- a track can only actually
+// occupy one room at a time, so picking a new room here replaces the old one rather than
+// stacking a second reservation.
+function setBreakoutRoomBooking(trackId, slotId, room) {
   if (!canEditOrWarn('schedule.all', 'schedule')) return;
-  if (findRoomBooking(room, slotId)) return;
-  const note = (prompt('Note for this reservation (optional) — e.g. "holding for AV setup":', '') || '').trim();
-  const booking = { id: makeId(), room: room, slotId: slotId, note: note };
-  breakoutRoomBookings.push(booking);
-  renderScheduleView();
-  if (sbClient) {
-    sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, room: booking.room, slot_id: booking.slotId, note: booking.note }).then(({ error }) => {
-      if (error) reportWriteError('room-booking:' + booking.id, 'Couldn’t save that reservation — it’ll disappear next reload.', error);
-      else reportWriteSuccess('room-booking:' + booking.id);
-    });
+  const existing = findRoomBookingByTrack(trackId, slotId);
+  if (!room) {
+    if (existing) releaseBreakoutRoomBooking(existing.id);
+    return;
   }
+  if (existing) {
+    existing.room = room;
+    pushRoomBooking(existing);
+  } else {
+    const booking = { id: makeId(), trackId: trackId, slotId: slotId, room: room };
+    breakoutRoomBookings.push(booking);
+    pushRoomBooking(booking);
+  }
+  renderScheduleView();
 }
 function releaseBreakoutRoomBooking(id) {
   if (!canEditOrWarn('schedule.all', 'schedule')) return;
@@ -12633,12 +12661,12 @@ function releaseBreakoutRoomBooking(id) {
     });
   }
 }
-// Called whenever a real session claims a room+slot (see propagateBreakoutCellRoom,
-// schRoomDrop, updateSessionRoomFromGrid) -- a placeholder reservation has served its purpose
-// once an actual track/session is there, so it clears automatically instead of sitting
-// alongside the real occupant as a stale duplicate.
-function clearRoomBookingIfAny(room, slotId) {
-  const existing = findRoomBooking(room, slotId);
+// Called once a real session exists for a track+slot (see assignSpeakerToBreakoutCell,
+// schDrop's speaker-drop branch) -- the placeholder reservation has served its purpose the
+// moment an actual session is there to carry the room instead, so it clears automatically
+// rather than sitting alongside the real occupant as a stale duplicate.
+function clearRoomBookingIfFulfilled(trackId, slotId) {
+  const existing = findRoomBookingByTrack(trackId, slotId);
   if (!existing) return;
   breakoutRoomBookings = breakoutRoomBookings.filter(function(b) { return b.id !== existing.id; });
   if (sbClient) sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).delete().eq('id', existing.id).then(function() {});
@@ -13212,8 +13240,13 @@ function assignSpeakerToBreakoutCell(speakerId, trackId, slotId) {
   const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
   const sp = getSpeaker(speakerId); if (!sp) return;
   if (!sp.data.sessions) sp.data.sessions = [];
-  sp.data.sessions.push({ id: makeId(), title: '', track: track.name, slotId: slot.id, sessionDate: slot.date, day: fullWeekday(slot.date), timeSlot: slot.start, room: '', lengthMin: '', description: '' });
+  // If this track+slot was already reserved a room ahead of anyone being assigned (see
+  // setBreakoutRoomBooking), the new session inherits it instead of starting blank -- that's
+  // the whole point of booking ahead of time.
+  const booking = findRoomBookingByTrack(trackId, slotId);
+  sp.data.sessions.push({ id: makeId(), title: '', track: track.name, slotId: slot.id, sessionDate: slot.date, day: fullWeekday(slot.date), timeSlot: slot.start, room: booking ? booking.room : '', lengthMin: '', description: '' });
   pushSpeaker(sp);
+  if (booking) clearRoomBookingIfFulfilled(trackId, slotId);
   renderScheduleView();
 }
 function setScheduleRosterSearch(v) {
@@ -13289,11 +13322,21 @@ function renderBreakoutGrid() {
       // re-looks-up the cell's occupants live (by track+slot id) rather than taking a snapshot,
       // so it stays correct even if the cell changed since this render.
       const cellRoom = occs.length ? occs[0].sess.room : '';
-      const roomHtml = occs.length
-        ? (canEditSchedule
+      let roomHtml;
+      if (occs.length) {
+        roomHtml = canEditSchedule
           ? `<select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); propagateBreakoutCellRoom('${track.id}', '${slot.id}', this.value)">${sessionRoomOptionsHtml(cellRoom)}</select>`
-          : (cellRoom ? `<div class="sch-card-room">📍 ${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : ''))
-        : '';
+          : (cellRoom ? `<div class="sch-card-room">📍 ${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : '');
+      } else {
+        // A track can be tied to a room ahead of anyone being assigned to it -- see
+        // setBreakoutRoomBooking. Picking a speaker afterward inherits this room automatically.
+        const booking = findRoomBookingByTrack(track.id, slot.id);
+        if (canEditSchedule) {
+          roomHtml = `<select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setBreakoutRoomBooking('${track.id}', '${slot.id}', this.value)" title="Reserve a room for this track/slot ahead of assigning a speaker">${sessionRoomOptionsHtml(booking ? booking.room : '')}</select>`;
+        } else {
+          roomHtml = booking ? `<div class="sch-room-booking">🔒 ${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : '';
+        }
+      }
       const occupantIds = new Set(occs.map(o => o.speakerId));
       const addOptions = sortedSpeakers.filter(sp => !occupantIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
       const addSelect = canEditSchedule ? `<select class="sch-cell-add" onchange="assignSpeakerToBreakoutCell(this.value,'${track.id}','${slot.id}'); this.value='';" onclick="event.stopPropagation();"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>` : '';
@@ -13388,15 +13431,18 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
       const cls = 'sch-cell' + (occs.length ? '' : ' sch-cell-empty') + (roomDoubleBooked ? ' sch-room-conflict' : '');
       const warnBadge = roomDoubleBooked ? `<div class="sch-room-conflict-flag" title="Two different tracks are both booked in this room at this time.">🚪⚠️ Double-booked room</div>` : '';
       const dragHandlers = canEditSchedule ? `ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schRoomDrop(event, '${isNone ? '' : jsAttrString(roomKey)}', '${slot.id}')"` : '';
-      // An empty cell can still be claimed ahead of any track/session being assigned -- see
-      // bookBreakoutRoom. Only real rooms are bookable, not the "No room set" catch-all row.
+      // An empty cell can still be claimed for a specific track ahead of any speaker being
+      // assigned -- see setBreakoutRoomBooking. Only real rooms are bookable, not the "No room
+      // set" catch-all row.
       let emptyHtml = '';
       if (!occs.length) {
-        const booking = isNone ? null : findRoomBooking(roomKey, slot.id);
+        const booking = isNone ? null : findRoomBookingByRoom(roomKey, slot.id);
         if (booking) {
-          emptyHtml = `<div class="sch-room-booking">🔒 Reserved${booking.note ? ': ' + escapeHtml(booking.note) : ''}${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="releaseBreakoutRoomBooking('${booking.id}')" title="Release this reservation">×</span>` : ''}</div>`;
+          const bookedTrack = sessionTracks.find(t => t.id === booking.trackId);
+          emptyHtml = `<div class="sch-room-booking">🔒 Reserved: ${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="releaseBreakoutRoomBooking('${booking.id}')" title="Release this reservation">×</span>` : ''}</div>`;
         } else if (!isNone && canEditSchedule) {
-          emptyHtml = `<button class="sch-cell-add" style="width:100%;" onclick="bookBreakoutRoom('${jsAttrString(roomKey)}', '${slot.id}')">+ Reserve</button>`;
+          const trackOptions = sessionTracks.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+          emptyHtml = `<select class="sch-cell-add" style="width:100%;" onchange="if(this.value){setBreakoutRoomBooking(this.value, '${slot.id}', '${jsAttrString(roomKey)}'); this.value='';}"><option value="">+ Reserve for track…</option>${trackOptions}</select>`;
         } else {
           emptyHtml = isNone ? '' : '<span class="sp-sub">—</span>';
         }
@@ -13598,7 +13644,8 @@ function schRoomDrop(e, targetRoom, targetSlotId) {
     });
   });
   touchedSpeakerIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
-  if (targetRoom) clearRoomBookingIfAny(targetRoom, targetSlotId);
+  const droppedTrack = sessionTracks.find(t => t.name === trackName);
+  if (droppedTrack) clearRoomBookingIfFulfilled(droppedTrack.id, targetSlotId);
   renderScheduleView();
 }
 function schUnscheduleSession(speakerId, sessionIndex) {
@@ -13630,7 +13677,11 @@ function updateSessionRoomFromGrid(speakerId, sessionIndex, value) {
   const sess = sp.data.sessions && sp.data.sessions[sessionIndex]; if (!sess) return;
   sess.room = value;
   pushSpeaker(sp);
-  if (value) { const slot = findSlotForSession(sess); if (slot) clearRoomBookingIfAny(value, slot.id); }
+  if (value && sess.track) {
+    const slot = findSlotForSession(sess);
+    const trackObj = sessionTracks.find(t => t.name === sess.track);
+    if (slot && trackObj) clearRoomBookingIfFulfilled(trackObj.id, slot.id);
+  }
   renderScheduleView();
 }
 // A breakout cell's room belongs to the session, not to any one co-presenter -- looked up live
@@ -13651,11 +13702,12 @@ function propagateBreakoutCellRoom(trackId, slotId, value) {
     });
   });
   touchedSpeakerIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
-  if (value) clearRoomBookingIfAny(value, slotId);
+  if (value) clearRoomBookingIfFulfilled(trackId, slotId);
   renderScheduleView();
 }
 // Same idea as propagateBreakoutCellRoom above, but for a slot's sub-options grid (see
-// secondaryBreakoutGridsHtml) -- co-presenters share an option name + slot instead of a track.
+// secondaryBreakoutGridsHtml) -- co-presenters share an option name + slot instead of a track,
+// and options aren't part of sessionTracks, so there's no matching room booking to clear here.
 function propagateSubOptionRoom(slotId, optionName, value) {
   if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const touchedSpeakerIds = new Set();
@@ -13665,7 +13717,6 @@ function propagateSubOptionRoom(slotId, optionName, value) {
     });
   });
   touchedSpeakerIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
-  if (value) clearRoomBookingIfAny(value, slotId);
   renderScheduleView();
 }
 
@@ -14548,6 +14599,7 @@ function speakerDetailHTML(sp) {
         <fieldset class="sp-fieldset">
           <legend>Sound Check &amp; Production</legend>
           <div class="sp-field-grid">
+          <div class="sp-check" style="grid-column:1/-1;"><input id="sk-soundcheckneeded-${sp.id}" type="checkbox" ${sp.data.production.soundCheckNeeded ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','production','soundCheckNeeded',this.checked)"><label for="sk-soundcheckneeded-${sp.id}"> A sound check is needed</label></div>
           <div class="sp-check" style="grid-column:1/-1;"><input id="sk-soundcheckscheduled-${sp.id}" type="checkbox" ${sp.data.production.soundCheckScheduled ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','production','soundCheckScheduled',this.checked)"><label for="sk-soundcheckscheduled-${sp.id}"> Sound check scheduled</label></div>
           <div class="sp-field"><label for="sk-soundcheck-${sp.id}">Sound check time</label><input id="sk-soundcheck-${sp.id}" type="text" placeholder="e.g. Monday 2:00 PM" value="${escapeHtml(sp.data.production.soundCheckTime)}" onchange="updateSpeakerNested('${sp.id}','production','soundCheckTime',this.value)"></div>
           <div class="sp-field"><label for="sk-wirelessmics-${sp.id}">Wireless (RF) mics needed</label><input id="sk-wirelessmics-${sp.id}" type="number" value="${escapeHtml(sp.data.production.wirelessMics)}" onchange="updateSpeakerNested('${sp.id}','production','wirelessMics',this.value)"></div>
@@ -15057,7 +15109,7 @@ function emailSpeakerSummary(id) {
   }
 
   const prod = sp.data.production;
-  const hasProdInfo = prod.soundCheckScheduled || prod.wirelessMics || prod.wiredMics || prod.iemMixes || prod.diLines;
+  const hasProdInfo = prod.soundCheckNeeded || prod.soundCheckScheduled || prod.wirelessMics || prod.wiredMics || prod.iemMixes || prod.diLines;
   if (hasProdInfo) {
     lines.push('SOUND CHECK & PRODUCTION');
     lines.push('  Sound check: ' + (prod.soundCheckScheduled ? 'Scheduled' + (prod.soundCheckTime ? ' \u2014 ' + prod.soundCheckTime : '') : 'Not yet scheduled'));
