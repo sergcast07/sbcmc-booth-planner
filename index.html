@@ -13171,7 +13171,7 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
         const trackColor = trackColorByName[occ.sess.track] || 'var(--line)';
-        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}Click to open their full record">
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="${canEditSchedule}" ${canEditSchedule ? `ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}${canEditSchedule ? 'Click to open their full record — drag to move to another room/slot' : 'Click to open their full record'}">
           ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
           <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
           <div class="sch-card-title">${escapeHtml(occ.sess.track || '')}</div>
@@ -13182,7 +13182,8 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
       }).join('');
       const cls = 'sch-cell' + (occs.length ? '' : ' sch-cell-empty') + (roomDoubleBooked ? ' sch-room-conflict' : '');
       const warnBadge = roomDoubleBooked ? `<div class="sch-room-conflict-flag" title="Two different tracks are both booked in this room at this time.">🚪⚠️ Double-booked room</div>` : '';
-      return `<td><div class="${cls}">${warnBadge}${cards || (isNone ? '' : '<span class="sp-sub">—</span>')}</div></td>`;
+      const dragHandlers = canEditSchedule ? `ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schRoomDrop(event, '${isNone ? '' : jsAttrString(roomKey)}', '${slot.id}')"` : '';
+      return `<td><div class="${cls}" ${dragHandlers}>${warnBadge}${cards || (isNone ? '' : '<span class="sp-sub">—</span>')}</div></td>`;
     }).join('');
     const label = isNone ? 'No room set' : roomKey;
     return `<tr><td class="sch-track-label"${isNone ? ' style="font-style:italic; color:var(--ink-soft);"' : ''}>${escapeHtml(label)}</td>${cells}</tr>`;
@@ -13344,6 +13345,41 @@ function reorderSessionWithinCell(trackName, slotId, speakerId, sessionIndex, ta
   occs.forEach((o, idx) => { o.sess.cellOrder = idx; });
   const touchedIds = new Set(occs.map(o => o.speakerId));
   touchedIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
+  renderScheduleView();
+}
+// Breakout Grid's By Room view drags a card onto a (room, slot) cell instead of a (track, slot)
+// one -- reuses the same schDragStart/schDragPayload plumbing as schDrop above, just resolved
+// against a room+slot target. Moves every co-presenter of the dragged session's track+slot
+// together (same reasoning as propagateBreakoutCellRoom: a room, and a time slot, belong to the
+// whole session, not just the one card that got dragged).
+function schRoomDrop(e, targetRoom, targetSlotId) {
+  e.preventDefault();
+  if (e.currentTarget) e.currentTarget.classList.remove('sch-cell-hover');
+  const payload = schDragPayload; schDragPayload = null;
+  if (!payload || payload.type !== 'session') return;
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
+  const targetSlot = scheduleSlots.find(s => s.id === targetSlotId); if (!targetSlot) return;
+  const fromSp = getSpeaker(payload.speakerId); if (!fromSp) return;
+  const fromSess = fromSp.data.sessions && fromSp.data.sessions[payload.sessionIndex]; if (!fromSess) return;
+  const fromSlot = findSlotForSession(fromSess); if (!fromSlot) return;
+  if (fromSlot.id === targetSlotId && (fromSess.room || '') === targetRoom) return; // dropped back where it started
+  const trackName = fromSess.track;
+  const slotChanged = fromSlot.id !== targetSlotId;
+  const touchedSpeakerIds = new Set();
+  speakers.forEach(sp => {
+    (sp.data.sessions || []).forEach(sess => {
+      if (sess.track !== trackName) return;
+      const sessSlot = findSlotForSession(sess);
+      if (!sessSlot || sessSlot.id !== fromSlot.id) return;
+      sess.room = targetRoom;
+      if (slotChanged) {
+        sess.slotId = targetSlot.id; sess.sessionDate = targetSlot.date; sess.timeSlot = targetSlot.start; sess.day = fullWeekday(targetSlot.date);
+        delete sess.cellOrder;
+      }
+      touchedSpeakerIds.add(sp.id);
+    });
+  });
+  touchedSpeakerIds.forEach(id => { const sp = getSpeaker(id); if (sp) pushSpeaker(sp); });
   renderScheduleView();
 }
 function schUnscheduleSession(speakerId, sessionIndex) {
