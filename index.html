@@ -12945,9 +12945,24 @@ function addSpeaker() {
   openQuickAddModal('speaker', id);
 }
 
+// Soft-remove: parks an active speaker/artist in the Contact Only rolodex instead of deleting
+// them outright -- everything on the record (sessions, materials, notes) is left exactly as it
+// was, just excluded from stats/completeness/the active roster like every other Contact Only
+// entry. Nothing else about removeSpeaker() below changes -- it's now reached only from a
+// Contact Only record, where an admin has already decided there's truly nothing worth keeping.
+function moveSpeakerToContactOnly(id) {
+  if (!canEditOrWarn('speakers.roster', 'speakers')) return;
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!confirm('Move ' + (sp.name || 'this speaker/artist') + ' to Contact Only? Their record is kept, just moved out of the active roster — you can always move them back later.')) return;
+  sp.trackerStatus = 'Contact Only';
+  pushSpeaker(sp);
+  renderSpeakerView();
+  toast((sp.name || 'Speaker') + ' moved to Contact Only.');
+}
+
 function removeSpeaker(id) {
   if (!canEditOrWarn('speakers.roster', 'speakers')) return;
-  if (!confirm('Remove this speaker/artist? This cannot be undone.')) return;
+  if (!confirm('Permanently delete this speaker/artist? This cannot be undone.')) return;
   const sp = getSpeaker(id);
   // Clean up any uploaded files in Storage too, not just the database record -- both the
   // attendee-facing materials and the internal-only documents (rider, contract, etc.).
@@ -15428,7 +15443,9 @@ function speakerDetailHTML(sp) {
 
     <div style="padding: 4px 22px 16px;">
       ${window.isAdminUser ? `<button class="sp-add-btn" onclick="emailSpeakerSummary('${sp.id}')">\u2709\uFE0F Email Them Their Summary</button>` : ''}
-      <button class="sp-mini-btn" style="margin-left:8px; color:#a52620;" onclick="removeSpeaker('${sp.id}')">Remove this speaker/artist</button>
+      ${sp.trackerStatus === 'Contact Only'
+        ? `<button class="sp-mini-btn" style="margin-left:8px; color:#a52620;" onclick="removeSpeaker('${sp.id}')">Delete permanently</button>`
+        : `<button class="sp-mini-btn" style="margin-left:8px; color:#a52620;" onclick="moveSpeakerToContactOnly('${sp.id}')">\uD83D\uDCC7 Move to Contact Only</button>`}
     </div>
   `;
 }
