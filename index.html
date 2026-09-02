@@ -3861,6 +3861,7 @@ async function switchActiveYear(year) {
     (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
     (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
     (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
+    (typeof loadHotelInfoUrl === 'function' ? loadHotelInfoUrl() : Promise.resolve()),
     (typeof loadBreakoutScheduleReady === 'function' ? loadBreakoutScheduleReady() : Promise.resolve()),
     (typeof loadConferenceDocuments === 'function' ? loadConferenceDocuments() : Promise.resolve()),
     (typeof loadApplicantGroups === 'function' && canView('applicants.all') ? loadApplicantGroups() : Promise.resolve()),
@@ -4553,6 +4554,8 @@ async function initSponsorPublicView() {
     return;
   }
   try {
+    await loadConferenceYears();
+    await loadHotelInfoUrl();
     const { data: row, error } = await sbClient.from(SPONSORS_TABLE).select('*').eq('data->>publicToken', token).maybeSingle();
     if (error) throw error;
     if (!row) {
@@ -4615,8 +4618,20 @@ function renderSponsorPublicView() {
 
   const pendingCount = Object.keys(pending).length;
 
+  // Sponsors arrange their own travel/lodging in every case (there's no conference-arranged
+  // option for sponsors the way there sometimes is for speakers), so this is always shown here
+  // once staff has set a link.
+  const hotelInfoHtml = hotelInfoUrl ? `
+    <div class="dv-section">
+      <div class="dv-section-title">Hotel Options</div>
+      <p class="sp-sub sp-sub-wrap">Here are the conference's hotel options and rates if you need lodging.</p>
+      <a class="sp-add-btn" href="${escapeHtml(hotelInfoUrl)}" target="_blank" rel="noopener" style="display:inline-block; text-decoration:none;">🏨 View Hotel Options</a>
+    </div>
+  ` : '';
+
   document.getElementById('spv-body').innerHTML = `
     ${pendingCount > 0 ? `<div class="spv-pending-banner">Thanks! Our team will take a quick look at your update${pendingCount === 1 ? '' : 's'} shortly.</div>` : ''}
+    ${hotelInfoHtml}
 
     <div class="dv-section">
       <div class="dv-section-title">Your Contact Info</div>
@@ -4979,6 +4994,7 @@ async function initSupabase() {
       (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
       (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
       (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
+    (typeof loadHotelInfoUrl === 'function' ? loadHotelInfoUrl() : Promise.resolve()),
       (typeof loadBreakoutScheduleReady === 'function' ? loadBreakoutScheduleReady() : Promise.resolve()),
       // Applicant data includes minors (the high-school program) -- without view access to this
       // section, it isn't just hidden in the UI, it's never even downloaded to that browser.
@@ -7817,6 +7833,30 @@ function pushFundraisingGoal(val) {
       else { reportWriteSuccess('fundraising_goal'); }
     });
   }, 400);
+}
+
+// One link (e.g. SBCMC's own hotel/lodging info page) shown on the speaker and sponsor
+// self-service portals for anyone arranging their own travel -- speakers where staff aren't
+// booking lodging for them (data.logistics.lodgingNeeded is false/unset), and every sponsor,
+// since sponsors have no conference-arranged-travel concept at all. Same conference_settings
+// key/value/year pattern as the fundraising goal above.
+let hotelInfoUrl = '';
+async function loadHotelInfoUrl() {
+  if (!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'hotel_info_url').eq('conference_year', activeConferenceYear).maybeSingle();
+    if (!error && data) hotelInfoUrl = data.value || '';
+  } catch (e) { /* leave default (empty) */ }
+}
+function setHotelInfoUrl(val) {
+  if (!canEditOrWarn('transportation.all', 'transportation')) return;
+  hotelInfoUrl = (val || '').trim();
+  if (sbClient) {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'hotel_info_url', value: hotelInfoUrl, conference_year: activeConferenceYear }, { onConflict: 'id,conference_year' }).then(({ error }) => {
+      if (error) reportWriteError('hotel_info_url', 'Couldn’t save that link — it’ll revert next reload.', error);
+      else { reportWriteSuccess('hotel_info_url'); toast('Hotel info link saved.'); }
+    });
+  }
 }
 
 function setFundraisingGoal(val) {
@@ -12467,12 +12507,18 @@ async function initSpeakerPublicView() {
     return;
   }
   try {
+    // Both loadConferenceDocuments() (the rider) and loadHotelInfoUrl() below are year-scoped
+    // as of the multi-year migration -- this portal never goes through the normal login/
+    // initSupabase bootstrap that would otherwise set activeConferenceYear, so it has to resolve
+    // that first or both loads silently come back empty.
+    await loadConferenceYears();
     const [{ data: row, error }] = await Promise.all([
       sbClient.from(SPEAKERS_TABLE).select('*').eq('data->>publicToken', token).maybeSingle(),
       // Loads into the shared `conferenceProductionRider` global -- same one the admin
       // Speakers & Artists sidebar reads, so whatever staff has on file there is exactly
       // what shows up here.
-      loadConferenceDocuments()
+      loadConferenceDocuments(),
+      loadHotelInfoUrl()
     ]);
     if (error) throw error;
     if (!row) {
@@ -12605,9 +12651,21 @@ function renderSpeakerPublicView() {
     </div>
   ` : '';
 
+  // Only shown to whoever is booking their own lodging (staff isn't arranging it for them) --
+  // sp.data.logistics.lodgingNeeded true means the conference is already handling this, so
+  // pointing them at a self-booking link there would just be confusing.
+  const hotelInfoHtml = (!sp.data.logistics.lodgingNeeded && hotelInfoUrl) ? `
+    <div class="dv-section">
+      <div class="dv-section-title">Hotel Options</div>
+      <p class="sp-sub sp-sub-wrap">We're not arranging lodging for you directly, but here are the conference's hotel options and rates.</p>
+      <a class="sp-add-btn" href="${escapeHtml(hotelInfoUrl)}" target="_blank" rel="noopener" style="display:inline-block; text-decoration:none;">🏨 View Hotel Options</a>
+    </div>
+  ` : '';
+
   document.getElementById('skv-body').innerHTML = `
     ${riderBannerHtml}
     ${pendingCount > 0 ? `<div class="spv-pending-banner">Thanks! Our team will take a quick look at your update${pendingCount === 1 ? '' : 's'} shortly.</div>` : ''}
+    ${hotelInfoHtml}
 
     <div class="dv-section">
       <div class="dv-section-title">Your Documents</div>
@@ -15727,6 +15785,11 @@ function renderTransportationView() {
           <input type="text" id="tr-hotel-name" placeholder="Name">
           <input type="text" id="tr-hotel-address" placeholder="Address">
           <button class="sp-mini-btn" onclick="addHotel()">+ Add</button>
+        </div>
+        <div class="sp-sub" style="margin-top:14px;">Hotel info link for self-arranged travel — shown on the speaker/sponsor self-service links to anyone we aren't booking lodging for.</div>
+        <div class="sp-add-row" style="margin-top:6px;">
+          <input type="text" id="tr-hotel-info-url" placeholder="https://sbcmc.org/hotels" value="${escapeHtml(hotelInfoUrl)}" style="flex:1;">
+          <button class="sp-mini-btn" onclick="setHotelInfoUrl(document.getElementById('tr-hotel-info-url').value)">Save</button>
         </div>
       </div>
     </div>
