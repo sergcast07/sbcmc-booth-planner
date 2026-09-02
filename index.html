@@ -1952,7 +1952,10 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <button class="sp-add-btn" onclick="addSpeaker()">+ Add speaker/artist</button>
         <button class="sp-add-btn" onclick="openExportSortModal('speakers')" style="background:var(--ink-soft);">Export CSV</button>
       </div>
-      <div class="sk-section-title">Active <span class="sk-section-count" id="sk-active-count"></span></div>
+      <div class="sk-section-title clickable" data-section-toggle="sk-active" onclick="toggleSidebarSection('sk-active')">
+        Active <span class="sk-section-count" id="sk-active-count"></span><span class="sp-chevron">▸</span>
+      </div>
+      <div class="sp-collapsible-body" data-section-key="sk-active">
       <div class="sp-table-wrap">
       <table class="sp-table">
         <thead>
@@ -1968,6 +1971,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         </thead>
         <tbody id="sk-rows"></tbody>
       </table>
+      </div>
       </div>
       <div id="sk-contact-only-wrap" style="display:none; margin-top:26px;">
         <div class="sk-section-title clickable" data-section-toggle="sk-contact-only" onclick="toggleSidebarSection('sk-contact-only')">
