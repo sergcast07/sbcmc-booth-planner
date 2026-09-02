@@ -1854,6 +1854,10 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <button class="sp-add-btn" onclick="addSponsor()">+ Add sponsor</button>
         <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('sponsors')">Export CSV</button>
       </div>
+      <div class="sk-section-title clickable" data-section-toggle="sp-active" onclick="toggleSidebarSection('sp-active')">
+        Active <span class="sk-section-count" id="sp-active-count"></span><span class="sp-chevron">▸</span>
+      </div>
+      <div class="sp-collapsible-body" data-section-key="sp-active">
       <div class="sp-table-wrap">
       <table class="sp-table" id="sp-table">
         <thead><tr id="sp-thead-row">
@@ -1868,6 +1872,29 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         </tr></thead>
         <tbody id="sp-rows"></tbody>
       </table>
+      </div>
+      </div>
+      <div id="sp-inactive-wrap" style="display:none; margin-top:26px;">
+        <div class="sk-section-title clickable" data-section-toggle="sp-inactive" onclick="toggleSidebarSection('sp-inactive')">
+          Inactive <span class="sk-section-count" id="sp-inactive-count"></span><span class="sp-chevron">▸</span>
+        </div>
+        <div class="sp-collapsible-body" data-section-key="sp-inactive">
+          <div class="sp-table-wrap">
+          <table class="sp-table">
+            <thead><tr>
+              <th style="width:56px;"></th>
+              <th style="width:190px;">Organization</th>
+              <th style="width:150px;">Contact</th>
+              <th style="width:90px;">Package</th>
+              <th style="width:130px;">Amount / Status</th>
+              <th style="width:110px;">Due</th>
+              <th style="width:140px;">Tracker Status</th>
+              <th style="width:110px;">Linked Booth</th>
+            </tr></thead>
+            <tbody id="sp-inactive-rows"></tbody>
+          </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -9692,12 +9719,47 @@ function buildSponsorRowPair(s, todayStr) {
   return [tr, dtr];
 }
 
+// Same idea as the speaker roster's Active/Inactive split -- sponsors who aren't currently
+// live prospects (awaiting-renewal prior sponsors, declined) move to their own section below
+// instead of cluttering the main "All" list. A specific status filter, including these two
+// themselves, still isolates what it needs in the main table same as any other status.
+const SPONSOR_INACTIVE_STATUSES = ['Not Yet Registered (Prior Sponsor)', 'Declined'];
+
+function renderInactiveSponsorRows() {
+  const wrap = document.getElementById('sp-inactive-wrap');
+  const tbody = document.getElementById('sp-inactive-rows');
+  const countEl = document.getElementById('sp-inactive-count');
+  const activeCountEl = document.getElementById('sp-active-count');
+  if (activeCountEl) activeCountEl.textContent = sponsors.filter(s => !SPONSOR_INACTIVE_STATUSES.includes(s.trackerStatus)).length;
+  if (!wrap || !tbody) return;
+
+  const inactive = sponsors
+    .filter(s => SPONSOR_INACTIVE_STATUSES.includes(s.trackerStatus))
+    .filter(s => !sponsorSearch || sponsorSearchHaystack(s).includes(sponsorSearch.toLowerCase()))
+    .sort((a, b) => a.org.localeCompare(b.org));
+
+  if (countEl) countEl.textContent = sponsors.filter(s => SPONSOR_INACTIVE_STATUSES.includes(s.trackerStatus)).length;
+
+  const shouldShow = sponsorFilter === 'all' && inactive.length > 0;
+  wrap.style.display = shouldShow ? '' : 'none';
+  if (!shouldShow) return;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  tbody.innerHTML = '';
+  inactive.forEach(s => {
+    const [tr, dtr] = buildSponsorRowPair(s, todayStr);
+    tbody.appendChild(tr);
+    tbody.appendChild(dtr);
+  });
+}
+
 function renderSponsorRows(dirtyId) {
   const tbody = document.getElementById('sp-rows');
   const todayStr = new Date().toISOString().slice(0, 10);
+  renderInactiveSponsorRows();
   let filtered = sponsors.filter(s => {
     let matchesFilter;
-    if (sponsorFilter === 'all') matchesFilter = true;
+    if (sponsorFilter === 'all') matchesFilter = !SPONSOR_INACTIVE_STATUSES.includes(s.trackerStatus);
     else if (sponsorFilter === '__flagged__') matchesFilter = !!s.data.flagged;
     else if (sponsorFilter === '__overdue__') matchesFilter = isOverdue(s);
     else if (sponsorFilter === '__pending__') matchesFilter = sponsorPendingCount(s) > 0;
