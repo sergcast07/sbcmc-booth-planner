@@ -6749,7 +6749,11 @@ function sponsorsForDashboardKey(key) {
   if (key === 'all') return sponsors.slice();
   if (key === 'active') return sponsors.filter(isActiveThisYear);
   if (key === 'cash') return sponsors.filter(isCashCommitted);
-  if (key === 'collected') return sponsors.filter(s => isCashCommitted(s) && isSponsorMarkedPaid(s));
+  // "Collected" on the dashboard card totals every dollar actually received (see
+  // sponsorCollectedAmount), which includes partial payments -- filtering this list to only
+  // fully-paid sponsors would leave a partially-paid sponsor's contribution counted in the
+  // total with nothing to click through to, same bug as the speaker fee drill-down had.
+  if (key === 'collected') return sponsors.filter(s => isCashCommitted(s) && sponsorCollectedAmount(s) > 0);
   if (key === 'outstanding') return sponsors.filter(s => isCashCommitted(s) && !isSponsorMarkedPaid(s));
   if (key === 'inkind') return sponsors.filter(s => /in-kind/i.test(s.trackerStatus));
   if (key === 'prospective') return sponsors.filter(s => s.trackerStatus === 'Prospective Sponsor' || s.trackerStatus === 'Not Yet Registered (Prior Sponsor)');
@@ -6777,6 +6781,14 @@ function sponsorsForDashboardKey(key) {
 function speakerTotalCost(sp) {
   return parseMoneyNum(sp.data.financial.fee) + parseMoneyNum(sp.data.financial.travelReimbursement);
 }
+// How much of a speaker's total cost has actually been paid -- shared by speakerFeeTotals()
+// (the dashboard's dollar figures) and the drill-down table below, so the two never disagree.
+function speakerPaidAmount(sp) {
+  const total = speakerTotalCost(sp);
+  if (sp.data.financial.feeStatus === 'Paid in Full') return total;
+  if (sp.data.financial.feeStatus === 'Partially Paid') return Math.min(parseMoneyNum(sp.data.financial.paid), total);
+  return 0;
+}
 function speakerFeeTotals() {
   // Only sponsor-provided speakers are excluded here -- their fee (and any travel) is covered
   // by the sponsorship, not paid by us. Every other arrangement (Standard, Local, Fee + Travel)
@@ -6788,16 +6800,20 @@ function speakerFeeTotals() {
     const total = speakerTotalCost(sp);
     if (!total) return;
     committed += total;
-    if (sp.data.financial.feeStatus === 'Paid in Full') paid += total;
-    else if (sp.data.financial.feeStatus === 'Partially Paid') paid += Math.min(parseMoneyNum(sp.data.financial.paid), total);
+    paid += speakerPaidAmount(sp);
   });
   return { committed, paid, outstanding: committed - paid };
 }
 function speakersForFeeDrillKey(key) {
   const relevant = speakers.filter(sp => sp.data.arrangement !== 'sponsor' && speakerTotalCost(sp) > 0);
   if (key === 'speakerFee:total') return relevant;
-  if (key === 'speakerFee:paid') return relevant.filter(sp => sp.data.financial.feeStatus === 'Paid in Full');
-  if (key === 'speakerFee:outstanding') return relevant.filter(sp => sp.data.financial.feeStatus !== 'Paid in Full');
+  // "Paid" on the dashboard card totals every dollar actually received, which includes partial
+  // payments, not just fully-paid speakers -- the drill-down list has to match that or a
+  // partially-paid speaker's contribution shows up in the total with nothing to click through
+  // to. Same reasoning for "outstanding": a partially-paid speaker still has money owed, so
+  // they belong in both lists.
+  if (key === 'speakerFee:paid') return relevant.filter(sp => speakerPaidAmount(sp) > 0);
+  if (key === 'speakerFee:outstanding') return relevant.filter(sp => speakerPaidAmount(sp) < speakerTotalCost(sp));
   return [];
 }
 function openSpeakerFeeDrill(key, title) {
@@ -6810,17 +6826,25 @@ function openSpeakerFeeDrill(key, title) {
     document.getElementById('dashboard-drill-overlay').style.display = 'flex';
     return;
   }
-  const rows = list.slice().sort((a, b) => a.name.localeCompare(b.name)).map(sp => `<tr>
+  // Paid/outstanding are shown per row (not just the fee status label) so a partially-paid
+  // speaker's actual split is clear -- especially now that they can appear in both lists.
+  const rows = list.slice().sort((a, b) => a.name.localeCompare(b.name)).map(sp => {
+    const total = speakerTotalCost(sp);
+    const paidAmt = speakerPaidAmount(sp);
+    return `<tr>
     <td><div class="dd-org">${escapeHtml(sp.name)}</div>${sp.data.specialNotes ? `<div class="dd-sub">${escapeHtml(sp.data.specialNotes)}</div>` : ''}</td>
     <td>${escapeHtml(sp.contactName) || '—'}${sp.contactEmail ? `<div class="dd-sub">${escapeHtml(sp.contactEmail)}</div>` : ''}</td>
-    <td>${fmt(speakerTotalCost(sp))}</td>
+    <td>${fmt(total)}</td>
+    <td>${fmt(paidAmt)}</td>
+    <td>${fmt(total - paidAmt)}</td>
     <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
     <td>${sp.data.financial.feeStatus ? escapeHtml(sp.data.financial.feeStatus) : '— not set —'}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
   body.innerHTML = `
     <div class="dd-count">${list.length} speaker${list.length === 1 ? '' : 's'}</div>
     <table class="dd-table">
-      <thead><tr><th>Name</th><th>Contact</th><th>Total Cost</th><th>Tracker Status</th><th>Fee Status</th></tr></thead>
+      <thead><tr><th>Name</th><th>Contact</th><th>Total Cost</th><th>Paid</th><th>Outstanding</th><th>Tracker Status</th><th>Fee Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
