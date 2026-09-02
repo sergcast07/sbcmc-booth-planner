@@ -653,6 +653,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-badge-lapsed { background: #F6E3DF; color: #9C3A2E; }
 .sp-badge-recruit { background: var(--teal-pale); color: var(--teal-deep); }
 .sp-badge-committed { background: #E3ECF4; color: #2C5A82; }
+.sp-badge-contact { background: #EDE9F5; color: #5B4B8A; }
 .sp-pkg-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
 .sp-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .sp-detail-row { display: none; }
@@ -1857,6 +1858,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <button class="sk-filter-btn" data-f="Complete" onclick="setSpeakerFilter('Complete')">Complete</button>
           <button class="sk-filter-btn" data-f="Declined" onclick="setSpeakerFilter('Declined')">Declined</button>
           <button class="sk-filter-btn" data-f="Cancelled" onclick="setSpeakerFilter('Cancelled')">Cancelled</button>
+          <button class="sk-filter-btn" data-f="Contact Only" onclick="setSpeakerFilter('Contact Only')">📇 Contact Only</button>
           <button class="sk-filter-btn" data-f="__flagged__" onclick="setSpeakerFilter('__flagged__')">🚩 Flagged</button>
         </div>
       </div>
@@ -10196,7 +10198,10 @@ function speakerFinancialArrangementNote(sp) {
 
 function speakerCompleteness(sp) {
   // A rough "how filled-in is this record" score -- lets the coordinator spot who needs
-  // attention without opening every single record to check.
+  // attention without opening every single record to check. Meaningless for a "Contact Only"
+  // rolodex entry (nobody's booking them for this conference), so callers should check for
+  // null and show a neutral state instead of a percentage.
+  if (sp.trackerStatus === 'Contact Only') return null;
   const skipFee = sp.data.arrangement === 'sponsor'; // sponsor-provided has no fee
   const skipTravel = sp.data.arrangement !== 'travel'; // travel is only tracked for the 'travel' arrangement
   const lg = sp.data.logistics;
@@ -10232,7 +10237,9 @@ function speakerCompleteness(sp) {
 
 function speakerTabAlert(sp, tab) {
   // A small marker on a tab when something in it needs attention, so you know where to
-  // look before you've clicked into every tab.
+  // look before you've clicked into every tab. Nothing to flag for a "Contact Only" rolodex
+  // entry -- there's no booking in progress here for any of these tabs to chase.
+  if (sp.trackerStatus === 'Contact Only') return false;
   if (sp.data.arrangement === 'sponsor' && tab === 'financial') return false; // collapsed to a note, nothing to flag
   if (sp.data.arrangement !== 'travel' && tab === 'logistics') return false; // collapsed to a note, nothing to flag
   if (tab === 'production') {
@@ -11911,7 +11918,11 @@ function materialsForTypes(types, arrangement) {
   return Array.from(set);
 }
 
-const SPEAKER_STATUS_PRESETS = ['Invited', 'Confirmed', 'Contract Signed', 'Complete', 'Declined', 'Cancelled'];
+// "Contact Only" is deliberately outside the normal Invited -> ... -> Complete/Declined/
+// Cancelled pipeline -- a rolodex entry for someone not being booked for this conference
+// (a future prospect, a past speaker kept for reference), not a real in-progress booking.
+// speakerCompleteness() and the "Tracked" dashboard count both know to skip this status.
+const SPEAKER_STATUS_PRESETS = ['Invited', 'Confirmed', 'Contract Signed', 'Complete', 'Declined', 'Cancelled', 'Contact Only'];
 const SPEAKER_STATUS_COLORS = {
   'Invited': '#8a8f98', 'Confirmed': '#2962FF', 'Contract Signed': '#9B59B6',
   'Complete': '#2E8B57', 'Declined': '#a52620', 'Cancelled': '#4b5563'
@@ -11919,7 +11930,7 @@ const SPEAKER_STATUS_COLORS = {
 function speakerStatusColor(status) { return SPEAKER_STATUS_COLORS[status] || '#6b7280'; }
 function speakerBadgeClass(status) {
   const map = { 'Invited': 'sp-badge-recruit', 'Confirmed': 'sp-badge-reg', 'Contract Signed': 'sp-badge-committed',
-    'Complete': 'sp-badge-inkind', 'Declined': 'sp-badge-lapsed', 'Cancelled': 'sp-badge-lapsed' };
+    'Complete': 'sp-badge-inkind', 'Declined': 'sp-badge-lapsed', 'Cancelled': 'sp-badge-lapsed', 'Contact Only': 'sp-badge-contact' };
   return map[status] || 'sp-badge-recruit';
 }
 
@@ -14238,7 +14249,9 @@ function toggleSpeakerType(id, typeName, checked) {
 }
 
 function renderSpeakerView() {
-  const stats = { total: speakers.length };
+  // "Contact Only" rolodex entries aren't part of this conference's roster -- don't inflate
+  // the working "Tracked" count with people who aren't actually being booked.
+  const stats = { total: speakers.filter(sp => sp.trackerStatus !== 'Contact Only').length };
   const el = document.getElementById('sk-stat-total');
   if (el) el.textContent = stats.total;
   const fees = speakerFeeTotals();
@@ -14381,7 +14394,7 @@ function buildSpeakerRowPair(sp, todayStr) {
     })()}</td>
     <td data-label="Contact">${escapeHtml(sp.contactName) || '—'}<div class="sp-sub">${escapeHtml(sp.contactEmail)}</div></td>
     <td data-label="Tracker Status"><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
-    <td data-label="Complete">${(() => { const c = speakerCompleteness(sp); const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
+    <td data-label="Complete">${(() => { const c = speakerCompleteness(sp); if (c === null) return '<span class="sp-sub">Contact only</span>'; const color = c >= 80 ? '#2E8B57' : c >= 50 ? 'var(--gold)' : '#a52620'; return `<div class="sk-completeness-bar-outer" style="max-width:60px; display:inline-block; vertical-align:middle;"><div class="sk-completeness-bar-fill" style="width:${c}%; background:${color};"></div></div> <span class="sp-sub">${c}%</span>`; })()}</td>
     <td data-label="Host">${hostCell}</td>
   `;
   tr.style.cursor = 'pointer';
@@ -14552,6 +14565,10 @@ function speakerDetailHTML(sp) {
 
   const completeness = speakerCompleteness(sp);
   const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
+  const completenessHtml = completeness === null
+    ? `<span class="sp-sub">📇 Contact only — not currently booked for this conference</span>`
+    : `<div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
+      <span class="sp-sub">${completeness}% complete</span>`;
   const activeTab = speakerActiveTab;
   const pendingCount = speakerPendingCount(sp);
   const tabs = [['overview', 'Overview']];
@@ -14566,8 +14583,7 @@ function speakerDetailHTML(sp) {
 
   return `
     <div class="sk-detail-header">
-      <div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${completeness}%; background:${completenessColor};"></div></div>
-      <span class="sp-sub">${completeness}% complete</span>
+      ${completenessHtml}
       ${window.isAdminUser ? `<button class="sp-mini-btn" style="margin-left:auto;" onclick="openAuditHistory('speakers','${sp.id}','${jsAttrString(sp.name)}')" title="View edit history">🕔 History</button>` : ''}
       <button class="sp-mini-btn" style="${window.isAdminUser ? '' : 'margin-left:auto;'}" onclick="toggleSpeakerDetail('${sp.id}')">▴ Close</button>
     </div>
