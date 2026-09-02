@@ -1739,7 +1739,12 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 })();
 </script>
 <div class="top-nav">
-  <span class="brand-mini">SBCMC 2027</span>
+  <span class="brand-mini">SBCMC</span>
+  <select class="year-select" id="year-selector" onchange="switchActiveYear(this.value)" title="Which conference year you're viewing" style="margin:0 10px 0 4px;"></select>
+  <button class="top-nav-icon-btn" id="start-new-year-btn" onclick="startNewConferenceYear()" style="display:none;" title="Start a new conference year">+ Year</button>
+  <button class="top-nav-icon-btn" id="close-books-btn" onclick="closeBooksOnActiveYear()" style="display:none;" title="Archive the active year (view-only, nothing deleted)">Close Books</button>
+  <button class="top-nav-icon-btn" id="backup-now-btn" onclick="backupNow()" style="display:none;" title="Back up all data right now">Backup</button>
+  <button class="top-nav-icon-btn" id="restore-backup-btn" onclick="restoreFromBackupPrompt()" style="display:none;" title="Restore from a previous backup">Restore</button>
   <button class="top-nav-btn active" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
   <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker<span class="sp-nav-badge" id="nav-sponsors-pending-badge" title="Sponsor updates awaiting your review"></span></button>
   <button class="top-nav-btn" id="nav-speakers-btn" onclick="switchTopView('speakers')">Speakers & Artists</button>
@@ -3699,6 +3704,268 @@ const SHARED_ROW_ID = 'shared-layout';
 const MAPS_TABLE = 'booth_layout_maps';
 const PACKAGES_TABLE = 'booth_layout_packages';
 
+const CONFERENCE_YEARS_TABLE = 'conference_years';
+const DATA_BACKUPS_TABLE = 'data_backups';
+
+// Which conference year is "in view" for this browser tab -- every year-scoped table (rooms,
+// tracks, schedule, applicants, drivers/hotels, floor plan, settings/documents) is filtered to
+// this year on load and tagged with it on save, so two conference years can have their own live
+// data side by side without either one touching the other. Deliberately per-browser
+// (localStorage), not a shared setting -- switching your own view should never move the ground
+// under anyone else mid-conference.
+let conferenceYears = []; // [{id, label, status}], newest first
+let activeConferenceYear = null;
+const ACTIVE_YEAR_KEY = 'sbcmcActiveYear';
+
+// booth_layouts stays a one-row-per-year singleton, same shape as before, just keyed by a
+// year-suffixed id instead of one fixed id -- far less code churn than switching every read/
+// write over to a conference_year column, and the realtime filter below only has to change once.
+function currentSharedRowId() { return 'shared-layout-' + (activeConferenceYear || '2027'); }
+
+async function loadConferenceYears() {
+  if (!sbClient) { activeConferenceYear = activeConferenceYear || '2027'; return; }
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_YEARS_TABLE).select('*').order('id', { ascending: false });
+    if (error) { console.warn('Conference years table not available:', errDetail(error)); activeConferenceYear = activeConferenceYear || '2027'; return; }
+    if (!data || data.length === 0) {
+      const seed = { id: '2027', label: 'SBCMC 2027', status: 'active' };
+      const { error: seedErr } = await sbClient.from(CONFERENCE_YEARS_TABLE).insert(seed);
+      if (seedErr) console.warn('Could not seed conference_years:', errDetail(seedErr));
+      conferenceYears = [seed];
+    } else {
+      conferenceYears = data.map(y => ({ id: y.id, label: y.label, status: y.status }));
+    }
+    let stored = null;
+    try { stored = localStorage.getItem(ACTIVE_YEAR_KEY); } catch (e) { /* private browsing, etc */ }
+    if (stored && conferenceYears.some(y => y.id === stored)) {
+      activeConferenceYear = stored;
+    } else {
+      const nonArchived = conferenceYears.find(y => y.status !== 'archived');
+      activeConferenceYear = (nonArchived || conferenceYears[0]).id;
+    }
+  } catch (err) {
+    console.warn('Conference years load failed:', err);
+    activeConferenceYear = activeConferenceYear || '2027';
+  }
+}
+
+function activeYearIsArchived() {
+  const y = conferenceYears.find(y => y.id === activeConferenceYear);
+  return !!y && y.status === 'archived';
+}
+
+// Every save function for a year-scoped table calls this first -- keeps a stray edit from
+// silently landing on an archived year instead of failing loudly with an explanation.
+function blockIfYearArchived(key) {
+  if (!activeYearIsArchived()) return false;
+  reportWriteError(key || 'archived-year', 'This year (' + activeConferenceYear + ') is archived \u2014 switch to an active year to make changes.', { message: 'archived' });
+  return true;
+}
+
+function renderYearSelector() {
+  const sel = document.getElementById('year-selector');
+  if (sel) {
+    sel.innerHTML = conferenceYears.map(y =>
+      '<option value="' + escapeHtml(y.id) + '"' + (y.id === activeConferenceYear ? ' selected' : '') + '>' +
+      escapeHtml(y.label) + (y.status === 'archived' ? ' (archived)' : '') + '</option>'
+    ).join('');
+  }
+  ['start-new-year-btn', 'backup-now-btn', 'restore-backup-btn', 'close-books-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.style.display = window.isAdminUser ? '' : 'none';
+  });
+}
+
+async function switchActiveYear(year) {
+  if (!year || year === activeConferenceYear) return;
+  activeConferenceYear = year;
+  try { localStorage.setItem(ACTIVE_YEAR_KEY, year); } catch (e) { /* private browsing, etc */ }
+  renderYearSelector();
+  const yearRow = conferenceYears.find(y => y.id === year);
+  toast('Switched to ' + (yearRow ? yearRow.label : year) + '.');
+  await Promise.all([
+    loadPackagesFromDb(), loadCustomMapsFromDb(),
+    (typeof loadDriversAndHotels === 'function' ? loadDriversAndHotels() : Promise.resolve()),
+    (typeof loadSessionRoomsAndTracks === 'function' ? loadSessionRoomsAndTracks() : Promise.resolve()),
+    (typeof loadBreakoutRoomBookings === 'function' ? loadBreakoutRoomBookings() : Promise.resolve()),
+    (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
+    (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
+    (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
+    (typeof loadBreakoutScheduleReady === 'function' ? loadBreakoutScheduleReady() : Promise.resolve()),
+    (typeof loadConferenceDocuments === 'function' ? loadConferenceDocuments() : Promise.resolve()),
+    (typeof loadApplicantGroups === 'function' && canView('applicants.all') ? loadApplicantGroups() : Promise.resolve()),
+    (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve())
+  ]);
+  rebuildMapRegistry();
+  renderPackageSidebar();
+  buildTabs();
+  if (typeof viewMode !== 'undefined' && viewMode === 'edit' && typeof MAP_IMGS !== 'undefined' && MAP_IMGS[currentMapId]) planImg.src = MAP_IMGS[currentMapId];
+  try {
+    const { data } = await sbClient.from(SHARED_TABLE).select('data').eq('id', currentSharedRowId()).maybeSingle();
+    if (data && data.data) applyRemoteState(data.data);
+    else { booths = []; labels = []; refreshView(); if (typeof renderCapacitySection === 'function') renderCapacitySection(); }
+  } catch (err) { console.warn('Floor plan load on year switch failed:', err); }
+  // Note: the live booth-layout realtime subscription stays scoped to whichever year was active
+  // when the page loaded -- switching years here re-fetches everything once, but new realtime
+  // pushes for the floor plan won't retarget until the next full reload.
+  if (typeof switchTopView === 'function' && currentTopView) switchTopView(currentTopView);
+  else if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+// ---- Start New Conference Year ----
+async function startNewConferenceYear() {
+  if (!window.isAdminUser) return;
+  if (!sbClient) { toast('Not connected to shared data \u2014 can\u2019t start a new year right now.'); return; }
+  const id = (prompt('New conference year (e.g. 2028):') || '').trim();
+  if (!id) return;
+  if (conferenceYears.some(y => y.id === id)) { toast('That year already exists \u2014 pick it from the selector instead.'); return; }
+  const label = (prompt('Label to show in the year selector:', 'SBCMC ' + id) || ('SBCMC ' + id)).trim();
+  if (!confirm('Start ' + label + '? This creates a fresh year with its own rooms, floor plan, applicants, and schedule (tracks and the schedule shape carry forward from ' + activeConferenceYear + ' as an editable starting point). Nothing in ' + activeConferenceYear + ' is touched. A backup will be taken first.')) return;
+
+  await backupNow('Before starting ' + id);
+
+  const { error: yearErr } = await sbClient.from(CONFERENCE_YEARS_TABLE).insert({ id, label, status: 'active' });
+  if (yearErr) { toast('Could not create that year \u2014 see console.'); console.error(yearErr); return; }
+  conferenceYears.unshift({ id, label, status: 'active' });
+
+  // Carry track names and audience names forward as a fresh, editable starting point --
+  // building an id remap for audiences so copied schedule slots point at the NEW audience ids,
+  // not last year's, while leaving the reserved MAIN_AUDIENCE_ID untouched (it's a global
+  // constant, not a per-year id).
+  const oldYear = activeConferenceYear;
+  try {
+    const [tracksRes, audiencesRes, slotsRes] = await Promise.all([
+      sbClient.from(SESSION_TRACKS_TABLE).select('*').eq('conference_year', oldYear),
+      sbClient.from(SCHEDULE_AUDIENCES_TABLE).select('*').eq('conference_year', oldYear),
+      sbClient.from(SCHEDULE_SLOTS_TABLE).select('*').eq('conference_year', oldYear)
+    ]);
+
+    if (tracksRes.data && tracksRes.data.length) {
+      const newTracks = tracksRes.data.map(t => ({ id: makeId(), name: t.name, conference_year: id }));
+      await sbClient.from(SESSION_TRACKS_TABLE).insert(newTracks);
+    }
+
+    const audienceIdMap = { [MAIN_AUDIENCE_ID]: MAIN_AUDIENCE_ID };
+    if (audiencesRes.data && audiencesRes.data.length) {
+      const newAudiences = audiencesRes.data.map(a => {
+        const newId = a.id === MAIN_AUDIENCE_ID ? MAIN_AUDIENCE_ID : makeId();
+        audienceIdMap[a.id] = newId;
+        return { id: newId, name: a.name, sort_order: a.sort_order || 0, conference_year: id };
+      });
+      await sbClient.from(SCHEDULE_AUDIENCES_TABLE).insert(newAudiences);
+    }
+
+    if (slotsRes.data && slotsRes.data.length) {
+      const newSlots = slotsRes.data.map(s => ({
+        id: makeId(), slot_date: s.slot_date, label: s.label, start_time: s.start_time, end_time: s.end_time,
+        kind: s.kind, notes: s.notes || '', sort_order: s.sort_order || 0,
+        audiences: (Array.isArray(s.audiences) ? s.audiences : [MAIN_AUDIENCE_ID]).map(a => audienceIdMap[a] || MAIN_AUDIENCE_ID),
+        sub_options: s.sub_options || [], room: '', conference_year: id
+      }));
+      await sbClient.from(SCHEDULE_SLOTS_TABLE).insert(newSlots);
+    }
+  } catch (err) {
+    console.error('Seeding new conference year failed partway through:', err);
+    toast(label + ' was created, but seeding tracks/schedule ran into an error \u2014 see console. Rooms, floor plan, applicants, and logistics all start empty either way.');
+  }
+
+  renderYearSelector();
+  await switchActiveYear(id);
+  toast(label + ' started \u2014 you\u2019re now viewing it.');
+}
+
+async function closeBooksOnActiveYear() {
+  if (!window.isAdminUser) return;
+  const y = conferenceYears.find(y => y.id === activeConferenceYear);
+  if (!y) return;
+  if (y.status === 'archived') { toast(y.label + ' is already archived.'); return; }
+  if (!confirm('Close the books on ' + y.label + '? This locks it from further edits but keeps everything fully viewable and exportable \u2014 nothing is deleted or reset. A backup will be taken first.')) return;
+  await backupNow('Before closing the books on ' + y.id);
+  const { error } = await sbClient.from(CONFERENCE_YEARS_TABLE).update({ status: 'archived' }).eq('id', y.id);
+  if (error) { toast('Could not archive that year \u2014 see console.'); console.error(error); return; }
+  y.status = 'archived';
+  renderYearSelector();
+  toast(y.label + ' is now archived.');
+}
+
+// ---- Backup & Restore ----
+// Generalizes the existing booth_layout_versions "snapshot a JSON blob, list recent ones, no
+// diffing" pattern from just the floor plan to every year-scoped table plus speakers/sponsors --
+// a true whole-database safety net, both as insurance for the year-scoping migration itself and
+// as a standing feature. profiles/roles/role_permissions are excluded (restoring them risks
+// locking everyone out) and so is audit_log/booth_layout_versions (append-only history, not
+// meant to be rewound).
+// A function, not a const array -- the table-name constants it lists (SESSION_ROOMS_TABLE and
+// friends) aren't declared until later in this file, so evaluating this list at module-load
+// time (before those consts exist) would throw. Called lazily instead, once backupNow() runs.
+function backupTableList() {
+  return [
+    'speakers', 'sponsors', SESSION_ROOMS_TABLE, SESSION_TRACKS_TABLE, SCHEDULE_SLOTS_TABLE,
+    SCHEDULE_AUDIENCES_TABLE, BREAKOUT_ROOM_BOOKINGS_TABLE, APPLICANT_GROUPS_TABLE, APPLICANTS_TABLE,
+    DRIVERS_TABLE, HOTELS_TABLE, SHARED_TABLE, MAPS_TABLE, PACKAGES_TABLE, CONFERENCE_SETTINGS_TABLE,
+    CONFERENCE_DOCS_TABLE, CONFERENCE_YEARS_TABLE
+  ];
+}
+
+async function backupNow(label) {
+  if (!sbClient) { toast('Not connected to shared data \u2014 can\u2019t back up right now.'); return null; }
+  toast('Backing up\u2026');
+  const tables = {};
+  for (const t of backupTableList()) {
+    const { data, error } = await sbClient.from(t).select('*');
+    if (error) { console.warn('Backup: could not read ' + t + ':', errDetail(error)); continue; }
+    tables[t] = data || [];
+  }
+  const payload = { label: label || ('Backup ' + new Date().toLocaleString()), tables };
+  const { error } = await sbClient.from(DATA_BACKUPS_TABLE).insert(payload);
+  if (error) { toast('Backup failed \u2014 see console.'); console.error(error); return null; }
+  toast('Backup saved.');
+  return payload;
+}
+
+async function listBackups() {
+  if (!sbClient) return [];
+  const { data, error } = await sbClient.from(DATA_BACKUPS_TABLE).select('id, label, created_at').order('created_at', { ascending: false }).limit(20);
+  if (error) { console.warn('Could not list backups:', errDetail(error)); return []; }
+  return data || [];
+}
+
+async function restoreFromBackupPrompt() {
+  if (!window.isAdminUser) return;
+  const backups = await listBackups();
+  if (!backups.length) { toast('No backups yet \u2014 use Backup Now first.'); return; }
+  const listText = backups.map((b, i) => (i + 1) + '. ' + b.label + ' \u2014 ' + new Date(b.created_at).toLocaleString()).join('\n');
+  const choice = prompt('Restore which backup? Enter its number:\n\n' + listText);
+  if (!choice) return;
+  const idx = parseInt(choice, 10) - 1;
+  const picked = backups[idx];
+  if (!picked) { toast('Not a valid choice.'); return; }
+  const typed = prompt('This will overwrite live data in every backed-up table with the contents of "' + picked.label + '". Anything created or changed since then will be lost. Type RESTORE to confirm.');
+  if (typed !== 'RESTORE') { toast('Restore cancelled.'); return; }
+
+  const { data: full, error } = await sbClient.from(DATA_BACKUPS_TABLE).select('*').eq('id', picked.id).maybeSingle();
+  if (error || !full) { toast('Could not load that backup \u2014 see console.'); console.error(error); return; }
+
+  toast('Restoring\u2026 do not close this tab.');
+  for (const t of Object.keys(full.tables)) {
+    try {
+      await sbClient.from(t).delete().not('id', 'is', null);
+      const rows = full.tables[t];
+      if (rows && rows.length) {
+        for (let i = 0; i < rows.length; i += 200) {
+          const chunk = rows.slice(i, i + 200);
+          const { error: insErr } = await sbClient.from(t).insert(chunk);
+          if (insErr) console.warn('Restore: could not re-insert into ' + t + ':', errDetail(insErr));
+        }
+      }
+    } catch (err) {
+      console.warn('Restore: failed on table ' + t + ':', err);
+    }
+  }
+  toast('Restore complete \u2014 reloading.');
+  setTimeout(() => window.location.reload(), 1200);
+}
+
 let sbReady = false, sbChannel = null;
 let suppressNextRealtime = false;
 let pushDebounceTimer = null;
@@ -3726,6 +3993,9 @@ async function initDriverPublicView() {
     return;
   }
   try {
+    await loadConferenceYears();
+    const dvYearParam = new URLSearchParams(window.location.search).get('year');
+    if (dvYearParam && conferenceYears.some(y => y.id === dvYearParam)) activeConferenceYear = dvYearParam;
     // Only load what this view actually shows -- no sponsors, packages, or booth data.
     await Promise.all([
       loadSpeakersFromDb(),
@@ -3870,6 +4140,9 @@ async function initSchedulePublicView() {
     return;
   }
   try {
+    await loadConferenceYears();
+    const svYearParam = new URLSearchParams(window.location.search).get('year');
+    if (svYearParam && conferenceYears.some(y => y.id === svYearParam)) activeConferenceYear = svYearParam;
     // Only what Breakout Grid/Timeline/Itinerary actually need -- no sponsors, packages,
     // booths, drivers, or hotels.
     await Promise.all([
@@ -4617,6 +4890,8 @@ async function initSupabase() {
     // parallel instead of one-at-a-time cuts roughly two round-trips' worth of wall-clock
     // time off first load. The booth-layout fetch still has to wait for MAPS to be ready
     // (it filters against it), so that one stays sequential after this.
+    await loadConferenceYears();
+    renderYearSelector();
     await Promise.all([
       loadPackagesFromDb(),
       loadCustomMapsFromDb(),
@@ -4648,7 +4923,7 @@ async function initSupabase() {
     // showing (tracked by switchTopView), not just Dashboard -- since the initial tab is now
     // whichever one this session's permissions land it on (see finishUnlock in the gate script),
     // and that first render happened before this data had loaded, with empty arrays.
-    const boothLayoutFetch = sbClient.from(SHARED_TABLE).select('data').eq('id', SHARED_ROW_ID).maybeSingle();
+    const boothLayoutFetch = sbClient.from(SHARED_TABLE).select('data').eq('id', currentSharedRowId()).maybeSingle();
     if (typeof switchTopView === 'function' && currentTopView) switchTopView(currentTopView);
     else if (typeof renderDashboard === 'function') renderDashboard();
 
@@ -4673,7 +4948,7 @@ async function initSupabase() {
     sbChannel = sbClient
       .channel('booth-layout-changes')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: SHARED_TABLE, filter: 'id=eq.' + SHARED_ROW_ID },
+        { event: '*', schema: 'public', table: SHARED_TABLE, filter: 'id=eq.' + currentSharedRowId() },
         (payload) => {
           if (suppressNextRealtime) { suppressNextRealtime = false; return; }
           if (payload.new && payload.new.data) applyRemoteState(payload.new.data);
@@ -4702,11 +4977,11 @@ async function initSupabase() {
 // of truth going forward \u2014 admin edits after that persist for everyone.
 async function loadPackagesFromDb() {
   try {
-    const { data, error } = await sbClient.from(PACKAGES_TABLE).select('*').order('sort_order', { ascending: true });
+    const { data, error } = await sbClient.from(PACKAGES_TABLE).select('*').eq('conference_year', activeConferenceYear).order('sort_order', { ascending: true });
     if (error) { console.warn('Packages table not available, using defaults:', errDetail(error)); return; }
     if (!data || data.length === 0) {
       const seed = DEFAULT_PACKAGES.map(p => ({
-        key: p.key, label: p.label, width_ft: p.widthFt, depth_ft: p.depthFt, color: p.color, sort_order: p.sortOrder
+        key: p.key, label: p.label, width_ft: p.widthFt, depth_ft: p.depthFt, color: p.color, sort_order: p.sortOrder, conference_year: activeConferenceYear
       }));
       const { error: seedErr } = await sbClient.from(PACKAGES_TABLE).insert(seed);
       if (seedErr) { console.warn('Could not seed packages table:', seedErr.message); return; }
@@ -4723,7 +4998,7 @@ async function loadPackagesFromDb() {
       const spacePkg = DEFAULT_PACKAGES.find(p => p.key === 'SPACE');
       const { error: addErr } = await sbClient.from(PACKAGES_TABLE).insert({
         key: spacePkg.key, label: spacePkg.label, width_ft: spacePkg.widthFt, depth_ft: spacePkg.depthFt,
-        color: spacePkg.color, sort_order: spacePkg.sortOrder
+        color: spacePkg.color, sort_order: spacePkg.sortOrder, conference_year: activeConferenceYear
       });
       if (!addErr) packages.push({ ...spacePkg });
       else console.warn('Could not backfill Exhibit Space Only package:', addErr.message);
@@ -4739,12 +5014,12 @@ async function loadPackagesFromDb() {
 // through the admin panel too, instead of staying hardcoded-only.
 async function loadCustomMapsFromDb() {
   try {
-    const { data, error } = await sbClient.from(MAPS_TABLE).select('*').order('sort_order', { ascending: true });
+    const { data, error } = await sbClient.from(MAPS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('sort_order', { ascending: true });
     if (error) { console.warn('Custom maps table not available:', errDetail(error)); return; }
 
     if (!data || data.length === 0) {
       await seedBuiltinMapsIfEmpty();
-      const retry = await sbClient.from(MAPS_TABLE).select('*').order('sort_order', { ascending: true });
+      const retry = await sbClient.from(MAPS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('sort_order', { ascending: true });
       if (retry.error) { console.warn('Custom maps reload after seed failed:', errDetail(retry.error)); return; }
       customMaps = (retry.data || []).map(m => ({
         id: m.id, label: m.label, imageData: m.image_data, width: m.width, height: m.height,
@@ -4779,7 +5054,7 @@ async function seedBuiltinMapsIfEmpty() {
       });
       rows.push({
         id, label: m.label, image_data: dataUrl, width: m.w, height: m.h,
-        ftpx: m.ftpx, note: m.note, color: BUILTIN_MAP_COLORS[id] || '', sort_order: i
+        ftpx: m.ftpx, note: m.note, color: BUILTIN_MAP_COLORS[id] || '', sort_order: i, conference_year: activeConferenceYear
       });
     } catch (err) {
       console.warn('Could not seed built-in map "' + id + '":', err);
@@ -4820,7 +5095,7 @@ function pushRemoteState(isSeed) {
   const doPush = async () => {
     suppressNextRealtime = true;
     const payload = {
-      id: SHARED_ROW_ID,
+      id: currentSharedRowId(),
       data: {
         booths: booths.map(b => ({
           id: b.id, mapId: b.mapId, type: b.type, xPct: b.xPct, yPct: b.yPct,
@@ -5511,7 +5786,7 @@ async function saveMapEdit(mapId) {
     const existing = customMaps.find(mm => mm.id === mapId);
     let error;
     if (existing) {
-      ({ error } = await sbClient.from(MAPS_TABLE).update(update).eq('id', mapId));
+      ({ error } = await sbClient.from(MAPS_TABLE).update(update).eq('id', mapId).eq('conference_year', activeConferenceYear));
     } else {
       // Shouldn't normally happen (the five originals are seeded on connect), but
       // handle it so Edit still works even if seeding hasn't run yet.
@@ -5520,7 +5795,7 @@ async function saveMapEdit(mapId) {
         id: mapId, label,
         image_data: update.image_data || BUILTIN_MAP_IMGS[mapId],
         width: update.width || base.w, height: update.height || base.h,
-        ftpx: base.ftpx, note: base.note, color: BUILTIN_MAP_COLORS[mapId] || '', sort_order: 0
+        ftpx: base.ftpx, note: base.note, color: BUILTIN_MAP_COLORS[mapId] || '', sort_order: 0, conference_year: activeConferenceYear
       };
       ({ error } = await sbClient.from(MAPS_TABLE).insert(insertRow));
     }
@@ -5691,7 +5966,7 @@ async function uploadNewMap() {
     const id = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
     const sortOrder = customMaps.length ? Math.max(...customMaps.map(m => m.sortOrder || 0)) + 1 : 0;
     const note = 'Uploaded floor plan \u2014 not yet calibrated. Use Calibrate to set its real scale.';
-    const row = { id, label, image_data: dataUrl, width, height, ftpx: 5, note, color: '', sort_order: sortOrder };
+    const row = { id, label, image_data: dataUrl, width, height, ftpx: 5, note, color: '', sort_order: sortOrder, conference_year: activeConferenceYear };
 
     const { error } = await sbClient.from(MAPS_TABLE).insert(row);
     if (error) throw error;
@@ -5721,7 +5996,7 @@ async function deleteCustomMap(id) {
   if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t delete a shared floor plan without it.'); return; }
 
   try {
-    const { error } = await sbClient.from(MAPS_TABLE).delete().eq('id', id);
+    const { error } = await sbClient.from(MAPS_TABLE).delete().eq('id', id).eq('conference_year', activeConferenceYear);
     if (error) throw error;
 
     customMaps = customMaps.filter(mm => mm.id !== id);
@@ -5753,7 +6028,7 @@ async function resetBuiltinMap(id) {
   if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t reset a shared floor plan without it.'); return; }
 
   try {
-    const { error } = await sbClient.from(MAPS_TABLE).delete().eq('id', id);
+    const { error } = await sbClient.from(MAPS_TABLE).delete().eq('id', id).eq('conference_year', activeConferenceYear);
     if (error) throw error;
 
     customMaps = customMaps.filter(mm => mm.id !== id);
@@ -5901,7 +6176,7 @@ async function saveCalibration(mapId) {
   if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t save a shared calibration without it.'); return; }
 
   try {
-    const { error } = await sbClient.from(MAPS_TABLE).update({ ftpx: avg, note }).eq('id', mapId);
+    const { error } = await sbClient.from(MAPS_TABLE).update({ ftpx: avg, note }).eq('id', mapId).eq('conference_year', activeConferenceYear);
     if (error) throw error;
     const m = customMaps.find(mm => mm.id === mapId);
     if (m) { m.ftpx = avg; m.note = note; }
@@ -6018,10 +6293,10 @@ async function savePackageForm() {
   if (!sbClient) { statusEl.textContent = 'Shared sync isn\u2019t connected \u2014 set up Supabase first so package changes can be saved and shared.'; return; }
 
   const sortOrder = editing ? getPkg(key).sortOrder : (packages.length ? Math.max(...packages.map(p => p.sortOrder || 0)) + 1 : 0);
-  const row = { key, label, width_ft: widthFt, depth_ft: depthFt, color, sort_order: sortOrder };
+  const row = { key, label, width_ft: widthFt, depth_ft: depthFt, color, sort_order: sortOrder, conference_year: activeConferenceYear };
 
   try {
-    const { error } = await sbClient.from(PACKAGES_TABLE).upsert(row);
+    const { error } = await sbClient.from(PACKAGES_TABLE).upsert(row, { onConflict: 'key,conference_year' });
     if (error) throw error;
 
     if (editing) {
@@ -6052,7 +6327,7 @@ async function deletePackageAdmin(key) {
   if (!sbClient) { toast('Shared sync isn\u2019t connected \u2014 can\u2019t delete a shared package without it.'); return; }
 
   try {
-    const { error } = await sbClient.from(PACKAGES_TABLE).delete().eq('key', key);
+    const { error } = await sbClient.from(PACKAGES_TABLE).delete().eq('key', key).eq('conference_year', activeConferenceYear);
     if (error) throw error;
 
     packages = packages.filter(pp => pp.key !== key);
@@ -7418,7 +7693,7 @@ async function loadFundraisingGoal() {
   try { const v = localStorage.getItem(FUNDRAISING_GOAL_KEY); localFallback = v ? Number(v) : null; } catch (e) { /* private browsing, etc */ }
   if (!sbClient) { fundraisingGoal = localFallback; return; }
   try {
-    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'fundraising_goal').maybeSingle();
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'fundraising_goal').eq('conference_year', activeConferenceYear).maybeSingle();
     if (error) { console.warn('Conference settings table not available:', errDetail(error)); fundraisingGoal = localFallback; return; }
     if (data && data.value) {
       fundraisingGoal = Number(data.value);
@@ -7438,7 +7713,7 @@ function pushFundraisingGoal(val) {
   if (!sbClient) return;
   clearTimeout(fundraisingGoalPushTimer);
   fundraisingGoalPushTimer = setTimeout(() => {
-    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'fundraising_goal', value: val == null ? '' : String(val) }).then(({ error }) => {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'fundraising_goal', value: val == null ? '' : String(val), conference_year: activeConferenceYear }, { onConflict: 'id,conference_year' }).then(({ error }) => {
       if (error) { reportWriteError('fundraising_goal', 'Couldn’t save the fundraising goal — it’ll revert next reload.', error); }
       else { reportWriteSuccess('fundraising_goal'); }
     });
@@ -7463,7 +7738,7 @@ let breakoutScheduleReady = false;
 async function loadBreakoutScheduleReady() {
   if (!sbClient) return;
   try {
-    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'breakout_schedule_ready').maybeSingle();
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'breakout_schedule_ready').eq('conference_year', activeConferenceYear).maybeSingle();
     if (!error && data) breakoutScheduleReady = data.value === 'true';
   } catch (e) { /* leave default (not ready) */ }
 }
@@ -7471,7 +7746,7 @@ function setBreakoutScheduleReady(val) {
   if (!canEditOrWarn('schedule.all', 'the schedule')) return;
   breakoutScheduleReady = !!val;
   if (sbClient) {
-    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'breakout_schedule_ready', value: String(breakoutScheduleReady) }).then(({ error }) => {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'breakout_schedule_ready', value: String(breakoutScheduleReady), conference_year: activeConferenceYear }, { onConflict: 'id,conference_year' }).then(({ error }) => {
       if (error) reportWriteError('breakout_schedule_ready', 'Couldn’t save that — it’ll revert next reload.', error);
       else reportWriteSuccess('breakout_schedule_ready');
     });
@@ -7568,7 +7843,7 @@ async function loadRevenueEstimator() {
   revenueState = revenueDefaultState();
   if (!sbClient) return;
   try {
-    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'revenue_estimator').maybeSingle();
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'revenue_estimator').eq('conference_year', activeConferenceYear).maybeSingle();
     if (error) { console.warn('Revenue estimator load failed:', errDetail(error)); return; }
     if (data && data.value) {
       const saved = JSON.parse(data.value);
@@ -7592,7 +7867,7 @@ function pushRevenueEstimator() {
   if (!sbClient) return;
   clearTimeout(revenuePushTimer);
   revenuePushTimer = setTimeout(() => {
-    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'revenue_estimator', value: JSON.stringify(revenueState) }).then(({ error }) => {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'revenue_estimator', value: JSON.stringify(revenueState), conference_year: activeConferenceYear }, { onConflict: 'id,conference_year' }).then(({ error }) => {
       if (error) {
         // Dragging a slider fires many saves in quick succession -- warn once per session
         // instead of a toast per keystroke while the table doesn't exist yet. The badge
@@ -7912,7 +8187,7 @@ async function loadCashflowState() {
   cashflowState = cashflowDefaultState();
   if (!sbClient) return;
   try {
-    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'cashflow_projection').maybeSingle();
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'cashflow_projection').eq('conference_year', activeConferenceYear).maybeSingle();
     if (error) { console.warn('Cash flow load failed:', errDetail(error)); return; }
     if (data && data.value) {
       const saved = JSON.parse(data.value);
@@ -7934,7 +8209,7 @@ function pushCashflowState() {
   if (!sbClient) return;
   clearTimeout(cashflowPushTimer);
   cashflowPushTimer = setTimeout(() => {
-    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'cashflow_projection', value: JSON.stringify(cashflowState) }).then(({ error }) => {
+    sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id: 'cashflow_projection', value: JSON.stringify(cashflowState), conference_year: activeConferenceYear }, { onConflict: 'id,conference_year' }).then(({ error }) => {
       if (error) {
         if (!cashflowSaveWarned) { cashflowSaveWarned = true; reportWriteError('cashflow_projection', 'Couldn’t save the cash flow projection — changes won’t persist.', error); }
         else { registerWriteFailure('cashflow_projection', 'Couldn’t save the cash flow projection — changes won’t persist.', error); }
@@ -7969,13 +8244,13 @@ function flushEstimatorSaves(backgrounding) {
   if (revenuePushTimer) {
     clearTimeout(revenuePushTimer);
     revenuePushTimer = null;
-    const p = fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'revenue_estimator', value: JSON.stringify(revenueState) }) });
+    const p = fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'revenue_estimator', value: JSON.stringify(revenueState), conference_year: activeConferenceYear }) });
     if (backgrounding) p.then(res => { if (!res.ok) reportWriteError('revenue_estimator', 'The revenue estimator didn’t save before the tab was backgrounded — changes may be lost.', { message: 'HTTP ' + res.status }); else reportWriteSuccess('revenue_estimator'); }).catch(() => {});
   }
   if (cashflowPushTimer) {
     clearTimeout(cashflowPushTimer);
     cashflowPushTimer = null;
-    const p = fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'cashflow_projection', value: JSON.stringify(cashflowState) }) });
+    const p = fetch(restUrl, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ id: 'cashflow_projection', value: JSON.stringify(cashflowState), conference_year: activeConferenceYear }) });
     if (backgrounding) p.then(res => { if (!res.ok) reportWriteError('cashflow_projection', 'The cash flow projection didn’t save before the tab was backgrounded — changes may be lost.', { message: 'HTTP ' + res.status }); else reportWriteSuccess('cashflow_projection'); }).catch(() => {});
   }
 }
@@ -10994,7 +11269,7 @@ function parseCSV(text) {
 async function loadApplicantGroups() {
   if (!sbClient) { applicantGroups = []; return; }
   try {
-    const { data, error } = await sbClient.from(APPLICANT_GROUPS_TABLE).select('*').order('sort_order', { ascending: true });
+    const { data, error } = await sbClient.from(APPLICANT_GROUPS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('sort_order', { ascending: true });
     if (error) { console.warn('Applicant groups table not available:', errDetail(error)); applicantGroups = []; return; }
     applicantGroups = (data || []).map(g => ({ id: g.id, name: g.name, sortOrder: g.sort_order || 0, publicToken: g.public_token || '' }));
   } catch (err) { console.warn('Applicant groups load failed:', err); applicantGroups = []; }
@@ -11002,7 +11277,7 @@ async function loadApplicantGroups() {
 async function loadApplicants() {
   if (!sbClient) { applicants = []; return; }
   try {
-    const { data, error } = await sbClient.from(APPLICANTS_TABLE).select('*').order('sort_order', { ascending: true });
+    const { data, error } = await sbClient.from(APPLICANTS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('sort_order', { ascending: true });
     if (error) { console.warn('Applicants table not available:', errDetail(error)); applicants = []; return; }
     applicants = (data || []).map(rowToApplicant);
   } catch (err) { console.warn('Applicants load failed:', err); applicants = []; }
@@ -11024,7 +11299,7 @@ function pushApplicant(a) {
   applicantPushTimers[a.id] = setTimeout(async () => {
     const row = {
       id: a.id, group_id: a.groupId, name: a.name, email: a.email, phone: a.phone,
-      data: a.data, sort_order: a.sortOrder || 0, updated_at: new Date().toISOString()
+      data: a.data, sort_order: a.sortOrder || 0, updated_at: new Date().toISOString(), conference_year: activeConferenceYear
     };
     const { error } = await sbClient.from(APPLICANTS_TABLE).upsert(row);
     const key = 'applicant:' + a.id;
@@ -11679,8 +11954,8 @@ async function loadDriversAndHotels() {
   if (!sbClient) return;
   try {
     const [driversRes, hotelsRes] = await Promise.all([
-      sbClient.from(DRIVERS_TABLE).select('*').order('name', { ascending: true }),
-      sbClient.from(HOTELS_TABLE).select('*').order('name', { ascending: true })
+      sbClient.from(DRIVERS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('name', { ascending: true }),
+      sbClient.from(HOTELS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('name', { ascending: true })
     ]);
     if (!driversRes.error) drivers = (driversRes.data || []).map(d => ({ id: d.id, name: d.name, phone: d.phone || '', seats: d.seats || '', notes: d.notes || '' }));
     else console.warn('Drivers table not available:', errDetail(driversRes.error));
@@ -11702,7 +11977,7 @@ function addDriver() {
   drivers.push(driver);
   renderTransportationView();
   if (sbClient) {
-    sbClient.from(DRIVERS_TABLE).upsert({ id: driver.id, name: driver.name, phone: driver.phone, seats: driver.seats, notes: driver.notes }).then(({ error }) => {
+    sbClient.from(DRIVERS_TABLE).upsert({ id: driver.id, name: driver.name, phone: driver.phone, seats: driver.seats, notes: driver.notes, conference_year: activeConferenceYear }).then(({ error }) => {
       if (error) reportWriteError('driver:' + driver.id, 'Couldn\u2019t save that driver \u2014 it\u2019ll disappear next reload.', error);
     });
   }
@@ -11722,7 +11997,7 @@ function editDriver(id) {
   d.seats = newSeats.trim();
   renderTransportationView();
   if (sbClient) {
-    sbClient.from(DRIVERS_TABLE).upsert({ id: d.id, name: d.name, phone: d.phone, seats: d.seats, notes: d.notes || '' }).then(({ error }) => {
+    sbClient.from(DRIVERS_TABLE).upsert({ id: d.id, name: d.name, phone: d.phone, seats: d.seats, notes: d.notes || '', conference_year: activeConferenceYear }).then(({ error }) => {
       if (error) {
         reportWriteError('driver:' + d.id, 'Couldn\u2019t save that change \u2014 it\u2019ll revert next reload.', error);
       } else {
@@ -11759,7 +12034,7 @@ function addHotel() {
   hotels.push(hotel);
   renderTransportationView();
   if (sbClient) {
-    sbClient.from(HOTELS_TABLE).upsert({ id: hotel.id, name: hotel.name, address: hotel.address }).then(({ error }) => {
+    sbClient.from(HOTELS_TABLE).upsert({ id: hotel.id, name: hotel.name, address: hotel.address, conference_year: activeConferenceYear }).then(({ error }) => {
       if (error) reportWriteError('hotel:' + hotel.id, 'Couldn\u2019t save that hotel \u2014 it\u2019ll disappear next reload.', error);
     });
   }
@@ -11776,7 +12051,7 @@ function editHotel(id) {
   h.address = newAddress.trim();
   renderTransportationView();
   if (sbClient) {
-    sbClient.from(HOTELS_TABLE).upsert({ id: h.id, name: h.name, address: h.address }).then(({ error }) => {
+    sbClient.from(HOTELS_TABLE).upsert({ id: h.id, name: h.name, address: h.address, conference_year: activeConferenceYear }).then(({ error }) => {
       if (error) {
         reportWriteError('hotel:' + h.id, 'Couldn\u2019t save that change \u2014 it\u2019ll revert next reload.', error);
       } else {
@@ -11803,7 +12078,7 @@ let conferenceProductionRider = null; // {label, fileName, url, uploadedAt} or n
 async function loadConferenceDocuments() {
   if (!sbClient) return;
   try {
-    const { data, error } = await sbClient.from(CONFERENCE_DOCS_TABLE).select('*').eq('id', 'production-rider').maybeSingle();
+    const { data, error } = await sbClient.from(CONFERENCE_DOCS_TABLE).select('*').eq('id', 'production-rider').eq('conference_year', activeConferenceYear).maybeSingle();
     if (error) { console.warn('Conference documents table not available:', errDetail(error)); return; }
     if (data) conferenceProductionRider = { label: data.label, fileName: data.file_name, url: data.url, uploadedAt: data.uploaded_at };
   } catch (err) {
@@ -11833,8 +12108,8 @@ async function uploadProductionRider() {
   conferenceProductionRider = { label, fileName: file.name, url: urlData.publicUrl, uploadedAt };
   if (sbClient) {
     const { error } = await sbClient.from(CONFERENCE_DOCS_TABLE).upsert({
-      id: 'production-rider', label, file_name: file.name, url: urlData.publicUrl, uploaded_at: uploadedAt
-    });
+      id: 'production-rider', label, file_name: file.name, url: urlData.publicUrl, uploaded_at: uploadedAt, conference_year: activeConferenceYear
+    }, { onConflict: 'id,conference_year' });
     if (error) {
       reportWriteError('rider-metadata', 'The production rider file uploaded, but saving its details failed \u2014 it may not show up after a reload.', error);
       return;
@@ -12794,8 +13069,8 @@ async function loadSessionRoomsAndTracks() {
   if (!sbClient) return;
   try {
     const [roomsRes, tracksRes] = await Promise.all([
-      sbClient.from(SESSION_ROOMS_TABLE).select('*').order('name', { ascending: true }),
-      sbClient.from(SESSION_TRACKS_TABLE).select('*').order('name', { ascending: true })
+      sbClient.from(SESSION_ROOMS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('name', { ascending: true }),
+      sbClient.from(SESSION_TRACKS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('name', { ascending: true })
     ]);
     if (!roomsRes.error && roomsRes.data && roomsRes.data.length) sessionRooms = roomsRes.data.map(r => ({ id: r.id, name: r.name, capacity: r.capacity || '' }));
     else if (roomsRes.error) console.warn('Session rooms table not available:', errDetail(roomsRes.error));
@@ -12809,7 +13084,7 @@ async function loadSessionRoomsAndTracks() {
 async function loadBreakoutRoomBookings() {
   if (!sbClient) return;
   try {
-    const { data, error } = await sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).select('*');
+    const { data, error } = await sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).select('*').eq('conference_year', activeConferenceYear);
     if (!error && data) breakoutRoomBookings = data.map(r => ({ id: r.id, trackId: r.track_id, slotId: r.slot_id, room: r.room }));
     else if (error) console.warn('Breakout room bookings table not available:', errDetail(error));
   } catch (err) {
@@ -12824,7 +13099,7 @@ function findRoomBookingByRoom(room, slotId) {
 }
 function pushRoomBooking(booking) {
   if (!sbClient) return;
-  sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, track_id: booking.trackId, slot_id: booking.slotId, room: booking.room }).then(({ error }) => {
+  sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, track_id: booking.trackId, slot_id: booking.slotId, room: booking.room, conference_year: activeConferenceYear }).then(({ error }) => {
     if (error) reportWriteError('room-booking:' + booking.id, 'Couldn’t save that reservation — it’ll disappear next reload.', error);
     else reportWriteSuccess('room-booking:' + booking.id);
   });
@@ -12876,9 +13151,9 @@ function clearRoomBookingIfFulfilled(trackId, slotId) {
 function pushSessionRoom(room) {
   if (!sbClient) return;
   const key = 'session-room:' + room.id;
-  sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: room.id, name: room.name, capacity: room.capacity || '' }).then(({ error }) => {
+  sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: room.id, name: room.name, capacity: room.capacity || '', conference_year: activeConferenceYear }).then(({ error }) => {
     if (!error) { reportWriteSuccess(key); return; }
-    sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: room.id, name: room.name }).then(({ error: err2 }) => {
+    sbClient.from(SESSION_ROOMS_TABLE).upsert({ id: room.id, name: room.name, conference_year: activeConferenceYear }).then(({ error: err2 }) => {
       if (err2) { reportWriteError(key, 'Couldn’t save that room — it’ll revert next reload.', err2); }
       else { reportWriteSuccess(key); console.warn('Room size didn’t save — "session_rooms.capacity" column may be missing. (' + errDetail(error) + ')'); }
     });
@@ -12932,7 +13207,7 @@ function addSessionTrack() {
   sessionTracks.push(track);
   renderSpeakerView();
   if (sbClient) {
-    sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: track.id, name: track.name }).then(({ error }) => {
+    sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: track.id, name: track.name, conference_year: activeConferenceYear }).then(({ error }) => {
       if (error) reportWriteError('session-track:' + track.id, 'Couldn’t save that track — it’ll disappear next reload.', error);
     });
   }
@@ -12960,7 +13235,7 @@ function editSessionTrack(id) {
   renderSpeakerRows();
   if (typeof renderScheduleView === 'function' && document.getElementById('schedule-view') && document.getElementById('schedule-view').style.display !== 'none') renderScheduleView();
   if (sbClient) {
-    sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: t.id, name: t.name }).then(({ error }) => {
+    sbClient.from(SESSION_TRACKS_TABLE).upsert({ id: t.id, name: t.name, conference_year: activeConferenceYear }).then(({ error }) => {
       if (error) reportWriteError('session-track:' + t.id, 'Couldn’t save that change — it’ll revert next reload.', error);
     });
   }
@@ -12982,7 +13257,7 @@ function orderedScheduleAudiences() { return scheduleAudiences.slice().sort((a, 
 async function loadScheduleAudiences() {
   if (!sbClient) return;
   try {
-    const { data, error } = await sbClient.from(SCHEDULE_AUDIENCES_TABLE).select('*');
+    const { data, error } = await sbClient.from(SCHEDULE_AUDIENCES_TABLE).select('*').eq('conference_year', activeConferenceYear);
     if (!error && data && data.length) {
       scheduleAudiences = data.map((a, i) => ({ id: a.id, name: a.name, sortOrder: a.sort_order != null ? a.sort_order : i }));
       // Main Conference is a reserved id the default filter and every untagged slot fall back
@@ -13004,7 +13279,7 @@ async function loadScheduleAudiences() {
 }
 function pushScheduleAudience(aud) {
   if (!sbClient) return;
-  const base = { id: aud.id, name: aud.name };
+  const base = { id: aud.id, name: aud.name, conference_year: activeConferenceYear };
   sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ ...base, sort_order: aud.sortOrder || 0 }).then(({ error }) => {
     if (!error) { reportWriteSuccess('schedule-audience:' + aud.id); return; }
     // Older schema without a sort_order column yet -- retry without it so the name/id still
@@ -13141,7 +13416,7 @@ let scheduleSlots = DEFAULT_SCHEDULE_SLOTS.map(([date, label, start, end, kind],
 async function loadScheduleSlots() {
   if (!sbClient) return;
   try {
-    const { data, error } = await sbClient.from(SCHEDULE_SLOTS_TABLE).select('*').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
+    const { data, error } = await sbClient.from(SCHEDULE_SLOTS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('slot_date', { ascending: true }).order('start_time', { ascending: true });
     if (!error && data && data.length) {
       scheduleSlots = data.map((r, i) => ({
         id: r.id, date: r.slot_date, label: r.label, start: r.start_time, end: r.end_time, kind: r.kind,
@@ -13162,7 +13437,7 @@ function pushScheduleSlot(slot) {
   if (!sbClient) return;
   const base = {
     id: slot.id, slot_date: slot.date, label: slot.label, start_time: slot.start, end_time: slot.end,
-    kind: slot.kind, notes: slot.notes || '', sort_order: slot.sortOrder
+    kind: slot.kind, notes: slot.notes || '', sort_order: slot.sortOrder, conference_year: activeConferenceYear
   };
   const audiences = slot.audiences && slot.audiences.length ? slot.audiences : [MAIN_AUDIENCE_ID];
   const subOptions = slot.subOptions || [];
