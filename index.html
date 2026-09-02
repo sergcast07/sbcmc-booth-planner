@@ -544,6 +544,17 @@
 }
 .nav-dropdown-item:hover { background: var(--teal-pale); }
 .nav-dropdown-item.active { background: var(--teal-pale); color: var(--teal-deep); }
+.nav-dropdown-menu.align-right { left: auto; right: 0; }
+.nav-dropdown-divider { height: 1px; background: var(--line); margin: 6px 4px; }
+.nav-dropdown-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--ink-soft); padding: 6px 10px 4px;
+}
+.nav-dropdown-menu .year-select {
+  display: block; width: calc(100% - 8px); margin: 0 4px 4px; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 7px; font-size: 13px; font-weight: 600;
+  color: var(--ink); background: #fff;
+}
 .top-nav-icon-btn {
   width: 34px; height: 34px; border-radius: 50%; border: none; background: transparent;
   color: rgba(255,255,255,0.72); cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -1739,12 +1750,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 })();
 </script>
 <div class="top-nav">
-  <span class="brand-mini">SBCMC</span>
-  <select class="year-select" id="year-selector" onchange="switchActiveYear(this.value)" title="Which conference year you're viewing" style="margin:0 10px 0 4px;"></select>
-  <button class="top-nav-icon-btn" id="start-new-year-btn" onclick="startNewConferenceYear()" style="display:none;" title="Start a new conference year">+ Year</button>
-  <button class="top-nav-icon-btn" id="close-books-btn" onclick="closeBooksOnActiveYear()" style="display:none;" title="Archive the active year (view-only, nothing deleted)">Close Books</button>
-  <button class="top-nav-icon-btn" id="backup-now-btn" onclick="backupNow()" style="display:none;" title="Back up all data right now">Backup</button>
-  <button class="top-nav-icon-btn" id="restore-backup-btn" onclick="restoreFromBackupPrompt()" style="display:none;" title="Restore from a previous backup">Restore</button>
+  <span class="brand-mini" id="brand-year-label">SBCMC 2027</span>
   <button class="top-nav-btn active" id="nav-dashboard-btn" onclick="switchTopView('dashboard')">Dashboard</button>
   <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker<span class="sp-nav-badge" id="nav-sponsors-pending-badge" title="Sponsor updates awaiting your review"></span></button>
   <button class="top-nav-btn" id="nav-speakers-btn" onclick="switchTopView('speakers')">Speakers & Artists</button>
@@ -1759,9 +1765,22 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="nav-dropdown-item" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
     </div>
   </div>
-  <button class="top-nav-icon-btn" id="nav-team-access-btn" onclick="switchTopView('team_access')" style="display:none;" title="Team Access">
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-  </button>
+  <div class="nav-dropdown">
+    <button class="top-nav-icon-btn" id="nav-team-access-btn" onclick="toggleGearMenu(event)" style="display:none;" title="Admin">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+    <div class="nav-dropdown-menu align-right" id="nav-gear-menu">
+      <button class="nav-dropdown-item" onclick="switchTopView('team_access'); toggleGearMenu();">Team Access</button>
+      <div class="nav-dropdown-divider"></div>
+      <div class="nav-dropdown-label">Conference Year</div>
+      <select class="year-select" id="year-selector" onchange="switchActiveYear(this.value)" title="Which conference year you're viewing"></select>
+      <button class="nav-dropdown-item" id="start-new-year-btn" onclick="startNewConferenceYear(); toggleGearMenu();" style="display:none;">+ Start New Year</button>
+      <button class="nav-dropdown-item" id="close-books-btn" onclick="closeBooksOnActiveYear(); toggleGearMenu();" style="display:none;">Close Books on Active Year</button>
+      <div class="nav-dropdown-divider"></div>
+      <button class="nav-dropdown-item" id="backup-now-btn" onclick="backupNow(); toggleGearMenu();" style="display:none;">Backup Now</button>
+      <button class="nav-dropdown-item" id="restore-backup-btn" onclick="restoreFromBackupPrompt(); toggleGearMenu();" style="display:none;">Restore from Backup</button>
+    </div>
+  </div>
 </div>
 <div id="sponsor-view" data-section="sponsors.contact">
   <div class="sp-wrap">
@@ -3773,6 +3792,11 @@ function renderYearSelector() {
       '<option value="' + escapeHtml(y.id) + '"' + (y.id === activeConferenceYear ? ' selected' : '') + '>' +
       escapeHtml(y.label) + (y.status === 'archived' ? ' (archived)' : '') + '</option>'
     ).join('');
+  }
+  const brandLabel = document.getElementById('brand-year-label');
+  if (brandLabel) {
+    const activeRow = conferenceYears.find(y => y.id === activeConferenceYear);
+    brandLabel.textContent = activeRow ? activeRow.label : ('SBCMC ' + (activeConferenceYear || ''));
   }
   ['start-new-year-btn', 'backup-now-btn', 'restore-backup-btn', 'close-books-btn'].forEach(id => {
     const btn = document.getElementById(id);
@@ -6597,6 +6621,20 @@ function toggleMoneyDropdown(e) {
 document.addEventListener('click', function(e) {
   const menu = document.getElementById('nav-money-menu');
   if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'nav-money-btn') {
+    menu.classList.remove('open');
+  }
+});
+// Holds Team Access plus the conference-year admin controls (year switcher, Start New Year,
+// Close Books, Backup/Restore) -- same open/close mechanics as the Financials dropdown above,
+// just anchored to the gear icon instead of a text button.
+function toggleGearMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('nav-gear-menu');
+  if (menu) menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('nav-gear-menu');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'nav-team-access-btn' && !e.target.closest('#nav-team-access-btn')) {
     menu.classList.remove('open');
   }
 });
