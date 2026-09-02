@@ -473,7 +473,11 @@
   body.speaker-view-mode > *:not(#speaker-public-view):not(#kb-toast) { display: none !important; }
   #sponsor-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   #speaker-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
-  .spv-org-name { font-size: 15px; color: var(--ink-soft); margin: 0; }
+  /* The person's own name is the thing that tells them "yes, this is my page" -- it leads as
+     the big headline, with the generic portal label demoted to a small eyebrow above it
+     (the reverse of the old layout, which buried the name under the boilerplate title). */
+  .dv-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); margin: 0 0 4px; }
+  .dv-person-name { font-family: var(--font-display); font-size: 30px; font-weight: 600; color: var(--teal-deep); margin: 0; line-height: 1.15; }
   .spv-field { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 12px; }
   .spv-field input { display: block; width: 100%; margin-top: 4px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; font-family: inherit; box-sizing: border-box; }
   .spv-textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; font-family: inherit; box-sizing: border-box; resize: vertical; }
@@ -1548,8 +1552,8 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 <div id="sponsor-public-view" style="display:none;">
   <div class="dv-header">
-    <h1>SBCMC 2027 &mdash; Sponsor Portal</h1>
-    <p id="spv-org-name" class="spv-org-name"></p>
+    <p class="dv-eyebrow">SBCMC 2027 &middot; Sponsor Portal</p>
+    <h1 id="spv-org-name" class="dv-person-name"></h1>
   </div>
   <div id="spv-body" class="dv-body">
     <div class="dv-loading">Loading your sponsor info&hellip;</div>
@@ -1558,8 +1562,8 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 <div id="speaker-public-view" style="display:none;">
   <div class="dv-header">
-    <h1>SBCMC 2027 &mdash; Speaker/Artist Portal</h1>
-    <p id="skv-name" class="spv-org-name"></p>
+    <p class="dv-eyebrow">SBCMC 2027 &middot; Speaker/Artist Portal</p>
+    <h1 id="skv-name" class="dv-person-name"></h1>
   </div>
   <div id="skv-body" class="dv-body">
     <div class="dv-loading">Loading your info&hellip;</div>
