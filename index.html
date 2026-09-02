@@ -636,6 +636,20 @@
 }
 .sp-add-btn:hover { background: var(--teal); }
 .sp-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 1px 3px rgba(23,38,43,0.05); }
+/* Same "gold rail" section-title language as .db-section-title/.dv-section-title elsewhere in
+   the app, applied to the Active/Inactive split above the speaker roster table. */
+.sk-section-title {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--teal-deep);
+  padding-left: 10px; border-left: 3px solid var(--gold); margin: 22px 0 10px;
+}
+.sk-section-title:first-of-type { margin-top: 0; }
+.sk-section-title.clickable { cursor: pointer; user-select: none; }
+.sk-section-count {
+  font-size: 11px; font-weight: 700; letter-spacing: normal; text-transform: none;
+  color: var(--teal); background: var(--teal-pale); border-radius: 20px; padding: 2px 9px;
+}
+.sk-section-title .sp-chevron { margin-left: auto; }
 table.sp-table { width: 100%; min-width: 900px; border-collapse: collapse; background: var(--panel); table-layout: fixed; }
 table.sp-table thead th {
   position: relative; text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--teal-deep);
@@ -1938,6 +1952,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <button class="sp-add-btn" onclick="addSpeaker()">+ Add speaker/artist</button>
         <button class="sp-add-btn" onclick="openExportSortModal('speakers')" style="background:var(--ink-soft);">Export CSV</button>
       </div>
+      <div class="sk-section-title">Active <span class="sk-section-count" id="sk-active-count"></span></div>
       <div class="sp-table-wrap">
       <table class="sp-table">
         <thead>
@@ -1954,11 +1969,12 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <tbody id="sk-rows"></tbody>
       </table>
       </div>
-      <div class="sp-table-wrap" id="sk-contact-only-wrap" style="display:none; margin-top:22px;">
-        <div class="sp-collapsible-label" data-section-toggle="sk-contact-only" onclick="toggleSidebarSection('sk-contact-only')" style="padding:0 0 10px;">
-          <span class="sp-chevron">▸</span>📇 Contact Only — Rolodex <span id="sk-contact-only-count" class="sp-sub"></span>
+      <div id="sk-contact-only-wrap" style="display:none; margin-top:26px;">
+        <div class="sk-section-title clickable" data-section-toggle="sk-contact-only" onclick="toggleSidebarSection('sk-contact-only')">
+          Inactive <span class="sk-section-count" id="sk-contact-only-count"></span><span class="sp-chevron">▸</span>
         </div>
         <div class="sp-collapsible-body" data-section-key="sk-contact-only">
+          <div class="sp-table-wrap">
           <table class="sp-table">
             <thead>
               <tr>
@@ -1973,6 +1989,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
             </thead>
             <tbody id="sk-contact-rows"></tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>
@@ -14783,15 +14800,17 @@ function buildSpeakerRowPair(sp, todayStr) {
   return [tr, detailTr];
 }
 
-// The rolodex section beneath the main roster table -- only shown while viewing "All" (a
-// specific status filter, including "Contact Only" itself, already isolates what it needs in
+// The Inactive section beneath the main roster table -- only shown while viewing "All" (a
+// specific status filter, including Contact Only itself, already isolates what it needs in
 // the main table, so showing this section too would just be a confusing duplicate). Search is
 // honored so a name is still findable from the same search box; type filter and sort aren't --
-// most of these rows have no type set yet, and always-alphabetical keeps a rolodex scannable.
+// most of these rows have no type set yet, and always-alphabetical keeps this scannable.
 function renderContactOnlyRows() {
   const wrap = document.getElementById('sk-contact-only-wrap');
   const tbody = document.getElementById('sk-contact-rows');
   const countEl = document.getElementById('sk-contact-only-count');
+  const activeCountEl = document.getElementById('sk-active-count');
+  if (activeCountEl) activeCountEl.textContent = speakers.filter(sp => sp.trackerStatus !== 'Contact Only').length;
   if (!wrap || !tbody) return;
 
   const contactOnly = speakers
@@ -14799,11 +14818,12 @@ function renderContactOnlyRows() {
     .filter(sp => !speakerSearch || speakerSearchHaystack(sp).includes(speakerSearch.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  if (countEl) countEl.textContent = speakers.filter(sp => sp.trackerStatus === 'Contact Only').length;
+
   const shouldShow = speakerFilter === 'all' && contactOnly.length > 0;
   wrap.style.display = shouldShow ? '' : 'none';
   if (!shouldShow) return;
 
-  if (countEl) countEl.textContent = '(' + contactOnly.length + ')';
   const todayStr = new Date().toISOString().slice(0, 10);
   tbody.innerHTML = '';
   contactOnly.forEach(sp => {
