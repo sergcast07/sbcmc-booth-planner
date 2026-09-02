@@ -12568,13 +12568,6 @@ function renderSpeakerPublicView() {
     ${pendingCount > 0 ? `<div class="spv-pending-banner">Thanks! Our team will take a quick look at your update${pendingCount === 1 ? '' : 's'} shortly.</div>` : ''}
 
     <div class="dv-section">
-      <div class="dv-section-title">Your Contact Info</div>
-      <label class="spv-field">Contact Name${pendingTag('contactName')}<input type="text" value="${escapeHtml(portalStagedSpeakerValue(sp, 'contactName', sp.contactName))}" onchange="portalUpdateSpeakerContactField('${sp.id}', 'contactName', this.value)"></label>
-      <label class="spv-field">Contact Email${pendingTag('contactEmail')}<input type="email" value="${escapeHtml(portalStagedSpeakerValue(sp, 'contactEmail', sp.contactEmail))}" onchange="portalUpdateSpeakerContactField('${sp.id}', 'contactEmail', this.value)"></label>
-      <label class="spv-field">Contact Phone${pendingTag('contactPhone')}<input type="tel" value="${escapeHtml(portalStagedSpeakerValue(sp, 'contactPhone', sp.contactPhone))}" onchange="portalUpdateSpeakerContactField('${sp.id}', 'contactPhone', this.value)"></label>
-    </div>
-
-    <div class="dv-section">
       <div class="dv-section-title">Your Documents</div>
       <p class="sp-sub sp-sub-wrap">Upload whatever you have ready — you can always come back and add more later.</p>
       ${documentsBodyHtml}
@@ -12767,7 +12760,6 @@ function rejectAllSpeakerPendingChanges(id) {
 // Mirror the admin update functions, but stage into pendingChanges instead of writing live.
 // Only used by the public portal's own onclick handlers -- admin edits keep using the direct
 // updateSpeaker* functions, unaffected by any of this.
-function portalUpdateSpeakerContactField(id, field, value) { stageSpeakerChange(id, field, value); }
 function portalUpdateSpeakerNotes(id, value) { stageSpeakerChange(id, 'publicNotes', value); }
 // Text-type checklist items (bio, session description) -- see MATERIAL_ITEM_TYPES. Stores the
 // typed string directly under materials.<key>, staged through the exact same pendingChanges
