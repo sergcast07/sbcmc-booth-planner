@@ -487,6 +487,7 @@
   .spv-or-link input[type="url"] { flex: 1; min-width: 140px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
   .spv-done-section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 8px; text-align: center; }
   .spv-done-banner { background: rgba(46,139,87,0.12); color: #2E8B57; border: 1px solid rgba(46,139,87,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 12px; }
+  .spv-allset-banner { background: rgba(46,139,87,0.12); color: #2E8B57; border: 1px solid rgba(46,139,87,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 14px; }
   .spv-done-btn { width: 100%; padding: 13px 20px; font-size: 14px; }
   .spv-pending-banner { background: rgba(197,161,84,0.15); color: #8a6d1f; border: 1px solid rgba(197,161,84,0.4); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 20px; }
   .spv-pending-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #8a6d1f; background: rgba(197,161,84,0.18); border-radius: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
@@ -6828,23 +6829,22 @@ function openSpeakerFeeDrill(key, title) {
   }
   // Paid/outstanding are shown per row (not just the fee status label) so a partially-paid
   // speaker's actual split is clear -- especially now that they can appear in both lists.
+  // Just name + the money -- no contact info or notes here, this is a quick financial glance.
   const rows = list.slice().sort((a, b) => a.name.localeCompare(b.name)).map(sp => {
     const total = speakerTotalCost(sp);
     const paidAmt = speakerPaidAmount(sp);
     return `<tr>
-    <td><div class="dd-org">${escapeHtml(sp.name)}</div>${sp.data.specialNotes ? `<div class="dd-sub">${escapeHtml(sp.data.specialNotes)}</div>` : ''}</td>
-    <td>${escapeHtml(sp.contactName) || '—'}${sp.contactEmail ? `<div class="dd-sub">${escapeHtml(sp.contactEmail)}</div>` : ''}</td>
+    <td><div class="dd-org">${escapeHtml(sp.name)}</div></td>
     <td>${fmt(total)}</td>
     <td>${fmt(paidAmt)}</td>
     <td>${fmt(total - paidAmt)}</td>
-    <td><span class="sp-badge ${speakerBadgeClass(sp.trackerStatus)}">${escapeHtml(sp.trackerStatus)}</span></td>
     <td>${sp.data.financial.feeStatus ? escapeHtml(sp.data.financial.feeStatus) : '— not set —'}</td>
   </tr>`;
   }).join('');
   body.innerHTML = `
     <div class="dd-count">${list.length} speaker${list.length === 1 ? '' : 's'}</div>
     <table class="dd-table">
-      <thead><tr><th>Name</th><th>Contact</th><th>Total Cost</th><th>Paid</th><th>Outstanding</th><th>Tracker Status</th><th>Fee Status</th></tr></thead>
+      <thead><tr><th>Name</th><th>Total Cost</th><th>Paid</th><th>Outstanding</th><th>Fee Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -6863,21 +6863,18 @@ function openDashboardDrill(key, title) {
     return;
   }
 
+  // Just org + the money -- no contact info or notes here, this is a quick financial glance.
   const rows = list.slice().sort((a, b) => a.org.localeCompare(b.org)).map(s => {
-    const pkg = s.package ? getPkg(s.package) : null;
     return `<tr>
-      <td><div class="dd-org">${escapeHtml(s.org)}</div>${s.data.specialNotes ? `<div class="dd-sub">${escapeHtml(s.data.specialNotes)}</div>` : ''}</td>
-      <td>${escapeHtml(s.contactName) || '\u2014'}${s.contactEmail ? `<div class="dd-sub">${escapeHtml(s.contactEmail)}</div>` : ''}</td>
-      <td>${pkg ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${pkg.color}"></span>${pkg.label}</span>` : '\u2014'}</td>
+      <td><div class="dd-org">${escapeHtml(s.org)}</div></td>
       <td>${sponsorAmountCell(s)}</td>
-      <td><span class="sp-badge ${sponsorBadgeClass(s.trackerStatus)}">${escapeHtml(s.trackerStatus)}</span></td>
     </tr>`;
   }).join('');
 
   body.innerHTML = `
     <div class="dd-count">${list.length} sponsor${list.length === 1 ? '' : 's'}</div>
     <table class="dd-table">
-      <thead><tr><th>Organization</th><th>Contact</th><th>Package</th><th>Amount / Status</th><th>Tracker Status</th></tr></thead>
+      <thead><tr><th>Organization</th><th>Amount / Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -12130,6 +12127,14 @@ function renderSpeakerPublicView() {
 
   const materialsNeeded = sp.data.materialsNeeded || {};
 
+  // Shared by materialBlock() below and the "are we all set" summary -- a pending change
+  // (including a pending removal, which resolves to null) always wins over the live value.
+  function materialCurrentValue(itemKey) {
+    const key = 'materials.' + itemKey;
+    const filePending = pending[key];
+    return filePending ? filePending.new : (materials[itemKey] != null ? materials[itemKey] : null);
+  }
+
   function materialBlock(itemKey) {
     const key = 'materials.' + itemKey;
     const label = MATERIAL_ITEM_LABELS[itemKey] || itemKey;
@@ -12137,7 +12142,7 @@ function renderSpeakerPublicView() {
     const instructionHtml = instruction ? `<div class="spv-item-instruction">${escapeHtml(instruction)}</div>` : '';
     const type = materialItemType(itemKey);
     const filePending = pending[key];
-    const currentValue = filePending ? filePending.new : (materials[itemKey] != null ? materials[itemKey] : null);
+    const currentValue = materialCurrentValue(itemKey);
 
     // Free-form text items (bio, session description) skip the whole upload mechanism --
     // the value is just the plain string itself, staged the same way as any other portal edit.
@@ -12185,8 +12190,17 @@ function renderSpeakerPublicView() {
       </div>
     `;
   }
-  const materialBlocksHtml = relevantKeys.map(materialBlock).filter(Boolean).join('')
-    || '<p class="sp-sub">Nothing needed from you at this time.</p>';
+  const materialBlocksHtml = relevantKeys.map(materialBlock).filter(Boolean).join('');
+  // "All set" covers two real states: staff hasn't flagged anything as needed yet, or they
+  // have and every flagged item already has a value on file (a text field with real content,
+  // or a file/link that isn't itself a pending removal). Either way, a plain grey sentence
+  // reads as ambiguous -- a clear checkmark says outright there's nothing to do right now.
+  const neededKeysList = relevantKeys.filter(k => materialsNeeded[k]);
+  const allNeededProvided = neededKeysList.length > 0 && neededKeysList.every(k => !!materialCurrentValue(k));
+  const allSetBannerHtml = (neededKeysList.length === 0 || allNeededProvided)
+    ? `<div class="spv-allset-banner">✓ ${neededKeysList.length === 0 ? 'We have everything we need from you right now — nothing to upload.' : 'You’re all set — we have everything listed below.'}</div>`
+    : '';
+  const documentsBodyHtml = allSetBannerHtml + materialBlocksHtml;
 
   const pendingCount = Object.keys(pending).length;
 
@@ -12220,7 +12234,7 @@ function renderSpeakerPublicView() {
     <div class="dv-section">
       <div class="dv-section-title">Your Documents</div>
       <p class="sp-sub sp-sub-wrap">Upload whatever you have ready — you can always come back and add more later.</p>
-      ${materialBlocksHtml}
+      ${documentsBodyHtml}
     </div>
 
     <div class="dv-section">
