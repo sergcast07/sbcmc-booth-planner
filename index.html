@@ -4624,7 +4624,7 @@ function renderSponsorPublicView() {
   const hotelInfoHtml = hotelInfoUrl ? `
     <div class="dv-section">
       <div class="dv-section-title">Hotel Options</div>
-      <p class="sp-sub sp-sub-wrap">Here are the conference's hotel options and rates if you need lodging.</p>
+      <p class="sp-sub sp-sub-wrap">We've secured discounted hotel rates for conference speakers, artists, sponsors, and attendees — take a look and book whichever works best for you.</p>
       <a class="sp-add-btn" href="${escapeHtml(hotelInfoUrl)}" target="_blank" rel="noopener" style="display:inline-block; text-decoration:none;">🏨 View Hotel Options</a>
     </div>
   ` : '';
@@ -12657,7 +12657,7 @@ function renderSpeakerPublicView() {
   const hotelInfoHtml = (!sp.data.logistics.lodgingNeeded && hotelInfoUrl) ? `
     <div class="dv-section">
       <div class="dv-section-title">Hotel Options</div>
-      <p class="sp-sub sp-sub-wrap">We're not arranging lodging for you directly, but here are the conference's hotel options and rates.</p>
+      <p class="sp-sub sp-sub-wrap">We've secured discounted hotel rates for conference speakers, artists, sponsors, and attendees — take a look and book whichever works best for you.</p>
       <a class="sp-add-btn" href="${escapeHtml(hotelInfoUrl)}" target="_blank" rel="noopener" style="display:inline-block; text-decoration:none;">🏨 View Hotel Options</a>
     </div>
   ` : '';
