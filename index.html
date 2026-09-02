@@ -13135,8 +13135,22 @@ async function loadSessionRoomsAndTracks() {
     // year's data happened to be in memory before the switch.
     if (roomsRes.error) console.warn('Session rooms table not available:', errDetail(roomsRes.error));
     else sessionRooms = (roomsRes.data || []).map(r => ({ id: r.id, name: r.name, capacity: r.capacity || '' }));
-    if (tracksRes.error) console.warn('Session tracks table not available:', errDetail(tracksRes.error));
-    else sessionTracks = (tracksRes.data || []).map(t => ({ id: t.id, name: t.name }));
+    if (tracksRes.error) {
+      console.warn('Session tracks table not available:', errDetail(tracksRes.error));
+    } else if ((!tracksRes.data || tracksRes.data.length === 0) && !suppressNewYearAutoSeed) {
+      // The Breakout Grid's track list was never actually persisted to the database in the
+      // original single-year version -- it only ever lived as this DEFAULT_SESSION_TRACKS
+      // in-memory fallback, silently kept alive by the old "leave it as-is when the query comes
+      // back empty" behavior above. Now that an empty result correctly clears the in-memory list
+      // for a genuinely new year, that same emptiness needs a real one-time seed here (same
+      // pattern loadPackagesFromDb already uses) so the current year doesn't lose its tracks.
+      const seedTracks = DEFAULT_SESSION_TRACKS.map((name, i) => ({ id: 'track_default_' + i, name, conference_year: activeConferenceYear }));
+      const { error: seedErr } = await sbClient.from(SESSION_TRACKS_TABLE).insert(seedTracks);
+      if (seedErr) { console.warn('Could not seed session tracks:', errDetail(seedErr)); sessionTracks = DEFAULT_SESSION_TRACKS.map((name, i) => ({ id: 'track_default_' + i, name })); }
+      else sessionTracks = seedTracks.map(t => ({ id: t.id, name: t.name }));
+    } else {
+      sessionTracks = (tracksRes.data || []).map(t => ({ id: t.id, name: t.name }));
+    }
   } catch (err) {
     console.warn('Session rooms/tracks load failed:', err);
   }
