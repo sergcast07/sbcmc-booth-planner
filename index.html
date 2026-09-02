@@ -483,6 +483,7 @@
   .spv-file-block input[type="file"] { display: block; font-size: 12px; }
   .spv-or-link { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .spv-or-link-label { font-size: 11px; color: var(--ink-soft); width: 100%; }
+  .spv-item-instruction { font-size: 12px; color: var(--ink-soft); line-height: 1.5; margin-top: 3px; }
   .spv-or-link input[type="url"] { flex: 1; min-width: 140px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
   .spv-done-section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 8px; text-align: center; }
   .spv-done-banner { background: rgba(46,139,87,0.12); color: #2E8B57; border: 1px solid rgba(46,139,87,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 12px; }
@@ -11844,6 +11845,22 @@ const MATERIAL_ITEM_LABELS = {
   lyricsProPresenter: 'Lyrics / ProPresenter files', playbackDetails: 'Playback details (tracks, click, stems)',
   lightingNotes: 'Lighting notes / special requests'
 };
+// A short line of direction shown under each checklist item's label on the self-service
+// portal, so it's clear what's actually being asked for instead of just a bare field name.
+// Optional per key -- anything not listed here just shows the label with no extra line.
+const MATERIAL_ITEM_INSTRUCTIONS = {
+  bio: 'Please share a short bio we can use in conference materials.',
+  headshot: 'Please upload or point us to your most up to date headshot to use for the conference.',
+  sessionDescription: 'Please give us a short description of your session for the program and schedule.',
+  slideDeck: 'Please upload or point us to the slide deck you’ll use during your session.',
+  handouts: 'Please upload any handouts you’d like available for attendees.',
+  stagePlot: 'Please upload your stage plot.',
+  inputList: 'Please upload your input list.',
+  rfRequest: 'Please upload your RF (wireless) frequency request.',
+  lyricsProPresenter: 'Please upload your lyrics or ProPresenter files.',
+  playbackDetails: 'Please upload details on your playback needs (tracks, click, stems).',
+  lightingNotes: 'Please upload or share any lighting notes or special requests.'
+};
 // Which checklist items are typed in as plain text vs. an uploaded file vs. either an uploaded
 // file or a pasted link, instead of the default "upload a file" -- drives how materialBlock()
 // (portal) and materialsNeededHtml (admin) render and store each one. Content still lives in
@@ -12092,6 +12109,8 @@ function renderSpeakerPublicView() {
   function materialBlock(itemKey) {
     const key = 'materials.' + itemKey;
     const label = MATERIAL_ITEM_LABELS[itemKey] || itemKey;
+    const instruction = MATERIAL_ITEM_INSTRUCTIONS[itemKey];
+    const instructionHtml = instruction ? `<div class="spv-item-instruction">${escapeHtml(instruction)}</div>` : '';
     const type = materialItemType(itemKey);
     const filePending = pending[key];
     const currentValue = filePending ? filePending.new : (materials[itemKey] != null ? materials[itemKey] : null);
@@ -12104,6 +12123,7 @@ function renderSpeakerPublicView() {
       return `
         <div class="spv-file-block">
           <b>${escapeHtml(label)}</b>${pendingTag(key)}
+          ${instructionHtml}
           <textarea class="spv-textarea" rows="4" style="margin-top:6px;" placeholder="Type it in here…" onchange="portalUpdateSpeakerMaterialText('${sp.id}', '${itemKey}', this.value)">${escapeHtml(textValue)}</textarea>
         </div>
       `;
@@ -12133,6 +12153,7 @@ function renderSpeakerPublicView() {
     return `
       <div class="spv-file-block">
         <b>${escapeHtml(label)}</b>${pendingTag(key)}
+        ${instructionHtml}
         ${statusHtml}
         <input type="file" id="skv-material-input-${sp.id}-${itemKey}" style="margin-top:6px;">
         <button class="sp-add-btn" onclick="portalUploadSpeakerMaterial('${sp.id}', '${itemKey}')">Upload</button>
