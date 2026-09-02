@@ -3715,6 +3715,10 @@ const DATA_BACKUPS_TABLE = 'data_backups';
 // under anyone else mid-conference.
 let conferenceYears = []; // [{id, label, status}], newest first
 let activeConferenceYear = null;
+// Set true only while switching INTO a just-created conference year -- tells the
+// packages/maps loaders' empty-table branch to leave the new year blank instead of running
+// their normal "first-run" auto-seed (see loadPackagesFromDb/loadCustomMapsFromDb).
+let suppressNewYearAutoSeed = false;
 const ACTIVE_YEAR_KEY = 'sbcmcActiveYear';
 
 // booth_layouts stays a one-row-per-year singleton, same shape as before, just keyed by a
@@ -3870,7 +3874,12 @@ async function startNewConferenceYear() {
   }
 
   renderYearSelector();
-  await switchActiveYear(id);
+  suppressNewYearAutoSeed = true;
+  try {
+    await switchActiveYear(id);
+  } finally {
+    suppressNewYearAutoSeed = false;
+  }
   toast(label + ' started \u2014 you\u2019re now viewing it.');
 }
 
@@ -4979,13 +4988,19 @@ async function loadPackagesFromDb() {
   try {
     const { data, error } = await sbClient.from(PACKAGES_TABLE).select('*').eq('conference_year', activeConferenceYear).order('sort_order', { ascending: true });
     if (error) { console.warn('Packages table not available, using defaults:', errDetail(error)); return; }
+    // A brand-new conference year (created via Start New Conference Year) is meant to start
+    // with zero packages, not auto-seeded defaults left over from wherever last year's venue
+    // was -- that auto-seed exists for true first-run only (an empty table because the app was
+    // just connected to a fresh Supabase project), not for every new year that gets created.
+    if ((!data || data.length === 0) && suppressNewYearAutoSeed) { packages = []; return; }
     if (!data || data.length === 0) {
       const seed = DEFAULT_PACKAGES.map(p => ({
         key: p.key, label: p.label, width_ft: p.widthFt, depth_ft: p.depthFt, color: p.color, sort_order: p.sortOrder, conference_year: activeConferenceYear
       }));
       const { error: seedErr } = await sbClient.from(PACKAGES_TABLE).insert(seed);
       if (seedErr) { console.warn('Could not seed packages table:', seedErr.message); return; }
-      return; // packages stays as DEFAULT_PACKAGES, which now matches the DB
+      packages = DEFAULT_PACKAGES.map(p => ({ ...p }));
+      return;
     }
     packages = data.map(p => ({
       key: p.key, label: p.label, widthFt: Number(p.width_ft), depthFt: Number(p.depth_ft),
@@ -5016,6 +5031,10 @@ async function loadCustomMapsFromDb() {
   try {
     const { data, error } = await sbClient.from(MAPS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('sort_order', { ascending: true });
     if (error) { console.warn('Custom maps table not available:', errDetail(error)); return; }
+
+    // Same reasoning as loadPackagesFromDb -- a brand-new conference year starts blank, it
+    // doesn't inherit the five built-in floor plans from whichever venue hosted a prior year.
+    if ((!data || data.length === 0) && suppressNewYearAutoSeed) { customMaps = []; return; }
 
     if (!data || data.length === 0) {
       await seedBuiltinMapsIfEmpty();
@@ -13072,10 +13091,14 @@ async function loadSessionRoomsAndTracks() {
       sbClient.from(SESSION_ROOMS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('name', { ascending: true }),
       sbClient.from(SESSION_TRACKS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('name', { ascending: true })
     ]);
-    if (!roomsRes.error && roomsRes.data && roomsRes.data.length) sessionRooms = roomsRes.data.map(r => ({ id: r.id, name: r.name, capacity: r.capacity || '' }));
-    else if (roomsRes.error) console.warn('Session rooms table not available:', errDetail(roomsRes.error));
-    if (!tracksRes.error && tracksRes.data && tracksRes.data.length) sessionTracks = tracksRes.data.map(t => ({ id: t.id, name: t.name }));
-    else if (tracksRes.error) console.warn('Session tracks table not available:', errDetail(tracksRes.error));
+    // No .length guard on the empty branch here (unlike the original single-year version) --
+    // a brand-new conference year legitimately has zero rooms/tracks until someone adds them,
+    // and that has to actually clear sessionRooms/sessionTracks instead of leaving whichever
+    // year's data happened to be in memory before the switch.
+    if (roomsRes.error) console.warn('Session rooms table not available:', errDetail(roomsRes.error));
+    else sessionRooms = (roomsRes.data || []).map(r => ({ id: r.id, name: r.name, capacity: r.capacity || '' }));
+    if (tracksRes.error) console.warn('Session tracks table not available:', errDetail(tracksRes.error));
+    else sessionTracks = (tracksRes.data || []).map(t => ({ id: t.id, name: t.name }));
   } catch (err) {
     console.warn('Session rooms/tracks load failed:', err);
   }
@@ -13258,7 +13281,13 @@ async function loadScheduleAudiences() {
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(SCHEDULE_AUDIENCES_TABLE).select('*').eq('conference_year', activeConferenceYear);
-    if (!error && data && data.length) {
+    if (error) {
+      console.warn('Schedule audiences table not available:', errDetail(error));
+    } else {
+      // No .length guard here (unlike the original single-year version) -- a brand-new
+      // conference year legitimately starts with zero audience rows, and that has to actually
+      // clear scheduleAudiences down to just the reserved default instead of leaving whichever
+      // year's groups happened to be in memory before the switch.
       scheduleAudiences = data.map((a, i) => ({ id: a.id, name: a.name, sortOrder: a.sort_order != null ? a.sort_order : i }));
       // Main Conference is a reserved id the default filter and every untagged slot fall back
       // to. If the table has rows for other groups but never picked up one for this id (e.g.
@@ -13270,8 +13299,6 @@ async function loadScheduleAudiences() {
         scheduleAudiences.unshift(mainAud);
         pushScheduleAudience(mainAud);
       }
-    } else if (error) {
-      console.warn('Schedule audiences table not available:', errDetail(error));
     }
   } catch (err) {
     console.warn('Schedule audiences load failed:', err);
@@ -13280,11 +13307,11 @@ async function loadScheduleAudiences() {
 function pushScheduleAudience(aud) {
   if (!sbClient) return;
   const base = { id: aud.id, name: aud.name, conference_year: activeConferenceYear };
-  sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ ...base, sort_order: aud.sortOrder || 0 }).then(({ error }) => {
+  sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert({ ...base, sort_order: aud.sortOrder || 0 }, { onConflict: 'id,conference_year' }).then(({ error }) => {
     if (!error) { reportWriteSuccess('schedule-audience:' + aud.id); return; }
     // Older schema without a sort_order column yet -- retry without it so the name/id still
     // save; order just won't persist until that column exists.
-    sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert(base).then(({ error: err2 }) => {
+    sbClient.from(SCHEDULE_AUDIENCES_TABLE).upsert(base, { onConflict: 'id,conference_year' }).then(({ error: err2 }) => {
       if (err2) { reportWriteError('schedule-audience:' + aud.id, 'Couldn’t save that group — it’ll revert next reload.', err2); }
       else { reportWriteSuccess('schedule-audience:' + aud.id); console.warn('Group order didn’t save — "schedule_audiences.sort_order" column may be missing. (' + errDetail(error) + ')'); }
     });
@@ -13417,7 +13444,10 @@ async function loadScheduleSlots() {
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(SCHEDULE_SLOTS_TABLE).select('*').eq('conference_year', activeConferenceYear).order('slot_date', { ascending: true }).order('start_time', { ascending: true });
-    if (!error && data && data.length) {
+    // No .length guard on the empty branch here (unlike the original single-year version) -- a
+    // brand-new conference year legitimately starts with zero slots, and that has to actually
+    // clear scheduleSlots instead of leaving whichever year's schedule was in memory before.
+    if (!error) {
       scheduleSlots = data.map((r, i) => ({
         id: r.id, date: r.slot_date, label: r.label, start: r.start_time, end: r.end_time, kind: r.kind,
         notes: r.notes || '', sortOrder: r.sort_order != null ? r.sort_order : i,
