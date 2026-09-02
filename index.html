@@ -13066,6 +13066,19 @@ function addSpeakerSession(id) {
   pushSpeaker(sp);
   renderSpeakerRows(id);
 }
+// A track leader is responsible for a whole track without presenting at every session in it --
+// modeled as a session entry with isTrackLead:true and no date/time/room, rather than a new
+// top-level field, so it reuses the existing sessions array, its chronological sort (blank
+// dates already sort last, see sessionChronoKey), and every place that already reads a
+// speaker's sessions instead of needing its own parallel concept.
+function addSpeakerTrackLead(id) {
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!sp.data.sessions) sp.data.sessions = [];
+  sp.data.sessions.push({ id: makeId(), title: '', track: '', isTrackLead: true, sessionDate: '', day: '', timeSlot: '', room: '', lengthMin: '', description: '' });
+  expandedSpeakerSessions.add(id + ':' + (sp.data.sessions.length - 1));
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+}
 function removeSpeakerSession(id, i) {
   const sp = getSpeaker(id); if (!sp || !sp.data.sessions) return;
   sp.data.sessions.splice(i, 1);
@@ -13661,6 +13674,19 @@ const TRACK_COLOR_PALETTE = [
   '#4A7A5C', '#9B6B9E', '#7A8B99', '#B08550', '#5C879C', '#8A6A4A'
 ];
 function trackColorForIndex(i) { return TRACK_COLOR_PALETTE[i % TRACK_COLOR_PALETTE.length]; }
+
+// Who (if anyone) is named Track Leader for this track -- searches every speaker's sessions
+// for an isTrackLead entry matching by name, the same way breakout-grid cells already resolve
+// occupants by matching sess.track against the track's name. Returns the speaker, not just the
+// name, so callers can link to their record.
+function trackLeaderForTrack(trackName) {
+  if (!trackName) return null;
+  for (const sp of speakers) {
+    const lead = (sp.data.sessions || []).find(s => s.isTrackLead && s.track === trackName);
+    if (lead) return sp;
+  }
+  return null;
+}
 let scheduleSlots = DEFAULT_SCHEDULE_SLOTS.map(([date, label, start, end, kind], i) => ({
   id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i, audiences: [MAIN_AUDIENCE_ID], subOptions: [], room: ''
 }));
@@ -14073,7 +14099,9 @@ function renderBreakoutGrid() {
       const dragHandlers = canEditSchedule ? `ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schDrop(event,'${track.id}','${slot.id}')"` : '';
       return `<td><div class="${cls}" ${dragHandlers}>${cards}${roomHtml}${addSelect}</div></td>`;
     }).join('');
-    return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span>` : ''}</td>${cells}</tr>`;
+    const leader = trackLeaderForTrack(track.name);
+    const leaderHtml = leader ? `<div class="sp-sub" style="font-weight:400; text-transform:none; cursor:pointer;" onclick="event.stopPropagation(); jumpToSpeaker('${leader.id}')" title="Click to open their record">🎖️ ${escapeHtml(leader.name)}</div>` : '';
+    return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span>` : ''}${leaderHtml}</td>${cells}</tr>`;
   }).join('');
 
   const viewToggleHtml = `
@@ -14919,6 +14947,7 @@ function buildSpeakerRowPair(sp, todayStr) {
       const first = earliestSpeakerSession(sp);
       if (!first) return '—';
       const extra = sessions.length > 1 ? ` <span class="sp-sub">+${sessions.length - 1} more</span>` : '';
+      if (first.isTrackLead) return `🎖️ Track Leader${extra}<div class="sp-sub">${escapeHtml(first.track || 'no track picked yet')}</div>`;
       const when = [first.day, friendlyTime(first.timeSlot)].filter(Boolean).join(' · ');
       return `${escapeHtml(first.title || 'Untitled session')}${extra}<div class="sp-sub">${escapeHtml(when)}</div>`;
     })()}</td>
@@ -15212,6 +15241,22 @@ function speakerDetailHTML(sp) {
           ${chronoSessionIndices(sp).map((i, displayIdx) => {
             const sess = sp.data.sessions[i];
             const isExpanded = expandedSpeakerSessions.has(sp.id + ':' + i);
+            if (sess.isTrackLead) {
+              return `
+              <div class="sp-session-card${displayIdx === 0 ? ' sp-session-card-first' : ''}">
+                <div class="sp-session-summary" onclick="toggleSpeakerSessionExpand('${sp.id}',${i})">
+                  <span class="sp-chevron ${isExpanded ? 'open' : ''}">▸</span>
+                  <span class="sp-session-summary-text">🎖️ <b>Track Leader</b>${sess.track ? ' — ' + escapeHtml(sess.track) : ' — pick a track'}</span>
+                  <button class="sp-mini-btn" onclick="event.stopPropagation(); removeSpeakerSession('${sp.id}',${i})">&times; Remove</button>
+                </div>
+                ${!isExpanded ? '' : `
+                <div class="sp-field-grid" style="margin-top:10px;">
+                  <div class="sp-field"><label for="sk-sesstrack-${sp.id}-${i}">Track</label><select id="sk-sesstrack-${sp.id}-${i}" onchange="updateSpeakerSessionField('${sp.id}',${i},'track',this.value)">${sessionTrackOptionsHtml(sess.track)}</select></div>
+                  <div class="sp-field" style="grid-column:1/-1;"><label for="sk-sessdesc-${sp.id}-${i}">Notes</label><textarea id="sk-sessdesc-${sp.id}-${i}" rows="2" onchange="updateSpeakerSessionField('${sp.id}',${i},'description',this.value)">${escapeHtml(sess.description)}</textarea></div>
+                </div>
+                `}
+              </div>
+            `; }
             const summaryBits = [sess.track, [sess.day, friendlyTime(sess.timeSlot)].filter(Boolean).join(' · '), sess.room].filter(Boolean).join(' — ');
             return `
             <div class="sp-session-card${displayIdx === 0 ? ' sp-session-card-first' : ''}">
@@ -15235,6 +15280,7 @@ function speakerDetailHTML(sp) {
             </div>
           `; }).join('') || '<div class="sp-sub">No sessions added yet.</div>'}
           <button class="sp-mini-btn" style="margin-top:10px;" onclick="addSpeakerSession('${sp.id}')">+ Add a session</button>
+          <button class="sp-mini-btn" style="margin-top:10px; margin-left:6px;" onclick="addSpeakerTrackLead('${sp.id}')">🎖️ Name as Track Leader</button>
         </fieldset>
       </div>
     </div>
