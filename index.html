@@ -1954,6 +1954,27 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <tbody id="sk-rows"></tbody>
       </table>
       </div>
+      <div class="sp-table-wrap" id="sk-contact-only-wrap" style="display:none; margin-top:22px;">
+        <div class="sp-collapsible-label" data-section-toggle="sk-contact-only" onclick="toggleSidebarSection('sk-contact-only')" style="padding:0 0 10px;">
+          <span class="sp-chevron">▸</span>📇 Contact Only — Rolodex <span id="sk-contact-only-count" class="sp-sub"></span>
+        </div>
+        <div class="sp-collapsible-body" data-section-key="sk-contact-only">
+          <table class="sp-table">
+            <thead>
+              <tr>
+                <th style="width:60px;"></th>
+                <th style="width:170px;">Name</th>
+                <th style="width:220px;">Session</th>
+                <th style="width:160px;">Contact</th>
+                <th style="width:140px;">Tracker Status</th>
+                <th style="width:90px;">Complete</th>
+                <th style="width:110px;">Host</th>
+              </tr>
+            </thead>
+            <tbody id="sk-contact-rows"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -14762,14 +14783,51 @@ function buildSpeakerRowPair(sp, todayStr) {
   return [tr, detailTr];
 }
 
+// The rolodex section beneath the main roster table -- only shown while viewing "All" (a
+// specific status filter, including "Contact Only" itself, already isolates what it needs in
+// the main table, so showing this section too would just be a confusing duplicate). Search is
+// honored so a name is still findable from the same search box; type filter and sort aren't --
+// most of these rows have no type set yet, and always-alphabetical keeps a rolodex scannable.
+function renderContactOnlyRows() {
+  const wrap = document.getElementById('sk-contact-only-wrap');
+  const tbody = document.getElementById('sk-contact-rows');
+  const countEl = document.getElementById('sk-contact-only-count');
+  if (!wrap || !tbody) return;
+
+  const contactOnly = speakers
+    .filter(sp => sp.trackerStatus === 'Contact Only')
+    .filter(sp => !speakerSearch || speakerSearchHaystack(sp).includes(speakerSearch.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const shouldShow = speakerFilter === 'all' && contactOnly.length > 0;
+  wrap.style.display = shouldShow ? '' : 'none';
+  if (!shouldShow) return;
+
+  if (countEl) countEl.textContent = '(' + contactOnly.length + ')';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  tbody.innerHTML = '';
+  contactOnly.forEach(sp => {
+    const [tr, detailTr] = buildSpeakerRowPair(sp, todayStr);
+    tbody.appendChild(tr);
+    if (detailTr) tbody.appendChild(detailTr);
+  });
+}
+
 function renderSpeakerRows(dirtyId) {
   const tbody = document.getElementById('sk-rows');
   if (!tbody) return;
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  // Contact Only entries live in their own section below (see renderContactOnlyRows) rather
+  // than mixed into the main pipeline table -- they're a rolodex of people who aren't actively
+  // being worked, and scattering them through "All" just added noise to the list everyone else
+  // is scanning. A dedicated filter click ("Contact Only" in the sidebar) still shows just them
+  // in the main table, same as any other status.
+  renderContactOnlyRows();
+
   let filtered = speakers.filter(sp => {
     let matchesFilter;
-    if (speakerFilter === 'all') matchesFilter = true;
+    if (speakerFilter === 'all') matchesFilter = sp.trackerStatus !== 'Contact Only';
     else if (speakerFilter === '__flagged__') matchesFilter = !!sp.data.flagged;
     else matchesFilter = sp.trackerStatus === speakerFilter;
     let matchesTypeFilter;
