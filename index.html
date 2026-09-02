@@ -11847,6 +11847,21 @@ function updateApplicantImportMapping(field, headerName) {
   if (!apImportState) return;
   apImportState.mapping[field] = headerName;
 }
+// Reads an attached .csv file and runs it through the exact same detection path as pasted
+// text -- fills the textarea (so it's visible/editable either way) and calls
+// parseApplicantImportText() itself, rather than requiring a separate "Detect Columns" click.
+function handleApplicantImportFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const textEl = document.getElementById('ap-import-text');
+    if (textEl) textEl.value = reader.result;
+    parseApplicantImportText();
+  };
+  reader.onerror = () => toast('Could not read that file — see console.');
+  reader.readAsText(file);
+}
 function confirmApplicantImport() {
   if (!apImportState || !apImportState.rows.length) { toast('Paste some CSV data and click Detect Columns first.'); return; }
   const { headers, rows, mapping, groupId } = apImportState;
@@ -11894,13 +11909,17 @@ function renderApplicantImportModal() {
     <div class="qa-modal-overlay" onclick="if(event.target===this) closeApplicantImportModal();">
       <div class="qa-modal-card email-gen-card">
         <h3>Import Applicants CSV</h3>
-        <p class="qa-modal-sub">Paste the CSV export of a registration or scholarship form. Column headers vary by form, so map them below before importing.</p>
+        <p class="qa-modal-sub">Attach or paste the CSV export of a registration or scholarship form. Column headers vary by form, so map them below before importing.</p>
         <div class="qa-modal-field">
           <label for="ap-import-group">Import into program</label>
           <select id="ap-import-group" onchange="updateApplicantImportGroup(this.value)">${orderedApplicantGroups().map(g => `<option value="${g.id}" ${apImportState.groupId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}</select>
         </div>
         <div class="qa-modal-field">
-          <label for="ap-import-text">CSV text (paste, including the header row)</label>
+          <label for="ap-import-file">Attach a CSV file</label>
+          <input type="file" id="ap-import-file" accept=".csv,text/csv" onchange="handleApplicantImportFile(this)">
+        </div>
+        <div class="qa-modal-field">
+          <label for="ap-import-text">— or paste CSV text (including the header row) —</label>
           <textarea id="ap-import-text" class="email-gen-body" rows="6">${escapeHtml(apImportState.csvText)}</textarea>
         </div>
         <div class="qa-modal-field">
