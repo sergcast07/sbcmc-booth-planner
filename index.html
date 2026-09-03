@@ -2093,6 +2093,8 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <input class="sp-search" id="ap-search" placeholder="Search name, email, answers…" oninput="setApplicantSearch(this.value)">
         <select class="sp-sort-select" id="ap-sort-select" onchange="setApplicantSortFromDropdown(this.value)">
           <option value="">Sort by…</option>
+          <option value="date-desc" selected>Date Applied (newest)</option>
+          <option value="date-asc">Date Applied (oldest)</option>
           <option value="name-asc">Name (A–Z)</option>
           <option value="name-desc">Name (Z–A)</option>
         </select>
@@ -2114,6 +2116,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <th style="width:190px;">Name</th>
           <th style="width:190px;">Contact</th>
           <th style="width:150px;">Program</th>
+          <th style="width:110px;">Date Applied</th>
           <th style="width:120px;">Status</th>
           <th style="width:110px;">Lodging</th>
         </tr></thead>
@@ -6812,7 +6815,7 @@ function applyNavVisibility() {
   const floorplanAdminLink = document.getElementById('floorplan-admin-link');
   if (floorplanAdminLink) floorplanAdminLink.style.display = window.isAdminUser ? '' : 'none';
   const apSyncBtn = document.getElementById('ap-sync-btn');
-  if (apSyncBtn) apSyncBtn.style.display = window.isAdminUser ? '' : 'none';
+  if (apSyncBtn) apSyncBtn.style.display = canView('applicants.all') ? '' : 'none';
   const schCopyLinkBtn = document.getElementById('sch-copy-link-btn');
   if (schCopyLinkBtn) schCopyLinkBtn.style.display = (canEdit('schedule.all') || window.isAdminUser) ? '' : 'none';
   // Sponsor Tracker's Amount/Status and Due column headers are static HTML (unlike the row
@@ -11442,8 +11445,8 @@ let applicants = [];
 let applicantGroupFilter = 'all';
 let applicantStatusFilter = 'all';
 let applicantSearch = '';
-let applicantSortKey = '';
-let applicantSortDir = 1;
+let applicantSortKey = 'date';
+let applicantSortDir = -1; // newest first by default
 let openApplicantId = null;
 
 function makeApplicantId() { return 'ap_' + Date.now() + '_' + Math.floor(Math.random() * 10000); }
@@ -11493,12 +11496,24 @@ async function loadApplicants() {
 function rowToApplicant(row) {
   return {
     id: row.id, groupId: row.group_id, name: row.name || '', email: row.email || '', phone: row.phone || '',
-    sortOrder: row.sort_order || 0,
+    sortOrder: row.sort_order || 0, createdAt: row.created_at || '',
     data: Object.assign({
       raw: {}, status: 'Pending', reviewedBy: '', reviewedAt: '', reviewNotes: '',
       needsLodging: null, roomLabel: '', gender: '', flagged: false
     }, row.data || {})
   };
+}
+// Prefers the real Gravity Forms submission date (captured in data.raw by the sync) over our
+// own created_at, since a weekly sync can otherwise make someone who applied days ago look
+// like they just applied today. Falls back to created_at for anyone added by CSV import or
+// by hand, where no Gravity Forms date exists. Returns "" (sorts/displays as unknown) if
+// neither is available.
+function applicantAppliedDate(a) {
+  const raw = a.data.raw || {};
+  const gfDate = raw['Gravity Forms Entry Date'];
+  if (gfDate) return gfDate.slice(0, 10);
+  if (a.createdAt) return a.createdAt.slice(0, 10);
+  return '';
 }
 let applicantPushTimers = {};
 function pushApplicant(a) {
@@ -11577,6 +11592,16 @@ function currentFilteredApplicants() {
   });
   if (applicantSortKey === 'name') {
     filtered = filtered.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '') * applicantSortDir);
+  } else if (applicantSortKey === 'date') {
+    // Unknown dates ("") sort to the end regardless of direction, rather than jumping to the
+    // top of "oldest first" just because an empty string collates before any real date.
+    filtered = filtered.slice().sort((a, b) => {
+      const da = applicantAppliedDate(a), db = applicantAppliedDate(b);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da < db ? -1 * applicantSortDir : da > db ? 1 * applicantSortDir : 0;
+    });
   }
   return filtered;
 }
@@ -11647,6 +11672,7 @@ function buildApplicantRowPair(a) {
     <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Program">${escapeHtml(applicantGroupName(a.groupId))}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
+    <td data-label="Date Applied">${applicantAppliedDate(a) ? escapeHtml(friendlyDate(applicantAppliedDate(a))) : '<span class="sp-sub">—</span>'}</td>
     <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
     <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
@@ -11654,7 +11680,7 @@ function buildApplicantRowPair(a) {
   const dtr = document.createElement('tr');
   dtr.className = 'sp-detail-row' + (openApplicantId === a.id ? ' open' : '');
   dtr.id = 'ap-detail-' + a.id;
-  dtr.innerHTML = `<td class="sp-detail-cell" colspan="6">${openApplicantId === a.id ? applicantDetailHTML(a) : ''}</td>`;
+  dtr.innerHTML = `<td class="sp-detail-cell" colspan="7">${openApplicantId === a.id ? applicantDetailHTML(a) : ''}</td>`;
   return [tr, dtr];
 }
 function renderApplicantRows() {
@@ -11807,7 +11833,7 @@ let apImportState = null;
 // a secret) and does the actual pull-and-dedupe-by-email work. This button just triggers it
 // and shows whatever summary comes back.
 async function syncLatestApplications() {
-  if (!window.isAdminUser) return;
+  if (!canView('applicants.all')) return;
   if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
   const btn = document.getElementById('ap-sync-btn');
   if (btn) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
