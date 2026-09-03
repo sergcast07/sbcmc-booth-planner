@@ -1796,7 +1796,13 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   <button class="top-nav-btn" id="nav-sponsors-btn" onclick="switchTopView('sponsors')">Sponsor Tracker<span class="sp-nav-badge" id="nav-sponsors-pending-badge" title="Sponsor updates awaiting your review"></span></button>
   <button class="top-nav-btn" id="nav-speakers-btn" onclick="switchTopView('speakers')">Speakers & Artists</button>
   <button class="top-nav-btn" id="nav-schedule-btn" onclick="switchTopView('schedule')">Schedule</button>
-  <button class="top-nav-btn" id="nav-applicants-btn" onclick="switchTopView('applicants')">Applicants<span class="sp-nav-badge" id="nav-applicants-pending-badge" title="Applications awaiting leader review"></span></button>
+  <div class="nav-dropdown">
+    <button class="top-nav-btn" id="nav-applicants-btn" onclick="toggleApplicantsDropdown(event)">Applicants <span class="nav-caret">▾</span></button>
+    <div class="nav-dropdown-menu" id="nav-applicants-menu">
+      <button class="nav-dropdown-item" id="nav-applicants-sls-btn" onclick="switchTopView('applicants_sls')">Student Leadership Summit<span class="sp-nav-badge" id="nav-applicants-sls-pending-badge" title="Applications awaiting leader review"></span></button>
+      <button class="nav-dropdown-item" id="nav-applicants-cwc-btn" onclick="switchTopView('applicants_cwc')">Collegiate Worship Collective<span class="sp-nav-badge" id="nav-applicants-cwc-pending-badge" title="Applications awaiting leader review"></span></button>
+    </div>
+  </div>
   <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
   <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
   <div class="nav-dropdown">
@@ -2082,77 +2088,123 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   <div id="sch-itinerary-body" style="display:none;"></div>
 </div>
 
-<div id="applicants-view" style="display:none;" data-section="applicants.all">
+<div id="applicants-sls-view" style="display:none;" data-section="applicants.all">
   <div class="sp-wrap">
     <div class="sp-side">
       <div class="sp-side-section">
         <div class="sp-side-label-row">
-          <div class="sp-side-label sp-collapsible-label" data-section-toggle="ap-overview" onclick="toggleSidebarSection('ap-overview')"><span class="sp-chevron">▸</span>Overview</div>
+          <div class="sp-side-label sp-collapsible-label" data-section-toggle="ap-sls-overview" onclick="toggleSidebarSection('ap-sls-overview')"><span class="sp-chevron">▸</span>Overview</div>
           <div class="sp-side-toolbar"><button class="sp-side-toggle" onclick="toggleSidebar()" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line><rect x="4.3" y="5.3" width="3.4" height="13.4" rx="0.8" fill="currentColor" stroke="none" opacity="0.45"></rect><path class="toggle-chevron" d="M14 9l-3 3 3 3" stroke-width="2"></path></svg><span class="sp-side-toggle-label">Collapse</span></button></div>
         </div>
-        <div class="sp-collapsible-body" data-section-key="ap-overview">
+        <div class="sp-collapsible-body" data-section-key="ap-sls-overview">
         <div class="sp-stat-block">
-          <div class="sp-stat"><span>Total</span><b id="ap-stat-total">0</b></div>
-          <div class="sp-stat"><span>Pending review</span><b id="ap-stat-pending">0</b></div>
-          <div id="ap-stat-approved-by-group"></div>
-          <div class="sp-stat"><span>Need lodging</span><b id="ap-stat-lodging">0</b></div>
-          <div class="sp-stat"><span>Scholarship requests</span><b id="ap-stat-scholarship">0</b></div>
-          <div class="sp-stat"><span>Scholarships approved</span><b id="ap-stat-scholarship-granted">0</b></div>
+          <div class="sp-stat"><span>Total</span><b id="ap-sls-stat-total">0</b></div>
+          <div class="sp-stat"><span>Pending review</span><b id="ap-sls-stat-pending">0</b></div>
+          <div class="sp-stat"><span>Approved</span><b id="ap-sls-stat-approved">0</b></div>
+          <div class="sp-stat"><span>Need lodging</span><b id="ap-sls-stat-lodging">0</b></div>
         </div>
         </div>
       </div>
-      <div>
-        <div class="sp-side-label sp-collapsible-label" data-section-toggle="ap-programs" onclick="toggleSidebarSection('ap-programs')"><span class="sp-chevron">▸</span>Programs</div>
-        <div class="sp-collapsible-body" data-section-key="ap-programs" style="display:flex; flex-direction:column; gap:3px;" id="ap-group-filter-list">
-          <button class="sp-filter-btn active" data-f="all" onclick="setApplicantGroupFilter('all')">All Programs</button>
-        </div>
-        <div class="sp-add-row" style="margin-top:8px;">
-          <input type="text" id="ap-new-group-input" placeholder="+ Add a program…">
-          <button class="sp-mini-btn" onclick="addApplicantGroup()">Add</button>
-        </div>
-      </div>
-      <div class="hint">Import applications from a CSV export of a registration or scholarship form, review and approve them per program (either leader's decision is final), then build room assignment lists for whoever is booking hotel blocks.</div>
+      <div class="hint">Import applications from a CSV export of a registration form and review/approve them (your decision is final).</div>
     </div>
     <div class="sp-main">
       <div class="sp-topbar">
-        <input class="sp-search" id="ap-search" placeholder="Search name, email, answers…" oninput="setApplicantSearch(this.value)">
-        <select class="sp-sort-select" id="ap-sort-select" onchange="setApplicantSortFromDropdown(this.value)">
+        <input class="sp-search" id="ap-sls-search" placeholder="Search name, email, answers…" oninput="setApplicantSearch('sls', this.value)">
+        <select class="sp-sort-select" id="ap-sls-sort-select" onchange="setApplicantSortFromDropdown('sls', this.value)">
           <option value="">Sort by…</option>
           <option value="date-desc" selected>Date Applied (newest)</option>
           <option value="date-asc">Date Applied (oldest)</option>
           <option value="name-asc">Name (A–Z)</option>
           <option value="name-desc">Name (Z–A)</option>
         </select>
-        <button class="sp-add-btn" onclick="openApplicantImportModal()">📥 Import CSV</button>
-        <button class="sp-add-btn" id="ap-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()" title="Pulls the latest entries from both Gravity Forms — can take up to a minute.">🔄 Sync Latest Applications</button>
-        <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
+        <button class="sp-add-btn" onclick="openApplicantImportModal('sls')">📥 Import CSV</button>
+        <button class="sp-add-btn" id="ap-sls-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()" title="Pulls the latest entries from both Gravity Forms — can take up to a minute.">🔄 Sync Latest Applications</button>
       </div>
-      <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-status-filter-row">
-        <button class="sch-toggle-btn active" data-sf="all" onclick="setApplicantStatusFilter('all')">All Statuses</button>
-        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('Pending')">Pending</button>
-        <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('Approved')">Approved</button>
-        <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('Declined')">Declined</button>
-        <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('__lodging__')">🏨 Needs Lodging</button>
-        <button class="sch-toggle-btn" data-sf="__scholarship__" onclick="setApplicantStatusFilter('__scholarship__')">🎓 Scholarship Requested</button>
+      <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-sls-status-filter-row">
+        <button class="sch-toggle-btn active" data-sf="all" onclick="setApplicantStatusFilter('sls', 'all')">All Statuses</button>
+        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('sls', 'Pending')">Pending</button>
+        <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('sls', 'Approved')">Approved</button>
+        <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('sls', 'Declined')">Declined</button>
+        <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('sls', '__lodging__')">🏨 Needs Lodging</button>
       </div>
       <div class="sp-table-wrap">
-      <table class="sp-table" id="ap-table">
-        <thead><tr id="ap-thead-row">
+      <table class="sp-table" id="ap-sls-table">
+        <thead><tr id="ap-sls-thead-row">
           <th style="width:56px;"></th>
-          <th style="width:190px;">Name</th>
-          <th style="width:190px;">Contact</th>
-          <th style="width:150px;">Program</th>
+          <th style="width:220px;">Name</th>
+          <th style="width:220px;">Contact</th>
           <th style="width:110px;">Date Applied</th>
           <th style="width:120px;">Status</th>
           <th style="width:110px;">Lodging</th>
         </tr></thead>
-        <tbody id="ap-rows"></tbody>
+        <tbody id="ap-sls-rows"></tbody>
       </table>
       </div>
     </div>
   </div>
 </div>
-<div id="ap-import-modal-root"></div>
+<div id="ap-sls-import-modal-root"></div>
+
+<div id="applicants-cwc-view" style="display:none;" data-section="applicants.all">
+  <div class="sp-wrap">
+    <div class="sp-side">
+      <div class="sp-side-section">
+        <div class="sp-side-label-row">
+          <div class="sp-side-label sp-collapsible-label" data-section-toggle="ap-cwc-overview" onclick="toggleSidebarSection('ap-cwc-overview')"><span class="sp-chevron">▸</span>Overview</div>
+          <div class="sp-side-toolbar"><button class="sp-side-toggle" onclick="toggleSidebar()" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line><rect x="4.3" y="5.3" width="3.4" height="13.4" rx="0.8" fill="currentColor" stroke="none" opacity="0.45"></rect><path class="toggle-chevron" d="M14 9l-3 3 3 3" stroke-width="2"></path></svg><span class="sp-side-toggle-label">Collapse</span></button></div>
+        </div>
+        <div class="sp-collapsible-body" data-section-key="ap-cwc-overview">
+        <div class="sp-stat-block">
+          <div class="sp-stat"><span>Total</span><b id="ap-cwc-stat-total">0</b></div>
+          <div class="sp-stat"><span>Pending review</span><b id="ap-cwc-stat-pending">0</b></div>
+          <div class="sp-stat"><span>Approved</span><b id="ap-cwc-stat-approved">0</b></div>
+          <div class="sp-stat"><span>Need lodging</span><b id="ap-cwc-stat-lodging">0</b></div>
+          <div class="sp-stat"><span>Scholarship requests</span><b id="ap-cwc-stat-scholarship">0</b></div>
+          <div class="sp-stat"><span>Scholarships approved</span><b id="ap-cwc-stat-scholarship-granted">0</b></div>
+        </div>
+        </div>
+      </div>
+      <div class="hint">Import applications from a CSV export of a registration or scholarship form, review and approve them (your decision is final), then build room assignment lists for whoever is booking hotel blocks.</div>
+    </div>
+    <div class="sp-main">
+      <div class="sp-topbar">
+        <input class="sp-search" id="ap-cwc-search" placeholder="Search name, email, answers…" oninput="setApplicantSearch('cwc', this.value)">
+        <select class="sp-sort-select" id="ap-cwc-sort-select" onchange="setApplicantSortFromDropdown('cwc', this.value)">
+          <option value="">Sort by…</option>
+          <option value="date-desc" selected>Date Applied (newest)</option>
+          <option value="date-asc">Date Applied (oldest)</option>
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="name-desc">Name (Z–A)</option>
+        </select>
+        <button class="sp-add-btn" onclick="openApplicantImportModal('cwc')">📥 Import CSV</button>
+        <button class="sp-add-btn" id="ap-cwc-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()" title="Pulls the latest entries from both Gravity Forms — can take up to a minute.">🔄 Sync Latest Applications</button>
+        <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
+      </div>
+      <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-cwc-status-filter-row">
+        <button class="sch-toggle-btn active" data-sf="all" onclick="setApplicantStatusFilter('cwc', 'all')">All Statuses</button>
+        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('cwc', 'Pending')">Pending</button>
+        <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('cwc', 'Approved')">Approved</button>
+        <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('cwc', 'Declined')">Declined</button>
+        <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('cwc', '__lodging__')">🏨 Needs Lodging</button>
+        <button class="sch-toggle-btn" data-sf="__scholarship__" onclick="setApplicantStatusFilter('cwc', '__scholarship__')">🎓 Scholarship Requested</button>
+      </div>
+      <div class="sp-table-wrap">
+      <table class="sp-table" id="ap-cwc-table">
+        <thead><tr id="ap-cwc-thead-row">
+          <th style="width:56px;"></th>
+          <th style="width:220px;">Name</th>
+          <th style="width:220px;">Contact</th>
+          <th style="width:110px;">Date Applied</th>
+          <th style="width:120px;">Status</th>
+          <th style="width:110px;">Lodging</th>
+        </tr></thead>
+        <tbody id="ap-cwc-rows"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="ap-cwc-import-modal-root"></div>
 <div id="ap-room-modal-root"></div>
 
 <div id="dashboard-view" data-section="dashboard.all">
@@ -5063,7 +5115,7 @@ async function initSupabase() {
       (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve())
     ]);
     initialDataLoaded = true;
-    if (typeof renderApplicantStats === 'function') renderApplicantStats();
+    if (typeof renderApplicantStats === 'function') { renderApplicantStats('sls'); renderApplicantStats('cwc'); }
     rebuildMapRegistry();
     renderPackageSidebar();
     buildTabs();
@@ -6711,7 +6763,8 @@ const VIEW_SECTION_KEYS = {
   sponsors: ['sponsors.contact', 'sponsors.financial'],
   speakers: ['speakers.roster', 'speakers.logistics', 'speakers.financial', 'speakers.internal_docs'],
   schedule: ['schedule.all'],
-  applicants: ['applicants.all'],
+  applicants_sls: ['applicants.all'],
+  applicants_cwc: ['applicants.all'],
   transport: ['transportation.all'],
   floorplan: ['floorplan.all'],
   revenue: ['revenue.all'],
@@ -6720,7 +6773,7 @@ const VIEW_SECTION_KEYS = {
 // Order matters: the first entry here that the signed-in user can actually view is where
 // switchTopView lands them when the tab they asked for is denied -- 'dashboard' can no longer
 // be assumed to always be safe now that it's gated too (see VIEW_SECTION_KEYS above).
-const FALLBACK_VIEW_ORDER = ['dashboard', 'sponsors', 'speakers', 'schedule', 'applicants',
+const FALLBACK_VIEW_ORDER = ['dashboard', 'sponsors', 'speakers', 'schedule', 'applicants_sls', 'applicants_cwc',
   'transport', 'floorplan', 'revenue', 'cashflow'];
 function firstAccessibleView() {
   return FALLBACK_VIEW_ORDER.find(v => canViewAny(VIEW_SECTION_KEYS[v])) || null;
@@ -6740,6 +6793,21 @@ function toggleMoneyDropdown(e) {
 document.addEventListener('click', function(e) {
   const menu = document.getElementById('nav-money-menu');
   if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'nav-money-btn') {
+    menu.classList.remove('open');
+  }
+});
+// Student Leadership Summit + Collegiate Worship Collective share one "Applicants" nav slot as
+// a dropdown -- same mechanics as the Financials dropdown above, just with two program
+// destinations instead of two money destinations. switchTopView routes to
+// 'applicants_sls'/'applicants_cwc'.
+function toggleApplicantsDropdown(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('nav-applicants-menu');
+  if (menu) menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('nav-applicants-menu');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'nav-applicants-btn') {
     menu.classList.remove('open');
   }
 });
@@ -6766,7 +6834,7 @@ function switchTopView(view) {
   if (!view) {
     document.querySelectorAll('.top-nav-btn').forEach(b => b.classList.remove('active'));
     ['sponsor-view', 'dashboard-view', 'budget-view', 'speaker-view', 'transport-view',
-      'schedule-view', 'applicants-view', 'revenue-view', 'cashflow-view', 'team-access-view']
+      'schedule-view', 'applicants-sls-view', 'applicants-cwc-view', 'revenue-view', 'cashflow-view', 'team-access-view']
       .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     const appEl = document.querySelector('.app'); if (appEl) appEl.style.display = 'none';
     return; // no section assigned at all -- nothing to show, nowhere safe to redirect to
@@ -6780,8 +6848,10 @@ function switchTopView(view) {
   if (transportViewEl) transportViewEl.style.display = view === 'transport' ? 'block' : 'none';
   const scheduleViewEl = document.getElementById('schedule-view');
   if (scheduleViewEl) scheduleViewEl.style.display = view === 'schedule' ? 'block' : 'none';
-  const applicantsViewEl = document.getElementById('applicants-view');
-  if (applicantsViewEl) applicantsViewEl.style.display = view === 'applicants' ? 'block' : 'none';
+  const applicantsSlsViewEl = document.getElementById('applicants-sls-view');
+  if (applicantsSlsViewEl) applicantsSlsViewEl.style.display = view === 'applicants_sls' ? 'block' : 'none';
+  const applicantsCwcViewEl = document.getElementById('applicants-cwc-view');
+  if (applicantsCwcViewEl) applicantsCwcViewEl.style.display = view === 'applicants_cwc' ? 'block' : 'none';
   const revenueViewEl = document.getElementById('revenue-view');
   if (revenueViewEl) revenueViewEl.style.display = view === 'revenue' ? 'block' : 'none';
   const cashflowViewEl = document.getElementById('cashflow-view');
@@ -6798,7 +6868,13 @@ function switchTopView(view) {
   const scheduleBtnEl = document.getElementById('nav-schedule-btn');
   if (scheduleBtnEl) scheduleBtnEl.classList.toggle('active', view === 'schedule');
   const applicantsBtnEl = document.getElementById('nav-applicants-btn');
-  if (applicantsBtnEl) applicantsBtnEl.classList.toggle('active', view === 'applicants');
+  if (applicantsBtnEl) applicantsBtnEl.classList.toggle('active', view === 'applicants_sls' || view === 'applicants_cwc');
+  const applicantsSlsBtnEl = document.getElementById('nav-applicants-sls-btn');
+  if (applicantsSlsBtnEl) applicantsSlsBtnEl.classList.toggle('active', view === 'applicants_sls');
+  const applicantsCwcBtnEl = document.getElementById('nav-applicants-cwc-btn');
+  if (applicantsCwcBtnEl) applicantsCwcBtnEl.classList.toggle('active', view === 'applicants_cwc');
+  const applicantsMenuEl = document.getElementById('nav-applicants-menu');
+  if (applicantsMenuEl) applicantsMenuEl.classList.remove('open');
   const revenueBtnEl = document.getElementById('nav-revenue-btn');
   if (revenueBtnEl) revenueBtnEl.classList.toggle('active', view === 'revenue');
   const cashflowBtnEl = document.getElementById('nav-cashflow-btn');
@@ -6814,7 +6890,7 @@ function switchTopView(view) {
   if (view === 'speakers' && typeof renderSpeakerView === 'function' && speakerViewEl) renderSpeakerView();
   if (view === 'transport' && typeof renderTransportationView === 'function' && transportViewEl) renderTransportationView();
   if (view === 'schedule' && typeof renderScheduleView === 'function' && scheduleViewEl) renderScheduleView();
-  if (view === 'applicants' && typeof renderApplicantsView === 'function' && applicantsViewEl) renderApplicantsView();
+  if ((view === 'applicants_sls' || view === 'applicants_cwc') && typeof refreshApplicantsAll === 'function') refreshApplicantsAll();
   if (view === 'revenue' && typeof initRevenueView === 'function' && revenueViewEl) initRevenueView();
   if (view === 'cashflow' && typeof initCashflowView === 'function' && cashflowViewEl) initCashflowView();
   if (view === 'floorplan') {
@@ -6836,12 +6912,20 @@ function applyNavVisibility() {
   });
   const moneyBtn = document.getElementById('nav-money-btn');
   if (moneyBtn) moneyBtn.style.display = canViewAny(['revenue.all', 'cashflow.all']) ? '' : 'none';
+  // The generic per-view loop above looks up nav-${view}-btn, which doesn't resolve for
+  // applicants_sls/applicants_cwc (the trigger and its two dropdown items use their own ids,
+  // same as the Financials dropdown's revenue/cashflow items need their own handling too --
+  // except those happen to already be covered since 'revenue'/'cashflow' ARE their view names).
+  const applicantsBtn = document.getElementById('nav-applicants-btn');
+  if (applicantsBtn) applicantsBtn.style.display = canView('applicants.all') ? '' : 'none';
   const teamBtn = document.getElementById('nav-team-access-btn');
   if (teamBtn) teamBtn.style.display = window.isAdminUser ? '' : 'none';
   const floorplanAdminLink = document.getElementById('floorplan-admin-link');
   if (floorplanAdminLink) floorplanAdminLink.style.display = window.isAdminUser ? '' : 'none';
-  const apSyncBtn = document.getElementById('ap-sync-btn');
-  if (apSyncBtn) apSyncBtn.style.display = canView('applicants.all') ? '' : 'none';
+  const apSlsSyncBtn = document.getElementById('ap-sls-sync-btn');
+  if (apSlsSyncBtn) apSlsSyncBtn.style.display = canView('applicants.all') ? '' : 'none';
+  const apCwcSyncBtn = document.getElementById('ap-cwc-sync-btn');
+  if (apCwcSyncBtn) apCwcSyncBtn.style.display = canView('applicants.all') ? '' : 'none';
   const schCopyLinkBtn = document.getElementById('sch-copy-link-btn');
   if (schCopyLinkBtn) schCopyLinkBtn.style.display = (canEdit('schedule.all') || window.isAdminUser) ? '' : 'none';
   // Sponsor Tracker's Amount/Status and Due column headers are static HTML (unlike the row
@@ -11656,22 +11740,35 @@ function audienceColorForId(id) {
   return AUDIENCE_COLOR_PALETTE[hash % AUDIENCE_COLOR_PALETTE.length];
 }
 
-// ==================== Applicant Review (High School Summit, Collegiate Collective, etc.) ====================
+// ==================== Applicant Review (Student Leadership Summit, Collegiate Worship Collective) ====================
 // Import a CSV export of a registration/scholarship form, let the two leaders of a program
 // review and approve/decline applicants (either leader's call is final), then build a room
 // assignment list to export to whoever is actually booking the hotel block. Deliberately kept
 // decoupled from the Schedule tab's audience groups -- those can be renamed/removed by whoever
 // is planning sessions, and this data shouldn't break if that happens.
+//
+// The two programs never need to be viewed together -- each gets its own nav destination and
+// its own page (applicants-sls-view / applicants-cwc-view), forked from the Applicants dropdown
+// the same way Financials forks into Revenue/Cash Flow. `applicants`/`applicantGroups` stay ONE
+// shared array + ONE load + ONE realtime subscription though (see loadApplicants/
+// subscribeApplicantsRealtime below) -- only the per-page UI state and rendering are split, not
+// the data layer, so there's one source of truth instead of two copies that could drift.
 const APPLICANT_GROUPS_TABLE = 'applicant_groups';
 const APPLICANTS_TABLE = 'applicants';
 let applicantGroups = [];
 let applicants = [];
-let applicantGroupFilter = 'all';
-let applicantStatusFilter = 'all';
-let applicantSearch = '';
-let applicantSortKey = 'date';
-let applicantSortDir = -1; // newest first by default
-let openApplicantId = null;
+// Matched by stable group id, not by display name -- a name can be (and has been) edited later;
+// an id, once created, never changes. If either id below stops matching a row in
+// `applicantGroups` once loaded, that program's page shows a warning rather than silently
+// rendering "0 applicants" (see renderApplicantStats).
+const PROGRAM_PAGES = {
+  sls: { groupId: 'apg_1787779198844_2158', label: 'Student Leadership Summit', hasRoomAssignment: false, hasScholarships: false },
+  cwc: { groupId: 'apg_1787779245278_4055', label: 'Collegiate Worship Collective', hasRoomAssignment: true, hasScholarships: true },
+};
+let applicantPageState = {
+  sls: { statusFilter: 'all', search: '', sortKey: 'date', sortDir: -1, openId: null },
+  cwc: { statusFilter: 'all', search: '', sortKey: 'date', sortDir: -1, openId: null },
+};
 
 function makeApplicantId() { return 'ap_' + Date.now() + '_' + Math.floor(Math.random() * 10000); }
 function makeApplicantGroupId() { return 'apg_' + Date.now() + '_' + Math.floor(Math.random() * 10000); }
@@ -11761,64 +11858,53 @@ function getApplicant(id) { return applicants.find(a => a.id === id); }
 function resolveApplicantForEdit(id) {
   return getApplicant(id);
 }
-function refreshApplicantAfterEdit(id) {
-  if (typeof renderApplicantRows === 'function') renderApplicantRows();
-  if (typeof renderApplicantStats === 'function') renderApplicantStats();
+// Every data-mutating write path (edit, delete, import, sync, realtime) redraws BOTH programs'
+// pages unconditionally, rather than trying to track which page a given change actually
+// affects -- simplest correct answer, cheap at this data scale, and the one thing that
+// genuinely needs it (moving an applicant between programs via the Program dropdown in their
+// detail view) would otherwise need special-casing.
+function refreshApplicantsAll() {
+  renderApplicantStats('sls');
+  renderApplicantStats('cwc');
+  renderApplicantRows('sls');
+  renderApplicantRows('cwc');
 }
 
 function orderedApplicantGroups() { return applicantGroups.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)); }
 function applicantGroupName(groupId) { const g = applicantGroups.find(x => x.id === groupId); return g ? g.name : '—'; }
 
-function addApplicantGroup() {
-  if (!canEditOrWarn('applicants.all', 'applicants')) return;
-  const input = document.getElementById('ap-new-group-input');
-  const name = input.value.trim();
-  if (!name) return;
-  const dupe = applicantGroups.find(g => g.name.toLowerCase() === name.toLowerCase());
-  if (dupe) { toast('A program named "' + name + '" already exists.'); return; }
-  const g = { id: makeApplicantGroupId(), name, sortOrder: applicantGroups.length, publicToken: '' };
-  applicantGroups.push(g);
-  if (sbClient) {
-    sbClient.from(APPLICANT_GROUPS_TABLE).upsert({ id: g.id, name: g.name, sort_order: g.sortOrder, public_token: '' }).then(({ error }) => {
-      if (error) reportWriteError('applicant-group:' + g.id, 'Couldn’t save that program — it’ll disappear next reload.', error);
-    });
-  }
-  input.value = '';
-  renderApplicantsView();
+function setApplicantStatusFilter(programKey, f) {
+  applicantPageState[programKey].statusFilter = f;
+  document.querySelectorAll('#ap-' + programKey + '-status-filter-row .sch-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.sf === f));
+  renderApplicantRows(programKey);
 }
-function setApplicantGroupFilter(id) {
-  applicantGroupFilter = id;
-  renderApplicantsView();
-}
-function setApplicantStatusFilter(f) {
-  applicantStatusFilter = f;
-  document.querySelectorAll('#ap-status-filter-row .sch-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.sf === f));
-  renderApplicantRows();
-}
-function setApplicantSearch(v) { applicantSearch = v; renderApplicantRows(); }
-function setApplicantSortFromDropdown(v) {
-  if (!v) { applicantSortKey = ''; renderApplicantRows(); return; }
+function setApplicantSearch(programKey, v) { applicantPageState[programKey].search = v; renderApplicantRows(programKey); }
+function setApplicantSortFromDropdown(programKey, v) {
+  const st = applicantPageState[programKey];
+  if (!v) { st.sortKey = ''; renderApplicantRows(programKey); return; }
   const [key, dir] = v.split('-');
-  applicantSortKey = key; applicantSortDir = dir === 'desc' ? -1 : 1;
-  renderApplicantRows();
+  st.sortKey = key; st.sortDir = dir === 'desc' ? -1 : 1;
+  renderApplicantRows(programKey);
 }
 function applicantSearchHaystack(a) {
   return [a.name, a.email, a.phone, a.data.reviewNotes, JSON.stringify(a.data.raw || {})].join(' ').toLowerCase();
 }
-function currentFilteredApplicants() {
+function currentFilteredApplicants(programKey) {
+  const st = applicantPageState[programKey];
+  const groupId = PROGRAM_PAGES[programKey].groupId;
   let filtered = applicants.filter(a => {
-    const matchesGroup = applicantGroupFilter === 'all' || a.groupId === applicantGroupFilter;
+    if (a.groupId !== groupId) return false;
     let matchesStatus;
-    if (applicantStatusFilter === 'all') matchesStatus = true;
-    else if (applicantStatusFilter === '__lodging__') matchesStatus = a.data.needsLodging === true;
-    else if (applicantStatusFilter === '__scholarship__') matchesStatus = !!(a.data.scholarship && a.data.scholarship.requested);
-    else matchesStatus = (a.data.status || 'Pending') === applicantStatusFilter;
-    const matchesSearch = !applicantSearch || applicantSearchHaystack(a).includes(applicantSearch.toLowerCase());
-    return matchesGroup && matchesStatus && matchesSearch;
+    if (st.statusFilter === 'all') matchesStatus = true;
+    else if (st.statusFilter === '__lodging__') matchesStatus = a.data.needsLodging === true;
+    else if (st.statusFilter === '__scholarship__') matchesStatus = !!(a.data.scholarship && a.data.scholarship.requested);
+    else matchesStatus = (a.data.status || 'Pending') === st.statusFilter;
+    const matchesSearch = !st.search || applicantSearchHaystack(a).includes(st.search.toLowerCase());
+    return matchesStatus && matchesSearch;
   });
-  if (applicantSortKey === 'name') {
-    filtered = filtered.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '') * applicantSortDir);
-  } else if (applicantSortKey === 'date') {
+  if (st.sortKey === 'name') {
+    filtered = filtered.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '') * st.sortDir);
+  } else if (st.sortKey === 'date') {
     // Unknown dates ("") sort to the end regardless of direction, rather than jumping to the
     // top of "oldest first" just because an empty string collates before any real date.
     filtered = filtered.slice().sort((a, b) => {
@@ -11826,7 +11912,7 @@ function currentFilteredApplicants() {
       if (!da && !db) return 0;
       if (!da) return 1;
       if (!db) return -1;
-      return da < db ? -1 * applicantSortDir : da > db ? 1 * applicantSortDir : 0;
+      return da < db ? -1 * st.sortDir : da > db ? 1 * st.sortDir : 0;
     });
   }
   return filtered;
@@ -11845,93 +11931,86 @@ function subscribeApplicantsRealtime() {
         const idx = applicants.findIndex(a => a.id === updated.id);
         if (idx >= 0) applicants[idx] = updated; else applicants.push(updated);
       }
-      if (document.getElementById('nav-applicants-btn').classList.contains('active')) renderApplicantRows();
-      else renderApplicantStats();
+      refreshApplicantsAll();
     })
     .subscribe();
-}
-
-function renderApplicantsView() {
-  renderApplicantGroupFilterList();
-  renderApplicantStats();
-  renderApplicantRows();
-}
-function renderApplicantGroupFilterList() {
-  const list = document.getElementById('ap-group-filter-list');
-  if (!list) return;
-  const buttons = [`<button class="sp-filter-btn ${applicantGroupFilter === 'all' ? 'active' : ''}" data-f="all" onclick="setApplicantGroupFilter('all')">All Programs</button>`]
-    .concat(orderedApplicantGroups().map(g => {
-      const count = applicants.filter(a => a.groupId === g.id).length;
-      return `<button class="sp-filter-btn ${applicantGroupFilter === g.id ? 'active' : ''}" data-f="${g.id}" onclick="setApplicantGroupFilter('${g.id}')">${escapeHtml(g.name)} (${count})</button>`;
-    }));
-  list.innerHTML = buttons.join('');
-}
-function renderApplicantStats() {
-  const totalEl = document.getElementById('ap-stat-total');
-  if (!totalEl) return;
-  totalEl.textContent = applicants.length;
-  document.getElementById('ap-stat-pending').textContent = applicants.filter(a => (a.data.status || 'Pending') === 'Pending').length;
-  // Approved is shown per program rather than one combined figure -- a single number across
-  // both Collegiate Worship Collective and Student Leadership Summit was hiding which program
-  // actually had approvals move.
-  const approvedByGroupEl = document.getElementById('ap-stat-approved-by-group');
-  if (approvedByGroupEl) {
-    approvedByGroupEl.innerHTML = orderedApplicantGroups().map(g => {
-      const count = applicants.filter(a => a.groupId === g.id && a.data.status === 'Approved').length;
-      return `<div class="sp-stat"><span>Approved &mdash; ${escapeHtml(g.name)}</span><b>${count}</b></div>`;
-    }).join('');
-  }
-  document.getElementById('ap-stat-lodging').textContent = applicants.filter(a => a.data.needsLodging === true).length;
-  document.getElementById('ap-stat-scholarship').textContent = applicants.filter(a => a.data.scholarship && a.data.scholarship.requested).length;
-  document.getElementById('ap-stat-scholarship-granted').textContent = applicants.filter(a => a.data.scholarship && a.data.scholarship.decision === 'Granted').length;
-  const navBadge = document.getElementById('nav-applicants-pending-badge');
-  if (navBadge) {
-    const pending = applicants.filter(a => (a.data.status || 'Pending') === 'Pending').length;
-    navBadge.textContent = pending > 0 ? String(pending) : '';
-    navBadge.style.display = pending > 0 ? 'inline-flex' : 'none';
-  }
 }
 
 function applicantStatusBadgeClass(status) {
   return status === 'Approved' ? 'sp-badge-reg' : status === 'Declined' ? 'sp-badge-lapsed' : 'sp-badge-inkind';
 }
-function toggleApplicantDetail(id) {
-  openApplicantId = openApplicantId === id ? null : id;
-  renderApplicantRows();
+function toggleApplicantDetail(programKey, id) {
+  const st = applicantPageState[programKey];
+  st.openId = st.openId === id ? null : id;
+  renderApplicantRows(programKey);
 }
-function buildApplicantRowPair(a) {
+function buildApplicantRowPair(a, programKey) {
   const status = a.data.status || 'Pending';
+  const isOpen = applicantPageState[programKey].openId === a.id;
   const tr = document.createElement('tr');
   tr.className = 'sp-row';
   tr.dataset.id = a.id;
   tr.innerHTML = `
-    <td data-label=""><span class="sp-chevron ${openApplicantId === a.id ? 'open' : ''}">▸</span></td>
-    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}</td>
+    <td data-label=""><span class="sp-chevron ${isOpen ? 'open' : ''}">▸</span></td>
+    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
-    <td data-label="Program">${escapeHtml(applicantGroupName(a.groupId))}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
     <td data-label="Date Applied">${applicantAppliedDate(a) ? escapeHtml(friendlyDate(applicantAppliedDate(a))) : '<span class="sp-sub">—</span>'}</td>
     <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
     <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
-  tr.addEventListener('click', () => toggleApplicantDetail(a.id));
+  tr.addEventListener('click', () => toggleApplicantDetail(programKey, a.id));
   const dtr = document.createElement('tr');
-  dtr.className = 'sp-detail-row' + (openApplicantId === a.id ? ' open' : '');
+  dtr.className = 'sp-detail-row' + (isOpen ? ' open' : '');
   dtr.id = 'ap-detail-' + a.id;
-  dtr.innerHTML = `<td class="sp-detail-cell" colspan="7">${openApplicantId === a.id ? applicantDetailHTML(a) : ''}</td>`;
+  dtr.innerHTML = `<td class="sp-detail-cell" colspan="6">${isOpen ? applicantDetailHTML(a) : ''}</td>`;
   return [tr, dtr];
 }
-function renderApplicantRows() {
-  const tbody = document.getElementById('ap-rows');
+function renderApplicantRows(programKey) {
+  const tbody = document.getElementById('ap-' + programKey + '-rows');
   if (!tbody) return;
-  const filtered = currentFilteredApplicants();
+  const filtered = currentFilteredApplicants(programKey);
   tbody.innerHTML = '';
   filtered.forEach(a => {
-    const [tr, dtr] = buildApplicantRowPair(a);
+    const [tr, dtr] = buildApplicantRowPair(a, programKey);
     tbody.appendChild(tr);
     tbody.appendChild(dtr);
   });
-  renderApplicantStats();
-  renderApplicantGroupFilterList();
+}
+function renderApplicantStats(programKey) {
+  const page = PROGRAM_PAGES[programKey];
+  const totalEl = document.getElementById('ap-' + programKey + '-stat-total');
+  if (!totalEl) return;
+  const groupExists = applicantGroups.some(g => g.id === page.groupId);
+  const hintEl = document.getElementById('ap-' + programKey + '-group-missing-warning');
+  if (applicantGroups.length && !groupExists) {
+    if (!hintEl) {
+      const warn = document.createElement('div');
+      warn.id = 'ap-' + programKey + '-group-missing-warning';
+      warn.className = 'sp-sub';
+      warn.style.cssText = 'background:#F6E3DF; color:#9C3A2E; border-radius:6px; padding:8px 10px; margin-bottom:10px;';
+      warn.textContent = '⚠️ No matching program record found for ' + page.label + ' — applicants may not be showing. Contact support.';
+      totalEl.closest('.sp-stat-block').before(warn);
+    }
+  } else if (hintEl) {
+    hintEl.remove();
+  }
+  const own = applicants.filter(a => a.groupId === page.groupId);
+  totalEl.textContent = own.length;
+  document.getElementById('ap-' + programKey + '-stat-pending').textContent = own.filter(a => (a.data.status || 'Pending') === 'Pending').length;
+  document.getElementById('ap-' + programKey + '-stat-approved').textContent = own.filter(a => a.data.status === 'Approved').length;
+  document.getElementById('ap-' + programKey + '-stat-lodging').textContent = own.filter(a => a.data.needsLodging === true).length;
+  if (page.hasScholarships) {
+    const schEl = document.getElementById('ap-' + programKey + '-stat-scholarship');
+    if (schEl) schEl.textContent = own.filter(a => a.data.scholarship && a.data.scholarship.requested).length;
+    const grantedEl = document.getElementById('ap-' + programKey + '-stat-scholarship-granted');
+    if (grantedEl) grantedEl.textContent = own.filter(a => a.data.scholarship && a.data.scholarship.decision === 'Granted').length;
+  }
+  const navBadge = document.getElementById('nav-applicants-' + programKey + '-pending-badge');
+  if (navBadge) {
+    const pending = own.filter(a => (a.data.status || 'Pending') === 'Pending').length;
+    navBadge.textContent = pending > 0 ? String(pending) : '';
+    navBadge.style.display = pending > 0 ? 'inline-flex' : 'none';
+  }
 }
 
 // Surfaces one extra CSV answer on the row itself instead of only inside the detail panel —
@@ -11979,13 +12058,17 @@ function applicantRawAnswersHTML(raw) {
 
   return answersHtml + confirmationsHtml + metadataHtml;
 }
+function programKeyForGroupId(groupId) {
+  return Object.keys(PROGRAM_PAGES).find(k => PROGRAM_PAGES[k].groupId === groupId) || 'sls';
+}
 function applicantDetailHTML(a) {
   const status = a.data.status || 'Pending';
+  const programKey = programKeyForGroupId(a.groupId);
   return `
     <div class="sp-detail-inner">
       <div class="sk-detail-header">
         <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span>
-        <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleApplicantDetail('${a.id}')">▴ Close</button>
+        <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleApplicantDetail('${programKey}','${a.id}')">▴ Close</button>
       </div>
       <div class="sp-detail-grid sp-detail-2col">
         <fieldset class="sp-fieldset">
@@ -12072,7 +12155,7 @@ function setScholarshipDecision(id, decision) {
   a.data.scholarship.decisionBy = 'Staff';
   a.data.scholarship.decisionAt = decision === 'Pending' ? '' : new Date().toISOString();
   pushApplicant(a);
-  refreshApplicantAfterEdit(id);
+  refreshApplicantsAll();
   toast('Scholarship ' + decision.toLowerCase() + ': ' + (a.name || 'Applicant') + '.');
 }
 
@@ -12080,13 +12163,13 @@ function updateApplicantSimple(id, field, value) {
   const a = resolveApplicantForEdit(id); if (!a) return;
   a[field] = value;
   pushApplicant(a);
-  refreshApplicantAfterEdit(id);
+  refreshApplicantsAll();
 }
 function updateApplicantData(id, field, value) {
   const a = resolveApplicantForEdit(id); if (!a) return;
   a.data[field] = value;
   pushApplicant(a);
-  refreshApplicantAfterEdit(id);
+  refreshApplicantsAll();
 }
 function roomGenderConflict(roomLabel, gender, excludeId) {
   if (!roomLabel || !gender) return null;
@@ -12099,20 +12182,20 @@ function updateApplicantRoomLabel(id, value) {
   const conflict = roomGenderConflict(label, a.data.gender, id);
   if (conflict) {
     toast('Can’t put ' + (a.name || 'this applicant') + ' in "' + label + '" — ' + conflict.name + ' (' + conflict.data.gender + ') is already assigned there.');
-    refreshApplicantAfterEdit(id);
+    refreshApplicantsAll();
     refreshRoomAssignmentModal();
     return;
   }
   a.data.roomLabel = label;
   pushApplicant(a);
-  refreshApplicantAfterEdit(id);
+  refreshApplicantsAll();
   refreshRoomAssignmentModal();
 }
 function updateApplicantLodging(id, value) {
   const a = resolveApplicantForEdit(id); if (!a) return;
   a.data.needsLodging = value === 'yes' ? true : value === 'no' ? false : null;
   pushApplicant(a);
-  refreshApplicantAfterEdit(id);
+  refreshApplicantsAll();
 }
 function setApplicantStatus(id, status) {
   const a = resolveApplicantForEdit(id); if (!a) return;
@@ -12120,7 +12203,7 @@ function setApplicantStatus(id, status) {
   a.data.reviewedBy = 'Staff';
   a.data.reviewedAt = new Date().toISOString();
   pushApplicant(a);
-  refreshApplicantAfterEdit(id);
+  refreshApplicantsAll();
   toast(status + ': ' + (a.name || 'Applicant') + '.');
 }
 function deleteApplicant(id) {
@@ -12133,8 +12216,9 @@ function deleteApplicant(id) {
       if (error) reportWriteError('applicant-delete:' + id, 'Couldn’t delete that applicant — it’ll reappear next reload.', error);
     });
   }
-  openApplicantId = null;
-  renderApplicantRows();
+  applicantPageState.sls.openId = applicantPageState.sls.openId === id ? null : applicantPageState.sls.openId;
+  applicantPageState.cwc.openId = applicantPageState.cwc.openId === id ? null : applicantPageState.cwc.openId;
+  refreshApplicantsAll();
 }
 
 // ---- CSV import ----
@@ -12154,8 +12238,10 @@ const SYNC_FAILURE_MESSAGE = "An error occurred with this request. This should c
 async function syncLatestApplications() {
   if (!canView('applicants.all')) return;
   if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
-  const btn = document.getElementById('ap-sync-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
+  // One shared sync button per page (either triggers the same server-side pull, covering both
+  // programs) -- toggle both so neither looks clickable while a sync from the other is running.
+  const syncBtns = [document.getElementById('ap-sls-sync-btn'), document.getElementById('ap-cwc-sync-btn')].filter(Boolean);
+  syncBtns.forEach(btn => { btn.disabled = true; btn.textContent = '🔄 Syncing…'; });
   toast('Pulling the latest applications — this can take up to a minute…');
   // The fetch() below has no timeout of its own -- without this, a stuck server call leaves
   // the button reading "Syncing..." forever with no way out short of reloading the page.
@@ -12178,30 +12264,25 @@ async function syncLatestApplications() {
       return r.form + ': ' + (parts.length ? parts.join(', ') : 'nothing new');
     });
     await loadApplicants();
-    renderApplicantsView();
+    refreshApplicantsAll();
     alert(lines.join('\n'));
   } catch (err) {
     console.error('Applicant sync failed:', err);
     toast(err.name === 'AbortError' ? 'Sync timed out after 90s — it may still be finishing on the server. Wait a minute, then check Applicants before trying again.' : 'Sync failed — see console for details.');
   } finally {
     clearTimeout(abortTimer);
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Latest Applications'; }
+    syncBtns.forEach(btn => { btn.disabled = false; btn.textContent = '🔄 Sync Latest Applications'; });
   }
 }
 
-function openApplicantImportModal() {
-  if (!applicantGroups.length) { toast('Add a program first (left sidebar), then import into it.'); return; }
-  const defaultGroup = applicantGroupFilter !== 'all' ? applicantGroupFilter : orderedApplicantGroups()[0].id;
-  apImportState = { groupId: defaultGroup, csvText: '', headers: [], rows: [], mapping: { nameFirst: '', nameLast: '', name: '', email: '', phone: '', lodging: '', gender: '' } };
+function openApplicantImportModal(programKey) {
+  apImportState = { programKey, groupId: PROGRAM_PAGES[programKey].groupId, csvText: '', headers: [], rows: [], mapping: { nameFirst: '', nameLast: '', name: '', email: '', phone: '', lodging: '', gender: '' } };
   renderApplicantImportModal();
 }
 function closeApplicantImportModal() {
+  const programKey = apImportState && apImportState.programKey;
   apImportState = null;
-  document.getElementById('ap-import-modal-root').innerHTML = '';
-}
-function updateApplicantImportGroup(groupId) {
-  if (!apImportState) return;
-  apImportState.groupId = groupId;
+  if (programKey) document.getElementById('ap-' + programKey + '-import-modal-root').innerHTML = '';
 }
 function parseApplicantImportText() {
   if (!apImportState) return;
@@ -12288,22 +12369,19 @@ function confirmApplicantImport() {
     imported++;
   });
   closeApplicantImportModal();
-  renderApplicantsView();
+  refreshApplicantsAll();
   toast('Imported ' + imported + ' applicant' + (imported === 1 ? '' : 's') + '.');
 }
 function renderApplicantImportModal() {
-  const root = document.getElementById('ap-import-modal-root');
-  if (!apImportState) { root.innerHTML = ''; return; }
+  if (!apImportState) return;
+  const root = document.getElementById('ap-' + apImportState.programKey + '-import-modal-root');
+  if (!root) return;
   const headerOptions = (selected) => '<option value="">— none —</option>' + apImportState.headers.map(h => `<option value="${escapeHtml(h)}" ${h === selected ? 'selected' : ''}>${escapeHtml(h)}</option>`).join('');
   root.innerHTML = `
     <div class="qa-modal-overlay" onclick="if(event.target===this) closeApplicantImportModal();">
       <div class="qa-modal-card email-gen-card">
-        <h3>Import Applicants CSV</h3>
+        <h3>Import Applicants CSV — ${escapeHtml(PROGRAM_PAGES[apImportState.programKey].label)}</h3>
         <p class="qa-modal-sub">Attach or paste the CSV export of a registration or scholarship form. Column headers vary by form, so map them below before importing.</p>
-        <div class="qa-modal-field">
-          <label for="ap-import-group">Import into program</label>
-          <select id="ap-import-group" onchange="updateApplicantImportGroup(this.value)">${orderedApplicantGroups().map(g => `<option value="${g.id}" ${apImportState.groupId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}</select>
-        </div>
         <div class="qa-modal-field">
           <label for="ap-import-file">Attach a CSV file</label>
           <input type="file" id="ap-import-file" accept=".csv,text/csv" onchange="handleApplicantImportFile(this)">
@@ -12339,11 +12417,12 @@ function renderApplicantImportModal() {
 // ---- Room assignments ----
 // Only Collegiate Worship Collective assigns rooms through this tool -- Student Leadership
 // Summit students are minors traveling with chaperones/parents, so even when lodging is
-// needed, it's arranged outside this tool rather than as a room-assignment list here.
-const ROOM_ASSIGNMENT_GROUP_NAME = 'Collegiate Worship Collective';
+// needed, it's arranged outside this tool rather than as a room-assignment list here. Matched
+// by PROGRAM_PAGES' stable groupId, not by display name -- a name can be (and has been) edited
+// later without warning; an id, once created, never changes.
 function applicantGroupNeedsRoomAssignment(groupId) {
-  const group = applicantGroups.find(g => g.id === groupId);
-  return !!group && group.name === ROOM_ASSIGNMENT_GROUP_NAME;
+  const page = Object.values(PROGRAM_PAGES).find(p => p.groupId === groupId);
+  return !!page && !!page.hasRoomAssignment;
 }
 function roomAssignmentCandidates() {
   return applicants.filter(a => a.data.status === 'Approved' && a.data.needsLodging === true && applicantGroupNeedsRoomAssignment(a.groupId));
@@ -12409,7 +12488,7 @@ function assignRoomModalSelected() {
   selected.forEach(a => { a.data.roomLabel = label; pushApplicant(a); });
   roomModalSelected.clear();
   input.value = '';
-  renderApplicantRows();
+  refreshApplicantsAll();
   refreshRoomAssignmentModal();
   toast('Assigned ' + selected.length + ' to "' + label + '".');
 }
