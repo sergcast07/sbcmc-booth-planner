@@ -11852,9 +11852,7 @@ async function syncLatestApplications() {
     const { results } = await res.json();
     const lines = results.map(r => {
       if (r.error) return r.form + ': failed — ' + r.error;
-      const addedBit = r.added ? r.added + ' new (' + r.addedNames.join(', ') + ')' : '0 new';
-      const removedBit = r.previouslyRemoved ? ', ' + r.previouslyRemoved + ' previously removed (staying out)' : '';
-      return r.form + ': ' + addedBit + ', ' + r.alreadyInSystem + ' already in the system' + removedBit;
+      return r.form + ': ' + (r.added ? r.added + ' new (' + r.addedNames.join(', ') + ')' : 'nothing new');
     });
     await loadApplicants();
     renderApplicantsView();
