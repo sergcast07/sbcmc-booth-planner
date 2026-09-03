@@ -1179,8 +1179,10 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 .cfp-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 74ch; }
 
 .cfp-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin: 18px 0; }
-.cfp-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+.cfp-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.cfp-stat-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
 .cfp-stat-card.hero { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.cfp-stat-card.hero:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.28); }
 .cfp-stat-card.warn { background: rgba(229,57,53,0.08); border-color: var(--color-aa); }
 .cfp-stat-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
 .cfp-stat-card.hero .cfp-stat-label { color: rgba(255,255,255,0.68); }
@@ -1190,6 +1192,20 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 .cfp-stat-card.warn .cfp-stat-value { color: var(--color-aa-dark); }
 .cfp-stat-sub { font-size: 11.5px; color: var(--ink-soft); }
 .cfp-stat-card.hero .cfp-stat-sub { color: rgba(255,255,255,0.62); }
+.cfp-drill-card { max-width: 560px; }
+.cfp-drill-body { margin-top: 12px; }
+.cfp-drill-section { margin-bottom: 16px; }
+.cfp-drill-section h4 { font-family: var(--font-display); font-size: 12.5px; margin: 0 0 6px; color: var(--teal-deep); text-transform: uppercase; letter-spacing: 0.04em; }
+.cfp-drill-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.cfp-drill-row:last-child { border-bottom: none; }
+.cfp-drill-row-label { display: flex; flex-direction: column; }
+.cfp-drill-row-sub { font-size: 11px; color: var(--ink-soft); font-weight: 400; }
+.cfp-drill-row-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cfp-drill-row-amt.muted { color: var(--ink-soft); }
+.cfp-drill-subtotal { font-weight: 700; border-bottom: none; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px; }
+.cfp-drill-grandtotal { font-weight: 700; font-size: 15px; border-top: 2px solid var(--teal-deep); margin-top: 6px; padding-top: 10px; border-bottom: none; }
+.cfp-drill-lowrow { background: rgba(229,57,53,0.07); border-radius: 6px; padding: 5px 8px; margin: 0 -8px; }
+.cfp-drill-note { font-size: 11.5px; color: var(--ink-soft); margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
 
 .cfp-assumptions { background: var(--teal-pale); border: 1px solid var(--teal); border-radius: 12px; padding: 12px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
 .cfp-assumptions .cfp-assump-title { font-size: 11.5px; font-weight: 700; color: var(--teal-deep); white-space: nowrap; }
@@ -1533,6 +1549,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 <div id="email-gen-modal-root"></div>
 <div id="sch-link-modal-root"></div>
 <div id="audit-history-modal-root"></div>
+<div id="cfp-drill-modal-root"></div>
 
 <div id="driver-public-view" style="display:none;">
   <div class="dv-header">
@@ -8646,10 +8663,10 @@ function renderCashflowView() {
     </div>
 
     <div class="cfp-stat-row">
-      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + committed sponsors</span></div>
-      <div class="cfp-stat-card"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speakers + expenses + overhead + fees</span></div>
-      <div class="cfp-stat-card hero"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), scheduled items only</span></div>
-      <div class="cfp-stat-card" id="cfp-stat-lowpoint-card"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
+      <div class="cfp-stat-card" onclick="openCfpDrillModal('in')" title="Click to see what's included"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + committed sponsors</span></div>
+      <div class="cfp-stat-card" onclick="openCfpDrillModal('out')" title="Click to see what's included"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speakers + expenses + overhead + fees</span></div>
+      <div class="cfp-stat-card hero" onclick="openCfpDrillModal('ending')" title="Click to see how this is calculated"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), scheduled items only</span></div>
+      <div class="cfp-stat-card" id="cfp-stat-lowpoint-card" onclick="openCfpDrillModal('lowpoint')" title="Click to see the month-by-month balance"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
     </div>
 
     <div class="cfp-assumptions">
@@ -8796,13 +8813,17 @@ function cfpRemoveOverheadRow(i) {
 
 function cfpAllInstallments(list, store) { return list.flatMap(p => store[p.id] || []); }
 
-function cfpRecompute() {
+// Single source of truth for every number the Cash Flow view shows -- both the four stat
+// tiles/monthly table (cfpRecompute) and their click-through breakdown modal (renderCfpDrillModal)
+// read from this, so the modal can never drift out of sync with what the tiles actually say.
+function cfpComputeAll() {
   const startingBalance = cashflowState.startingBalance;
   const sponsorList = cfpSponsorList();
   const speakerList = cfpSpeakerList();
   const sponsorInsts = cfpAllInstallments(sponsorList, cashflowState.sponsorInstallments);
   const speakerInsts = cfpAllInstallments(speakerList, cashflowState.speakerInstallments);
   const expenses = cashflowState.otherExpenses;
+  const regPhaseTotals = computeRegistrationPhaseTotals();
 
   const monthlyRegIn = cfpMonthlyRegistrationIn();
   const monthlySponsorIn = CFP_MONTHS.map((m, i) => sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
@@ -8818,42 +8839,172 @@ function cfpRecompute() {
   let running = startingBalance;
   const monthlyBalance = monthlyNet.map(n => { running += n; return running; });
 
-  const unschedIn = sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
-  const unschedOut = speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0) + expenses.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+  const unschedSponsorIn = sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+  const unschedSpeakerOut = speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+  const unschedExpOut = expenses.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
 
   const totalIn = monthlyIn.reduce((a, b) => a + b, 0);
   const totalOut = monthlyOut.reduce((a, b) => a + b, 0);
-  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-  setText('cfp-stat-total-in', cfpMoney(totalIn));
-  setText('cfp-stat-total-out', cfpMoney(totalOut));
-  setText('cfp-stat-ending', cfpMoney(monthlyBalance[CFP_CONFERENCE_MONTH_IDX]));
+  const totalFeeOut = monthlyFeeOut.reduce((a, b) => a + b, 0);
+  const totalOverheadOut = monthlyOverheadOut.reduce((a, b) => a + b, 0);
 
   const lowIdx = monthlyBalance.indexOf(Math.min(...monthlyBalance));
   const lowVal = monthlyBalance[lowIdx];
-  setText('cfp-stat-lowpoint', cfpMoney(lowVal));
-  const lowEl = document.getElementById('cfp-stat-lowpoint');
-  if (lowEl) lowEl.classList.toggle('neg', lowVal < 0);
-  setText('cfp-stat-lowpoint-month', CFP_MONTHS[lowIdx]);
-  const lowCard = document.getElementById('cfp-stat-lowpoint-card');
-  if (lowCard) lowCard.classList.toggle('warn', lowVal < 0);
 
-  setText('cfp-unscheduled-hint', `Registration revenue spreads across Early Bird Phase 1 (through Sep 30), Phase 2 (Oct–Dec), and Regular (Jan–Apr). Currently unscheduled: ${cfpMoney(unschedIn)} in sponsor payments, ${cfpMoney(unschedOut)} in speaker fees/expenses.`);
+  return {
+    startingBalance, sponsorList, speakerList, sponsorInsts, speakerInsts, expenses, regPhaseTotals,
+    monthlyRegIn, monthlySponsorIn, monthlySpeakerOut, monthlyExpOut, overheadPerMonth, monthlyOverheadOut,
+    feePct, monthlyIn, monthlyFeeOut, monthlyOut, monthlyNet, monthlyBalance,
+    unschedSponsorIn, unschedSpeakerOut, unschedExpOut,
+    totalIn, totalOut, totalFeeOut, totalOverheadOut, lowIdx, lowVal,
+  };
+}
+
+function cfpRecompute() {
+  const c = cfpComputeAll();
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('cfp-stat-total-in', cfpMoney(c.totalIn));
+  setText('cfp-stat-total-out', cfpMoney(c.totalOut));
+  setText('cfp-stat-ending', cfpMoney(c.monthlyBalance[CFP_CONFERENCE_MONTH_IDX]));
+
+  setText('cfp-stat-lowpoint', cfpMoney(c.lowVal));
+  const lowEl = document.getElementById('cfp-stat-lowpoint');
+  if (lowEl) lowEl.classList.toggle('neg', c.lowVal < 0);
+  setText('cfp-stat-lowpoint-month', CFP_MONTHS[c.lowIdx]);
+  const lowCard = document.getElementById('cfp-stat-lowpoint-card');
+  if (lowCard) lowCard.classList.toggle('warn', c.lowVal < 0);
+
+  setText('cfp-unscheduled-hint', `Registration revenue spreads across Early Bird Phase 1 (through Sep 30), Phase 2 (Oct–Dec), and Regular (Jan–Apr). Currently unscheduled: ${cfpMoney(c.unschedSponsorIn)} in sponsor payments, ${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} in speaker fees/expenses.`);
 
   const tbody = document.getElementById('cfp-tbody');
   if (tbody) {
     const row = (label, values, cls) => `<tr class="${cls}"><td class="rowlabel">${label}</td>${values.map(v => `<td class="num${v < 0 ? ' neg' : ''}">${cfpMoney(v)}</td>`).join('')}</tr>`;
     tbody.innerHTML =
-      row('Registrations', monthlyRegIn, 'cfp-in') +
-      row('Sponsor payments', monthlySponsorIn, 'cfp-in') +
-      row('Speaker/artist fees + travel', monthlySpeakerOut.map(v => -v), 'cfp-out') +
-      row('Other expenses', monthlyExpOut.map(v => -v), 'cfp-out') +
-      row('Admin & Personnel overhead', monthlyOverheadOut.map(v => -v), 'cfp-out') +
-      row('Payment processing fees', monthlyFeeOut.map(v => -v), 'cfp-out') +
-      row('Net', monthlyNet, 'cfp-net') +
-      row('Running Balance', monthlyBalance, 'cfp-balance');
+      row('Registrations', c.monthlyRegIn, 'cfp-in') +
+      row('Sponsor payments', c.monthlySponsorIn, 'cfp-in') +
+      row('Speaker/artist fees + travel', c.monthlySpeakerOut.map(v => -v), 'cfp-out') +
+      row('Other expenses', c.monthlyExpOut.map(v => -v), 'cfp-out') +
+      row('Admin & Personnel overhead', c.monthlyOverheadOut.map(v => -v), 'cfp-out') +
+      row('Payment processing fees', c.monthlyFeeOut.map(v => -v), 'cfp-out') +
+      row('Net', c.monthlyNet, 'cfp-net') +
+      row('Running Balance', c.monthlyBalance, 'cfp-balance');
   }
 
-  cfpDrawChart(monthlyBalance);
+  cfpDrawChart(c.monthlyBalance);
+  // Keep an open breakdown modal live as the user edits installments/expenses/overhead,
+  // rather than showing a stale snapshot until they close and reopen it.
+  if (cfpDrillModalState) renderCfpDrillModal();
+}
+
+// ==== Cash flow tile breakdown modal -- click a stat tile to see what's actually in it ====
+let cfpDrillModalState = null; // 'in' | 'out' | 'ending' | 'lowpoint' | null
+
+function openCfpDrillModal(kind) {
+  cfpDrillModalState = kind;
+  renderCfpDrillModal();
+}
+function closeCfpDrillModal() {
+  cfpDrillModalState = null;
+  const root = document.getElementById('cfp-drill-modal-root');
+  if (root) root.innerHTML = '';
+}
+function cfpDrillRow(label, value, sub) {
+  const amtHtml = value == null ? '<span class="cfp-drill-row-amt muted">—</span>' : `<span class="cfp-drill-row-amt">${cfpMoney(value)}</span>`;
+  return `<div class="cfp-drill-row"><span class="cfp-drill-row-label">${escapeHtml(label)}${sub ? `<span class="cfp-drill-row-sub">${escapeHtml(sub)}</span>` : ''}</span>${amtHtml}</div>`;
+}
+function cfpDrillSection(title, rowsHtml, totalLabel, totalValue) {
+  return `<div class="cfp-drill-section"><h4>${escapeHtml(title)}</h4>${rowsHtml || '<div class="sp-sub" style="padding:4px 0 8px;">Nothing here yet.</div>'}<div class="cfp-drill-row cfp-drill-subtotal"><span class="cfp-drill-row-label">${escapeHtml(totalLabel)}</span><span class="cfp-drill-row-amt">${cfpMoney(totalValue)}</span></div></div>`;
+}
+function cfpDrillGrandTotal(label, value) {
+  return `<div class="cfp-drill-row cfp-drill-grandtotal"><span class="cfp-drill-row-label">${escapeHtml(label)}</span><span class="cfp-drill-row-amt">${cfpMoney(value)}</span></div>`;
+}
+function cfpDrillNote(text) {
+  return `<div class="cfp-drill-note">${escapeHtml(text)}</div>`;
+}
+
+function renderCfpDrillModal() {
+  const root = document.getElementById('cfp-drill-modal-root');
+  if (!root) return;
+  const kind = cfpDrillModalState;
+  if (!kind || !cashflowState) { root.innerHTML = ''; return; }
+  const c = cfpComputeAll();
+
+  let title = '', bodyHtml = '';
+
+  if (kind === 'in') {
+    title = "What's in Total Cash In";
+    const p = c.regPhaseTotals;
+    const regTotal = p.phase1 + p.phase2 + p.regular + p.other;
+    const regRows =
+      cfpDrillRow('Early Bird — Phase 1', p.phase1, 'Booked in September') +
+      cfpDrillRow('Early Bird — Phase 2', p.phase2, 'Booked Oct–Dec') +
+      cfpDrillRow('Regular Registration', p.regular, 'Booked Jan–Apr') +
+      (p.other ? cfpDrillRow('Other registration items', p.other, '') : '');
+    const sponsorRows = c.sponsorList.map(s => {
+      const insts = cashflowState.sponsorInstallments[s.id] || [];
+      const dated = insts.filter(x => x.date);
+      const amt = dated.reduce((sum, x) => sum + x.amount, 0);
+      if (amt <= 0) return cfpDrillRow(s.org, null, 'Not yet scheduled');
+      const sub = dated.length === 1 ? friendlyDate(dated[0].date) : dated.length + ' installments';
+      return cfpDrillRow(s.org, amt, sub);
+    }).join('');
+    const sponsorTotal = c.sponsorInsts.filter(x => x.date).reduce((s, x) => s + x.amount, 0);
+    bodyHtml =
+      cfpDrillSection('Registration Revenue', regRows, 'Registration total', regTotal) +
+      cfpDrillSection('Committed Sponsor Payments', sponsorRows, 'Sponsor total', sponsorTotal) +
+      cfpDrillGrandTotal('Total Cash In', c.totalIn) +
+      (c.unschedSponsorIn > 0 ? cfpDrillNote(`${cfpMoney(c.unschedSponsorIn)} more in sponsor payments has no date set yet, so it isn't counted here — add a date in the Committed Sponsor Payments panel below to include it.`) : '');
+  } else if (kind === 'out') {
+    title = "What's in Total Cash Out";
+    const speakerRows = c.speakerList.map(sp => {
+      const insts = cashflowState.speakerInstallments[sp.id] || [];
+      const dated = insts.filter(x => x.date);
+      const amt = dated.reduce((sum, x) => sum + x.amount, 0);
+      if (amt <= 0) return cfpDrillRow(sp.name, null, 'Not yet scheduled');
+      const sub = dated.length === 1 ? friendlyDate(dated[0].date) : dated.length + ' installments';
+      return cfpDrillRow(sp.name, amt, sub);
+    }).join('');
+    const speakerTotal = c.speakerInsts.filter(x => x.date).reduce((s, x) => s + x.amount, 0);
+    const expRows = c.expenses.map(e => e.date ? cfpDrillRow(e.name, e.amount, friendlyDate(e.date)) : cfpDrillRow(e.name, null, 'Not yet scheduled')).join('');
+    const expTotal = c.expenses.filter(e => e.date).reduce((s, e) => s + e.amount, 0);
+    const overheadRows = cashflowState.recurringOverhead.map(o => cfpDrillRow(o.name, o.monthlyAmount * CFP_MONTHS.length, `${cfpMoney(o.monthlyAmount)}/mo × ${CFP_MONTHS.length} months`)).join('');
+    bodyHtml =
+      cfpDrillSection('Speaker/Artist Fees + Travel', speakerRows, 'Speaker total', speakerTotal) +
+      cfpDrillSection('Other Expenses', expRows, 'Expense total', expTotal) +
+      cfpDrillSection('Admin & Personnel Overhead', overheadRows, 'Overhead total', c.totalOverheadOut) +
+      cfpDrillSection('Payment Processing Fees', cfpDrillRow(`${cashflowState.processingFeePct}% of scheduled cash in`, c.totalFeeOut, ''), 'Fees total', c.totalFeeOut) +
+      cfpDrillGrandTotal('Total Cash Out', c.totalOut) +
+      ((c.unschedSpeakerOut + c.unschedExpOut) > 0 ? cfpDrillNote(`${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} more in speaker fees/expenses has no date set yet, so it isn't counted here.`) : '');
+  } else if (kind === 'ending') {
+    title = 'How the Ending Balance is calculated';
+    bodyHtml =
+      cfpDrillRow('Starting balance (Sep 1, 2026)', c.startingBalance, '') +
+      cfpDrillRow('+ Total Cash In', c.totalIn, "Click Total Cash In to see what's included") +
+      cfpDrillRow('− Total Cash Out', -c.totalOut, "Click Total Cash Out to see what's included") +
+      cfpDrillGrandTotal('Ending Balance (Apr 2027)', c.monthlyBalance[CFP_CONFERENCE_MONTH_IDX]) +
+      cfpDrillNote('Only scheduled (dated) items are counted, month by month — see the Monthly Projection table below for the full path to this number.');
+  } else if (kind === 'lowpoint') {
+    title = `Lowest Point — ${CFP_MONTHS[c.lowIdx]}`;
+    const rows = CFP_MONTHS.map((m, i) => {
+      const isLow = i === c.lowIdx;
+      return `<div class="cfp-drill-row${isLow ? ' cfp-drill-lowrow' : ''}"><span class="cfp-drill-row-label">${escapeHtml(m)}${isLow ? '<span class="cfp-drill-row-sub">Lowest point</span>' : ''}</span><span class="cfp-drill-row-amt${c.monthlyBalance[i] < 0 ? ' neg' : ''}">${cfpMoney(c.monthlyBalance[i])}</span></div>`;
+    }).join('');
+    bodyHtml =
+      cfpDrillSection('Running Balance by Month', rows, 'Lowest balance', c.lowVal) +
+      cfpDrillNote('The account balance projected for each month: starting balance plus every scheduled cash in/out through that point. See the Monthly Projection table below for the full line-item detail.');
+  }
+
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeCfpDrillModal();">
+      <div class="qa-modal-card email-gen-card cfp-drill-card">
+        <h3>${escapeHtml(title)}</h3>
+        <div class="cfp-drill-body">${bodyHtml}</div>
+        <div style="margin-top:14px; text-align:right;">
+          <button class="sp-mini-btn" onclick="closeCfpDrillModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // Compact $ label for chart text (e.g. $207K) -- full precision stays in the table above.
