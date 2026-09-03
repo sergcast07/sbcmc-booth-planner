@@ -8573,10 +8573,31 @@ function cfpBindPersonListEvents(container) {
     el.addEventListener('input', () => {
       const id = el.dataset.id, ii = parseInt(el.dataset.ii), field = el.dataset.field, type = el.dataset.type;
       const store = type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments;
-      const inst = store[id][ii];
+      const insts = store[id];
+      const inst = insts[ii];
       if (field === 'amount') inst.amount = parseFloat(el.value) || 0;
       else inst[field] = el.value;
       el.classList.toggle('unset', field === 'date' && !el.value);
+      // While a person's schedule is still a single, unsplit payment, its date IS the record's
+      // "Payment due date" -- so an edit here writes straight back to that field too, the same
+      // way a fresh, never-yet-scheduled payment already picks its starting date up from there
+      // (see getSpeakerInstallments/getSponsorInstallments). Once split into multiple dated
+      // pieces there's no longer one date that unambiguously represents "the" due date, so this
+      // stops the moment a schedule has more than one installment.
+      if (field === 'date' && insts.length === 1) {
+        const person = type === 'speaker' ? getSpeaker(id) : resolveSponsorForEdit(id);
+        if (person) {
+          if (type === 'speaker') {
+            if (!person.data.financial) person.data.financial = {};
+            person.data.financial.dueDate = el.value;
+            pushSpeaker(person);
+          } else {
+            if (!person.data.money) person.data.money = {};
+            person.data.money.dueDate = el.value;
+            pushSponsor(person);
+          }
+        }
+      }
       cfpRecompute();
       pushCashflowState();
     });
