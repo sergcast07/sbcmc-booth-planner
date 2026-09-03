@@ -2097,6 +2097,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <div class="sp-stat"><span>Approved</span><b id="ap-stat-approved">0</b></div>
           <div class="sp-stat"><span>Need lodging</span><b id="ap-stat-lodging">0</b></div>
           <div class="sp-stat"><span>Scholarship requests</span><b id="ap-stat-scholarship">0</b></div>
+          <div class="sp-stat"><span>Scholarships approved</span><b id="ap-stat-scholarship-granted">0</b></div>
         </div>
         </div>
       </div>
@@ -11762,6 +11763,7 @@ function resolveApplicantForEdit(id) {
 }
 function refreshApplicantAfterEdit(id) {
   if (typeof renderApplicantRows === 'function') renderApplicantRows();
+  if (typeof renderApplicantStats === 'function') renderApplicantStats();
 }
 
 function orderedApplicantGroups() { return applicantGroups.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)); }
@@ -11872,6 +11874,7 @@ function renderApplicantStats() {
   document.getElementById('ap-stat-approved').textContent = applicants.filter(a => a.data.status === 'Approved').length;
   document.getElementById('ap-stat-lodging').textContent = applicants.filter(a => a.data.needsLodging === true).length;
   document.getElementById('ap-stat-scholarship').textContent = applicants.filter(a => a.data.scholarship && a.data.scholarship.requested).length;
+  document.getElementById('ap-stat-scholarship-granted').textContent = applicants.filter(a => a.data.scholarship && a.data.scholarship.decision === 'Granted').length;
   const navBadge = document.getElementById('nav-applicants-pending-badge');
   if (navBadge) {
     const pending = applicants.filter(a => (a.data.status || 'Pending') === 'Pending').length;
