@@ -11811,10 +11811,15 @@ async function syncLatestApplications() {
   if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
   const btn = document.getElementById('ap-sync-btn');
   if (btn) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
+  // The fetch() below has no timeout of its own -- without this, a stuck server call leaves
+  // the button reading "Syncing..." forever with no way out short of reloading the page.
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 90000);
   try {
     const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync', {
       method: 'POST',
-      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey }
+      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey },
+      signal: controller.signal
     });
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
     const { results } = await res.json();
@@ -11828,8 +11833,9 @@ async function syncLatestApplications() {
     alert(lines.join('\n'));
   } catch (err) {
     console.error('Applicant sync failed:', err);
-    toast('Sync failed — see console for details.');
+    toast(err.name === 'AbortError' ? 'Sync timed out after 90s — it may still be finishing on the server. Wait a minute, then check Applicants before trying again.' : 'Sync failed — see console for details.');
   } finally {
+    clearTimeout(abortTimer);
     if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Latest Applications'; }
   }
 }
