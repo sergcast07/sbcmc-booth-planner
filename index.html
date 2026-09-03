@@ -12085,6 +12085,25 @@ let apImportState = null;
 // keys server-side (never shipped to the browser -- this static app has no other way to keep
 // a secret) and does the actual pull-and-dedupe-by-email work. This button just triggers it
 // and shows whatever summary comes back.
+// Gravity Forms occasionally serves a Cloudflare "just a moment" bot-check page (HTML, not
+// JSON) instead of real data -- rare, and a plain retry has cleared it every time seen so far
+// (the Edge Function already retries once internally, but that's not always enough). Rather
+// than showing that raw HTML dump in the sync summary, translate known failure shapes into a
+// short, actionable sentence.
+function friendlySyncErrorMessage(raw) {
+  const text = String(raw || '');
+  if (/non-JSON/i.test(text) && /<!DOCTYPE/i.test(text)) {
+    return "Gravity Forms briefly returned an error page instead of real data — this usually clears up on its own. Try the sync again.";
+  }
+  if (/timed out/i.test(text)) {
+    return 'Gravity Forms took too long to respond. Try the sync again in a moment.';
+  }
+  if (/^Gravity Forms .* returned \d+/i.test(text)) {
+    return "Gravity Forms couldn't be reached right now. Try the sync again in a moment.";
+  }
+  return 'Something went wrong. Try the sync again, or check the browser console for details.';
+}
+
 async function syncLatestApplications() {
   if (!canView('applicants.all')) return;
   if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
@@ -12104,7 +12123,7 @@ async function syncLatestApplications() {
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
     const { results } = await res.json();
     const lines = results.map(r => {
-      if (r.error) return r.form + ': failed — ' + r.error;
+      if (r.error) { console.error('Applicant sync failed for', r.form, ':', r.error); return r.form + ': ' + friendlySyncErrorMessage(r.error); }
       return r.form + ': ' + (r.added ? r.added + ' new (' + r.addedNames.join(', ') + ')' : 'nothing new');
     });
     await loadApplicants();
