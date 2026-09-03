@@ -2097,6 +2097,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <option value="name-desc">Name (Z–A)</option>
         </select>
         <button class="sp-add-btn" onclick="openApplicantImportModal()">📥 Import CSV</button>
+        <button class="sp-add-btn" id="ap-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()">🔄 Sync Latest Applications</button>
         <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
       </div>
       <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-status-filter-row">
@@ -6810,6 +6811,8 @@ function applyNavVisibility() {
   if (teamBtn) teamBtn.style.display = window.isAdminUser ? '' : 'none';
   const floorplanAdminLink = document.getElementById('floorplan-admin-link');
   if (floorplanAdminLink) floorplanAdminLink.style.display = window.isAdminUser ? '' : 'none';
+  const apSyncBtn = document.getElementById('ap-sync-btn');
+  if (apSyncBtn) apSyncBtn.style.display = window.isAdminUser ? '' : 'none';
   const schCopyLinkBtn = document.getElementById('sch-copy-link-btn');
   if (schCopyLinkBtn) schCopyLinkBtn.style.display = (canEdit('schedule.all') || window.isAdminUser) ? '' : 'none';
   // Sponsor Tracker's Amount/Status and Due column headers are static HTML (unlike the row
@@ -11799,6 +11802,38 @@ function deleteApplicant(id) {
 
 // ---- CSV import ----
 let apImportState = null;
+// Calls the "gravity-forms-sync" Supabase Edge Function, which holds the Gravity Forms API
+// keys server-side (never shipped to the browser -- this static app has no other way to keep
+// a secret) and does the actual pull-and-dedupe-by-email work. This button just triggers it
+// and shows whatever summary comes back.
+async function syncLatestApplications() {
+  if (!window.isAdminUser) return;
+  if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
+  const btn = document.getElementById('ap-sync-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
+  try {
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+    const { results } = await res.json();
+    const lines = results.map(r => {
+      if (r.error) return r.form + ': failed — ' + r.error;
+      const addedBit = r.added ? r.added + ' new (' + r.addedNames.join(', ') + ')' : '0 new';
+      return r.form + ': ' + addedBit + ', ' + r.alreadyInSystem + ' already in the system';
+    });
+    await loadApplicants();
+    renderApplicantsView();
+    alert(lines.join('\n'));
+  } catch (err) {
+    console.error('Applicant sync failed:', err);
+    toast('Sync failed — see console for details.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Latest Applications'; }
+  }
+}
+
 function openApplicantImportModal() {
   if (!applicantGroups.length) { toast('Add a program first (left sidebar), then import into it.'); return; }
   const defaultGroup = applicantGroupFilter !== 'all' ? applicantGroupFilter : orderedApplicantGroups()[0].id;
