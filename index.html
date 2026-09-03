@@ -1250,6 +1250,8 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 .cfp-inst-del-btn:hover { color: var(--color-aa-dark); }
 .cfp-split-btn { font-size: 10.5px; font-weight: 600; color: var(--teal-deep); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
 .cfp-split-btn:hover { color: var(--teal); }
+.cfp-person-mismatch { font-size: 10.5px; color: var(--color-aa-dark); background: rgba(229,57,53,0.08); border-radius: 6px; padding: 5px 8px; margin-bottom: 8px; }
+.cfp-mismatch-fix-btn { font-size: 10.5px; font-weight: 700; color: var(--color-aa-dark); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; margin-left: 4px; }
 
 table.cfp-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 920px; }
 table.cfp-table th { text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-soft); padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--paper); position: sticky; top: 0; }
@@ -8483,17 +8485,24 @@ function cfpSpeakerList() { return speakers.filter(sp => speakerOutstanding(sp) 
 function cfpSponsorList() { return sponsors.filter(s => isCashCommitted(s) && sponsorOutstanding(s) > 0); }
 
 // Installment schedules (splits/dates) are lazily created on first render, one per person --
-// the base amount always comes fresh from the live speaker/sponsor record above.
+// the base amount always comes fresh from the live speaker/sponsor record above. The starting
+// date is seeded from that same record's own "Payment due date" field (Speakers & Artists /
+// Sponsor Tracker) when one has been set, instead of always blank/a generic default -- so a due
+// date entered on the record shows up here automatically instead of needing separate re-entry.
+// This only applies once, at creation -- once a schedule exists (split or not), it's the user's
+// to edit, and a later change to the record's due date won't silently overwrite it.
 function getSpeakerInstallments(sp) {
   if (!cashflowState.speakerInstallments[sp.id]) {
-    const travel = parseFloat((sp.data.financial || {}).travelReimbursement) || 0;
-    cashflowState.speakerInstallments[sp.id] = [{ label: travel > 0 ? 'Fee + travel' : 'Fee', amount: speakerOutstanding(sp), date: '' }];
+    const fin = sp.data.financial || {};
+    const travel = parseFloat(fin.travelReimbursement) || 0;
+    cashflowState.speakerInstallments[sp.id] = [{ label: travel > 0 ? 'Fee + travel' : 'Fee', amount: speakerOutstanding(sp), date: fin.dueDate || '' }];
   }
   return cashflowState.speakerInstallments[sp.id];
 }
 function getSponsorInstallments(s) {
   if (!cashflowState.sponsorInstallments[s.id]) {
-    cashflowState.sponsorInstallments[s.id] = [{ label: 'Full payment', amount: sponsorOutstanding(s), date: CFP_DEFAULT_SPONSOR_DATE }];
+    const m = s.data.money || {};
+    cashflowState.sponsorInstallments[s.id] = [{ label: 'Full payment', amount: sponsorOutstanding(s), date: m.dueDate || CFP_DEFAULT_SPONSOR_DATE }];
   }
   return cashflowState.sponsorInstallments[s.id];
 }
@@ -8532,13 +8541,20 @@ function cfpMonthlyRegistrationIn() {
   });
 }
 
-function cfpInstallmentRowsHTML(name, id, installments, type) {
+function cfpInstallmentRowsHTML(name, id, installments, type, liveOutstanding) {
+  // A schedule is only ever seeded once (see getSpeakerInstallments/getSponsorInstallments) --
+  // if a payment gets recorded, or the fee/committed amount changes, on the Speakers & Artists
+  // or Sponsor Tracker record afterward, the schedule here doesn't automatically follow. Flag
+  // that drift instead of silently letting Cash Flow show a stale, no-longer-true total.
+  const total = cfpPersonTotal(installments);
+  const mismatch = Math.round(total) !== Math.round(liveOutstanding);
   return `
     <div class="cfp-person-block" data-id="${id}">
       <div class="cfp-person-head">
         <span class="cfp-person-name">${escapeHtml(name)}</span>
-        <span class="cfp-person-total">${cfpMoney(cfpPersonTotal(installments))} total</span>
+        <span class="cfp-person-total">${cfpMoney(total)} total</span>
       </div>
+      ${mismatch ? `<div class="cfp-person-mismatch">⚠️ Current outstanding balance is ${cfpMoney(liveOutstanding)} — this schedule no longer matches (likely a payment or amount changed since it was set).<button class="cfp-mismatch-fix-btn" data-id="${id}" data-type="${type}" data-action="resync">Reset to ${cfpMoney(liveOutstanding)}</button></div>` : ''}
       ${installments.map((inst, ii) => `
         <div class="cfp-inst-row">
           <input type="text" data-id="${id}" data-ii="${ii}" data-field="label" data-type="${type}" value="${escapeHtml(inst.label)}">
@@ -8575,6 +8591,24 @@ function cfpBindPersonListEvents(container) {
       pushCashflowState();
     });
   });
+  container.querySelectorAll('[data-action="resync"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id, type = btn.dataset.type;
+      const person = type === 'speaker' ? speakers.find(x => x.id === id) : sponsors.find(x => x.id === id);
+      if (!person) return;
+      const liveAmt = type === 'speaker' ? speakerOutstanding(person) : sponsorOutstanding(person);
+      const recordDate = type === 'speaker' ? (person.data.financial || {}).dueDate : (person.data.money || {}).dueDate;
+      const label = type === 'speaker'
+        ? ((parseFloat((person.data.financial || {}).travelReimbursement) || 0) > 0 ? 'Fee + travel' : 'Fee')
+        : 'Full payment';
+      if (!confirm(`Replace the current installment schedule with a single ${cfpMoney(liveAmt)} payment${recordDate ? ' due ' + friendlyDate(recordDate) : ''}? This clears any existing split.`)) return;
+      const store = type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments;
+      store[id] = [{ label, amount: liveAmt, date: recordDate || '' }];
+      renderCashflowPersonLists();
+      cfpRecompute();
+      pushCashflowState();
+    });
+  });
   container.querySelectorAll('[data-action="split"]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id, type = btn.dataset.type;
@@ -8603,11 +8637,11 @@ function renderCashflowPersonLists() {
   const sponsorEl = document.getElementById('cfp-sponsor-list');
   const speakerEl = document.getElementById('cfp-speaker-list');
   if (sponsorEl) {
-    sponsorEl.innerHTML = sponsorList.map(s => cfpInstallmentRowsHTML(s.org, s.id, getSponsorInstallments(s), 'sponsor')).join('') || '<div class="sp-sub" style="padding:14px 18px;">No sponsors with an outstanding balance.</div>';
+    sponsorEl.innerHTML = sponsorList.map(s => cfpInstallmentRowsHTML(s.org, s.id, getSponsorInstallments(s), 'sponsor', sponsorOutstanding(s))).join('') || '<div class="sp-sub" style="padding:14px 18px;">No sponsors with an outstanding balance.</div>';
     cfpBindPersonListEvents(sponsorEl);
   }
   if (speakerEl) {
-    speakerEl.innerHTML = speakerList.map(sp => cfpInstallmentRowsHTML(sp.name, sp.id, getSpeakerInstallments(sp), 'speaker')).join('') || '<div class="sp-sub" style="padding:14px 18px;">No speakers/artists with an outstanding balance.</div>';
+    speakerEl.innerHTML = speakerList.map(sp => cfpInstallmentRowsHTML(sp.name, sp.id, getSpeakerInstallments(sp), 'speaker', speakerOutstanding(sp))).join('') || '<div class="sp-sub" style="padding:14px 18px;">No speakers/artists with an outstanding balance.</div>';
     cfpBindPersonListEvents(speakerEl);
   }
   const sponsorTotal = sponsorList.reduce((s, x) => s + cfpPersonTotal(getSponsorInstallments(x)), 0);
