@@ -2094,7 +2094,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <div class="sp-stat-block">
           <div class="sp-stat"><span>Total</span><b id="ap-stat-total">0</b></div>
           <div class="sp-stat"><span>Pending review</span><b id="ap-stat-pending">0</b></div>
-          <div class="sp-stat"><span>Approved</span><b id="ap-stat-approved">0</b></div>
+          <div id="ap-stat-approved-by-group"></div>
           <div class="sp-stat"><span>Need lodging</span><b id="ap-stat-lodging">0</b></div>
           <div class="sp-stat"><span>Scholarship requests</span><b id="ap-stat-scholarship">0</b></div>
           <div class="sp-stat"><span>Scholarships approved</span><b id="ap-stat-scholarship-granted">0</b></div>
@@ -7976,8 +7976,8 @@ const REVENUE_TIER_DEFAULTS = [
   { id: 'group_reg', group: 'group', name: 'Regular', phase: 'Regular', rate: 325, count: 50 },
   { id: 'spouse', group: 'other', name: 'Spouse', phase: '', rate: 150, count: 30 },
   { id: 'dues', group: 'other', name: 'Membership Dues', phase: '', rate: 0, count: 0 },
-  { id: 'collegiate', group: 'student', name: 'Collegiate Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3, occupancy: 4 },
-  { id: 'collegiate_local', group: 'student', name: 'Collegiate Collective', phase: 'Local', rate: 60, count: 20 },
+  { id: 'collegiate', group: 'student', name: 'Collegiate Worship Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3, occupancy: 4 },
+  { id: 'collegiate_local', group: 'student', name: 'Collegiate Worship Collective', phase: 'Local', rate: 60, count: 20 },
   { id: 'sls', group: 'student', name: 'Student Leadership Summit', phase: '', rate: 0, count: 0, hasHotel: true, nights: 2 },
   { id: 'sls_local', group: 'student', name: 'Student Leadership Summit', phase: 'Local', rate: 0, count: 15 }
 ];
@@ -8155,7 +8155,7 @@ function renderRevenueView() {
       <span class="rev-assump-title">COST ASSUMPTIONS</span>
       <div class="rev-assump-field"><label>Conference days</label><input type="number" id="rev-g-days" value="${revenueState.globalDays}" min="1"></div>
       <div class="rev-assump-field"><label>Hotel $/night</label><input type="number" id="rev-g-hotel-rate" value="${revenueState.globalHotelRate}" min="0"></div>
-      <span class="rev-hint-inline">Only Collegiate Collective and Student Leadership Summit get lodging covered &mdash; set each one's own night count in its row.</span>
+      <span class="rev-hint-inline">Only Collegiate Worship Collective and Student Leadership Summit get lodging covered &mdash; set each one's own night count in its row.</span>
     </div>
 
     <div class="rev-work-grid">
@@ -11871,7 +11871,16 @@ function renderApplicantStats() {
   if (!totalEl) return;
   totalEl.textContent = applicants.length;
   document.getElementById('ap-stat-pending').textContent = applicants.filter(a => (a.data.status || 'Pending') === 'Pending').length;
-  document.getElementById('ap-stat-approved').textContent = applicants.filter(a => a.data.status === 'Approved').length;
+  // Approved is shown per program rather than one combined figure -- a single number across
+  // both Collegiate Worship Collective and Student Leadership Summit was hiding which program
+  // actually had approvals move.
+  const approvedByGroupEl = document.getElementById('ap-stat-approved-by-group');
+  if (approvedByGroupEl) {
+    approvedByGroupEl.innerHTML = orderedApplicantGroups().map(g => {
+      const count = applicants.filter(a => a.groupId === g.id && a.data.status === 'Approved').length;
+      return `<div class="sp-stat"><span>Approved &mdash; ${escapeHtml(g.name)}</span><b>${count}</b></div>`;
+    }).join('');
+  }
   document.getElementById('ap-stat-lodging').textContent = applicants.filter(a => a.data.needsLodging === true).length;
   document.getElementById('ap-stat-scholarship').textContent = applicants.filter(a => a.data.scholarship && a.data.scholarship.requested).length;
   document.getElementById('ap-stat-scholarship-granted').textContent = applicants.filter(a => a.data.scholarship && a.data.scholarship.decision === 'Granted').length;
@@ -12328,10 +12337,10 @@ function renderApplicantImportModal() {
 }
 
 // ---- Room assignments ----
-// Only Collegiate Collective assigns rooms through this tool -- Student Leadership Summit
-// students are minors traveling with chaperones/parents, so even when lodging is needed, it's
-// arranged outside this tool rather than as a room-assignment list here.
-const ROOM_ASSIGNMENT_GROUP_NAME = 'Collegiate Collective';
+// Only Collegiate Worship Collective assigns rooms through this tool -- Student Leadership
+// Summit students are minors traveling with chaperones/parents, so even when lodging is
+// needed, it's arranged outside this tool rather than as a room-assignment list here.
+const ROOM_ASSIGNMENT_GROUP_NAME = 'Collegiate Worship Collective';
 function applicantGroupNeedsRoomAssignment(groupId) {
   const group = applicantGroups.find(g => g.id === groupId);
   return !!group && group.name === ROOM_ASSIGNMENT_GROUP_NAME;
