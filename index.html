@@ -8921,6 +8921,31 @@ function cfpDrillGrandTotal(label, value) {
 function cfpDrillNote(text) {
   return `<div class="cfp-drill-note">${escapeHtml(text)}</div>`;
 }
+// An installment/expense only counts toward a tile's total if its date falls inside the
+// Sep 2026-Apr 2027 projection window -- a date does NOT automatically mean "counted": one
+// set before Sep 2026 or after Apr 2027 is silently dropped by cfpMonthIndexForDate (returns
+// -1, matches no month bucket), same as no date at all. The breakdown modal has to apply this
+// exact same rule per line, or its per-person subtotals won't match the tile they're explaining.
+function cfpDrillDateNote(dateStr) {
+  if (!dateStr) return '';
+  const key = dateStr.slice(0, 7);
+  if (key < CFP_MONTH_KEYS[0]) return `Due ${friendlyDate(dateStr)} — before this Sep 2026–Apr 2027 projection starts, not counted`;
+  if (key > CFP_MONTH_KEYS[CFP_MONTH_KEYS.length - 1]) return `Due ${friendlyDate(dateStr)} — after this Sep 2026–Apr 2027 projection ends, not counted`;
+  return '';
+}
+// Builds one drill-down row for a person/expense with possibly-multiple installments: only
+// in-window installments count toward the shown amount and the section subtotal; anything
+// dated outside the window is called out by name instead of silently vanishing.
+function cfpDrillInstallmentRow(label, installments) {
+  const counted = installments.filter(x => cfpMonthIndexForDate(x.date) !== -1);
+  const outOfWindow = installments.filter(x => x.date && cfpMonthIndexForDate(x.date) === -1);
+  const amt = counted.reduce((s, x) => s + x.amount, 0);
+  if (amt <= 0 && !outOfWindow.length) return cfpDrillRow(label, null, 'Not yet scheduled');
+  if (amt <= 0) return cfpDrillRow(label, null, outOfWindow.map(x => cfpDrillDateNote(x.date)).join('; '));
+  let sub = counted.length === 1 ? friendlyDate(counted[0].date) : counted.length + ' installments';
+  if (outOfWindow.length) sub += ` (+ ${cfpMoney(outOfWindow.reduce((s, x) => s + x.amount, 0))} not counted — ${outOfWindow.map(x => cfpDrillDateNote(x.date)).join('; ')})`;
+  return cfpDrillRow(label, amt, sub);
+}
 
 function renderCfpDrillModal() {
   const root = document.getElementById('cfp-drill-modal-root');
@@ -8940,15 +8965,8 @@ function renderCfpDrillModal() {
       cfpDrillRow('Early Bird — Phase 2', p.phase2, 'Booked Oct–Dec') +
       cfpDrillRow('Regular Registration', p.regular, 'Booked Jan–Apr') +
       (p.other ? cfpDrillRow('Other registration items', p.other, '') : '');
-    const sponsorRows = c.sponsorList.map(s => {
-      const insts = cashflowState.sponsorInstallments[s.id] || [];
-      const dated = insts.filter(x => x.date);
-      const amt = dated.reduce((sum, x) => sum + x.amount, 0);
-      if (amt <= 0) return cfpDrillRow(s.org, null, 'Not yet scheduled');
-      const sub = dated.length === 1 ? friendlyDate(dated[0].date) : dated.length + ' installments';
-      return cfpDrillRow(s.org, amt, sub);
-    }).join('');
-    const sponsorTotal = c.sponsorInsts.filter(x => x.date).reduce((s, x) => s + x.amount, 0);
+    const sponsorRows = c.sponsorList.map(s => cfpDrillInstallmentRow(s.org, cashflowState.sponsorInstallments[s.id] || [])).join('');
+    const sponsorTotal = c.sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) !== -1).reduce((s, x) => s + x.amount, 0);
     bodyHtml =
       cfpDrillSection('Registration Revenue', regRows, 'Registration total', regTotal) +
       cfpDrillSection('Committed Sponsor Payments', sponsorRows, 'Sponsor total', sponsorTotal) +
@@ -8956,17 +8974,10 @@ function renderCfpDrillModal() {
       (c.unschedSponsorIn > 0 ? cfpDrillNote(`${cfpMoney(c.unschedSponsorIn)} more in sponsor payments has no date set yet, so it isn't counted here — add a date in the Committed Sponsor Payments panel below to include it.`) : '');
   } else if (kind === 'out') {
     title = "What's in Total Cash Out";
-    const speakerRows = c.speakerList.map(sp => {
-      const insts = cashflowState.speakerInstallments[sp.id] || [];
-      const dated = insts.filter(x => x.date);
-      const amt = dated.reduce((sum, x) => sum + x.amount, 0);
-      if (amt <= 0) return cfpDrillRow(sp.name, null, 'Not yet scheduled');
-      const sub = dated.length === 1 ? friendlyDate(dated[0].date) : dated.length + ' installments';
-      return cfpDrillRow(sp.name, amt, sub);
-    }).join('');
-    const speakerTotal = c.speakerInsts.filter(x => x.date).reduce((s, x) => s + x.amount, 0);
-    const expRows = c.expenses.map(e => e.date ? cfpDrillRow(e.name, e.amount, friendlyDate(e.date)) : cfpDrillRow(e.name, null, 'Not yet scheduled')).join('');
-    const expTotal = c.expenses.filter(e => e.date).reduce((s, e) => s + e.amount, 0);
+    const speakerRows = c.speakerList.map(sp => cfpDrillInstallmentRow(sp.name, cashflowState.speakerInstallments[sp.id] || [])).join('');
+    const speakerTotal = c.speakerInsts.filter(x => cfpMonthIndexForDate(x.date) !== -1).reduce((s, x) => s + x.amount, 0);
+    const expRows = c.expenses.map(e => cfpDrillInstallmentRow(e.name, [e])).join('');
+    const expTotal = c.expenses.filter(e => cfpMonthIndexForDate(e.date) !== -1).reduce((s, e) => s + e.amount, 0);
     const overheadRows = cashflowState.recurringOverhead.map(o => cfpDrillRow(o.name, o.monthlyAmount * CFP_MONTHS.length, `${cfpMoney(o.monthlyAmount)}/mo × ${CFP_MONTHS.length} months`)).join('');
     bodyHtml =
       cfpDrillSection('Speaker/Artist Fees + Travel', speakerRows, 'Speaker total', speakerTotal) +
