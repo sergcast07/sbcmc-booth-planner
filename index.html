@@ -2096,6 +2096,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <div class="sp-stat"><span>Pending review</span><b id="ap-stat-pending">0</b></div>
           <div class="sp-stat"><span>Approved</span><b id="ap-stat-approved">0</b></div>
           <div class="sp-stat"><span>Need lodging</span><b id="ap-stat-lodging">0</b></div>
+          <div class="sp-stat"><span>Scholarship requests</span><b id="ap-stat-scholarship">0</b></div>
         </div>
         </div>
       </div>
@@ -2131,6 +2132,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('Approved')">Approved</button>
         <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('Declined')">Declined</button>
         <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('__lodging__')">🏨 Needs Lodging</button>
+        <button class="sch-toggle-btn" data-sf="__scholarship__" onclick="setApplicantStatusFilter('__scholarship__')">🎓 Scholarship Requested</button>
       </div>
       <div class="sp-table-wrap">
       <table class="sp-table" id="ap-table">
@@ -11807,6 +11809,7 @@ function currentFilteredApplicants() {
     let matchesStatus;
     if (applicantStatusFilter === 'all') matchesStatus = true;
     else if (applicantStatusFilter === '__lodging__') matchesStatus = a.data.needsLodging === true;
+    else if (applicantStatusFilter === '__scholarship__') matchesStatus = !!(a.data.scholarship && a.data.scholarship.requested);
     else matchesStatus = (a.data.status || 'Pending') === applicantStatusFilter;
     const matchesSearch = !applicantSearch || applicantSearchHaystack(a).includes(applicantSearch.toLowerCase());
     return matchesGroup && matchesStatus && matchesSearch;
@@ -11868,6 +11871,7 @@ function renderApplicantStats() {
   document.getElementById('ap-stat-pending').textContent = applicants.filter(a => (a.data.status || 'Pending') === 'Pending').length;
   document.getElementById('ap-stat-approved').textContent = applicants.filter(a => a.data.status === 'Approved').length;
   document.getElementById('ap-stat-lodging').textContent = applicants.filter(a => a.data.needsLodging === true).length;
+  document.getElementById('ap-stat-scholarship').textContent = applicants.filter(a => a.data.scholarship && a.data.scholarship.requested).length;
   const navBadge = document.getElementById('nav-applicants-pending-badge');
   if (navBadge) {
     const pending = applicants.filter(a => (a.data.status || 'Pending') === 'Pending').length;
@@ -11890,7 +11894,7 @@ function buildApplicantRowPair(a) {
   tr.dataset.id = a.id;
   tr.innerHTML = `
     <td data-label=""><span class="sp-chevron ${openApplicantId === a.id ? 'open' : ''}">▸</span></td>
-    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}</td>
+    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Program">${escapeHtml(applicantGroupName(a.groupId))}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
     <td data-label="Date Applied">${applicantAppliedDate(a) ? escapeHtml(friendlyDate(applicantAppliedDate(a))) : '<span class="sp-sub">—</span>'}</td>
@@ -12006,6 +12010,7 @@ function applicantDetailHTML(a) {
         </fieldset>
       </div>
       <div class="sp-detail-grid sp-detail-1col">
+        ${applicantScholarshipHTML(a)}
         <fieldset class="sp-fieldset">
           <legend>Submitted Answers</legend>
           ${applicantRawAnswersHTML(a.data.raw)}
@@ -12016,6 +12021,47 @@ function applicantDetailHTML(a) {
       </div>
     </div>
   `;
+}
+
+// Scholarship requests come in from a separate form (see the Edge Function sync) and get
+// attached to whichever applicant already matches by email -- or, if nobody matches yet,
+// inserted as a standalone placeholder so reviewers still see the request. Kept as its own
+// fieldset (rather than folded into Submitted Answers) since it carries its own decision that's
+// independent of the applicant's own Approved/Declined status -- someone can be declined for
+// the program itself and still granted a scholarship, or vice versa.
+function applicantScholarshipHTML(a) {
+  const sch = a.data.scholarship;
+  if (!sch || !sch.requested) return '';
+  const decision = sch.decision || 'Pending';
+  const decisionBadgeClass = decision === 'Granted' ? 'sp-badge-reg' : decision === 'Denied' ? 'sp-badge-lapsed' : 'sp-badge-inkind';
+  return `
+    <fieldset class="sp-fieldset">
+      <legend>🎓 Scholarship Request</legend>
+      ${sch.standalone ? `<div class="sp-sub sp-sub-wrap" style="background:#FCEFC7; color:#8a6d1d; border:1px solid #e0c56b; border-radius:6px; padding:8px 10px; margin-bottom:10px;">⚠️ No full ${escapeHtml(applicantGroupName(a.groupId))} application on file for this person — they only submitted a scholarship request.</div>` : ''}
+      <div class="sp-field-grid">
+        <div class="sp-field"><label>School / Seminary</label><input type="text" readonly value="${escapeHtml(sch.schoolOrSeminary || '')}"></div>
+        <div class="sp-field"><label>Degree path</label><input type="text" readonly value="${escapeHtml(sch.degreePath || '')}"></div>
+        <div class="sp-field" style="grid-column:1/-1;"><label>Why applying</label><textarea rows="2" readonly>${escapeHtml(sch.whyApplying || '')}</textarea></div>
+      </div>
+      <div class="sp-add-row" style="margin-top:10px; align-items:center;">
+        <span class="sp-badge ${decisionBadgeClass}">${escapeHtml(decision)}</span>
+        <button class="sp-mini-btn" style="background:#E1EFE4; color:#256B3F; border-color:#256B3F;" onclick="setScholarshipDecision('${a.id}','Granted')">✓ Grant Scholarship</button>
+        <button class="sp-mini-btn" style="background:#F6E3DF; color:#9C3A2E; border-color:#9C3A2E;" onclick="setScholarshipDecision('${a.id}','Denied')">✕ Deny Scholarship</button>
+        ${decision !== 'Pending' ? `<button class="sp-mini-btn" onclick="setScholarshipDecision('${a.id}','Pending')">Reset to Pending</button>` : ''}
+      </div>
+      ${sch.decisionAt ? `<div class="sp-sub" style="margin-top:6px;">Decided ${escapeHtml(friendlyDate(sch.decisionAt.slice(0, 10)))}</div>` : ''}
+    </fieldset>
+  `;
+}
+function setScholarshipDecision(id, decision) {
+  const a = resolveApplicantForEdit(id); if (!a) return;
+  if (!a.data.scholarship) return;
+  a.data.scholarship.decision = decision;
+  a.data.scholarship.decisionBy = 'Staff';
+  a.data.scholarship.decisionAt = decision === 'Pending' ? '' : new Date().toISOString();
+  pushApplicant(a);
+  refreshApplicantAfterEdit(id);
+  toast('Scholarship ' + decision.toLowerCase() + ': ' + (a.name || 'Applicant') + '.');
 }
 
 function updateApplicantSimple(id, field, value) {
@@ -12113,7 +12159,10 @@ async function syncLatestApplications() {
     const { results } = await res.json();
     const lines = results.map(r => {
       if (r.error) { console.error('Applicant sync failed for', r.form, ':', r.error); return r.form + ': ' + SYNC_FAILURE_MESSAGE; }
-      return r.form + ': ' + (r.added ? r.added + ' new (' + r.addedNames.join(', ') + ')' : 'nothing new');
+      const parts = [];
+      if (r.added) parts.push(r.added + ' new (' + r.addedNames.join(', ') + ')');
+      if (r.matched) parts.push(r.matched + ' added to existing applicants (' + r.matchedNames.join(', ') + ')');
+      return r.form + ': ' + (parts.length ? parts.join(', ') : 'nothing new');
     });
     await loadApplicants();
     renderApplicantsView();
