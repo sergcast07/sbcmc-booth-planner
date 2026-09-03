@@ -2097,7 +2097,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <option value="name-desc">Name (Z–A)</option>
         </select>
         <button class="sp-add-btn" onclick="openApplicantImportModal()">📥 Import CSV</button>
-        <button class="sp-add-btn" id="ap-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()">🔄 Sync Latest Applications</button>
+        <button class="sp-add-btn" id="ap-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()" title="Pulls the latest entries from both Gravity Forms — can take up to a minute.">🔄 Sync Latest Applications</button>
         <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
       </div>
       <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-status-filter-row">
@@ -11811,6 +11811,7 @@ async function syncLatestApplications() {
   if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
   const btn = document.getElementById('ap-sync-btn');
   if (btn) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
+  toast('Pulling the latest applications — this can take up to a minute…');
   // The fetch() below has no timeout of its own -- without this, a stuck server call leaves
   // the button reading "Syncing..." forever with no way out short of reloading the page.
   const controller = new AbortController();
