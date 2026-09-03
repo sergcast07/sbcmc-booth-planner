@@ -12162,6 +12162,7 @@ async function syncLatestApplications() {
       const parts = [];
       if (r.added) parts.push(r.added + ' new (' + r.addedNames.join(', ') + ')');
       if (r.matched) parts.push(r.matched + ' added to existing applicants (' + r.matchedNames.join(', ') + ')');
+      if (r.upgraded) parts.push(r.upgraded + ' matched to a scholarship request already on file (' + r.upgradedNames.join(', ') + ')');
       return r.form + ': ' + (parts.length ? parts.join(', ') : 'nothing new');
     });
     await loadApplicants();
