@@ -1261,6 +1261,12 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 /* ==== Cash Flow Projection ==== */
 .cfp-page { max-width: 1280px; margin: 0 auto; padding: 22px 26px 60px; }
 .cfp-page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cfp-scenario-note {
+  flex-shrink: 0; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 20px;
+  padding: 8px 14px; font-size: 12.5px; color: var(--ink); cursor: pointer; text-align: left;
+}
+.cfp-scenario-note:hover { border-color: var(--teal); }
+.cfp-scenario-note-link { display: block; font-size: 11px; font-weight: 700; color: var(--teal-deep); margin-top: 2px; }
 .cfp-page-head h2 { margin: 0; }
 .cfp-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 74ch; }
 
@@ -8381,6 +8387,7 @@ const REVENUE_TIER_DEFAULTS = [
 let revenueState = null;
 let revenueLoaded = false;
 let revenuePushTimer = null;
+const REVENUE_SCENARIO_LABELS = { conservative: 'Conservative', expected: 'Expected', optimistic: 'Optimistic' };
 
 // Named scenarios target a specific total-attendee count (750 / 900 / 1000), not just a flat
 // multiplier -- Member/Non-Member/Group/Spouse scale proportionally to hit that total,
@@ -9411,6 +9418,9 @@ function renderCashflowView() {
         <h2 class="font-display">Cash Flow Projection</h2>
         <p>Registration revenue plus your real committed sponsor payments and speaker/artist fees (including travel), projected against due dates through the conference. Split any person's total into a deposit + remainder, each with its own date.</p>
       </div>
+      <button class="cfp-scenario-note" onclick="switchTopView('revenue')" title="Change which scenario Cash Flow uses on the Revenue Estimator tab">
+        Registration revenue: <b>${escapeHtml(REVENUE_SCENARIO_LABELS[revenueState.activeScenario] || revenueState.activeScenario)}</b> scenario <span class="cfp-scenario-note-link">Change on Revenue tab →</span>
+      </button>
     </div>
 
     <div class="cfp-stat-row">
