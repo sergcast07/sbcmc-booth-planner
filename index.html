@@ -790,6 +790,13 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-action-item.done { text-decoration: line-through; opacity: .55; }
 .sp-action-item-wrap { margin-bottom: 6px; }
 .sp-action-item-wrap .sp-action-item { margin-bottom: 0; }
+/* The parent fieldset can be as narrow as ~280px (one column of a multi-column detail grid),
+   too tight for text + date + owner + Save + Cancel on one line -- stack the edit form instead. */
+.sp-action-item.editing { flex-direction: column; align-items: stretch; gap: 6px; }
+.sp-action-item.editing input[type="text"] { width: 100%; }
+.sp-action-edit-row { display: flex; gap: 6px; }
+.sp-action-edit-row input[type="date"], .sp-action-edit-row select { flex: 1; min-width: 0; }
+.sp-action-edit-buttons { display: flex; gap: 6px; justify-content: flex-end; }
 .sp-action-comments {
   margin: 4px 0 6px 26px; padding: 8px 10px; background: var(--paper);
   border: 1px solid var(--line); border-radius: 8px;
@@ -10463,11 +10470,15 @@ function sponsorDetailHTML(s) {
     return `<div class="sp-action-item-wrap">
       ${isEditing ? `
       <div class="sp-action-item editing">
-         <input type="text" id="action-edit-text-${s.id}-${i}" value="${escapeHtml(a.text)}" style="flex:1;">
-         <input type="date" id="action-edit-due-${s.id}-${i}" value="${a.dueDate || ''}">
-         <select id="action-edit-owner-${s.id}-${i}">${actionItemOwnerOptionsHtml(a.owner)}</select>
-         <button class="sp-mini-btn" onclick="saveActionItemEdit('${s.id}',${i})">Save</button>
-         <button class="sp-mini-btn" onclick="cancelActionItemEdit('${s.id}',${i})">Cancel</button>
+         <input type="text" id="action-edit-text-${s.id}-${i}" value="${escapeHtml(a.text)}">
+         <div class="sp-action-edit-row">
+           <input type="date" id="action-edit-due-${s.id}-${i}" value="${a.dueDate || ''}">
+           <select id="action-edit-owner-${s.id}-${i}">${actionItemOwnerOptionsHtml(a.owner)}</select>
+         </div>
+         <div class="sp-action-edit-buttons">
+           <button class="sp-mini-btn" onclick="saveActionItemEdit('${s.id}',${i})">Save</button>
+           <button class="sp-mini-btn" onclick="cancelActionItemEdit('${s.id}',${i})">Cancel</button>
+         </div>
       </div>
       ` : `
       <div class="sp-action-item ${a.done ? 'done' : ''}">
@@ -15984,11 +15995,15 @@ function speakerDetailHTML(sp) {
     return `<div class="sp-action-item-wrap">
       ${isEditing ? `
       <div class="sp-action-item editing">
-         <input type="text" id="sk-action-edit-text-${sp.id}-${i}" value="${escapeHtml(a.text)}" style="flex:1;">
-         <input type="date" id="sk-action-edit-due-${sp.id}-${i}" value="${a.dueDate || ''}">
-         <select id="sk-action-edit-owner-${sp.id}-${i}">${actionItemOwnerOptionsHtml(a.owner)}</select>
-         <button class="sp-mini-btn" onclick="saveSpeakerActionItemEdit('${sp.id}',${i})">Save</button>
-         <button class="sp-mini-btn" onclick="cancelSpeakerActionItemEdit('${sp.id}',${i})">Cancel</button>
+         <input type="text" id="sk-action-edit-text-${sp.id}-${i}" value="${escapeHtml(a.text)}">
+         <div class="sp-action-edit-row">
+           <input type="date" id="sk-action-edit-due-${sp.id}-${i}" value="${a.dueDate || ''}">
+           <select id="sk-action-edit-owner-${sp.id}-${i}">${actionItemOwnerOptionsHtml(a.owner)}</select>
+         </div>
+         <div class="sp-action-edit-buttons">
+           <button class="sp-mini-btn" onclick="saveSpeakerActionItemEdit('${sp.id}',${i})">Save</button>
+           <button class="sp-mini-btn" onclick="cancelSpeakerActionItemEdit('${sp.id}',${i})">Cancel</button>
+         </div>
       </div>
       ` : `
       <div class="sp-action-item ${a.done ? 'done' : ''}">
