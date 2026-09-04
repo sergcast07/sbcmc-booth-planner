@@ -881,7 +881,13 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 /* 9. Sidebar sections expand/collapse smoothly; table detail rows fade their content in
    (table rows themselves don't animate height reliably across browsers, so the row still
    shows/hides instantly -- only the revealed content gets a quick fade). */
-.sp-collapsible-body { max-height: 2000px; overflow: hidden; transition: max-height 260ms cubic-bezier(.3,.8,.4,1), opacity 200ms ease; opacity: 1; }
+/* This class also wraps whole roster tables (sponsors/speakers, both Active and Inactive
+   sections), not just small sidebar filter lists -- a real 2000px cap silently clipped rows
+   past that point (and any expanded detail row near/after it) with no scrollbar to reach them,
+   since overflow stays hidden until the section is toggled closed. Set high enough that no
+   real roster + one expanded detail panel will ever hit it, so it functions as a transition
+   hook, not an actual content limit. */
+.sp-collapsible-body { max-height: 60000px; overflow: hidden; transition: max-height 260ms cubic-bezier(.3,.8,.4,1), opacity 200ms ease; opacity: 1; }
 .sp-collapsible-body.collapsed { max-height: 0 !important; opacity: 0; }
 @keyframes detailFadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
 .sp-detail-row.open .sp-detail-inner { animation: detailFadeIn 200ms ease; }
