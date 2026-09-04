@@ -7415,9 +7415,13 @@ function sponsorCollectedAmount(s) {
   const committed = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
   const status = s.data.money.paymentStatus;
   if (status === 'Paid in Full') return committed;
-  if (status === 'Partially Paid') return Math.min(parseMoneyNum(s.data.money.paid), committed);
   if (!status && isSponsorMarkedPaid(s)) return committed; // legacy record, no status set yet
-  return 0;
+  // Any other status (including blank/"Not Paid") still trusts a real number actually typed
+  // into Amount Paid -- previously this returned $0 unless the Payment Status dropdown was also
+  // flipped to "Partially Paid", so an amount entered there could silently not count on the
+  // Dashboard's Collected total even though sponsorOutstanding() (Cash Flow, the payment
+  // schedule editor) already counted it. Same real dollars, same answer everywhere now.
+  return Math.min(parseMoneyNum(s.data.money.paid) || 0, committed);
 }
 
 const DASH_STATUS_COLORS = {
@@ -7475,8 +7479,12 @@ function speakerTotalCost(sp) {
 function speakerPaidAmount(sp) {
   const total = speakerTotalCost(sp);
   if (sp.data.financial.feeStatus === 'Paid in Full') return total;
-  if (sp.data.financial.feeStatus === 'Partially Paid') return Math.min(parseMoneyNum(sp.data.financial.paid), total);
-  return 0;
+  // Any other status (including blank/"Not Paid") still trusts a real number actually typed
+  // into Amount Paid -- previously this returned $0 whenever the Fee Status dropdown wasn't
+  // also flipped to "Partially Paid", so an amount entered there could silently not count on
+  // this tab's fee summary even though speakerOutstanding() (Cash Flow, the "No date" badge)
+  // already counted it. Same real dollars, same answer everywhere now.
+  return Math.min(parseMoneyNum(sp.data.financial.paid) || 0, total);
 }
 function speakerFeeTotals() {
   // Only sponsor-provided speakers are excluded here -- their fee (and any travel) is covered
@@ -9440,6 +9448,55 @@ function cfpComputeAll() {
   };
 }
 
+// Days in a 'YYYY-MM' month, using UTC dates throughout so date-only strings never drift a day
+// from local-timezone parsing.
+function cfpDaysInMonth(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+// Every calendar day from the projection's first month through its last, inclusive.
+function cfpDailyDateRange() {
+  const dates = [];
+  const [sy, sm] = CFP_MONTH_KEYS[0].split('-').map(Number);
+  const [ey, em] = CFP_MONTH_KEYS[CFP_MONTH_KEYS.length - 1].split('-').map(Number);
+  let d = new Date(Date.UTC(sy, sm - 1, 1));
+  const end = new Date(Date.UTC(ey, em - 1, cfpDaysInMonth(CFP_MONTH_KEYS[CFP_MONTH_KEYS.length - 1])));
+  while (d <= end) {
+    dates.push(d.toISOString().slice(0, 10));
+    d = new Date(d.getTime() + 86400000);
+  }
+  return dates;
+}
+// Day-by-day running balance across the whole projection window, for the chart line only --
+// the monthly table/tiles/drill-downs above are untouched and still the source of truth for
+// exact numbers. Real dated line items (sponsor/speaker installments, one-off expenses) land on
+// their exact day; categories that only ever existed as a monthly total (registration revenue,
+// recurring overhead, and the processing fee they generate) are spread evenly across that
+// month's days, since there's no finer real data for those. Every category's monthly total is
+// preserved exactly -- this only redistributes *when* within the month it's counted, so the
+// balance at the end of each month here always matches cfpComputeAll()'s monthlyBalance.
+function cfpComputeDailyBalance(c) {
+  if (!cashflowState || !revenueState) return null;
+  const dates = cfpDailyDateRange();
+  let running = c.startingBalance;
+  const dailyBalance = dates.map(dateStr => {
+    const monthKey = dateStr.slice(0, 7);
+    const mIdx = CFP_MONTH_KEYS.indexOf(monthKey);
+    if (mIdx === -1) return running; // outside the projection window -- shouldn't happen, but hold flat rather than throw
+    const days = cfpDaysInMonth(monthKey);
+    const regInToday = c.monthlyRegIn[mIdx] / days;
+    const overheadToday = c.overheadPerMonth / days;
+    const sponsorInToday = c.sponsorInsts.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
+    const speakerOutToday = c.speakerInsts.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
+    const expOutToday = c.expenses.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
+    const cashInToday = regInToday + sponsorInToday;
+    const feeToday = cashInToday * c.feePct;
+    running += cashInToday - speakerOutToday - expOutToday - overheadToday - feeToday;
+    return running;
+  });
+  return { dates, dailyBalance };
+}
+
 function cfpRecompute() {
   const c = cfpComputeAll();
   const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
@@ -9470,7 +9527,7 @@ function cfpRecompute() {
       row('Running Balance', c.monthlyBalance, 'cfp-balance');
   }
 
-  cfpDrawChart(c.monthlyBalance);
+  cfpDrawChart(c);
   // Keep an open breakdown modal live as the user edits installments/expenses/overhead,
   // rather than showing a stale snapshot until they close and reopen it.
   if (cfpDrillModalState) renderCfpDrillModal();
@@ -9629,25 +9686,34 @@ function cfpNiceTicks(minV, maxV, targetCount) {
   return ticks;
 }
 
-function cfpDrawChart(balances) {
+function cfpDrawChart(c) {
   const svg = document.getElementById('cfp-balance-chart');
   if (!svg) return;
+  const balances = c.monthlyBalance;
   const w = 900, h = 260, padL = 66, padR = 20, padT = 28, padB = 34;
   const plotW = w - padL - padR, plotH = h - padT - padB;
+
+  // Draw the line at daily resolution so every real payment/expense shows as its own step
+  // instead of being smoothed into one point per month -- falls back to the coarser monthly
+  // line only if the daily model can't run yet (e.g. revenueState isn't loaded). Either way,
+  // the labeled markers below always come from monthlyBalance, so the numbers shown always
+  // match the table beneath the chart.
+  const daily = cfpComputeDailyBalance(c);
+  const lineSeries = daily ? daily.dailyBalance : balances;
+
   // Zoom the y-axis to the real spread of the balances instead of always anchoring at $0 --
   // forcing zero into the range squeezed a healthy balance swinging between, say, $120K and
-  // $350K into a sliver of the chart, flattening exactly the month-to-month movement this chart
-  // exists to show. Zero only gets pulled back into the range when the balance actually crosses
-  // it (or the whole projection sits at/below it) -- that's the one case where "how far from
-  // broke" matters more than maximizing visual variation.
-  const rawMin = Math.min(...balances), rawMax = Math.max(...balances);
+  // $350K into a sliver of the chart, flattening exactly the movement this chart exists to
+  // show. Zero only gets pulled back into the range when the balance actually crosses it (or
+  // the whole projection sits at/below it) -- that's the one case where "how far from broke"
+  // matters more than maximizing visual variation.
+  const rawMin = Math.min(...lineSeries), rawMax = Math.max(...lineSeries);
   const crossesZero = rawMin <= 0 || rawMax <= 0;
   const dataMin = crossesZero ? Math.min(rawMin, 0) : rawMin;
   const dataMax = crossesZero ? Math.max(rawMax, 0) : rawMax;
   const ticks = cfpNiceTicks(dataMin, dataMax, 5);
   const niceMin = ticks[0], niceMax = ticks[ticks.length - 1];
   const range = (niceMax - niceMin) || 1;
-  const x = i => padL + (i / (CFP_MONTHS.length - 1)) * plotW;
   const y = v => padT + plotH - ((v - niceMin) / range) * plotH;
 
   let svgContent = '';
@@ -9660,27 +9726,46 @@ function cfpDrawChart(balances) {
     svgContent += `<text x="${padL - 8}" y="${ty + 4}" text-anchor="end" font-size="10" fill="var(--ink-soft)">${cfpCompactMoney(t)}</text>`;
   });
 
-  const points = balances.map((v, i) => `${x(i)},${y(v)}`).join(' ');
-  // Fill down to the plot's own floor, not the $0 value -- with the axis now zoomed to the
-  // data, $0 usually sits off-chart entirely, so anchoring the fill there would extend it well
-  // past the visible plot area.
-  const floorY = padT + plotH;
-  const areaPoints = `${x(0)},${floorY} ${points} ${x(balances.length - 1)},${floorY}`;
-  svgContent += `<polygon points="${areaPoints}" fill="var(--teal)" opacity="0.14"/>`;
-  svgContent += `<polyline points="${points}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>`;
+  // xForMonth[i] is where month i's own labeled marker/text sits -- at the x-position of that
+  // month's LAST day (matching what monthlyBalance[i] actually means: the balance after that
+  // month's activity), spaced by real day-count rather than evenly, so December doesn't take
+  // the same width as January.
+  let xForMonth, floorX0, floorXEnd;
+  if (daily) {
+    const n = daily.dates.length;
+    const x = i => padL + (i / (n - 1)) * plotW;
+    const points = lineSeries.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+    let cursor = -1;
+    xForMonth = CFP_MONTH_KEYS.map(key => { cursor += cfpDaysInMonth(key); return x(cursor); });
+    floorX0 = x(0); floorXEnd = x(n - 1);
+    const floorY = padT + plotH;
+    svgContent += `<polygon points="${floorX0},${floorY} ${points} ${floorXEnd},${floorY}" fill="var(--teal)" opacity="0.14"/>`;
+    svgContent += `<polyline points="${points}" fill="none" stroke="var(--teal-deep)" stroke-width="2"/>`;
+  } else {
+    const x = i => padL + (i / (CFP_MONTHS.length - 1)) * plotW;
+    const points = lineSeries.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+    xForMonth = CFP_MONTHS.map((m, i) => x(i));
+    floorX0 = x(0); floorXEnd = x(balances.length - 1);
+    const floorY = padT + plotH;
+    svgContent += `<polygon points="${floorX0},${floorY} ${points} ${floorXEnd},${floorY}" fill="var(--teal)" opacity="0.14"/>`;
+    svgContent += `<polyline points="${points}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>`;
+  }
 
+  // One labeled marker per month (not per day, which would be unreadable at this scale) -- the
+  // fine daily line drawn above already shows every real swing in between.
   balances.forEach((v, i) => {
     const neg = v < 0;
+    const px = xForMonth[i];
     const py = y(v);
     // Label goes above the point normally, but flips below when there's no headroom (near
     // the plot's top edge) so it never clips out of the chart.
     const labelAbove = py - padT > 16;
     const labelY = labelAbove ? py - 10 : py + 16;
-    svgContent += `<circle cx="${x(i)}" cy="${py}" r="4" fill="${neg ? 'var(--color-aa-dark)' : 'var(--teal-deep)'}" stroke="var(--panel)" stroke-width="1.5"/>`;
-    svgContent += `<text x="${x(i)}" y="${labelY}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${neg ? 'var(--color-aa-dark)' : 'var(--ink)'}">${cfpCompactMoney(v)}</text>`;
+    svgContent += `<circle cx="${px}" cy="${py}" r="4" fill="${neg ? 'var(--color-aa-dark)' : 'var(--teal-deep)'}" stroke="var(--panel)" stroke-width="1.5"/>`;
+    svgContent += `<text x="${px}" y="${labelY}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${neg ? 'var(--color-aa-dark)' : 'var(--ink)'}">${cfpCompactMoney(v)}</text>`;
   });
   CFP_MONTHS.forEach((m, i) => {
-    svgContent += `<text x="${x(i)}" y="${h - 8}" text-anchor="middle" font-size="10" fill="var(--ink-soft)">${m.split(' ')[0]}</text>`;
+    svgContent += `<text x="${xForMonth[i]}" y="${h - 8}" text-anchor="middle" font-size="10" fill="var(--ink-soft)">${m.split(' ')[0]}</text>`;
   });
   svg.innerHTML = svgContent;
 }
