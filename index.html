@@ -8321,11 +8321,11 @@ function revenueDefaultState() {
   const tiers = {};
   REVENUE_TIER_DEFAULTS.forEach(t => {
     // Membership Dues isn't an attendee headcount -- dues-payers who do attend are already
-    // counted (and meal-costed) under their own registration tier, so no per-day cost applies.
-    const costPerDay = t.id === 'dues' ? 0 : 20;
-    tiers[t.id] = { rate: t.rate, count: t.count, costPerDay, nights: t.hasHotel ? t.nights : 0, occupancy: t.hasHotel ? (t.occupancy || 1) : 1 };
+    // counted (and meal-costed) under their own registration tier, so no food budget applies.
+    const foodBudget = t.id === 'dues' ? 0 : 40;
+    tiers[t.id] = { rate: t.rate, count: t.count, foodBudget, nights: t.hasHotel ? t.nights : 0, occupancy: t.hasHotel ? (t.occupancy || 1) : 1 };
   });
-  return { globalDays: 3, globalHotelRate: 150, tiers };
+  return { globalHotelRate: 150, tiers };
 }
 
 async function initRevenueView() {
@@ -8347,11 +8347,21 @@ async function loadRevenueEstimator() {
     if (data && data.value) {
       const saved = JSON.parse(data.value);
       const merged = revenueDefaultState();
-      if (saved.globalDays != null) merged.globalDays = saved.globalDays;
       if (saved.globalHotelRate != null) merged.globalHotelRate = saved.globalHotelRate;
       if (saved.tiers) {
         Object.keys(merged.tiers).forEach(id => {
-          if (saved.tiers[id]) Object.assign(merged.tiers[id], saved.tiers[id]);
+          const savedTier = saved.tiers[id];
+          if (!savedTier) return;
+          const migrated = Object.assign({}, savedTier);
+          // Pre-existing saves have a per-day rate (costPerDay) meant to be multiplied by a
+          // global day count -- since some conference days are partial, that multiplication
+          // was never quite right. Convert once to the same flat total the old rate × the
+          // old day count would have produced, so nobody's numbers silently change underfoot.
+          if (migrated.foodBudget == null && migrated.costPerDay != null) {
+            migrated.foodBudget = migrated.costPerDay * (saved.globalDays || 3);
+          }
+          delete migrated.costPerDay;
+          Object.assign(merged.tiers[id], migrated);
         });
       }
       revenueState = merged;
@@ -8408,7 +8418,7 @@ function revenueTierRowHTML(t) {
         <input type="range" class="rev-count-slider" data-id="${t.id}" data-field="count" min="0" max="${Math.max(300, st.count * 3)}" value="${st.count}">
       </div></td>
       <td class="num rev-line-revenue" data-line="revenue">$0</td>
-      <td class="num rev-col-divider"><span class="rev-money-input"><span class="rev-money-prefix">$</span><input class="rev-cost-input" data-id="${t.id}" data-field="costPerDay" value="${st.costPerDay}"></span></td>
+      <td class="num rev-col-divider"><span class="rev-money-input"><span class="rev-money-prefix">$</span><input class="rev-cost-input" data-id="${t.id}" data-field="foodBudget" value="${st.foodBudget}"></span></td>
       ${nightsCell}
       ${occupancyCell}
       <td class="num rev-line-cost" data-line="cost">$0</td>
@@ -8432,7 +8442,7 @@ function renderRevenueView() {
     <div class="rev-page-head">
       <div>
         <h2 class="font-display">Conference Registration Revenue Estimator</h2>
-        <p>Drag any count to explore scenarios, or type an exact number. Set your per-day cost and hotel nights per tier to see net margin, not just revenue.</p>
+        <p>Drag any count to explore scenarios, or type an exact number. Set your food budget and hotel nights per tier to see net margin, not just revenue.</p>
       </div>
       <div class="rev-scenario-row" role="group" aria-label="Scenario">
         <button class="rev-scenario-btn${revenueActiveScenario === 'conservative' ? ' active' : ''}" data-scenario="conservative">Conservative</button>
@@ -8450,9 +8460,8 @@ function renderRevenueView() {
 
     <div class="rev-assumptions">
       <span class="rev-assump-title">COST ASSUMPTIONS</span>
-      <div class="rev-assump-field"><label>Conference days</label><input type="number" id="rev-g-days" value="${revenueState.globalDays}" min="1"></div>
       <div class="rev-assump-field"><label>Hotel $/night</label><input type="number" id="rev-g-hotel-rate" value="${revenueState.globalHotelRate}" min="0"></div>
-      <span class="rev-hint-inline">Only Collegiate Worship Collective and Student Leadership Summit get lodging covered &mdash; set each one's own night count in its row.</span>
+      <span class="rev-hint-inline">Food budget is a flat total per person, set per tier in the table below (not a per-day rate — some conference days are partial). Only Collegiate Worship Collective and Student Leadership Summit get lodging covered &mdash; set each one's own night count in its row.</span>
     </div>
 
     <div class="rev-work-grid">
@@ -8471,7 +8480,7 @@ function renderRevenueView() {
                 <th class="num rev-col-divider" style="width:70px;">Rate</th>
                 <th class="ctr" style="width:120px;">Count</th>
                 <th class="num" style="width:90px;">Revenue</th>
-                <th class="num rev-col-divider" style="width:64px;">$/Day</th>
+                <th class="num rev-col-divider" style="width:78px;" title="Flat total food/materials budget per person">Food Budget</th>
                 <th class="ctr" style="width:56px;">Nights</th>
                 <th class="ctr" style="width:56px;">People/Room</th>
                 <th class="num" style="width:90px;">Total Cost</th>
@@ -8506,7 +8515,6 @@ function renderRevenueView() {
     </div>
   `;
 
-  document.getElementById('rev-g-days').addEventListener('input', (e) => { revenueState.globalDays = parseFloat(e.target.value) || 0; revenueRecompute(); pushRevenueEstimator(); });
   document.getElementById('rev-g-hotel-rate').addEventListener('input', (e) => { revenueState.globalHotelRate = parseFloat(e.target.value) || 0; revenueRecompute(); pushRevenueEstimator(); });
 
   const tbody = document.getElementById('rev-tbody');
@@ -8548,7 +8556,7 @@ function renderRevenueView() {
 }
 
 function revenueRecompute() {
-  const days = revenueState.globalDays, hotelRate = revenueState.globalHotelRate;
+  const hotelRate = revenueState.globalHotelRate;
   let grandRevenue = 0, grandCost = 0, grandCount = 0;
   const catTotals = {};
   REVENUE_GROUPS.forEach(g => { catTotals[g.key] = { rev: 0, cost: 0 }; });
@@ -8559,7 +8567,7 @@ function revenueRecompute() {
     if (!row) return;
     const revenue = (st.rate || 0) * st.count;
     const occupancy = st.occupancy > 0 ? st.occupancy : 1;
-    const costPerPerson = (days * st.costPerDay) + ((st.nights || 0) * hotelRate / occupancy);
+    const costPerPerson = (st.foodBudget || 0) + ((st.nights || 0) * hotelRate / occupancy);
     const totalCost = costPerPerson * st.count;
     const net = revenue - totalCost;
 
@@ -8625,13 +8633,13 @@ function revenueRecompute() {
 // table -- kept separate (no DOM reads/writes) so the drill-down modal can build its breakdown
 // off the exact same math without depending on the table having already rendered.
 function revenueDrillCompute() {
-  const days = revenueState.globalDays, hotelRate = revenueState.globalHotelRate;
+  const hotelRate = revenueState.globalHotelRate;
   const groups = REVENUE_GROUPS.map(g => {
     const tiers = REVENUE_TIER_DEFAULTS.filter(t => t.group === g.key).map(t => {
       const st = revenueState.tiers[t.id];
       const revenue = (st.rate || 0) * st.count;
       const occupancy = st.occupancy > 0 ? st.occupancy : 1;
-      const costPerPerson = (days * st.costPerDay) + ((st.nights || 0) * hotelRate / occupancy);
+      const costPerPerson = (st.foodBudget || 0) + ((st.nights || 0) * hotelRate / occupancy);
       const cost = costPerPerson * st.count;
       const label = [t.name, t.phase].filter(Boolean).join(' — ');
       return { id: t.id, label, count: st.count, rate: st.rate, revenue, cost, net: revenue - cost };
@@ -8678,7 +8686,7 @@ function renderRevenueDrillModal() {
       cfpDrillSection(g.label,
         g.tiers.filter(t => t.count > 0 && t.cost > 0).map(t => cfpDrillRow(t.label, t.cost, `${t.count.toLocaleString('en-US')} registrants`)).join(''),
         g.label + ' subtotal', g.cost)
-    ).join('') + cfpDrillGrandTotal('Total Cost', c.grandCost) + cfpDrillNote('Per-day meals/materials cost × conference days, plus covered hotel nights × hotel rate ÷ people per room, for each tier — set these in the Rate Tiers table below.');
+    ).join('') + cfpDrillGrandTotal('Total Cost', c.grandCost) + cfpDrillNote('Flat food/materials budget per person, plus covered hotel nights × hotel rate ÷ people per room, for each tier — set these in the Rate Tiers table below.');
   } else if (kind === 'net') {
     title = 'How Net Margin is calculated';
     bodyHtml =
