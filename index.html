@@ -570,6 +570,15 @@
 }
 .top-nav-icon-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
 .top-nav-icon-btn.active { background: rgba(255,255,255,0.12); color: #fff; box-shadow: inset 0 0 0 1.5px var(--gold); }
+.nav-icon-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 9px; background: #a52620; color: #fff; font-size: 10px; font-weight: 700;
+  display: none; align-items: center; justify-content: center; pointer-events: none;
+}
+#nav-my-items-menu { min-width: 280px; max-height: 360px; overflow-y: auto; }
+.nav-dropdown-empty { padding: 8px 10px 6px; font-size: 12.5px; color: var(--ink-soft); }
+.nav-my-item-text { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.nav-my-item-meta { font-size: 11px; font-weight: 500; color: var(--ink-soft); }
 #sponsor-view { display: none; }
 .sp-wrap { display: flex; min-height: calc(100vh - 53px); }
 .sp-side {
@@ -1878,6 +1887,13 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="nav-dropdown-item" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
       <button class="nav-dropdown-item" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
     </div>
+  </div>
+  <div class="nav-dropdown">
+    <button class="top-nav-icon-btn" id="nav-my-items-btn" onclick="toggleMyItemsMenu(event)" title="My open action items">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="8" y="3" width="8" height="4" rx="1"></rect><path d="m9 14 2 2 4-4"></path></svg>
+    </button>
+    <span class="nav-icon-badge" id="nav-my-items-badge"></span>
+    <div class="nav-dropdown-menu align-right" id="nav-my-items-menu"></div>
   </div>
   <div class="nav-dropdown">
     <button class="top-nav-icon-btn" id="nav-team-access-btn" onclick="toggleGearMenu(event)" style="display:none;" title="Admin">
@@ -5188,6 +5204,7 @@ async function initSupabase() {
       (typeof loadTeamMembers === 'function' ? loadTeamMembers() : Promise.resolve())
     ]);
     initialDataLoaded = true;
+    if (typeof updateMyItemsNavBadge === 'function') updateMyItemsNavBadge();
     if (typeof renderApplicantStats === 'function') { renderApplicantStats('sls'); renderApplicantStats('cwc'); }
     rebuildMapRegistry();
     renderPackageSidebar();
@@ -7059,12 +7076,16 @@ function teamMemberLabel(p) { return p.display_name || p.email; }
 // name, plus "Them" for work that's actually on the sponsor/speaker's side rather than ours.
 // A blank first option is the default so a task can't get silently assigned to whoever happens
 // to sort first, the way the old hardcoded "Sergio/Jonathan/Them" list always defaulted to Sergio.
-function actionItemOwnerOptionsHtml() {
+function actionItemOwnerOptionsHtml(selectedOwner) {
   const seen = new Set();
   const names = teamMembers.map(teamMemberLabel).filter(n => n && !seen.has(n) && seen.add(n));
-  return '<option value="">— assign to —</option>'
-    + names.map(n => `<option>${escapeHtml(n)}</option>`).join('')
-    + '<option>Them</option>';
+  // An item assigned before someone left the team (or while offline, to a name no longer in the
+  // roster) would otherwise have its owner silently swapped out from under it the moment this
+  // dropdown renders -- same "keep it as a selected option even though it's off-list" rule
+  // applied elsewhere in the app (see `statusChoices` for sponsor tracker status).
+  if (selectedOwner && selectedOwner !== 'Them' && !names.includes(selectedOwner)) names.push(selectedOwner);
+  const opt = (label, value) => `<option value="${escapeHtml(value != null ? value : label)}" ${selectedOwner === (value != null ? value : label) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+  return opt('— assign to —', '') + names.map(n => opt(n)).join('') + opt('Them');
 }
 
 async function loadTeamAccessData() {
@@ -7795,10 +7816,10 @@ function setDashboardTasksFilter(f) {
   dashboardTasksFilter = f;
   renderOpenTasksSection();
 }
-function renderOpenTasksSection() {
-  const el = document.getElementById('db-open-tasks');
-  if (!el) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
+// Shared by the Dashboard's Open Action Items section and the always-visible nav "My Items"
+// menu (the latter exists because Dashboard access is itself permission-gated -- someone whose
+// role only grants Sponsors or Speakers still needs a way to see what's assigned to them).
+function collectOpenActionItems() {
   const tasks = [];
   sponsors.forEach(s => {
     (s.data.actionItems || []).forEach(a => {
@@ -7810,10 +7831,21 @@ function renderOpenTasksSection() {
       if (!a.done) tasks.push({ kind: 'speaker', id: sp.id, name: sp.name, text: a.text, owner: a.owner, dueDate: a.dueDate || '' });
     });
   });
-  // "Shared login" (the legacy fallback password) isn't a real person, so it never matches an
-  // owner -- that's correct, not a bug: someone on that session should see All Items, since
-  // "mine" has no meaning for a shared identity.
-  const mine = tasks.filter(t => t.owner && t.owner === window.currentUserLabel);
+  return tasks;
+}
+// "Shared login" (the legacy fallback password) isn't a real person, so it never matches an
+// owner -- that's correct, not a bug: someone on that session should see All Items, since
+// "mine" has no meaning for a shared identity.
+function myOpenActionItems() {
+  return collectOpenActionItems().filter(t => t.owner && t.owner === window.currentUserLabel);
+}
+function renderOpenTasksSection() {
+  updateMyItemsNavBadge();
+  const el = document.getElementById('db-open-tasks');
+  if (!el) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tasks = collectOpenActionItems();
+  const mine = myOpenActionItems();
   const showAll = dashboardTasksFilter === 'all';
   const visible = (showAll ? tasks : mine).slice()
     .sort((a, b) => (a.dueDate || '9999-99-99').localeCompare(b.dueDate || '9999-99-99'));
@@ -7846,6 +7878,49 @@ function renderOpenTasksSection() {
       }).join('')}
     </tbody></table>
   `;
+}
+
+// Always-visible nav "My Items" bell -- unlike the Dashboard section above, this isn't gated by
+// dashboard.all, since someone whose role only grants (say) Speakers still gets assigned action
+// items and needs a way to see them without browsing every record looking for their name.
+function updateMyItemsNavBadge() {
+  const badge = document.getElementById('nav-my-items-badge');
+  if (!badge) return;
+  const count = myOpenActionItems().length;
+  badge.textContent = count > 0 ? String(count) : '';
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+function toggleMyItemsMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('nav-my-items-menu');
+  if (!menu) return;
+  const willOpen = !menu.classList.contains('open');
+  if (willOpen) renderMyItemsNavMenu();
+  menu.classList.toggle('open', willOpen);
+}
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('nav-my-items-menu');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && !e.target.closest('#nav-my-items-btn')) {
+    menu.classList.remove('open');
+  }
+});
+function renderMyItemsNavMenu() {
+  const menu = document.getElementById('nav-my-items-menu');
+  if (!menu) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const mine = myOpenActionItems().sort((a, b) => (a.dueDate || '9999-99-99').localeCompare(b.dueDate || '9999-99-99'));
+  if (mine.length === 0) {
+    menu.innerHTML = '<div class="nav-dropdown-label">My Open Items</div><div class="nav-dropdown-empty">Nothing assigned to you right now.</div>';
+    return;
+  }
+  menu.innerHTML = '<div class="nav-dropdown-label">My Open Items (' + mine.length + ')</div>' + mine.map(t => {
+    const isLate = t.dueDate && t.dueDate < todayStr;
+    const jumpCall = t.kind === 'sponsor' ? `jumpToSponsorById('${t.id}')` : `jumpToSpeaker('${t.id}')`;
+    return `<button class="nav-dropdown-item" onclick="${jumpCall}; toggleMyItemsMenu();">
+      <div class="nav-my-item-text">${escapeHtml(t.text)}</div>
+      <div class="nav-my-item-meta">${escapeHtml(t.name)}${t.dueDate ? ' · ' + (isLate ? '⚠️ ' : '') + escapeHtml(t.dueDate) : ''}</div>
+    </button>`;
+  }).join('');
 }
 
 function packagePriceForKey(key) {
@@ -9737,6 +9812,7 @@ function subscribeSponsorRealtime() {
       if (document.getElementById('nav-sponsors-btn').classList.contains('active')) renderSponsorView();
       if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
       updateSponsorPendingBadge();
+      updateMyItemsNavBadge();
     })
     .subscribe();
 }
@@ -10382,16 +10458,28 @@ function sponsorDetailHTML(s) {
     const isOverdueItem = a.dueDate && !a.done && a.dueDate < todayStr;
     const itemKey = s.id + ':' + i;
     const isExpanded = expandedActionItems.has(itemKey);
+    const isEditing = editingActionItems.has(itemKey);
     const comments = a.comments || [];
     return `<div class="sp-action-item-wrap">
+      ${isEditing ? `
+      <div class="sp-action-item editing">
+         <input type="text" id="action-edit-text-${s.id}-${i}" value="${escapeHtml(a.text)}" style="flex:1;">
+         <input type="date" id="action-edit-due-${s.id}-${i}" value="${a.dueDate || ''}">
+         <select id="action-edit-owner-${s.id}-${i}">${actionItemOwnerOptionsHtml(a.owner)}</select>
+         <button class="sp-mini-btn" onclick="saveActionItemEdit('${s.id}',${i})">Save</button>
+         <button class="sp-mini-btn" onclick="cancelActionItemEdit('${s.id}',${i})">Cancel</button>
+      </div>
+      ` : `
       <div class="sp-action-item ${a.done ? 'done' : ''}">
          <input type="checkbox" ${a.done ? 'checked' : ''} onchange="toggleActionItem('${s.id}',${i})">
          <span style="flex:1;">${escapeHtml(a.text)}</span>
          ${a.dueDate ? `<span class="sp-sub" style="${isOverdueItem ? 'color:#a52620; font-weight:700;' : ''}">${isOverdueItem ? '\u26A0\uFE0F ' : ''}${escapeHtml(a.dueDate)}</span>` : ''}
          <span class="sp-sub">${a.owner || ''}</span>
          <button class="sp-mini-btn" onclick="toggleActionItemExpand('${s.id}',${i})" title="Comments">\u{1F4AC}${comments.length ? ' ' + comments.length : ''}</button>
+         <button class="sp-mini-btn" onclick="startActionItemEdit('${s.id}',${i})" title="Edit">\u270F\uFE0F</button>
          <button class="sp-mini-btn" onclick="removeActionItem('${s.id}',${i})">&times;</button>
       </div>
+      `}
       ${isExpanded ? `
         <div class="sp-action-comments">
           ${comments.length ? comments.map(c => `<div class="sp-action-comment"><span class="ts">${escapeHtml(c.ts)}</span>${escapeHtml(c.text)}</div>`).join('') : '<div class="sp-sub">No updates logged yet.</div>'}
@@ -11128,6 +11216,7 @@ function addComm(id) {
 }
 
 let expandedActionItems = new Set(); // tracks which action items have their comment thread open, keyed "sponsorId:index"
+let editingActionItems = new Set(); // tracks which action items are in inline-edit mode, same key shape ("id:index" / "sk:id:index")
 let openTransportAddForms = new Set(); // which speakers currently have the "add a trip" form expanded
 let expandedSpeakerSessions = new Set(); // which session cards are showing full fields vs. just a summary line, keyed "speakerId:index"
 let speakerActiveTab = 'overview'; // shared tab state -- only one speaker record is ever expanded at a time
@@ -11246,12 +11335,34 @@ function addActionItem(id) {
   if (dueDateEl) dueDateEl.value = '';
   pushSponsor(s);
   renderSponsorRows(id);
+  updateMyItemsNavBadge();
 }
 function toggleActionItemExpand(id, i) {
   const key = id + ':' + i;
   if (expandedActionItems.has(key)) expandedActionItems.delete(key);
   else expandedActionItems.add(key);
   renderSponsorRows(id);
+}
+function startActionItemEdit(id, i) {
+  editingActionItems.add(id + ':' + i);
+  renderSponsorRows(id);
+}
+function cancelActionItemEdit(id, i) {
+  editingActionItems.delete(id + ':' + i);
+  renderSponsorRows(id);
+}
+function saveActionItemEdit(id, i) {
+  const s = getSponsor(id); if (!s) return;
+  const item = s.data.actionItems[i]; if (!item) return;
+  const text = document.getElementById('action-edit-text-' + id + '-' + i).value.trim();
+  if (!text) return;
+  item.text = text;
+  item.dueDate = document.getElementById('action-edit-due-' + id + '-' + i).value;
+  item.owner = document.getElementById('action-edit-owner-' + id + '-' + i).value;
+  editingActionItems.delete(id + ':' + i);
+  pushSponsor(s);
+  renderSponsorRows(id);
+  updateMyItemsNavBadge();
 }
 function addActionItemComment(id, i) {
   const input = document.getElementById('action-comment-input-' + id + '-' + i);
@@ -11270,12 +11381,14 @@ function toggleActionItem(id, i) {
   s.data.actionItems[i].done = !s.data.actionItems[i].done;
   pushSponsor(s);
   renderSponsorRows(id);
+  updateMyItemsNavBadge();
 }
 function removeActionItem(id, i) {
   const s = getSponsor(id);
   s.data.actionItems.splice(i, 1);
   pushSponsor(s);
   renderSponsorRows(id);
+  updateMyItemsNavBadge();
 }
 
 function addQuestion(id) {
@@ -13249,7 +13362,10 @@ function subscribeSpeakerRealtime() {
   if (!sbClient) return;
   sbClient.channel('speaker-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: SPEAKERS_TABLE }, () => {
-      loadSpeakersFromDb().then(() => { if (typeof renderSpeakerView === 'function' && document.getElementById('speaker-view') && document.getElementById('speaker-view').style.display !== 'none') renderSpeakerView(); });
+      loadSpeakersFromDb().then(() => {
+        if (typeof renderSpeakerView === 'function' && document.getElementById('speaker-view') && document.getElementById('speaker-view').style.display !== 'none') renderSpeakerView();
+        updateMyItemsNavBadge();
+      });
     })
     .subscribe();
 }
@@ -15863,16 +15979,28 @@ function speakerDetailHTML(sp) {
     const isOverdueItem = a.dueDate && !a.done && a.dueDate < todayStr;
     const itemKey = 'sk:' + sp.id + ':' + i;
     const isExpanded = expandedActionItems.has(itemKey);
+    const isEditing = editingActionItems.has(itemKey);
     const comments = a.comments || [];
     return `<div class="sp-action-item-wrap">
+      ${isEditing ? `
+      <div class="sp-action-item editing">
+         <input type="text" id="sk-action-edit-text-${sp.id}-${i}" value="${escapeHtml(a.text)}" style="flex:1;">
+         <input type="date" id="sk-action-edit-due-${sp.id}-${i}" value="${a.dueDate || ''}">
+         <select id="sk-action-edit-owner-${sp.id}-${i}">${actionItemOwnerOptionsHtml(a.owner)}</select>
+         <button class="sp-mini-btn" onclick="saveSpeakerActionItemEdit('${sp.id}',${i})">Save</button>
+         <button class="sp-mini-btn" onclick="cancelSpeakerActionItemEdit('${sp.id}',${i})">Cancel</button>
+      </div>
+      ` : `
       <div class="sp-action-item ${a.done ? 'done' : ''}">
          <input type="checkbox" ${a.done ? 'checked' : ''} onchange="toggleSpeakerActionItem('${sp.id}',${i})">
          <span style="flex:1;">${escapeHtml(a.text)}</span>
          ${a.dueDate ? `<span class="sp-sub" style="${isOverdueItem ? 'color:#a52620; font-weight:700;' : ''}">${isOverdueItem ? '\u26A0\uFE0F ' : ''}${escapeHtml(a.dueDate)}</span>` : ''}
          <span class="sp-sub">${a.owner || ''}</span>
          <button class="sp-mini-btn" onclick="toggleSpeakerActionItemExpand('${sp.id}',${i})" title="Comments">\u{1F4AC}${comments.length ? ' ' + comments.length : ''}</button>
+         <button class="sp-mini-btn" onclick="startSpeakerActionItemEdit('${sp.id}',${i})" title="Edit">\u270F\uFE0F</button>
          <button class="sp-mini-btn" onclick="removeSpeakerActionItem('${sp.id}',${i})">&times;</button>
       </div>
+      `}
       ${isExpanded ? `
         <div class="sp-action-comments">
           ${comments.length ? comments.map(c => `<div class="sp-action-comment"><span class="ts">${escapeHtml(c.ts)}</span>${escapeHtml(c.text)}</div>`).join('') : '<div class="sp-sub">No updates logged yet.</div>'}
@@ -16343,18 +16471,42 @@ function addSpeakerActionItem(id) {
   if (dueDateEl) dueDateEl.value = '';
   pushSpeaker(sp);
   renderSpeakerRows(id);
+  updateMyItemsNavBadge();
 }
 function toggleSpeakerActionItem(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.actionItems[i].done = !sp.data.actionItems[i].done;
   pushSpeaker(sp);
   renderSpeakerRows(id);
+  updateMyItemsNavBadge();
 }
 function removeSpeakerActionItem(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data.actionItems.splice(i, 1);
   pushSpeaker(sp);
   renderSpeakerRows(id);
+  updateMyItemsNavBadge();
+}
+function startSpeakerActionItemEdit(id, i) {
+  editingActionItems.add('sk:' + id + ':' + i);
+  renderSpeakerRows(id);
+}
+function cancelSpeakerActionItemEdit(id, i) {
+  editingActionItems.delete('sk:' + id + ':' + i);
+  renderSpeakerRows(id);
+}
+function saveSpeakerActionItemEdit(id, i) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const item = sp.data.actionItems[i]; if (!item) return;
+  const text = document.getElementById('sk-action-edit-text-' + id + '-' + i).value.trim();
+  if (!text) return;
+  item.text = text;
+  item.dueDate = document.getElementById('sk-action-edit-due-' + id + '-' + i).value;
+  item.owner = document.getElementById('sk-action-edit-owner-' + id + '-' + i).value;
+  editingActionItems.delete('sk:' + id + ':' + i);
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+  updateMyItemsNavBadge();
 }
 function toggleSpeakerActionItemExpand(id, i) {
   const key = 'sk:' + id + ':' + i;
