@@ -14637,10 +14637,10 @@ function renderBreakoutGrid() {
     const leader = trackLeaderForTrack(track.name);
     let leaderHtml;
     if (leader) {
-      leaderHtml = `<div class="sch-leader-chip" onclick="event.stopPropagation(); jumpToSpeaker('${leader.id}')" title="Track Leader — click to open their record">🎖️ ${escapeHtml(leader.name)}${canEditSchedule ? `<span class="sch-leader-chip-x" onclick="event.stopPropagation(); removeTrackLeader('${track.id}')" title="Remove as Track Leader">×</span>` : ''}</div>`;
+      leaderHtml = `<div class="sch-leader-chip" onclick="event.stopPropagation(); jumpToSpeaker('${leader.id}')" title="Track Leader — click to open their record">Track Leader: ${escapeHtml(leader.name)}${canEditSchedule ? `<span class="sch-leader-chip-x" onclick="event.stopPropagation(); removeTrackLeader('${track.id}')" title="Remove as Track Leader">×</span>` : ''}</div>`;
     } else if (canEditSchedule) {
       const leaderOptions = sortedSpeakers.map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
-      leaderHtml = `<select class="sch-track-leader-add" onclick="event.stopPropagation();" onchange="event.stopPropagation(); assignTrackLeader(this.value, '${track.id}'); this.value='';"><option value="">🎖️ + assign leader</option>${leaderOptions}</select>`;
+      leaderHtml = `<select class="sch-track-leader-add" onclick="event.stopPropagation();" onchange="event.stopPropagation(); assignTrackLeader(this.value, '${track.id}'); this.value='';"><option value="">+ Assign Track Leader</option>${leaderOptions}</select>`;
     } else {
       leaderHtml = '';
     }
