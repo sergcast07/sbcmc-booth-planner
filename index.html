@@ -1260,13 +1260,14 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 
 /* ==== Cash Flow Projection ==== */
 .cfp-page { max-width: 1280px; margin: 0 auto; padding: 22px 26px 60px; }
-.cfp-page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cfp-page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .cfp-scenario-note {
-  flex-shrink: 0; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 20px;
-  padding: 8px 14px; font-size: 12.5px; color: var(--ink); cursor: pointer; text-align: left;
+  flex-shrink: 0; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
 }
-.cfp-scenario-note:hover { border-color: var(--teal); }
-.cfp-scenario-note-link { display: block; font-size: 11px; font-weight: 700; color: var(--teal-deep); margin-top: 2px; }
+.cfp-scenario-note-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
+.cfp-scenario-note-link { background: none; border: none; padding: 0; font-size: 11px; font-weight: 700; color: var(--teal-deep); cursor: pointer; text-decoration: underline; }
+.cfp-scenario-note-link:hover { color: var(--teal); }
 .cfp-page-head h2 { margin: 0; }
 .cfp-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 74ch; }
 
@@ -8454,6 +8455,17 @@ function revenueDefaultState() {
   };
 }
 function revenueActiveTiers() { return revenueState.scenarios[revenueState.activeScenario].tiers; }
+// Shared by the Revenue tab's own scenario buttons and the matching set on Cash Flow (which
+// reads the same active scenario for its registration-revenue numbers) -- just switches which
+// scenario is showing, never overwrites either one's saved tiers, and re-renders whichever of
+// the two views is currently on screen (harmless no-op on the hidden one).
+function switchRevenueScenario(name) {
+  if (!revenueState.scenarios[name] || name === revenueState.activeScenario) return;
+  revenueState.activeScenario = name;
+  pushRevenueEstimator();
+  if (typeof renderRevenueView === 'function') renderRevenueView();
+  if (typeof renderCashflowView === 'function') renderCashflowView();
+}
 // Merges one saved tier's fields onto a fresh default tier, migrating the older $/day
 // (costPerDay × a global day count) shape to the current flat foodBudget total if needed.
 function revenueMergeSavedTier(targetTier, savedTier, legacyGlobalDays) {
@@ -8680,16 +8692,7 @@ function renderRevenueView() {
   });
 
   document.querySelectorAll('.rev-scenario-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const name = btn.dataset.scenario;
-      if (!revenueState.scenarios[name] || name === revenueState.activeScenario) return;
-      // Just switches which scenario is showing -- each one already holds its own saved tiers
-      // (seeded from its own preset the first time it was ever used), so this never overwrites
-      // anything the way re-applying a preset on every click used to.
-      revenueState.activeScenario = name;
-      renderRevenueView();
-      pushRevenueEstimator();
-    });
+    btn.addEventListener('click', () => switchRevenueScenario(btn.dataset.scenario));
   });
 
   revenueRecompute();
@@ -9418,15 +9421,21 @@ function renderCashflowView() {
         <h2 class="font-display">Cash Flow Projection</h2>
         <p>Registration revenue plus your real committed sponsor payments and speaker/artist fees (including travel), projected against due dates through the conference. Split any person's total into a deposit + remainder, each with its own date.</p>
       </div>
-      <button class="cfp-scenario-note" onclick="switchTopView('revenue')" title="Change which scenario Cash Flow uses on the Revenue Estimator tab">
-        Registration revenue: <b>${escapeHtml(REVENUE_SCENARIO_LABELS[revenueState.activeScenario] || revenueState.activeScenario)}</b> scenario <span class="cfp-scenario-note-link">Change on Revenue tab →</span>
-      </button>
+      <div class="cfp-scenario-note">
+        <span class="cfp-scenario-note-label">Registration revenue scenario</span>
+        <div class="rev-scenario-row" role="group" aria-label="Scenario">
+          <button class="rev-scenario-btn${revenueState.activeScenario === 'conservative' ? ' active' : ''}" data-scenario="conservative">Conservative</button>
+          <button class="rev-scenario-btn${revenueState.activeScenario === 'expected' ? ' active' : ''}" data-scenario="expected">Expected</button>
+          <button class="rev-scenario-btn${revenueState.activeScenario === 'optimistic' ? ' active' : ''}" data-scenario="optimistic">Optimistic</button>
+        </div>
+        <button class="cfp-scenario-note-link" onclick="switchTopView('revenue')">See tier detail on Revenue tab →</button>
+      </div>
     </div>
 
     <div class="cfp-stat-row">
       <div class="cfp-stat-card" onclick="openCfpDrillModal('in')" title="Click to see what's included"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + committed sponsors</span></div>
       <div class="cfp-stat-card" onclick="openCfpDrillModal('out')" title="Click to see what's included"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speakers + expenses + overhead + fees</span></div>
-      <div class="cfp-stat-card hero" onclick="openCfpDrillModal('ending')" title="Click to see how this is calculated"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), scheduled items only</span></div>
+      <div class="cfp-stat-card hero" onclick="openCfpDrillModal('ending')" title="Click to see how this is calculated"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), including undated fees assumed due by then</span></div>
       <div class="cfp-stat-card" id="cfp-stat-lowpoint-card" onclick="openCfpDrillModal('lowpoint')" title="Click to see the month-by-month balance"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
     </div>
 
@@ -9523,6 +9532,9 @@ function renderCashflowView() {
     </div>
   `;
 
+  document.querySelectorAll('.cfp-scenario-note .rev-scenario-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchRevenueScenario(btn.dataset.scenario));
+  });
   document.getElementById('cfp-starting-balance').addEventListener('input', (e) => {
     cashflowState.startingBalance = parseFloat(e.target.value) || 0;
     cfpRecompute();
@@ -9600,6 +9612,21 @@ function cfpComputeAll() {
   const monthlySponsorIn = CFP_MONTHS.map((m, i) => sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
   const monthlySpeakerOut = CFP_MONTHS.map((m, i) => speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === i).reduce((s, x) => s + x.amount, 0));
   const monthlyExpOut = CFP_MONTHS.map((m, i) => expenses.filter(e => cfpMonthIndexForDate(e.date) === i).reduce((s, e) => s + e.amount, 0));
+
+  // A known fee/payment with no date (or a date outside this Sep 2026-Apr 2027 window) is still
+  // a real obligation -- it just doesn't have a day to place on the timeline yet. Rather than
+  // silently drop it from every total (the old behavior), assume the most conservative honest
+  // placement: it lands in the conference month itself, since that's the last point by which any
+  // real invoice is realistically settled. This keeps Ending Balance/Lowest Point/Total Cash
+  // In-Out all reflecting the true full obligation, at the cost of not knowing exactly which
+  // earlier month it might really land in -- the drill-downs still call out which items these are.
+  const unschedSponsorIn = sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+  const unschedSpeakerOut = speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+  const unschedExpOut = expenses.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
+  monthlySponsorIn[CFP_CONFERENCE_MONTH_IDX] += unschedSponsorIn;
+  monthlySpeakerOut[CFP_CONFERENCE_MONTH_IDX] += unschedSpeakerOut;
+  monthlyExpOut[CFP_CONFERENCE_MONTH_IDX] += unschedExpOut;
+
   const overheadPerMonth = cashflowState.recurringOverhead.reduce((s, o) => s + (o.monthlyAmount || 0), 0);
   const monthlyOverheadOut = CFP_MONTHS.map(() => overheadPerMonth);
   const feePct = (cashflowState.processingFeePct || 0) / 100;
@@ -9609,10 +9636,6 @@ function cfpComputeAll() {
   const monthlyNet = CFP_MONTHS.map((m, i) => monthlyIn[i] - monthlyOut[i]);
   let running = startingBalance;
   const monthlyBalance = monthlyNet.map(n => { running += n; return running; });
-
-  const unschedSponsorIn = sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
-  const unschedSpeakerOut = speakerInsts.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
-  const unschedExpOut = expenses.filter(x => cfpMonthIndexForDate(x.date) === -1).reduce((s, x) => s + x.amount, 0);
 
   const totalIn = monthlyIn.reduce((a, b) => a + b, 0);
   const totalOut = monthlyOut.reduce((a, b) => a + b, 0);
@@ -9679,6 +9702,17 @@ function cfpComputeDailyBalance(c) {
   if (!cashflowState || !revenueState) return null;
   const dates = cfpDailyDateRange();
   const dailyEvents = cfpDailyEvents(c);
+  const lastDate = dates[dates.length - 1];
+  // Same conservative placement cfpComputeAll() already applies to its monthly totals -- a
+  // known-but-undated fee lands on the conference day itself, so the daily line's own ending
+  // balance always matches monthlyBalance's, instead of quietly excluding real money the totals
+  // now include. Surfaced as its own labeled hover event (not attributed to any real person's
+  // exact date) so it doesn't look like a random unexplained jump.
+  if (!dailyEvents[lastDate]) dailyEvents[lastDate] = [];
+  if (c.unschedSponsorIn) dailyEvents[lastDate].push({ type: 'sponsor', who: null, label: 'Unscheduled sponsor payments (assumed by the conference)', amount: c.unschedSponsorIn });
+  if (c.unschedSpeakerOut) dailyEvents[lastDate].push({ type: 'speaker', who: null, label: 'Unscheduled speaker fees (assumed by the conference)', amount: -c.unschedSpeakerOut });
+  if (c.unschedExpOut) dailyEvents[lastDate].push({ type: 'expense', who: null, label: 'Unscheduled expenses (assumed by the conference)', amount: -c.unschedExpOut });
+
   let running = c.startingBalance;
   const dailyBalance = dates.map(dateStr => {
     const monthKey = dateStr.slice(0, 7);
@@ -9687,9 +9721,14 @@ function cfpComputeDailyBalance(c) {
     const days = cfpDaysInMonth(monthKey);
     const regInToday = c.monthlyRegIn[mIdx] / days;
     const overheadToday = c.overheadPerMonth / days;
-    const sponsorInToday = c.sponsorInsts.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
-    const speakerOutToday = c.speakerInsts.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
-    const expOutToday = c.expenses.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
+    let sponsorInToday = c.sponsorInsts.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
+    let speakerOutToday = c.speakerInsts.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
+    let expOutToday = c.expenses.filter(x => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
+    if (dateStr === lastDate) {
+      sponsorInToday += c.unschedSponsorIn;
+      speakerOutToday += c.unschedSpeakerOut;
+      expOutToday += c.unschedExpOut;
+    }
     const cashInToday = regInToday + sponsorInToday;
     const feeToday = cashInToday * c.feePct;
     running += cashInToday - speakerOutToday - expOutToday - overheadToday - feeToday;
@@ -9712,7 +9751,7 @@ function cfpRecompute() {
   const lowCard = document.getElementById('cfp-stat-lowpoint-card');
   if (lowCard) lowCard.classList.toggle('warn', c.lowVal < 0);
 
-  setText('cfp-unscheduled-hint', `Registration revenue spreads across Early Bird Phase 1 (through Sep 30), Phase 2 (Oct–Dec), and Regular (Jan–Apr). Currently unscheduled: ${cfpMoney(c.unschedSponsorIn)} in sponsor payments, ${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} in speaker fees/expenses.`);
+  setText('cfp-unscheduled-hint', `Registration revenue spreads across Early Bird Phase 1 (through Sep 30), Phase 2 (Oct–Dec), and Regular (Jan–Apr). Currently unscheduled: ${cfpMoney(c.unschedSponsorIn)} in sponsor payments, ${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} in speaker fees/expenses — still counted in the totals below, assumed due by the conference (${CFP_MONTHS[CFP_CONFERENCE_MONTH_IDX]}) since there's no date to place it earlier.`);
 
   const tbody = document.getElementById('cfp-tbody');
   if (tbody) {
@@ -9773,22 +9812,28 @@ function cfpDrillNote(text) {
 function cfpDrillDateNote(dateStr) {
   if (!dateStr) return '';
   const key = dateStr.slice(0, 7);
-  if (key < CFP_MONTH_KEYS[0]) return `Due ${friendlyDate(dateStr)} — before this Sep 2026–Apr 2027 projection starts, not counted`;
-  if (key > CFP_MONTH_KEYS[CFP_MONTH_KEYS.length - 1]) return `Due ${friendlyDate(dateStr)} — after this Sep 2026–Apr 2027 projection ends, not counted`;
+  if (key < CFP_MONTH_KEYS[0]) return `Due ${friendlyDate(dateStr)} — before this Sep 2026–Apr 2027 projection starts`;
+  if (key > CFP_MONTH_KEYS[CFP_MONTH_KEYS.length - 1]) return `Due ${friendlyDate(dateStr)} — after this Sep 2026–Apr 2027 projection ends`;
   return '';
 }
-// Builds one drill-down row for a person/expense with possibly-multiple installments: only
-// in-window installments count toward the shown amount and the section subtotal; anything
-// dated outside the window is called out by name instead of silently vanishing.
+// Builds one drill-down row for a person/expense with possibly-multiple installments. An
+// in-window, dated installment counts toward its real month; one with no date (or a date outside
+// this Sep 2026-Apr 2027 window) still counts toward the total -- assumed due by the conference,
+// same placement cfpComputeAll() gives it -- but is called out by name so it's clear which part
+// of the row's total is a real date and which part is an assumption.
 function cfpDrillInstallmentRow(label, installments) {
-  const counted = installments.filter(x => cfpMonthIndexForDate(x.date) !== -1);
-  const outOfWindow = installments.filter(x => x.date && cfpMonthIndexForDate(x.date) === -1);
-  const amt = counted.reduce((s, x) => s + x.amount, 0);
-  if (amt <= 0 && !outOfWindow.length) return cfpDrillRow(label, null, 'Not yet scheduled');
-  if (amt <= 0) return cfpDrillRow(label, null, outOfWindow.map(x => cfpDrillDateNote(x.date)).join('; '));
-  let sub = counted.length === 1 ? friendlyDate(counted[0].date) : counted.length + ' installments';
-  if (outOfWindow.length) sub += ` (+ ${cfpMoney(outOfWindow.reduce((s, x) => s + x.amount, 0))} not counted — ${outOfWindow.map(x => cfpDrillDateNote(x.date)).join('; ')})`;
-  return cfpDrillRow(label, amt, sub);
+  const dated = installments.filter(x => cfpMonthIndexForDate(x.date) !== -1);
+  const assumed = installments.filter(x => cfpMonthIndexForDate(x.date) === -1);
+  const datedAmt = dated.reduce((s, x) => s + x.amount, 0);
+  const assumedAmt = assumed.reduce((s, x) => s + x.amount, 0);
+  const total = datedAmt + assumedAmt;
+  if (total <= 0) return cfpDrillRow(label, null, 'Not yet scheduled');
+  let sub = dated.length ? (dated.length === 1 ? friendlyDate(dated[0].date) : dated.length + ' installments') : '';
+  if (assumed.length) {
+    const assumedNote = `${cfpMoney(assumedAmt)} assumed by the conference — ${assumed.map(x => x.date ? cfpDrillDateNote(x.date) : 'no date set yet').join('; ')}`;
+    sub = sub ? sub + '; ' + assumedNote : assumedNote;
+  }
+  return cfpDrillRow(label, total, sub);
 }
 
 function renderCfpDrillModal() {
@@ -9810,26 +9855,26 @@ function renderCfpDrillModal() {
       cfpDrillRow('Regular Registration', p.regular, 'Booked Jan–Apr') +
       (p.other ? cfpDrillRow('Other registration items', p.other, '') : '');
     const sponsorRows = c.sponsorList.map(s => cfpDrillInstallmentRow(s.org, cashflowState.sponsorInstallments[s.id] || [])).join('');
-    const sponsorTotal = c.sponsorInsts.filter(x => cfpMonthIndexForDate(x.date) !== -1).reduce((s, x) => s + x.amount, 0);
+    const sponsorTotal = c.sponsorInsts.reduce((s, x) => s + x.amount, 0);
     bodyHtml =
       cfpDrillSection('Registration Revenue', regRows, 'Registration total', regTotal) +
       cfpDrillSection('Committed Sponsor Payments', sponsorRows, 'Sponsor total', sponsorTotal) +
       cfpDrillGrandTotal('Total Cash In', c.totalIn) +
-      (c.unschedSponsorIn > 0 ? cfpDrillNote(`${cfpMoney(c.unschedSponsorIn)} more in sponsor payments has no date set yet, so it isn't counted here — add a date in the Committed Sponsor Payments panel below to include it.`) : '');
+      (c.unschedSponsorIn > 0 ? cfpDrillNote(`${cfpMoney(c.unschedSponsorIn)} in sponsor payments has no date set yet, so it's counted as assumed due by the conference (${CFP_MONTHS[CFP_CONFERENCE_MONTH_IDX]}) rather than its real month — add a date in the Committed Sponsor Payments panel below to place it correctly.`) : '');
   } else if (kind === 'out') {
     title = "What's in Total Cash Out";
     const speakerRows = c.speakerList.map(sp => cfpDrillInstallmentRow(sp.name, cashflowState.speakerInstallments[sp.id] || [])).join('');
-    const speakerTotal = c.speakerInsts.filter(x => cfpMonthIndexForDate(x.date) !== -1).reduce((s, x) => s + x.amount, 0);
+    const speakerTotal = c.speakerInsts.reduce((s, x) => s + x.amount, 0);
     const expRows = c.expenses.map(e => cfpDrillInstallmentRow(e.name, [e])).join('');
-    const expTotal = c.expenses.filter(e => cfpMonthIndexForDate(e.date) !== -1).reduce((s, e) => s + e.amount, 0);
+    const expTotal = c.expenses.reduce((s, e) => s + e.amount, 0);
     const overheadRows = cashflowState.recurringOverhead.map(o => cfpDrillRow(o.name, o.monthlyAmount * CFP_MONTHS.length, `${cfpMoney(o.monthlyAmount)}/mo × ${CFP_MONTHS.length} months`)).join('');
     bodyHtml =
       cfpDrillSection('Speaker/Artist Fees + Travel', speakerRows, 'Speaker total', speakerTotal) +
       cfpDrillSection('Other Expenses', expRows, 'Expense total', expTotal) +
       cfpDrillSection('Admin & Personnel Overhead', overheadRows, 'Overhead total', c.totalOverheadOut) +
-      cfpDrillSection('Payment Processing Fees', cfpDrillRow(`${cashflowState.processingFeePct}% of scheduled cash in`, c.totalFeeOut, ''), 'Fees total', c.totalFeeOut) +
+      cfpDrillSection('Payment Processing Fees', cfpDrillRow(`${cashflowState.processingFeePct}% of total cash in`, c.totalFeeOut, ''), 'Fees total', c.totalFeeOut) +
       cfpDrillGrandTotal('Total Cash Out', c.totalOut) +
-      ((c.unschedSpeakerOut + c.unschedExpOut) > 0 ? cfpDrillNote(`${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} more in speaker fees/expenses has no date set yet, so it isn't counted here.`) : '');
+      ((c.unschedSpeakerOut + c.unschedExpOut) > 0 ? cfpDrillNote(`${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} in speaker fees/expenses has no date set yet, so it's counted as assumed due by the conference (${CFP_MONTHS[CFP_CONFERENCE_MONTH_IDX]}) rather than its real month.`) : '');
   } else if (kind === 'ending') {
     title = 'How the Ending Balance is calculated';
     bodyHtml =
@@ -9837,7 +9882,7 @@ function renderCfpDrillModal() {
       cfpDrillRow('+ Total Cash In', c.totalIn, "Click Total Cash In to see what's included") +
       cfpDrillRow('− Total Cash Out', -c.totalOut, "Click Total Cash Out to see what's included") +
       cfpDrillGrandTotal('Ending Balance (Apr 2027)', c.monthlyBalance[CFP_CONFERENCE_MONTH_IDX]) +
-      cfpDrillNote('Only scheduled (dated) items are counted, month by month — see the Monthly Projection table below for the full path to this number.');
+      cfpDrillNote('Dated items count toward their real month; anything with no date (or a date outside this projection) still counts, assumed due by the conference — see the Monthly Projection table below for the full path to this number.');
   } else if (kind === 'lowpoint') {
     title = `Lowest Point — ${CFP_MONTHS[c.lowIdx]}`;
     const rows = CFP_MONTHS.map((m, i) => {
