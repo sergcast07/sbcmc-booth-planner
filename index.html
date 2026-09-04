@@ -9039,17 +9039,38 @@ function cfpSponsorList() { return sponsors.filter(s => isCashCommitted(s) && sp
 // This only applies once, at creation -- once a schedule exists (split or not), it's the user's
 // to edit, and a later change to the record's due date won't silently overwrite it.
 function getSpeakerInstallments(sp) {
+  const fin = sp.data.financial || {};
+  const recordDate = fin.dueDate || '';
   if (!cashflowState.speakerInstallments[sp.id]) {
-    const fin = sp.data.financial || {};
     const travel = parseFloat(fin.travelReimbursement) || 0;
-    cashflowState.speakerInstallments[sp.id] = [{ label: travel > 0 ? 'Fee + travel' : 'Fee', amount: speakerOutstanding(sp), date: fin.dueDate || '' }];
+    cashflowState.speakerInstallments[sp.id] = [{ label: travel > 0 ? 'Fee + travel' : 'Fee', amount: speakerOutstanding(sp), date: recordDate }];
+  } else {
+    // While still a single, unsplit payment, this schedule's date IS the record's own due
+    // date -- correct it on every read (not just at creation), so a due-date edit made before
+    // the two-way sync (updateSpeakerNested) existed, or made through some other path, still
+    // shows up here instead of staying silently stuck at whatever it was first seeded with.
+    const list = cashflowState.speakerInstallments[sp.id];
+    if (list.length === 1 && list[0].date !== recordDate) {
+      list[0].date = recordDate;
+      // Only a real editor's session persists the correction -- a view-only session still sees
+      // the corrected number immediately, it just doesn't attempt a write it isn't allowed to make.
+      if (canEdit('cashflow.all')) pushCashflowState();
+    }
   }
   return cashflowState.speakerInstallments[sp.id];
 }
 function getSponsorInstallments(s) {
+  const m = s.data.money || {};
+  const recordDate = m.dueDate || CFP_DEFAULT_SPONSOR_DATE;
   if (!cashflowState.sponsorInstallments[s.id]) {
-    const m = s.data.money || {};
-    cashflowState.sponsorInstallments[s.id] = [{ label: 'Full payment', amount: sponsorOutstanding(s), date: m.dueDate || CFP_DEFAULT_SPONSOR_DATE }];
+    cashflowState.sponsorInstallments[s.id] = [{ label: 'Full payment', amount: sponsorOutstanding(s), date: recordDate }];
+  } else {
+    // Same self-healing rule as getSpeakerInstallments above.
+    const list = cashflowState.sponsorInstallments[s.id];
+    if (list.length === 1 && list[0].date !== recordDate) {
+      list[0].date = recordDate;
+      if (canEdit('cashflow.all')) pushCashflowState();
+    }
   }
   return cashflowState.sponsorInstallments[s.id];
 }
