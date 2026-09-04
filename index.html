@@ -9634,8 +9634,17 @@ function cfpDrawChart(balances) {
   if (!svg) return;
   const w = 900, h = 260, padL = 66, padR = 20, padT = 28, padB = 34;
   const plotW = w - padL - padR, plotH = h - padT - padB;
-  const dataMax = Math.max(...balances, 0), dataMin = Math.min(...balances, 0);
-  const ticks = cfpNiceTicks(dataMin, dataMax, 4);
+  // Zoom the y-axis to the real spread of the balances instead of always anchoring at $0 --
+  // forcing zero into the range squeezed a healthy balance swinging between, say, $120K and
+  // $350K into a sliver of the chart, flattening exactly the month-to-month movement this chart
+  // exists to show. Zero only gets pulled back into the range when the balance actually crosses
+  // it (or the whole projection sits at/below it) -- that's the one case where "how far from
+  // broke" matters more than maximizing visual variation.
+  const rawMin = Math.min(...balances), rawMax = Math.max(...balances);
+  const crossesZero = rawMin <= 0 || rawMax <= 0;
+  const dataMin = crossesZero ? Math.min(rawMin, 0) : rawMin;
+  const dataMax = crossesZero ? Math.max(rawMax, 0) : rawMax;
+  const ticks = cfpNiceTicks(dataMin, dataMax, 5);
   const niceMin = ticks[0], niceMax = ticks[ticks.length - 1];
   const range = (niceMax - niceMin) || 1;
   const x = i => padL + (i / (CFP_MONTHS.length - 1)) * plotW;
@@ -9652,8 +9661,11 @@ function cfpDrawChart(balances) {
   });
 
   const points = balances.map((v, i) => `${x(i)},${y(v)}`).join(' ');
-  const zeroY = y(0);
-  const areaPoints = `${x(0)},${zeroY} ${points} ${x(balances.length - 1)},${zeroY}`;
+  // Fill down to the plot's own floor, not the $0 value -- with the axis now zoomed to the
+  // data, $0 usually sits off-chart entirely, so anchoring the fill there would extend it well
+  // past the visible plot area.
+  const floorY = padT + plotH;
+  const areaPoints = `${x(0)},${floorY} ${points} ${x(balances.length - 1)},${floorY}`;
   svgContent += `<polygon points="${areaPoints}" fill="var(--teal)" opacity="0.14"/>`;
   svgContent += `<polyline points="${points}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>`;
 
