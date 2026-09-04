@@ -700,7 +700,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 
 .sk-detail-header { display: flex; align-items: center; gap: 10px; padding: 14px 22px 0; }
 .sk-completeness-bar-outer { flex: 1; max-width: 220px; height: 8px; background: var(--teal-pale); border-radius: 4px; overflow: hidden; }
-.sk-completeness-bar-fill { height: 100%; border-radius: 4px; transition: width 0.2s; }
+.sk-completeness-bar-fill { height: 100%; border-radius: 4px; transition: width 550ms cubic-bezier(.22,.8,.25,1); }
 .sk-tabs { display: flex; gap: 4px; padding: 10px 22px 0; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
 .sk-tab-btn {
   background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 12px;
@@ -828,6 +828,67 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 
 @keyframes rowFlash { 0%,100% { background: transparent; } 30%,70% { background: rgba(197,161,84,0.32); } }
 .sp-row-flash { animation: rowFlash 1.4s ease; }
+
+/* ==== Shared motion utilities ====
+   Small, quick (<=350ms) animations applied to moments that already happen throughout the
+   app -- approving something, dragging a card, a number changing -- rather than a single new
+   "animated" mode. Every one of these already respects the global
+   prefers-reduced-motion:reduce rule near the top of this stylesheet, which zeroes out
+   animation/transition durations app-wide. */
+
+/* 1. Status badge pop -- Approve/Decline/Grant/Deny */
+@keyframes badgePop { 0% { transform: scale(1); } 45% { transform: scale(1.14); } 100% { transform: scale(1); } }
+.badge-pop { animation: badgePop 380ms cubic-bezier(.34,1.56,.64,1); }
+
+/* 3. Drag and drop -- breakout cards lift while held, everything settles in on (re)render */
+@keyframes cardSettle { 0% { transform: scale(1.06); opacity: 0.7; } 60% { transform: scale(0.985); opacity: 1; } 100% { transform: scale(1); } }
+.sch-card, .rm-card { animation: cardSettle 240ms cubic-bezier(.22,.8,.25,1.05); }
+.sch-card.sch-card-dragging { box-shadow: 0 14px 28px rgba(23,38,43,0.24); transform: scale(1.035) rotate(-1deg); }
+
+/* 4. Count-up stat bump */
+@keyframes statBump { 30% { transform: scale(1.08); } 100% { transform: scale(1); } }
+.stat-bump { animation: statBump 320ms ease; display: inline-block; }
+
+/* 5. Progress/completeness bar fill -- .db-bar-fill and .sk-completeness-bar-fill already carry
+   their own width transitions (see those rules), so nothing shared is needed here. */
+
+/* 6. Chips pop in on creation (Track Leader, Scholarship Requested) */
+@keyframes chipPopIn { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.sch-leader-chip, .chip-pop-in { animation: chipPopIn 260ms cubic-bezier(.34,1.56,.64,1); }
+
+/* 8. Nav dropdown menus ease open/closed instead of snapping */
+.nav-dropdown-menu { display: block; visibility: hidden; opacity: 0; transform: translateY(-6px) scale(0.98); transform-origin: top left; transition: opacity 150ms ease, transform 150ms cubic-bezier(.2,.9,.3,1.1), visibility 150ms; }
+.nav-dropdown-menu.align-right { transform-origin: top right; }
+.nav-dropdown-menu.open { visibility: visible; opacity: 1; transform: translateY(0) scale(1); }
+
+/* 9. Sidebar sections expand/collapse smoothly; table detail rows fade their content in
+   (table rows themselves don't animate height reliably across browsers, so the row still
+   shows/hides instantly -- only the revealed content gets a quick fade). */
+.sp-collapsible-body { max-height: 2000px; overflow: hidden; transition: max-height 260ms cubic-bezier(.3,.8,.4,1), opacity 200ms ease; opacity: 1; }
+.sp-collapsible-body.collapsed { max-height: 0 !important; opacity: 0; }
+@keyframes detailFadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+.sp-detail-row.open .sp-detail-inner { animation: detailFadeIn 200ms ease; }
+
+/* 10. Modals fade + scale in on open (they're freshly inserted each time, so this plays
+   automatically -- closing stays instant, matching how every modal's close function already
+   just clears its root). */
+@keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalCardIn { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.qa-modal-overlay { animation: modalBackdropIn 160ms ease; }
+.qa-modal-card { animation: modalCardIn 190ms cubic-bezier(.2,.9,.3,1.15); }
+
+/* 11. Sync button spinner + success check */
+@keyframes syncSpin { to { transform: rotate(360deg); } }
+.sync-spinning { display: inline-block; animation: syncSpin 850ms linear infinite; }
+@keyframes syncCheckPop { from { transform: scale(0); } to { transform: scale(1); } }
+.sync-check-pop { display: inline-block; animation: syncCheckPop 340ms cubic-bezier(.34,1.56,.64,1); }
+
+/* 12. Loading text gets a soft pulse instead of sitting static */
+@keyframes loadingPulse { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+.dv-loading { animation: loadingPulse 1.5s ease-in-out infinite; }
+
+/* 13. Confetti canvas overlay for milestone celebrations */
+.confetti-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 
 /* ==== Dashboard ==== */
 .db-wrap { max-width: 1040px; margin: 0 auto; padding: 0 0 60px; }
@@ -2247,7 +2308,10 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
             <input type="number" id="db-goal-input" placeholder="e.g. 40000" oninput="setFundraisingGoal(this.value)">
           </div>
         </div>
-        <div id="db-timeline-chart"></div>
+        <div style="position:relative;">
+          <div id="db-timeline-chart"></div>
+          <canvas id="db-confetti-canvas" class="confetti-overlay"></canvas>
+        </div>
       </div>
 
       <div class="db-section db-print-page2-start">
@@ -5647,18 +5711,19 @@ function toast(msg, type) {
     t.id = 'kb-toast';
     t.setAttribute('role', 'status');
     t.setAttribute('aria-live', 'polite');
-    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);'
       + 'max-width:min(90vw,480px);background:#1f2a44;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;'
       + 'font-family:system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9999;'
-      + 'pointer-events:none;opacity:0;transition:opacity .15s;';
+      + 'pointer-events:none;opacity:0;transition:opacity .18s ease,transform .18s cubic-bezier(.2,.9,.3,1.1);';
     document.body.appendChild(t);
   }
   t.textContent = msg;
   t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
   clearTimeout(t._timer);
   // Longer messages (e.g. save-failure errors) need more time to read than a quick "Saved" blip.
   const duration = Math.min(7000, Math.max(1400, msg.length * 60));
-  t._timer = setTimeout(() => { t.style.opacity = '0'; }, duration);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(10px)'; }, duration);
 }
 
 // --- quick-add modal: shown right after "+ Add sponsor"/"+ Add speaker/artist" so the new
@@ -9364,6 +9429,58 @@ function renderSponsorshipProgressChart() {
   captionEl.className = 'db-timeline-caption';
   captionEl.textContent = caption;
   container.appendChild(captionEl);
+
+  // A one-time confetti burst the moment the goal is actually reached -- not on every render
+  // while already past it (fundraisingGoalCelebrated guards that), and resets if the goal gets
+  // raised (or committed total drops) back below 100% so a later real crossing can fire again.
+  if (goal && total >= goal) {
+    if (!fundraisingGoalCelebrated) {
+      fundraisingGoalCelebrated = true;
+      burstConfetti('db-confetti-canvas');
+    }
+  } else {
+    fundraisingGoalCelebrated = false;
+  }
+}
+
+let fundraisingGoalCelebrated = false;
+function burstConfetti(canvasId) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !canvas.parentElement) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width; canvas.height = rect.height;
+  const colors = ['#A17A26', '#5C879C', '#256B3F', '#9C3A2E', '#24404A'];
+  const particles = [];
+  const cx = canvas.width / 2, cy = canvas.height * 0.4;
+  for (let i = 0; i < 90; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 4.5;
+    particles.push({
+      x: cx, y: cy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2,
+      size: 4 + Math.random() * 4, color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, life: 0,
+    });
+  }
+  function step() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of particles) {
+      p.life += 1;
+      if (p.life > 90) continue;
+      alive = true;
+      p.vy += 0.13; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - p.life / 90);
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    }
+    if (alive) requestAnimationFrame(step); else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  requestAnimationFrame(step);
 }
 
 // Known facts from the original checkout export, used only to backfill "registeredDate"
@@ -11930,14 +12047,25 @@ function subscribeApplicantsRealtime() {
   applicantsChannel = sbClient
     .channel('applicants-admin-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: APPLICANTS_TABLE }, (payload) => {
+      let flashId = null;
       if (payload.eventType === 'DELETE') {
         applicants = applicants.filter(a => a.id !== payload.old.id);
       } else {
         const updated = rowToApplicant(payload.new);
         const idx = applicants.findIndex(a => a.id === updated.id);
         if (idx >= 0) applicants[idx] = updated; else applicants.push(updated);
+        flashId = updated.id;
       }
       refreshApplicantsAll();
+      // A brief flash on the row that just changed -- without it, an edit from a teammate in
+      // another tab/session updates the numbers silently and is easy to miss.
+      if (flashId) {
+        // Synchronous, not requestAnimationFrame -- an update arriving while this tab is
+        // backgrounded would otherwise have its rAF callback throttled/dropped, and the whole
+        // point of this flash is to be visible whenever the tab is next looked at.
+        const row = document.querySelector(`tr[data-id="${flashId}"]`);
+        if (row) { row.classList.remove('sp-row-flash'); void row.offsetWidth; row.classList.add('sp-row-flash'); }
+      }
     })
     .subscribe();
 }
@@ -11961,7 +12089,7 @@ function buildApplicantRowPair(a, programKey) {
     <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Date Applied">${applicantAppliedDate(a) ? escapeHtml(friendlyDate(applicantAppliedDate(a))) : '<span class="sp-sub">—</span>'}</td>
-    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span></td>
+    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}" id="ap-status-badge-${a.id}">${escapeHtml(status)}</span></td>
     <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
   tr.addEventListener('click', () => toggleApplicantDetail(programKey, a.id));
@@ -11982,6 +12110,17 @@ function renderApplicantRows(programKey) {
     tbody.appendChild(dtr);
   });
 }
+// Only bumps when the number actually changed -- renderApplicantStats runs on every refresh,
+// including ones where nothing numeric moved, so this avoids animating a stat that's identical
+// to what was already on screen.
+function setStatNumber(el, value) {
+  if (!el) return;
+  const newText = String(value);
+  if (el.textContent !== newText) {
+    el.textContent = newText;
+    el.classList.remove('stat-bump'); void el.offsetWidth; el.classList.add('stat-bump');
+  }
+}
 function renderApplicantStats(programKey) {
   const page = PROGRAM_PAGES[programKey];
   const totalEl = document.getElementById('ap-' + programKey + '-stat-total');
@@ -12001,15 +12140,13 @@ function renderApplicantStats(programKey) {
     hintEl.remove();
   }
   const own = applicants.filter(a => a.groupId === page.groupId);
-  totalEl.textContent = own.length;
-  document.getElementById('ap-' + programKey + '-stat-pending').textContent = own.filter(a => (a.data.status || 'Pending') === 'Pending').length;
-  document.getElementById('ap-' + programKey + '-stat-approved').textContent = own.filter(a => a.data.status === 'Approved').length;
-  document.getElementById('ap-' + programKey + '-stat-lodging').textContent = own.filter(a => a.data.needsLodging === true).length;
+  setStatNumber(totalEl, own.length);
+  setStatNumber(document.getElementById('ap-' + programKey + '-stat-pending'), own.filter(a => (a.data.status || 'Pending') === 'Pending').length);
+  setStatNumber(document.getElementById('ap-' + programKey + '-stat-approved'), own.filter(a => a.data.status === 'Approved').length);
+  setStatNumber(document.getElementById('ap-' + programKey + '-stat-lodging'), own.filter(a => a.data.needsLodging === true).length);
   if (page.hasScholarships) {
-    const schEl = document.getElementById('ap-' + programKey + '-stat-scholarship');
-    if (schEl) schEl.textContent = own.filter(a => a.data.scholarship && a.data.scholarship.requested).length;
-    const grantedEl = document.getElementById('ap-' + programKey + '-stat-scholarship-granted');
-    if (grantedEl) grantedEl.textContent = own.filter(a => a.data.scholarship && a.data.scholarship.decision === 'Granted').length;
+    setStatNumber(document.getElementById('ap-' + programKey + '-stat-scholarship'), own.filter(a => a.data.scholarship && a.data.scholarship.requested).length);
+    setStatNumber(document.getElementById('ap-' + programKey + '-stat-scholarship-granted'), own.filter(a => a.data.scholarship && a.data.scholarship.decision === 'Granted').length);
   }
   const navBadge = document.getElementById('nav-applicants-' + programKey + '-pending-badge');
   if (navBadge) {
@@ -12145,7 +12282,7 @@ function applicantScholarshipHTML(a) {
         <div class="sp-field" style="grid-column:1/-1;"><label>Why applying</label><textarea rows="2" readonly>${escapeHtml(sch.whyApplying || '')}</textarea></div>
       </div>
       <div class="sp-add-row" style="margin-top:10px; align-items:center;">
-        <span class="sp-badge ${decisionBadgeClass}">${escapeHtml(decision)}</span>
+        <span class="sp-badge ${decisionBadgeClass}" id="ap-sch-badge-${a.id}">${escapeHtml(decision)}</span>
         <button class="sp-mini-btn" style="background:#E1EFE4; color:#256B3F; border-color:#256B3F;" onclick="setScholarshipDecision('${a.id}','Granted')">✓ Grant Scholarship</button>
         <button class="sp-mini-btn" style="background:#F6E3DF; color:#9C3A2E; border-color:#9C3A2E;" onclick="setScholarshipDecision('${a.id}','Denied')">✕ Deny Scholarship</button>
         ${decision !== 'Pending' ? `<button class="sp-mini-btn" onclick="setScholarshipDecision('${a.id}','Pending')">Reset to Pending</button>` : ''}
@@ -12153,6 +12290,17 @@ function applicantScholarshipHTML(a) {
       ${sch.decisionAt ? `<div class="sp-sub" style="margin-top:6px;">Decided ${escapeHtml(friendlyDate(sch.decisionAt.slice(0, 10)))}</div>` : ''}
     </fieldset>
   `;
+}
+// A quick scale-pop on a badge right after its text changes -- the render that rebuilds the
+// badge has already happened by the time this runs, so it re-triggers the CSS animation on the
+// fresh element rather than fighting the render.
+function popBadge(elId) {
+  // Synchronous, not requestAnimationFrame -- rAF callbacks are throttled/skipped on a
+  // backgrounded tab, which would silently drop this if the change came in (e.g. via realtime)
+  // while this browser tab wasn't the active one. The forced reflow (offsetWidth read) is what
+  // actually guarantees the animation retriggers, not the timing.
+  const el = document.getElementById(elId);
+  if (el) { void el.offsetWidth; el.classList.add('badge-pop'); }
 }
 function setScholarshipDecision(id, decision) {
   const a = resolveApplicantForEdit(id); if (!a) return;
@@ -12162,6 +12310,7 @@ function setScholarshipDecision(id, decision) {
   a.data.scholarship.decisionAt = decision === 'Pending' ? '' : new Date().toISOString();
   pushApplicant(a);
   refreshApplicantsAll();
+  popBadge('ap-sch-badge-' + id);
   toast('Scholarship ' + decision.toLowerCase() + ': ' + (a.name || 'Applicant') + '.');
 }
 
@@ -12210,6 +12359,7 @@ function setApplicantStatus(id, status) {
   a.data.reviewedAt = new Date().toISOString();
   pushApplicant(a);
   refreshApplicantsAll();
+  popBadge('ap-status-badge-' + id);
   toast(status + ': ' + (a.name || 'Applicant') + '.');
 }
 function deleteApplicant(id) {
@@ -12247,7 +12397,7 @@ async function syncLatestApplications() {
   // One shared sync button per page (either triggers the same server-side pull, covering both
   // programs) -- toggle both so neither looks clickable while a sync from the other is running.
   const syncBtns = [document.getElementById('ap-sls-sync-btn'), document.getElementById('ap-cwc-sync-btn')].filter(Boolean);
-  syncBtns.forEach(btn => { btn.disabled = true; btn.textContent = '🔄 Syncing…'; });
+  syncBtns.forEach(btn => { btn.disabled = true; btn.innerHTML = '<span class="sync-spinning">🔄</span> Syncing…'; });
   toast('Pulling the latest applications — this can take up to a minute…');
   // The fetch() below has no timeout of its own -- without this, a stuck server call leaves
   // the button reading "Syncing..." forever with no way out short of reloading the page.
@@ -12271,6 +12421,7 @@ async function syncLatestApplications() {
     });
     await loadApplicants();
     refreshApplicantsAll();
+    syncBtns.forEach(btn => { btn.innerHTML = '<span class="sync-check-pop">✅</span> Done'; });
     alert(lines.join('\n'));
   } catch (err) {
     console.error('Applicant sync failed:', err);
@@ -14608,7 +14759,7 @@ function renderBreakoutGrid() {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
         const showTitle = !titlesMatch || occIdx === 0;
-        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="${canEditSchedule}" ${canEditSchedule ? `ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})"` : ''} ${canReorder ? `ondragover="schCardDragOver(event)" ondragleave="schCardDragLeave(event)" ondrop="schCardDrop(event,'${track.id}','${slot.id}',${occIdx})"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}${canEditSchedule ? `Click to open their full record — drag to move to another cell${canReorder ? ', or drag onto a neighbor here to reorder' : ''}` : 'Click to open their full record'}">
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="${canEditSchedule}" ${canEditSchedule ? `ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" ondragend="this.classList.remove('sch-card-dragging')"` : ''} ${canReorder ? `ondragover="schCardDragOver(event)" ondragleave="schCardDragLeave(event)" ondrop="schCardDrop(event,'${track.id}','${slot.id}',${occIdx})"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}${canEditSchedule ? `Click to open their full record — drag to move to another cell${canReorder ? ', or drag onto a neighbor here to reorder' : ''}` : 'Click to open their full record'}">
           ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
           ${canEditSchedule ? `<span class="sch-card-x" onclick="event.stopPropagation(); schUnscheduleSession('${occ.speakerId}', ${occ.sessionIndex})" title="Delete this session">×</span>` : ''}
           <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
@@ -14729,7 +14880,7 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
         const trackColor = trackColorByName[occ.sess.track] || 'var(--line)';
-        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="${canEditSchedule}" ${canEditSchedule ? `ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}${canEditSchedule ? 'Click to open their full record — drag to move to another room/slot' : 'Click to open their full record'}">
+        return `<div class="sch-card ${isConflict ? 'sch-conflict' : ''}" style="border-left-color:${isConflict ? '#c0392b' : trackColor};" draggable="${canEditSchedule}" ${canEditSchedule ? `ondragstart="schDragStart(event, {type:'session', speakerId:'${occ.speakerId}', sessionIndex:${occ.sessionIndex}})" ondragend="this.classList.remove('sch-card-dragging')"` : ''} onclick="jumpToSpeaker('${occ.speakerId}')" title="${isConflict ? 'Has a scheduling conflict — see Conflicts above. ' : ''}${canEditSchedule ? 'Click to open their full record — drag to move to another room/slot' : 'Click to open their full record'}">
           ${isConflict ? '<span class="sch-conflict-icon">⚠️</span>' : ''}
           <div class="sch-card-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
           <div class="sch-card-title">${escapeHtml(occ.sess.track || '')}</div>
@@ -14854,6 +15005,7 @@ function schDragStart(e, payload) {
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', ''); } catch (err) { /* some browsers require a call here even if unused */ }
   }
+  if (e.currentTarget) e.currentTarget.classList.add('sch-card-dragging');
 }
 function schDragOver(e) { e.preventDefault(); if (e.currentTarget) e.currentTarget.classList.add('sch-cell-hover'); }
 function schDragLeave(e) { if (e.currentTarget) e.currentTarget.classList.remove('sch-cell-hover'); }
