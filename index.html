@@ -14471,8 +14471,18 @@ function sortByLastName(list) {
   return list.slice().sort((a, b) => lastNameOf(a.name).localeCompare(lastNameOf(b.name)));
 }
 
+// Only speakers actually being programmed (Invited or further along the tracker pipeline) are
+// real candidates for a breakout or main-schedule slot -- a "Contact Only" record is just a
+// rolodex entry (someone known about, not currently being booked), so they shouldn't show up as
+// an assignable option anywhere in Schedule. This only scopes the "who can I newly assign"
+// lists -- it never hides an existing assignment, so someone already scheduled before being
+// moved to Contact Only still shows correctly wherever they were placed.
+function scheduleEligibleSpeakers() {
+  return speakers.filter(sp => sp.trackerStatus !== 'Contact Only');
+}
+
 function buildScheduleRosterChipsHtml() {
-  const filtered = speakers.filter(sp => !scheduleRosterSearch || sp.name.toLowerCase().includes(scheduleRosterSearch.toLowerCase()));
+  const filtered = scheduleEligibleSpeakers().filter(sp => !scheduleRosterSearch || sp.name.toLowerCase().includes(scheduleRosterSearch.toLowerCase()));
   if (!filtered.length) return '<span class="sp-sub">No speakers match.</span>';
   const editable = canEdit('schedule.all');
   return sortByLastName(filtered).map(sp => `<div class="sch-chip" draggable="${editable}" ${editable ? `ondragstart="schDragStart(event, {type:'speaker', speakerId:'${sp.id}'})"` : ''}>${escapeHtml(sp.name)}</div>`).join('');
@@ -14582,7 +14592,7 @@ function renderBreakoutGrid() {
 
   const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:4px;" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename this breakout slot">✎</span>` : ''}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
 
-  const sortedSpeakers = sortByLastName(speakers);
+  const sortedSpeakers = sortByLastName(scheduleEligibleSpeakers());
   const rows = sessionTracks.map((track, trackIdx) => {
     const trackColor = trackColorForIndex(trackIdx);
     const cells = breakoutSlots.map(slot => {
@@ -14786,7 +14796,7 @@ function assignSpeakerToSubOption(speakerId, slotId, optionName) {
 function secondaryBreakoutGridsHtml() {
   const slotsWithOptions = scheduleSlots.filter(s => s.subOptions && s.subOptions.length);
   if (!slotsWithOptions.length) return '';
-  const sortedSpeakers = sortByLastName(speakers);
+  const sortedSpeakers = sortByLastName(scheduleEligibleSpeakers());
   const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
   const canEditSchedule = canEdit('schedule.all');
 
@@ -15142,7 +15152,7 @@ function renderScheduleTimeline() {
     (days[slot.date] = days[slot.date] || []).push(slot);
   });
   const dateKeys = Object.keys(days).sort();
-  const speakerOptions = sortByLastName(speakers);
+  const speakerOptions = sortByLastName(scheduleEligibleSpeakers());
 
   const canEditSchedule = canEdit('schedule.all');
   const kindSelect = (slot) => `<select class="sch-timeline-kind-select sch-kind-${slot.kind}" onchange="updateScheduleSlotKind('${slot.id}', this.value)">${SCHEDULE_SLOT_KINDS.map(k => `<option value="${k}" ${k === slot.kind ? 'selected' : ''}>${k.charAt(0).toUpperCase() + k.slice(1)}</option>`).join('')}</select>`;
