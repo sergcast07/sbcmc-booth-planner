@@ -8325,7 +8325,6 @@ const REVENUE_TIER_DEFAULTS = [
 let revenueState = null;
 let revenueLoaded = false;
 let revenuePushTimer = null;
-let revenueActiveScenario = 'expected';
 
 // Named scenarios target a specific total-attendee count (750 / 900 / 1000), not just a flat
 // multiplier -- Member/Non-Member/Group/Spouse scale proportionally to hit that total,
@@ -8360,15 +8359,48 @@ const REVENUE_SCENARIO_PRESETS = {
   }
 };
 
-function revenueDefaultState() {
+// Each of the 3 scenarios (Conservative/Expected/Optimistic) has its own independently-editable,
+// independently-saved set of tiers -- switching the scenario buttons used to just re-apply that
+// scenario's hardcoded preset counts over the SAME shared tiers object every click, silently
+// wiping out whatever anyone had customized, in any scenario, since there was nowhere else for
+// it to live. Building fresh, each scenario starts from its own preset (falling back to the
+// tier's base count for anything a preset doesn't cover, e.g. Membership Dues); once a real
+// value is saved, it stays that scenario's own value from then on -- clicking between scenarios
+// only ever switches which one is showing, never resets what's in either of them.
+function revenueBuildTiers(scenarioName) {
+  const preset = REVENUE_SCENARIO_PRESETS[scenarioName] || {};
   const tiers = {};
   REVENUE_TIER_DEFAULTS.forEach(t => {
     // Membership Dues isn't an attendee headcount -- dues-payers who do attend are already
     // counted (and meal-costed) under their own registration tier, so no food budget applies.
     const foodBudget = t.id === 'dues' ? 0 : 40;
-    tiers[t.id] = { rate: t.rate, count: t.count, foodBudget, nights: t.hasHotel ? t.nights : 0, occupancy: t.hasHotel ? (t.occupancy || 1) : 1 };
+    const count = preset[t.id] != null ? preset[t.id] : t.count;
+    tiers[t.id] = { rate: t.rate, count, foodBudget, nights: t.hasHotel ? t.nights : 0, occupancy: t.hasHotel ? (t.occupancy || 1) : 1 };
   });
-  return { globalHotelRate: 150, tiers };
+  return tiers;
+}
+function revenueDefaultState() {
+  return {
+    activeScenario: 'expected',
+    globalHotelRate: 150,
+    scenarios: {
+      conservative: { tiers: revenueBuildTiers('conservative') },
+      expected: { tiers: revenueBuildTiers('expected') },
+      optimistic: { tiers: revenueBuildTiers('optimistic') },
+    },
+  };
+}
+function revenueActiveTiers() { return revenueState.scenarios[revenueState.activeScenario].tiers; }
+// Merges one saved tier's fields onto a fresh default tier, migrating the older $/day
+// (costPerDay × a global day count) shape to the current flat foodBudget total if needed.
+function revenueMergeSavedTier(targetTier, savedTier, legacyGlobalDays) {
+  if (!savedTier) return;
+  const migrated = Object.assign({}, savedTier);
+  if (migrated.foodBudget == null && migrated.costPerDay != null) {
+    migrated.foodBudget = migrated.costPerDay * (legacyGlobalDays || 3);
+  }
+  delete migrated.costPerDay;
+  Object.assign(targetTier, migrated);
 }
 
 async function initRevenueView() {
@@ -8391,21 +8423,24 @@ async function loadRevenueEstimator() {
       const saved = JSON.parse(data.value);
       const merged = revenueDefaultState();
       if (saved.globalHotelRate != null) merged.globalHotelRate = saved.globalHotelRate;
-      if (saved.tiers) {
-        Object.keys(merged.tiers).forEach(id => {
-          const savedTier = saved.tiers[id];
-          if (!savedTier) return;
-          const migrated = Object.assign({}, savedTier);
-          // Pre-existing saves have a per-day rate (costPerDay) meant to be multiplied by a
-          // global day count -- since some conference days are partial, that multiplication
-          // was never quite right. Convert once to the same flat total the old rate × the
-          // old day count would have produced, so nobody's numbers silently change underfoot.
-          if (migrated.foodBudget == null && migrated.costPerDay != null) {
-            migrated.foodBudget = migrated.costPerDay * (saved.globalDays || 3);
-          }
-          delete migrated.costPerDay;
-          Object.assign(merged.tiers[id], migrated);
+      if (saved.scenarios) {
+        // Current shape: each scenario has its own saved tiers.
+        Object.keys(merged.scenarios).forEach(scenarioName => {
+          const savedScenario = saved.scenarios[scenarioName];
+          if (!savedScenario || !savedScenario.tiers) return;
+          Object.keys(merged.scenarios[scenarioName].tiers).forEach(id => {
+            revenueMergeSavedTier(merged.scenarios[scenarioName].tiers[id], savedScenario.tiers[id], saved.globalDays);
+          });
         });
+        if (saved.activeScenario && merged.scenarios[saved.activeScenario]) merged.activeScenario = saved.activeScenario;
+      } else if (saved.tiers) {
+        // Legacy shape from before scenarios were split apart -- there was only ever one shared
+        // set of tiers, always shown under "Expected" (the only scenario that was never
+        // overwritten unless someone clicked a different button), so that's the one it becomes.
+        Object.keys(merged.scenarios.expected.tiers).forEach(id => {
+          revenueMergeSavedTier(merged.scenarios.expected.tiers[id], saved.tiers[id], saved.globalDays);
+        });
+        merged.activeScenario = 'expected';
       }
       revenueState = merged;
     }
@@ -8440,7 +8475,7 @@ function pushRevenueEstimator() {
 function revenueMoney(n) { return (n < 0 ? '-$' : '$') + Math.round(Math.abs(n)).toLocaleString('en-US'); }
 
 function revenueTierRowHTML(t) {
-  const st = revenueState.tiers[t.id];
+  const st = revenueActiveTiers()[t.id];
   const pillClass = t.phase === 'Regular' ? 'regular' : t.phase === 'Local' ? 'local' : '';
   const phasePill = (t.phase && t.phase !== 'Regular') ? `<span class="rev-phase-pill ${pillClass}">${escapeHtml(t.phase)}</span>` : '';
   const rateCell = st.rate == null
@@ -8488,9 +8523,9 @@ function renderRevenueView() {
         <p>Drag any count to explore scenarios, or type an exact number. Set your food budget and hotel nights per tier to see net margin, not just revenue.</p>
       </div>
       <div class="rev-scenario-row" role="group" aria-label="Scenario">
-        <button class="rev-scenario-btn${revenueActiveScenario === 'conservative' ? ' active' : ''}" data-scenario="conservative">Conservative</button>
-        <button class="rev-scenario-btn${revenueActiveScenario === 'expected' ? ' active' : ''}" data-scenario="expected">Expected</button>
-        <button class="rev-scenario-btn${revenueActiveScenario === 'optimistic' ? ' active' : ''}" data-scenario="optimistic">Optimistic</button>
+        <button class="rev-scenario-btn${revenueState.activeScenario === 'conservative' ? ' active' : ''}" data-scenario="conservative">Conservative</button>
+        <button class="rev-scenario-btn${revenueState.activeScenario === 'expected' ? ' active' : ''}" data-scenario="expected">Expected</button>
+        <button class="rev-scenario-btn${revenueState.activeScenario === 'optimistic' ? ' active' : ''}" data-scenario="optimistic">Optimistic</button>
       </div>
     </div>
 
@@ -8565,7 +8600,7 @@ function renderRevenueView() {
     const el = e.target;
     const id = el.dataset.id, field = el.dataset.field;
     if (!id || !field) return;
-    const st = revenueState.tiers[id];
+    const st = revenueActiveTiers()[id];
     if (field === 'count') {
       const v = parseInt(el.value) || 0;
       st.count = v;
@@ -8584,12 +8619,11 @@ function renderRevenueView() {
   document.querySelectorAll('.rev-scenario-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.scenario;
-      const preset = REVENUE_SCENARIO_PRESETS[name];
-      if (!preset) return;
-      revenueActiveScenario = name;
-      Object.keys(preset).forEach(id => {
-        if (revenueState.tiers[id]) revenueState.tiers[id].count = preset[id];
-      });
+      if (!revenueState.scenarios[name] || name === revenueState.activeScenario) return;
+      // Just switches which scenario is showing -- each one already holds its own saved tiers
+      // (seeded from its own preset the first time it was ever used), so this never overwrites
+      // anything the way re-applying a preset on every click used to.
+      revenueState.activeScenario = name;
       renderRevenueView();
       pushRevenueEstimator();
     });
@@ -8604,8 +8638,9 @@ function revenueRecompute() {
   const catTotals = {};
   REVENUE_GROUPS.forEach(g => { catTotals[g.key] = { rev: 0, cost: 0 }; });
 
+  const tiers = revenueActiveTiers();
   REVENUE_TIER_DEFAULTS.forEach(t => {
-    const st = revenueState.tiers[t.id];
+    const st = tiers[t.id];
     const row = document.querySelector('#rev-tbody tr[data-id="' + t.id + '"]');
     if (!row) return;
     const revenue = (st.rate || 0) * st.count;
@@ -8629,7 +8664,7 @@ function revenueRecompute() {
     const totalRow = document.querySelector('tr[data-group-total="' + g.key + '"]');
     if (!totalRow) return;
     const tiersInGroup = REVENUE_TIER_DEFAULTS.filter(t => t.group === g.key);
-    const cnt = tiersInGroup.reduce((sum, t) => sum + revenueState.tiers[t.id].count, 0);
+    const cnt = tiersInGroup.reduce((sum, t) => sum + tiers[t.id].count, 0);
     totalRow.querySelector('[data-line="count"]').textContent = cnt.toLocaleString('en-US');
     totalRow.querySelector('[data-line="revenue"]').textContent = revenueMoney(catTotals[g.key].rev);
     totalRow.querySelector('[data-line="cost"]').textContent = revenueMoney(catTotals[g.key].cost);
@@ -8677,9 +8712,10 @@ function revenueRecompute() {
 // off the exact same math without depending on the table having already rendered.
 function revenueDrillCompute() {
   const hotelRate = revenueState.globalHotelRate;
+  const activeTiers = revenueActiveTiers();
   const groups = REVENUE_GROUPS.map(g => {
     const tiers = REVENUE_TIER_DEFAULTS.filter(t => t.group === g.key).map(t => {
-      const st = revenueState.tiers[t.id];
+      const st = activeTiers[t.id];
       const revenue = (st.rate || 0) * st.count;
       const occupancy = st.occupancy > 0 ? st.occupancy : 1;
       const costPerPerson = (st.foodBudget || 0) + ((st.nights || 0) * hotelRate / occupancy);
@@ -9061,8 +9097,9 @@ function resyncPaymentSchedule(id, type) {
 // override here, so Cash Flow just tracks that tab directly.
 function computeRegistrationPhaseTotals() {
   let phase1 = 0, phase2 = 0, regular = 0, other = 0;
+  const tiers = revenueActiveTiers();
   REVENUE_TIER_DEFAULTS.forEach(t => {
-    const st = revenueState.tiers[t.id];
+    const st = tiers[t.id];
     if (!st) return;
     const amt = (st.rate || 0) * st.count;
     if (t.group === 'member' || t.group === 'nonmember' || t.group === 'group') {
