@@ -11692,6 +11692,15 @@ function updateSponsorNested(id, group, field, value) {
   if (!s.data[group]) s.data[group] = {}; // records saved before this nested group existed
   s.data[group][field] = value;
   pushSponsor(s);
+  // The payment-schedule editor (Cash Flow / this record's own Financials tab) seeds its
+  // starting date from this field once, then is free to diverge -- but while the schedule is
+  // still a single unsplit payment, this field IS that payment's date (the same rule the
+  // schedule editor's own date input already applies in reverse), so keep the two in sync until
+  // someone actually splits it into pieces.
+  if (group === 'money' && field === 'dueDate' && cashflowState && cashflowState.sponsorInstallments[id] && cashflowState.sponsorInstallments[id].length === 1) {
+    cashflowState.sponsorInstallments[id][0].date = value;
+    pushCashflowState();
+  }
   refreshSponsorAfterEdit(id);
 }
 
@@ -14469,6 +14478,15 @@ function updateSpeakerNested(id, group, field, value) {
   if (!sp.data[group]) sp.data[group] = {}; // records saved before this nested group existed
   sp.data[group][field] = value;
   pushSpeaker(sp);
+  // The payment-schedule editor (Cash Flow / this record's own Financials tab) seeds its
+  // starting date from this field once, then is free to diverge -- but while the schedule is
+  // still a single unsplit payment, this field IS that payment's date (the same rule the
+  // schedule editor's own date input already applies in reverse), so keep the two in sync until
+  // someone actually splits it into pieces.
+  if (group === 'financial' && field === 'dueDate' && cashflowState && cashflowState.speakerInstallments[id] && cashflowState.speakerInstallments[id].length === 1) {
+    cashflowState.speakerInstallments[id][0].date = value;
+    pushCashflowState();
+  }
   renderSpeakerRows(id);
 }
 function addSpeakerSession(id) {
