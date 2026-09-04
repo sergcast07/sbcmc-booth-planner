@@ -5792,6 +5792,62 @@ function toast(msg, type) {
   t._timer = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(10px)'; }, duration);
 }
 
+// --- quick undo: a small "Undo" toast for the one-click × buttons scattered through the app
+// (action items, payment-schedule installments, cash-flow expenses/overhead) that delete
+// instantly with no confirm() -- an accidental click on one of these previously meant retyping
+// everything from scratch. Only one pending undo at a time, on purpose: it's meant for "oops,
+// not that one" right after the click, not a full history stack. Positioned above the plain
+// toast so the two never overlap if both happen to show at once.
+let pendingUndo = null;
+let undoToastTimer = null;
+function showUndoToast(label, restoreFn) {
+  pendingUndo = restoreFn;
+  let t = document.getElementById('kb-undo-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'kb-undo-toast';
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', 'polite');
+    t.style.cssText = 'position:fixed;bottom:66px;left:50%;transform:translateX(-50%) translateY(10px);'
+      + 'max-width:min(90vw,420px);background:#1f2a44;color:#fff;padding:8px 8px 8px 16px;border-radius:8px;font-size:13px;'
+      + 'font-family:system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9999;'
+      + 'display:flex;align-items:center;gap:12px;opacity:0;transition:opacity .18s ease,transform .18s cubic-bezier(.2,.9,.3,1.1);';
+    const span = document.createElement('span');
+    span.id = 'kb-undo-toast-text';
+    span.style.cssText = 'flex:1;';
+    const btn = document.createElement('button');
+    btn.id = 'kb-undo-toast-btn';
+    btn.textContent = 'Undo';
+    btn.style.cssText = 'background:rgba(255,255,255,0.16);border:none;color:#fff;font-weight:700;font-size:12.5px;'
+      + 'padding:6px 12px;border-radius:6px;cursor:pointer;flex-shrink:0;';
+    btn.onclick = runPendingUndo;
+    t.appendChild(span);
+    t.appendChild(btn);
+    document.body.appendChild(t);
+  }
+  t.querySelector('#kb-undo-toast-text').textContent = label;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(hideUndoToast, 8000);
+}
+function hideUndoToast() {
+  const t = document.getElementById('kb-undo-toast');
+  if (t) { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(10px)'; }
+  pendingUndo = null;
+}
+function runPendingUndo() {
+  if (!pendingUndo) return;
+  const fn = pendingUndo;
+  pendingUndo = null;
+  hideUndoToast();
+  fn();
+}
+function undoLabelText(text) {
+  text = text || '';
+  return text.length > 40 ? text.slice(0, 40) + '…' : text;
+}
+
 // --- quick-add modal: shown right after "+ Add sponsor"/"+ Add speaker/artist" so the new
 // record is never silently appended off-screen -- fill the essentials here, then Done clears
 // any filter/search that would hide it and scrolls/flashes the row so it's unmistakable.
@@ -9058,8 +9114,16 @@ function updatePaymentScheduleField(id, type, ii, field, value) {
   refreshAfterPaymentScheduleEdit(id, type);
 }
 function removePaymentScheduleRow(id, type, ii) {
-  paymentScheduleStore(type)[id].splice(ii, 1);
+  const list = paymentScheduleStore(type)[id];
+  const removed = list[ii];
+  list.splice(ii, 1);
   refreshAfterPaymentScheduleEdit(id, type);
+  showUndoToast('Removed "' + undoLabelText(removed.label) + '" (' + cfpMoney(removed.amount) + ')', () => {
+    const list2 = paymentScheduleStore(type)[id];
+    if (!list2) return;
+    list2.splice(ii, 0, removed);
+    refreshAfterPaymentScheduleEdit(id, type);
+  });
 }
 function splitPaymentSchedule(id, type) {
   const store = paymentScheduleStore(type);
@@ -9188,10 +9252,19 @@ function cfpBindPersonListEvents(container) {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id, ii = parseInt(btn.dataset.ii), type = btn.dataset.type;
       const store = type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments;
+      const removed = store[id][ii];
       store[id].splice(ii, 1);
       renderCashflowPersonLists();
       cfpRecompute();
       pushCashflowState();
+      showUndoToast('Removed "' + undoLabelText(removed.label) + '" (' + cfpMoney(removed.amount) + ')', () => {
+        const store2 = type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments;
+        if (!store2[id]) return;
+        store2[id].splice(ii, 0, removed);
+        renderCashflowPersonLists();
+        cfpRecompute();
+        pushCashflowState();
+      });
     });
   });
   container.querySelectorAll('[data-action="resync"]').forEach(btn => {
@@ -9282,10 +9355,17 @@ function cfpAddExpenseRow() {
   pushCashflowState();
 }
 function cfpRemoveExpenseRow(i) {
+  const removed = cashflowState.otherExpenses[i];
   cashflowState.otherExpenses.splice(i, 1);
   renderCfpExpenseTable();
   cfpRecompute();
   pushCashflowState();
+  showUndoToast('Removed "' + undoLabelText(removed.name) + '" (' + cfpMoney(removed.amount) + ')', () => {
+    cashflowState.otherExpenses.splice(i, 0, removed);
+    renderCfpExpenseTable();
+    cfpRecompute();
+    pushCashflowState();
+  });
 }
 
 function renderCashflowView() {
@@ -9450,10 +9530,17 @@ function cfpAddOverheadRow() {
   pushCashflowState();
 }
 function cfpRemoveOverheadRow(i) {
+  const removed = cashflowState.recurringOverhead[i];
   cashflowState.recurringOverhead.splice(i, 1);
   renderCfpOverheadTable();
   cfpRecompute();
   pushCashflowState();
+  showUndoToast('Removed "' + undoLabelText(removed.name) + '" (' + cfpMoney(removed.monthlyAmount) + '/mo)', () => {
+    cashflowState.recurringOverhead.splice(i, 0, removed);
+    renderCfpOverheadTable();
+    cfpRecompute();
+    pushCashflowState();
+  });
 }
 
 function cfpAllInstallments(list, store) { return list.flatMap(p => store[p.id] || []); }
@@ -11870,10 +11957,18 @@ function toggleActionItem(id, i) {
 }
 function removeActionItem(id, i) {
   const s = getSponsor(id);
+  const removed = s.data.actionItems[i];
   s.data.actionItems.splice(i, 1);
   pushSponsor(s);
   renderSponsorRows(id);
   updateMyItemsNavBadge();
+  showUndoToast('Removed "' + undoLabelText(removed.text) + '"', () => {
+    const s2 = getSponsor(id); if (!s2) return;
+    s2.data.actionItems.splice(i, 0, removed);
+    pushSponsor(s2);
+    renderSponsorRows(id);
+    updateMyItemsNavBadge();
+  });
 }
 
 function addQuestion(id) {
@@ -16973,10 +17068,18 @@ function toggleSpeakerActionItem(id, i) {
 }
 function removeSpeakerActionItem(id, i) {
   const sp = getSpeaker(id); if (!sp) return;
+  const removed = sp.data.actionItems[i];
   sp.data.actionItems.splice(i, 1);
   pushSpeaker(sp);
   renderSpeakerRows(id);
   updateMyItemsNavBadge();
+  showUndoToast('Removed "' + undoLabelText(removed.text) + '"', () => {
+    const sp2 = getSpeaker(id); if (!sp2) return;
+    sp2.data.actionItems.splice(i, 0, removed);
+    pushSpeaker(sp2);
+    renderSpeakerRows(id);
+    updateMyItemsNavBadge();
+  });
 }
 function startSpeakerActionItemEdit(id, i) {
   editingActionItems.add('sk:' + id + ':' + i);
