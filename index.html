@@ -5182,7 +5182,10 @@ async function initSupabase() {
       // Applicant data includes minors (the high-school program) -- without view access to this
       // section, it isn't just hidden in the UI, it's never even downloaded to that browser.
       (typeof loadApplicantGroups === 'function' && canView('applicants.all') ? loadApplicantGroups() : Promise.resolve()),
-      (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve())
+      (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve()),
+      // Not year-scoped (a user roster isn't tied to a conference year) and not admin-gated --
+      // every logged-in user needs this to populate action-item "assign to" pickers.
+      (typeof loadTeamMembers === 'function' ? loadTeamMembers() : Promise.resolve())
     ]);
     initialDataLoaded = true;
     if (typeof renderApplicantStats === 'function') { renderApplicantStats('sls'); renderApplicantStats('cwc'); }
@@ -7039,6 +7042,31 @@ const PERMISSION_CATEGORIES = [
 ];
 let teamAccessState = { roles: [], profiles: [], rolePermissions: [], editingRoleId: null, draftPerms: {}, auditLog: [] };
 
+// A light, everyone-can-read roster of registered users -- used only to populate "who's this
+// assigned to" pickers (sponsor/speaker action items), so anyone with a real login can assign
+// work to a real teammate instead of picking from a hardcoded name list. Deliberately separate
+// from teamAccessState.profiles (the richer admin-only Team Access load, which also pulls role
+// assignments and the audit log) -- this one just needs id/name/email, and needs to work for
+// every logged-in user, not only admins.
+let teamMembers = [];
+async function loadTeamMembers() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('profiles').select('id, display_name, email').order('email');
+  if (!error) teamMembers = data || [];
+}
+function teamMemberLabel(p) { return p.display_name || p.email; }
+// Builds the <option> list for an action-item "assign to" picker: every registered teammate by
+// name, plus "Them" for work that's actually on the sponsor/speaker's side rather than ours.
+// A blank first option is the default so a task can't get silently assigned to whoever happens
+// to sort first, the way the old hardcoded "Sergio/Jonathan/Them" list always defaulted to Sergio.
+function actionItemOwnerOptionsHtml() {
+  const seen = new Set();
+  const names = teamMembers.map(teamMemberLabel).filter(n => n && !seen.has(n) && seen.add(n));
+  return '<option value="">— assign to —</option>'
+    + names.map(n => `<option>${escapeHtml(n)}</option>`).join('')
+    + '<option>Them</option>';
+}
+
 async function loadTeamAccessData() {
   if (!sbClient) return;
   const [rolesRes, profilesRes, permsRes] = await Promise.all([
@@ -7760,29 +7788,57 @@ function jumpToSponsorById(sponsorId) {
   }, 50);
 }
 
+// 'mine' by default -- this is a logged-in person's landing page, so it should open on their
+// own work, not a firehose of everyone's. Session-only (resets on reload), not persisted.
+let dashboardTasksFilter = 'mine';
+function setDashboardTasksFilter(f) {
+  dashboardTasksFilter = f;
+  renderOpenTasksSection();
+}
 function renderOpenTasksSection() {
   const el = document.getElementById('db-open-tasks');
   if (!el) return;
   const todayStr = new Date().toISOString().slice(0, 10);
   const tasks = [];
   sponsors.forEach(s => {
-    (s.data.actionItems || []).forEach((a, i) => {
-      if (!a.done) tasks.push({ sponsorId: s.id, org: s.org, text: a.text, owner: a.owner, dueDate: a.dueDate || '' });
+    (s.data.actionItems || []).forEach(a => {
+      if (!a.done) tasks.push({ kind: 'sponsor', id: s.id, name: s.org, text: a.text, owner: a.owner, dueDate: a.dueDate || '' });
     });
   });
-  if (tasks.length === 0) {
-    el.innerHTML = '<div class="db-caveat">No open action items across any sponsor right now.</div>';
+  speakers.forEach(sp => {
+    (sp.data.actionItems || []).forEach(a => {
+      if (!a.done) tasks.push({ kind: 'speaker', id: sp.id, name: sp.name, text: a.text, owner: a.owner, dueDate: a.dueDate || '' });
+    });
+  });
+  // "Shared login" (the legacy fallback password) isn't a real person, so it never matches an
+  // owner -- that's correct, not a bug: someone on that session should see All Items, since
+  // "mine" has no meaning for a shared identity.
+  const mine = tasks.filter(t => t.owner && t.owner === window.currentUserLabel);
+  const showAll = dashboardTasksFilter === 'all';
+  const visible = (showAll ? tasks : mine).slice()
+    .sort((a, b) => (a.dueDate || '9999-99-99').localeCompare(b.dueDate || '9999-99-99'));
+  const overdueCount = visible.filter(t => t.dueDate && t.dueDate < todayStr).length;
+
+  const toggleHtml = `
+    <div class="sch-view-toggle" style="margin-bottom:10px;">
+      <button class="sch-toggle-btn ${!showAll ? 'active' : ''}" onclick="setDashboardTasksFilter('mine')">My Items${mine.length ? ' (' + mine.length + ')' : ''}</button>
+      <button class="sch-toggle-btn ${showAll ? 'active' : ''}" onclick="setDashboardTasksFilter('all')">All Items (${tasks.length})</button>
+    </div>`;
+
+  if (visible.length === 0) {
+    el.innerHTML = toggleHtml + (showAll
+      ? '<div class="db-caveat">No open action items across any sponsor or speaker right now.</div>'
+      : '<div class="db-caveat">Nothing assigned to you right now.</div>');
     return;
   }
-  tasks.sort((a, b) => (a.dueDate || '9999-99-99').localeCompare(b.dueDate || '9999-99-99'));
-  const overdueCount = tasks.filter(t => t.dueDate && t.dueDate < todayStr).length;
-  el.innerHTML = `
-    <div class="db-caveat" style="color:var(--ink-soft); margin-bottom:10px;">${tasks.length} open item${tasks.length === 1 ? '' : 's'}${overdueCount ? `, <b style="color:#a52620;">${overdueCount} overdue</b>` : ''} \u2014 click any row to open that sponsor</div>
-    <table class="dd-table"><thead><tr><th>Organization</th><th>Task</th><th>Owner</th><th>Due</th></tr></thead><tbody>
-      ${tasks.map(t => {
+  el.innerHTML = toggleHtml + `
+    <div class="db-caveat" style="color:var(--ink-soft); margin-bottom:10px;">${visible.length} open item${visible.length === 1 ? '' : 's'}${overdueCount ? `, <b style="color:#a52620;">${overdueCount} overdue</b>` : ''} \u2014 click any row to open that record</div>
+    <table class="dd-table"><thead><tr><th>Name</th><th>Task</th><th>Owner</th><th>Due</th></tr></thead><tbody>
+      ${visible.map(t => {
         const isLate = t.dueDate && t.dueDate < todayStr;
-        return `<tr onclick="jumpToSponsorById('${t.sponsorId}')" style="cursor:pointer;">
-          <td class="dd-org">${escapeHtml(t.org)}</td>
+        const jumpCall = t.kind === 'sponsor' ? `jumpToSponsorById('${t.id}')` : `jumpToSpeaker('${t.id}')`;
+        return `<tr onclick="${jumpCall}" style="cursor:pointer;">
+          <td class="dd-org">${escapeHtml(t.name)}</td>
           <td>${escapeHtml(t.text)}</td>
           <td class="dd-sub">${escapeHtml(t.owner || '')}</td>
           <td style="${isLate ? 'color:#a52620; font-weight:700;' : ''}">${t.dueDate ? (isLate ? '\u26A0\uFE0F ' : '') + escapeHtml(t.dueDate) : '\u2014'}</td>
@@ -10630,7 +10686,7 @@ function sponsorDetailHTML(s) {
           ${actionsHtml}
           <div class="sp-add-row">
             <input type="text" id="action-input-${s.id}" placeholder="What needs to happen">
-            <select id="action-owner-${s.id}"><option>Sergio</option><option>Jonathan</option><option>Them</option></select>
+            <select id="action-owner-${s.id}">${actionItemOwnerOptionsHtml()}</select>
             <input type="date" id="action-due-${s.id}" style="max-width:120px;">
             <button class="sp-mini-btn" onclick="addActionItem('${s.id}')">Add</button>
           </div>
@@ -16237,7 +16293,7 @@ function speakerDetailHTML(sp) {
           ${actionsHtml}
           <div class="sp-add-row">
             <input type="text" id="sk-action-input-${sp.id}" placeholder="What needs to happen">
-            <select id="sk-action-owner-${sp.id}"><option>Sergio</option><option>Jonathan</option><option>Them</option></select>
+            <select id="sk-action-owner-${sp.id}">${actionItemOwnerOptionsHtml()}</select>
             <input type="date" id="sk-action-due-${sp.id}" style="max-width:120px;">
             <button class="sp-mini-btn" onclick="addSpeakerActionItem('${sp.id}')">Add</button>
           </div>
