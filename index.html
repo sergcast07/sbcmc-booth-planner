@@ -8735,7 +8735,15 @@ function revenueRecompute() {
   const revStat = document.getElementById('rev-stat-revenue');
   if (revStat) revStat.textContent = revenueMoney(grandRevenue);
   const countSub = document.getElementById('rev-stat-count-sub');
-  if (countSub) countSub.textContent = grandCount.toLocaleString('en-US') + ' registrants';
+  if (countSub) {
+    const collegiateCount = ['collegiate', 'collegiate_local'].reduce((sum, id) => sum + tiers[id].count, 0);
+    const slsCount = ['sls', 'sls_local'].reduce((sum, id) => sum + tiers[id].count, 0);
+    const generalCount = grandCount - collegiateCount - slsCount;
+    countSub.textContent = grandCount.toLocaleString('en-US') + ' registrants — '
+      + generalCount.toLocaleString('en-US') + ' general conference, '
+      + collegiateCount.toLocaleString('en-US') + ' Collegiate Worship Collective, '
+      + slsCount.toLocaleString('en-US') + ' Student Leadership Summit';
+  }
   const costStat = document.getElementById('rev-stat-cost');
   if (costStat) costStat.textContent = revenueMoney(grandCost);
   const netStat = document.getElementById('rev-stat-net');
