@@ -820,6 +820,7 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sp-add-row input, .sp-add-row select { flex: 1; min-width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .sp-linked-booth { font-size: 12px; padding: 9px 11px; background: #fff; border: 1px dashed var(--line); border-radius: 7px; color: var(--ink-soft); }
 .sp-linked-group-box { font-size: 12px; padding: 11px 14px; background: #fff; border: 1px dashed var(--line); border-radius: 8px; color: var(--ink-soft); margin-bottom: 16px; }
+.sp-fin-warn-box { font-size: 12px; padding: 9px 12px; background: rgba(229,57,53,0.08); border: 1px solid #e0b3ad; border-radius: 8px; color: #9C3A2E; margin-bottom: 12px; font-weight: 600; }
 .sp-linked-group-box select { width: 100%; margin-top: 5px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; box-sizing: border-box; }
 .sp-linked-group-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--teal-pale); border-radius: 999px; font-size: 10.5px; font-weight: 600; color: var(--teal-deep); margin-left: 6px; cursor: pointer; }
 .sp-linked-group-chip:hover { background: var(--teal); color: #fff; }
@@ -8857,6 +8858,13 @@ function speakerOutstanding(sp) {
   const fee = parseFloat(fin.fee) || 0, paid = parseFloat(fin.paid) || 0, travel = parseFloat(fin.travelReimbursement) || 0;
   return fee + travel - paid;
 }
+// True when money is actually owed to this speaker/artist but there's no due date to schedule
+// it against -- the Cash Flow projection silently excludes anything without a date (see
+// cfpSpeakerInstallments/unschedSpeakerOut), so an unscheduled commitment doesn't just look
+// incomplete here, it's invisible money in the cash flow forecast until someone sets a date.
+function speakerHasUnscheduledMoney(sp) {
+  return speakerOutstanding(sp) > 0 && !(sp.data.financial || {}).dueDate;
+}
 function sponsorOutstanding(s) {
   const m = s.data.money || {};
   const committed = parseFloat(m.committed) || 0;
@@ -15908,7 +15916,7 @@ function buildSpeakerRowPair(sp, todayStr) {
   tr.className = 'sp-row';
   tr.dataset.id = sp.id;
   tr.innerHTML = `
-    <td data-label=""><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}</td>
+    <td data-label=""><span class="sp-chevron ${openSpeakerId === sp.id ? 'open' : ''}">▸</span>${sp.data.flagged ? ' <span title="Flagged for review">🚩</span>' : ''}${openItems.length ? ` <span class="sp-task-badge ${hasOverdueAction ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}">📋${openItems.length}</span>` : ''}${speakerHasUnscheduledMoney(sp) ? ` <span class="sp-task-badge sp-task-badge-overdue" title="${revenueMoney(speakerOutstanding(sp))} owed with no due date set — won't show up in the Cash Flow projection until it has one">💰 No date</span>` : ''}</td>
     <td class="sp-org" data-label="Name">${escapeHtml(sp.name)}${(() => {
       const linkedGroup = sp.data.logistics.linkedGroupId ? getSpeaker(sp.data.logistics.linkedGroupId) : null;
       return linkedGroup ? `<a href="#" class="sp-linked-group-chip" title="Badges/meals/travel counted under ${escapeHtml(linkedGroup.name)} -- click to open that record" onclick="event.preventDefault(); jumpToSpeaker('${linkedGroup.id}')">👥 ${escapeHtml(linkedGroup.name)}</a>` : '';
@@ -16288,6 +16296,7 @@ function speakerDetailHTML(sp) {
       <div class="sp-detail-grid sp-detail-1col">
         <fieldset class="sp-fieldset">
           <legend>Financials</legend>
+          ${speakerHasUnscheduledMoney(sp) ? `<div class="sp-fin-warn-box">💰 ${revenueMoney(speakerOutstanding(sp))} is owed but there's no payment due date set — set one below so it's counted in the Cash Flow projection.</div>` : ''}
           <div class="sp-field-grid">
           <div class="sp-field"><label for="sk-fee-${sp.id}">Fee ($)</label><input id="sk-fee-${sp.id}" type="text" value="${escapeHtml(sp.data.financial.fee)}" onchange="updateSpeakerNested('${sp.id}','financial','fee',this.value)"></div>
           <div class="sp-field"><label for="sk-feestatus-${sp.id}">Fee status</label><select id="sk-feestatus-${sp.id}" onchange="updateSpeakerNested('${sp.id}','financial','feeStatus',this.value)">
