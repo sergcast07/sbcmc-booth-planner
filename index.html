@@ -8691,7 +8691,7 @@ function renderRevenueDrillModal() {
     title = 'How Avg. Net / Registrant is calculated';
     bodyHtml =
       cfpDrillRow('Total Net Margin', c.grandNet, 'Click the Net Margin tile to see the breakdown') +
-      cfpDrillRow('Total Registrants', c.grandCount, '') +
+      cfpDrillCountRow('Total Registrants', c.grandCount, '') +
       cfpDrillGrandTotal('Avg. Net / Registrant', c.grandCount ? c.grandNet / c.grandCount : 0) +
       `<div class="cfp-drill-section"><h4>Avg. Net / Registrant by Category</h4>${c.groups.filter(g => g.count > 0).map(g => cfpDrillRow(g.label, g.net / g.count, `${revenueMoney(g.net)} net ÷ ${g.count.toLocaleString('en-US')} registrants`)).join('')}</div>` +
       cfpDrillNote('This blended average hides a wide spread — a category’s own average here is its net ÷ its own registrant count, not a share of the blended total above.');
@@ -9362,6 +9362,12 @@ function closeCfpDrillModal() {
 function cfpDrillRow(label, value, sub) {
   const amtHtml = value == null ? '<span class="cfp-drill-row-amt muted">—</span>' : `<span class="cfp-drill-row-amt">${cfpMoney(value)}</span>`;
   return `<div class="cfp-drill-row"><span class="cfp-drill-row-label">${escapeHtml(label)}${sub ? `<span class="cfp-drill-row-sub">${escapeHtml(sub)}</span>` : ''}</span>${amtHtml}</div>`;
+}
+// Same row shape as cfpDrillRow, but for a plain count (e.g. a headcount) -- cfpDrillRow always
+// runs its value through cfpMoney() and puts a $ on it, which is wrong for anything that isn't
+// a dollar amount.
+function cfpDrillCountRow(label, count, sub) {
+  return `<div class="cfp-drill-row"><span class="cfp-drill-row-label">${escapeHtml(label)}${sub ? `<span class="cfp-drill-row-sub">${escapeHtml(sub)}</span>` : ''}</span><span class="cfp-drill-row-amt">${Math.round(count).toLocaleString('en-US')}</span></div>`;
 }
 function cfpDrillSection(title, rowsHtml, totalLabel, totalValue) {
   return `<div class="cfp-drill-section"><h4>${escapeHtml(title)}</h4>${rowsHtml || '<div class="sp-sub" style="padding:4px 0 8px;">Nothing here yet.</div>'}<div class="cfp-drill-row cfp-drill-subtotal"><span class="cfp-drill-row-label">${escapeHtml(totalLabel)}</span><span class="cfp-drill-row-amt">${cfpMoney(totalValue)}</span></div></div>`;
