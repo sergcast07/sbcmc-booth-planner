@@ -2064,9 +2064,11 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <div class="sp-collapsible-body" data-section-key="sk-overview">
         <div class="sp-stat-block">
           <div class="sp-stat"><span>Tracked</span><b id="sk-stat-total">0</b></div>
-          <div class="sp-stat"><span>Fees owed</span><b id="sk-stat-fees-total">$0</b></div>
-          <div class="sp-stat"><span>Fees paid</span><b id="sk-stat-fees-paid">$0</b></div>
-          <div class="sp-stat"><span>Fees outstanding</span><b id="sk-stat-fees-outstanding">$0</b></div>
+          <div class="sp-stat"><span>Fee owed</span><b id="sk-stat-fee-total">$0</b></div>
+          <div class="sp-stat"><span>Travel owed</span><b id="sk-stat-travel-total">$0</b></div>
+          <div class="sp-stat"><span>Paid</span><b id="sk-stat-fees-paid">$0</b></div>
+          <div class="sp-stat"><span>Fee outstanding</span><b id="sk-stat-fee-outstanding">$0</b></div>
+          <div class="sp-stat"><span>Travel outstanding</span><b id="sk-stat-travel-outstanding">$0</b></div>
         </div>
         </div>
       </div>
@@ -7571,15 +7573,30 @@ function speakerFeeTotals() {
   // by the sponsorship, not paid by us. Every other arrangement (Standard, Local, Fee + Travel)
   // stays included: which one just changes whether travel is *arranged* here, not whether its
   // cost counts.
-  let committed = 0, paid = 0;
+  let committed = 0, paid = 0, feeOwed = 0, travelOwed = 0, feeOutstanding = 0, travelOutstanding = 0;
   speakers.forEach(sp => {
     if (sp.data.arrangement === 'sponsor') return;
     const total = speakerTotalCost(sp);
     if (!total) return;
+    const fin = sp.data.financial || {};
+    const fee = parseMoneyNum(fin.fee);
+    const travel = parseMoneyNum(fin.travelReimbursement);
+    const spPaid = speakerPaidAmount(sp);
     committed += total;
-    paid += speakerPaidAmount(sp);
+    paid += spPaid;
+    feeOwed += fee;
+    travelOwed += travel;
+    // Amount Paid is one combined figure covering both fee and travel -- there's no field
+    // recording which part of a given payment was for which, so split it by assuming the fee
+    // gets paid first (the more common real order: base fee settles before travel receipts get
+    // reimbursed). Only matters for the small number of speakers with both fee and travel set;
+    // for everyone else exactly one of these two is already zero, so there's no ambiguity.
+    const feePaidPortion = Math.min(spPaid, fee);
+    const travelPaidPortion = Math.max(0, spPaid - fee);
+    feeOutstanding += Math.max(0, fee - feePaidPortion);
+    travelOutstanding += Math.max(0, travel - travelPaidPortion);
   });
-  return { committed, paid, outstanding: committed - paid };
+  return { committed, paid, outstanding: committed - paid, feeOwed, travelOwed, feeOutstanding, travelOutstanding };
 }
 function speakersForFeeDrillKey(key) {
   const relevant = speakers.filter(sp => sp.data.arrangement !== 'sponsor' && speakerTotalCost(sp) > 0);
@@ -16381,12 +16398,15 @@ function renderSpeakerView() {
   if (el) el.textContent = stats.total;
   const fees = speakerFeeTotals();
   const showFees = canView('speakers.financial');
-  const feesTotalEl = document.getElementById('sk-stat-fees-total');
-  if (feesTotalEl) { feesTotalEl.textContent = fmt(fees.committed); feesTotalEl.closest('.sp-stat').style.display = showFees ? '' : 'none'; }
-  const feesPaidEl = document.getElementById('sk-stat-fees-paid');
-  if (feesPaidEl) { feesPaidEl.textContent = fmt(fees.paid); feesPaidEl.closest('.sp-stat').style.display = showFees ? '' : 'none'; }
-  const feesOutstandingEl = document.getElementById('sk-stat-fees-outstanding');
-  if (feesOutstandingEl) { feesOutstandingEl.textContent = fmt(fees.outstanding); feesOutstandingEl.closest('.sp-stat').style.display = showFees ? '' : 'none'; }
+  const setFeeStat = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = fmt(value); el.closest('.sp-stat').style.display = showFees ? '' : 'none'; }
+  };
+  setFeeStat('sk-stat-fee-total', fees.feeOwed);
+  setFeeStat('sk-stat-travel-total', fees.travelOwed);
+  setFeeStat('sk-stat-fees-paid', fees.paid);
+  setFeeStat('sk-stat-fee-outstanding', fees.feeOutstanding);
+  setFeeStat('sk-stat-travel-outstanding', fees.travelOutstanding);
   const riderEl = document.getElementById('sk-rider-current');
   if (riderEl) {
     riderEl.innerHTML = conferenceProductionRider
