@@ -5218,7 +5218,19 @@ async function initSupabase() {
       (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve()),
       // Not year-scoped (a user roster isn't tied to a conference year) and not admin-gated --
       // every logged-in user needs this to populate action-item "assign to" pickers.
-      (typeof loadTeamMembers === 'function' ? loadTeamMembers() : Promise.resolve())
+      (typeof loadTeamMembers === 'function' ? loadTeamMembers() : Promise.resolve()),
+      // Sponsor/Speaker detail records embed the same deposit/remainder payment-schedule
+      // editor Cash Flow uses (reading/writing the same cashflowState.sponsorInstallments/
+      // speakerInstallments store), so it needs to be loaded before those records render --
+      // gated the same way applicants are, since it's real financial data, not just a UI nicety.
+      // revenueState comes along with it since renderCashflowView()/cfpRecompute() (used to
+      // keep the Cash Flow tab's own numbers in sync after an edit here) both depend on it.
+      (typeof loadCashflowState === 'function' && canView('cashflow.all')
+        ? Promise.all([
+            (typeof loadRevenueEstimator === 'function' && !revenueLoaded ? loadRevenueEstimator().then(() => { revenueLoaded = true; }) : Promise.resolve()),
+            loadCashflowState().then(() => { cashflowLoaded = true; })
+          ])
+        : Promise.resolve())
     ]);
     initialDataLoaded = true;
     if (typeof updateMyItemsNavBadge === 'function') updateMyItemsNavBadge();
@@ -8918,6 +8930,104 @@ function getSponsorInstallments(s) {
 }
 function cfpPersonTotal(installments) { return installments.reduce((s, x) => s + x.amount, 0); }
 
+// ==== Embedded payment-schedule editor (Sponsor Tracker / Speakers & Artists detail panels) ====
+// Splitting a payment into a deposit + remainder previously only existed on the Cash Flow tab's
+// own installment editor (cfpInstallmentRowsHTML/cfpBindPersonListEvents, addEventListener-based,
+// built for that tab's own re-rendered list). This reads/writes the exact same
+// cashflowState.sponsorInstallments/speakerInstallments store -- there's only ever one schedule
+// per person -- but renders with the inline onchange/onclick style the rest of the Sponsor/Speaker
+// detail panel already uses, since that panel's re-render pipeline (renderSponsorRows/
+// renderSpeakerRows) isn't set up to re-run addEventListener binding after each edit.
+function paymentScheduleEditorHTML(id, type) {
+  if (!canView('cashflow.all') || !cashflowState) return '';
+  const person = type === 'speaker' ? getSpeaker(id) : getSponsor(id);
+  if (!person) return '';
+  const installments = type === 'speaker' ? getSpeakerInstallments(person) : getSponsorInstallments(person);
+  const liveOutstanding = type === 'speaker' ? speakerOutstanding(person) : sponsorOutstanding(person);
+  const total = cfpPersonTotal(installments);
+  const mismatch = Math.round(total) !== Math.round(liveOutstanding);
+  return `
+    <div class="sp-field" style="grid-column:1/-1;">
+      <label>Payment Schedule <span class="sp-sub" style="font-weight:400;">— also shown on the Cash Flow tab</span></label>
+      <div class="cfp-person-block" style="margin:0; padding:8px 0 0; border:none;">
+        ${mismatch ? `<div class="cfp-person-mismatch">⚠️ Current outstanding balance is ${cfpMoney(liveOutstanding)} — this schedule no longer matches (likely a payment or amount changed since it was set).<button class="cfp-mismatch-fix-btn" onclick="resyncPaymentSchedule('${id}','${type}')">Reset to ${cfpMoney(liveOutstanding)}</button></div>` : ''}
+        ${installments.map((inst, ii) => `
+          <div class="cfp-inst-row">
+            <input type="text" value="${escapeHtml(inst.label)}" onchange="updatePaymentScheduleField('${id}','${type}',${ii},'label',this.value)">
+            <input type="number" value="${inst.amount}" onchange="updatePaymentScheduleField('${id}','${type}',${ii},'amount',this.value)">
+            <input type="date" class="${inst.date ? '' : 'unset'}" value="${inst.date}" onchange="updatePaymentScheduleField('${id}','${type}',${ii},'date',this.value)">
+            ${installments.length > 1 ? `<button class="cfp-inst-del-btn" onclick="removePaymentScheduleRow('${id}','${type}',${ii})">✕</button>` : '<span></span>'}
+          </div>
+        `).join('')}
+        <button class="cfp-split-btn" onclick="splitPaymentSchedule('${id}','${type}')">${installments.length > 1 ? '+ Add installment' : '+ Split into deposit / remainder'}</button>
+        <div class="sp-sub" style="margin-top:2px;">${cfpMoney(total)} total scheduled</div>
+      </div>
+    </div>
+  `;
+}
+function paymentScheduleStore(type) { return type === 'speaker' ? cashflowState.speakerInstallments : cashflowState.sponsorInstallments; }
+function refreshAfterPaymentScheduleEdit(id, type) {
+  pushCashflowState();
+  if (type === 'speaker') renderSpeakerRows(id); else renderSponsorRows(id);
+  // renderCashflowView() no-ops on its own if the Cash Flow tab isn't the one on screen (its
+  // root element won't exist yet) -- cfpRecompute() itself assumes revenueState is already
+  // loaded, which is only guaranteed once that tab has actually been opened this session, so
+  // route through the same guarded entry point rather than calling it directly from here.
+  if (typeof renderCashflowView === 'function') renderCashflowView();
+}
+function updatePaymentScheduleField(id, type, ii, field, value) {
+  const inst = paymentScheduleStore(type)[id][ii];
+  if (field === 'amount') inst.amount = parseFloat(value) || 0;
+  else inst[field] = value;
+  // Same rule as the Cash Flow tab's own editor: while unsplit, this IS the record's due date.
+  if (field === 'date' && paymentScheduleStore(type)[id].length === 1) {
+    const person = type === 'speaker' ? getSpeaker(id) : getSponsor(id);
+    if (person) {
+      if (type === 'speaker') {
+        if (!person.data.financial) person.data.financial = {};
+        person.data.financial.dueDate = value;
+        pushSpeaker(person);
+      } else {
+        if (!person.data.money) person.data.money = {};
+        person.data.money.dueDate = value;
+        pushSponsor(person);
+      }
+    }
+  }
+  refreshAfterPaymentScheduleEdit(id, type);
+}
+function removePaymentScheduleRow(id, type, ii) {
+  paymentScheduleStore(type)[id].splice(ii, 1);
+  refreshAfterPaymentScheduleEdit(id, type);
+}
+function splitPaymentSchedule(id, type) {
+  const store = paymentScheduleStore(type);
+  const list = store[id];
+  if (list.length === 1) {
+    const total = list[0].amount, date = list[0].date;
+    const deposit = Math.round(total * 0.3);
+    store[id] = [
+      { label: 'Deposit', amount: deposit, date: date },
+      { label: 'Remainder', amount: total - deposit, date: '' }
+    ];
+  } else {
+    list.push({ label: 'Additional installment', amount: 0, date: '' });
+  }
+  refreshAfterPaymentScheduleEdit(id, type);
+}
+function resyncPaymentSchedule(id, type) {
+  const person = type === 'speaker' ? getSpeaker(id) : getSponsor(id);
+  if (!person) return;
+  const liveAmt = type === 'speaker' ? speakerOutstanding(person) : sponsorOutstanding(person);
+  const recordDate = type === 'speaker' ? (person.data.financial || {}).dueDate : (person.data.money || {}).dueDate;
+  const label = type === 'speaker'
+    ? ((parseFloat((person.data.financial || {}).travelReimbursement) || 0) > 0 ? 'Fee + travel' : 'Fee')
+    : 'Full payment';
+  if (!confirm(`Replace the current installment schedule with a single ${cfpMoney(liveAmt)} payment${recordDate ? ' due ' + friendlyDate(recordDate) : ''}? This clears any existing split.`)) return;
+  paymentScheduleStore(type)[id] = [{ label, amount: liveAmt, date: recordDate || '' }];
+  refreshAfterPaymentScheduleEdit(id, type);
+}
+
 // Reuses the Revenue Estimator's live tier data (whatever scenario/edits are currently set)
 // rather than a fixed snapshot, so this stays in sync automatically.
 // scenarioName lets Cash Flow view a different registration scenario than whatever's
@@ -9118,7 +9228,12 @@ function cfpRemoveExpenseRow(i) {
 
 function renderCashflowView() {
   const root = document.getElementById('cfp-root');
-  if (!root || !cashflowState) return;
+  // #cfp-root exists in the static page shell even when the Cash Flow tab has never been
+  // opened (it's just display:none on an ancestor until then), so its presence alone doesn't
+  // mean this tab is actually showing -- also require revenueState, since cfpRecompute() reads
+  // it unconditionally and callers outside the Cash Flow tab itself (e.g. the payment-schedule
+  // editor embedded in Sponsor/Speaker detail panels) may run before it's ever been loaded.
+  if (!root || !cashflowState || !revenueState) return;
   root.innerHTML = `
     <div class="cfp-page-head">
       <div>
@@ -10751,6 +10866,7 @@ function sponsorDetailHTML(s) {
           <div class="sp-field"><label for="sp-amtpaid-${s.id}">Amount paid ($)</label><input id="sp-amtpaid-${s.id}" type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
           <div class="sp-field"><label for="sp-paydue-${s.id}">Payment due date</label><input id="sp-paydue-${s.id}" type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
           <div class="sp-check"><input id="sp-invoicesent-${s.id}" type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"><label for="sp-invoicesent-${s.id}"> Invoice sent</label></div>
+          ${paymentScheduleEditorHTML(s.id, 'sponsor')}
           `}
           </div>
         </fieldset>
@@ -16330,6 +16446,7 @@ function speakerDetailHTML(sp) {
           <div class="sp-field"><label for="sk-findue-${sp.id}">Payment due date</label><input id="sk-findue-${sp.id}" type="date" value="${escapeHtml(sp.data.financial.dueDate)}" onchange="updateSpeakerNested('${sp.id}','financial','dueDate',this.value)"></div>
           <div class="sp-check"><input id="sk-w9-${sp.id}" type="checkbox" ${sp.data.financial.w9Received ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','w9Received',this.checked)"><label for="sk-w9-${sp.id}"> W9 received</label></div>
           <div class="sp-check"><input id="sk-invoicesent-${sp.id}" type="checkbox" ${sp.data.financial.invoiceSent ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','financial','invoiceSent',this.checked)"><label for="sk-invoicesent-${sp.id}"> Invoice sent</label></div>
+          ${paymentScheduleEditorHTML(sp.id, 'speaker')}
           </div>
         </fieldset>
       </div>`}
