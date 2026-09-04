@@ -1358,8 +1358,25 @@ table.cfp-table td.month-hdr-conference { background: var(--gold-pale); }
 .cfp-exp-del-btn:hover { color: var(--color-aa-dark); }
 .cfp-add-row-strip { padding: 10px 14px; display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--line); }
 
-.cfp-chart-wrap { padding: 16px 18px 20px; }
+.cfp-chart-wrap { padding: 16px 18px 20px; position: relative; }
 svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
+.cfp-chart-dot-hit { cursor: pointer; fill: transparent; }
+.cfp-chart-dot { pointer-events: none; }
+.cfp-chart-dot.in { fill: #2E8B57; }
+.cfp-chart-dot.out { fill: var(--color-aa-dark); }
+.cfp-chart-tooltip {
+  position: absolute; z-index: 20; display: none; pointer-events: none;
+  background: var(--teal-deep); color: #fff; border-radius: 8px; padding: 8px 10px;
+  font-size: 11.5px; line-height: 1.5; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  max-width: 240px; max-height: 220px; overflow-y: auto;
+}
+.cfp-chart-tooltip-date { font-weight: 700; font-family: var(--font-display); font-size: 12.5px; margin-bottom: 2px; }
+.cfp-chart-tooltip-balance { color: rgba(255,255,255,0.72); margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+.cfp-chart-tooltip-row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 2px; }
+.cfp-chart-tooltip-row .who { color: rgba(255,255,255,0.9); }
+.cfp-chart-tooltip-row .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cfp-chart-tooltip-row .amt.in { color: #7FD99A; }
+.cfp-chart-tooltip-row .amt.out { color: #F0A99C; }
 
 .cfp-foot-note { margin-top: 4px; font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 6px; }
 .cfp-foot-note svg { flex-shrink: 0; margin-top: 1px; }
@@ -9305,7 +9322,10 @@ function renderCashflowView() {
         <h3><span class="sp-chevron">▸</span>Balance Over Time</h3>
       </div>
       <div class="cfp-panel-body" data-section-key="cfp-chart">
-        <div class="cfp-chart-wrap"><svg class="cfp-balance-chart" id="cfp-balance-chart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg></div>
+        <div class="cfp-chart-wrap">
+          <svg class="cfp-balance-chart" id="cfp-balance-chart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg>
+          <div class="cfp-chart-tooltip" id="cfp-chart-tooltip"></div>
+        </div>
       </div>
     </div>
 
@@ -9475,9 +9495,27 @@ function cfpDailyDateRange() {
 // month's days, since there's no finer real data for those. Every category's monthly total is
 // preserved exactly -- this only redistributes *when* within the month it's counted, so the
 // balance at the end of each month here always matches cfpComputeAll()'s monthlyBalance.
+// Every real dated line item, grouped by the exact day it lands on and tagged with who/what it
+// is (not just its amount) -- this is what lets the chart answer "what caused this jump", which
+// a plain per-day dollar total can't do on its own. Registration revenue/overhead never appear
+// here since they only ever exist as a monthly total with no real day to attribute to -- the
+// chart's line still reflects them (smoothed across the month), just without a marker.
+function cfpDailyEvents(c) {
+  const events = {};
+  const add = (dateStr, type, who, label, amount) => {
+    if (!dateStr || !amount) return;
+    if (!events[dateStr]) events[dateStr] = [];
+    events[dateStr].push({ type, who, label, amount });
+  };
+  c.sponsorList.forEach(s => (cashflowState.sponsorInstallments[s.id] || []).forEach(inst => add(inst.date, 'sponsor', s.org, inst.label, inst.amount)));
+  c.speakerList.forEach(sp => (cashflowState.speakerInstallments[sp.id] || []).forEach(inst => add(inst.date, 'speaker', sp.name, inst.label, -inst.amount)));
+  c.expenses.forEach(e => add(e.date, 'expense', null, e.name, -e.amount));
+  return events;
+}
 function cfpComputeDailyBalance(c) {
   if (!cashflowState || !revenueState) return null;
   const dates = cfpDailyDateRange();
+  const dailyEvents = cfpDailyEvents(c);
   let running = c.startingBalance;
   const dailyBalance = dates.map(dateStr => {
     const monthKey = dateStr.slice(0, 7);
@@ -9494,7 +9532,7 @@ function cfpComputeDailyBalance(c) {
     running += cashInToday - speakerOutToday - expOutToday - overheadToday - feeToday;
     return running;
   });
-  return { dates, dailyBalance };
+  return { dates, dailyBalance, dailyEvents };
 }
 
 function cfpRecompute() {
@@ -9686,6 +9724,44 @@ function cfpNiceTicks(minV, maxV, targetCount) {
   return ticks;
 }
 
+// Populated fresh every cfpDrawChart() call, read by the hover handlers below -- an inline
+// onmouseenter can only pass simple values (a date string), so the actual balance/event data
+// for that date lives here instead of being serialized into the SVG markup itself.
+let cfpChartBalanceCache = {};
+let cfpChartEventsCache = {};
+
+function cfpShowChartTooltip(evt, dateStr) {
+  const tip = document.getElementById('cfp-chart-tooltip');
+  const wrap = tip && tip.parentElement;
+  if (!tip || !wrap) return;
+  const items = cfpChartEventsCache[dateStr] || [];
+  const balance = cfpChartBalanceCache[dateStr];
+  const shown = items.slice(0, 12);
+  const rowsHtml = shown.map(it => {
+    const cls = it.amount >= 0 ? 'in' : 'out';
+    const sign = it.amount >= 0 ? '+' : '−';
+    const whoLabel = it.who ? `${escapeHtml(it.who)} — ${escapeHtml(it.label)}` : escapeHtml(it.label);
+    return `<div class="cfp-chart-tooltip-row"><span class="who">${whoLabel}</span><span class="amt ${cls}">${sign}${cfpMoney(Math.abs(it.amount))}</span></div>`;
+  }).join('') + (items.length > shown.length ? `<div class="cfp-chart-tooltip-row"><span class="who">+ ${items.length - shown.length} more that day</span></div>` : '');
+  tip.innerHTML = `<div class="cfp-chart-tooltip-date">${escapeHtml(friendlyDate(dateStr))}</div>` +
+    (balance != null ? `<div class="cfp-chart-tooltip-balance">Balance: ${cfpMoney(balance)}</div>` : '') +
+    (rowsHtml || '<div class="cfp-chart-tooltip-row"><span class="who">Nothing scheduled this day — registration revenue/overhead only (spread evenly across the month)</span></div>');
+  tip.style.display = 'block';
+  const wrapRect = wrap.getBoundingClientRect();
+  const targetRect = evt.target.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  let left = (targetRect.left - wrapRect.left) + (targetRect.width / 2) - (tipRect.width / 2);
+  left = Math.max(4, Math.min(left, wrapRect.width - tipRect.width - 4));
+  let top = (targetRect.top - wrapRect.top) - tipRect.height - 10;
+  if (top < 0) top = (targetRect.bottom - wrapRect.top) + 10;
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+function cfpHideChartTooltip() {
+  const tip = document.getElementById('cfp-chart-tooltip');
+  if (tip) tip.style.display = 'none';
+}
+
 function cfpDrawChart(c) {
   const svg = document.getElementById('cfp-balance-chart');
   if (!svg) return;
@@ -9700,6 +9776,9 @@ function cfpDrawChart(c) {
   // match the table beneath the chart.
   const daily = cfpComputeDailyBalance(c);
   const lineSeries = daily ? daily.dailyBalance : balances;
+  cfpChartBalanceCache = {};
+  cfpChartEventsCache = daily ? daily.dailyEvents : {};
+  if (daily) daily.dates.forEach((d, i) => { cfpChartBalanceCache[d] = daily.dailyBalance[i]; });
 
   // Zoom the y-axis to the real spread of the balances instead of always anchoring at $0 --
   // forcing zero into the range squeezed a healthy balance swinging between, say, $120K and
@@ -9729,14 +9808,18 @@ function cfpDrawChart(c) {
   // xForMonth[i] is where month i's own labeled marker/text sits -- at the x-position of that
   // month's LAST day (matching what monthlyBalance[i] actually means: the balance after that
   // month's activity), spaced by real day-count rather than evenly, so December doesn't take
-  // the same width as January.
-  let xForMonth, floorX0, floorXEnd;
+  // the same width as January. dateForMonthEnd[i] is that same day's actual date string, so its
+  // marker can look up the right day in the hover caches above.
+  let xForMonth, dateForMonthEnd, floorX0, floorXEnd, xOfDayIndex = null;
   if (daily) {
     const n = daily.dates.length;
     const x = i => padL + (i / (n - 1)) * plotW;
+    xOfDayIndex = x;
     const points = lineSeries.map((v, i) => `${x(i)},${y(v)}`).join(' ');
     let cursor = -1;
-    xForMonth = CFP_MONTH_KEYS.map(key => { cursor += cfpDaysInMonth(key); return x(cursor); });
+    const monthEndIdx = CFP_MONTH_KEYS.map(key => { cursor += cfpDaysInMonth(key); return cursor; });
+    xForMonth = monthEndIdx.map(x);
+    dateForMonthEnd = monthEndIdx.map(idx => daily.dates[idx]);
     floorX0 = x(0); floorXEnd = x(n - 1);
     const floorY = padT + plotH;
     svgContent += `<polygon points="${floorX0},${floorY} ${points} ${floorXEnd},${floorY}" fill="var(--teal)" opacity="0.14"/>`;
@@ -9745,24 +9828,45 @@ function cfpDrawChart(c) {
     const x = i => padL + (i / (CFP_MONTHS.length - 1)) * plotW;
     const points = lineSeries.map((v, i) => `${x(i)},${y(v)}`).join(' ');
     xForMonth = CFP_MONTHS.map((m, i) => x(i));
+    dateForMonthEnd = CFP_MONTH_KEYS.map(() => null);
     floorX0 = x(0); floorXEnd = x(balances.length - 1);
     const floorY = padT + plotH;
     svgContent += `<polygon points="${floorX0},${floorY} ${points} ${floorXEnd},${floorY}" fill="var(--teal)" opacity="0.14"/>`;
     svgContent += `<polyline points="${points}" fill="none" stroke="var(--teal-deep)" stroke-width="2.5"/>`;
   }
 
+  // Small hoverable dots on every day with a real scheduled sponsor/speaker payment or expense
+  // -- "when and what caused this" for the events the daily line can't label on its own without
+  // turning the whole chart into unreadable text. Skipped on a day that's already a month-end
+  // marker below so the same point doesn't get two overlapping dots.
+  if (daily && xOfDayIndex) {
+    const monthEndDates = new Set(dateForMonthEnd);
+    daily.dates.forEach((d, i) => {
+      const items = daily.dailyEvents[d];
+      if (!items || monthEndDates.has(d)) return;
+      const px = xOfDayIndex(i), py = y(daily.dailyBalance[i]);
+      const net = items.reduce((s, it) => s + it.amount, 0);
+      svgContent += `<circle class="cfp-chart-dot ${net >= 0 ? 'in' : 'out'}" cx="${px}" cy="${py}" r="3"/>`;
+      svgContent += `<circle class="cfp-chart-dot-hit" cx="${px}" cy="${py}" r="9" onmouseenter="cfpShowChartTooltip(event,'${d}')" onmousemove="cfpShowChartTooltip(event,'${d}')" onmouseleave="cfpHideChartTooltip()"/>`;
+    });
+  }
+
   // One labeled marker per month (not per day, which would be unreadable at this scale) -- the
-  // fine daily line drawn above already shows every real swing in between.
+  // fine daily line drawn above already shows every real swing in between. Hoverable too, same
+  // as the small event dots, so a month-end day that also happens to be a real payment date
+  // (like a bunch of installments all defaulting to the same date) still shows what's in it.
   balances.forEach((v, i) => {
     const neg = v < 0;
     const px = xForMonth[i];
     const py = y(v);
+    const d = dateForMonthEnd[i];
     // Label goes above the point normally, but flips below when there's no headroom (near
     // the plot's top edge) so it never clips out of the chart.
     const labelAbove = py - padT > 16;
     const labelY = labelAbove ? py - 10 : py + 16;
     svgContent += `<circle cx="${px}" cy="${py}" r="4" fill="${neg ? 'var(--color-aa-dark)' : 'var(--teal-deep)'}" stroke="var(--panel)" stroke-width="1.5"/>`;
     svgContent += `<text x="${px}" y="${labelY}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${neg ? 'var(--color-aa-dark)' : 'var(--ink)'}">${cfpCompactMoney(v)}</text>`;
+    if (d) svgContent += `<circle class="cfp-chart-dot-hit" cx="${px}" cy="${py}" r="10" onmouseenter="cfpShowChartTooltip(event,'${d}')" onmousemove="cfpShowChartTooltip(event,'${d}')" onmouseleave="cfpHideChartTooltip()"/>`;
   });
   CFP_MONTHS.forEach((m, i) => {
     svgContent += `<text x="${xForMonth[i]}" y="${h - 8}" text-anchor="middle" font-size="10" fill="var(--ink-soft)">${m.split(' ')[0]}</text>`;
