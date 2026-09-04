@@ -1420,6 +1420,12 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-cell-add:hover { border-color: var(--teal); color: var(--teal-deep); }
 .sch-cell:not(.sch-cell-empty) .sch-cell-add { width: 100%; box-sizing: border-box; margin-top: 2px; }
 .sch-cell-hover { background: rgba(197,161,84,0.22) !important; }
+.sch-leader-chip { display: inline-flex; align-items: center; gap: 3px; background: #FCEFC7; color: #8a6d1d; border: 1px solid #e0c56b; border-radius: 12px; padding: 2px 7px; font-size: 10.5px; font-weight: 600; margin-top: 4px; cursor: pointer; text-transform: none; }
+.sch-leader-chip:hover { border-color: #c9a83f; }
+.sch-leader-chip-x { margin-left: 1px; color: #8a6d1d; opacity: 0.6; font-size: 12px; line-height: 1; }
+.sch-leader-chip-x:hover { opacity: 1; color: #a52620; }
+.sch-track-leader-add { display: block; border: 1px dashed var(--line); border-radius: 10px; padding: 2px 6px; font-size: 10.5px; color: var(--ink-soft); background: transparent; cursor: pointer; margin-top: 4px; max-width: 100%; }
+.sch-track-leader-add:hover { border-color: var(--teal); color: var(--teal-deep); }
 .sch-card-drop-hover { outline: 2px dashed var(--teal); outline-offset: -2px; }
 /* Track accent stripe: each row's cards carry a left-edge color (set inline per-row from
    TRACK_COLOR_PALETTE) so a track is identifiable across all five breakouts at a glance. */
@@ -14500,6 +14506,39 @@ function assignSpeakerToBreakoutCell(speakerId, trackId, slotId) {
   if (booking) clearRoomBookingIfFulfilled(trackId, slotId);
   renderScheduleView();
 }
+// Assign/remove a track's leader directly from the breakout grid, the same way a breakout cell's
+// own "+ assign" dropdown works -- previously the only way to name someone Track Leader was from
+// their own Speakers & Artists record. Only one leader per track (matches trackLeaderForTrack
+// always resolving to a single speaker): assigning someone new replaces whoever already held it.
+function assignTrackLeader(speakerId, trackId) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
+  if (!speakerId) return;
+  const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
+  const sp = getSpeaker(speakerId); if (!sp) return;
+  const currentLeader = trackLeaderForTrack(track.name);
+  if (currentLeader && currentLeader.id !== speakerId) {
+    const idx = currentLeader.data.sessions.findIndex(s => s.isTrackLead && s.track === track.name);
+    if (idx >= 0) { currentLeader.data.sessions.splice(idx, 1); pushSpeaker(currentLeader); }
+  }
+  if (!sp.data.sessions) sp.data.sessions = [];
+  // If they're already leading a different track, move that same entry rather than stacking a
+  // second isTrackLead session on them.
+  const existing = sp.data.sessions.find(s => s.isTrackLead);
+  if (existing) existing.track = track.name;
+  else sp.data.sessions.push({ id: makeId(), title: '', track: track.name, isTrackLead: true, sessionDate: '', day: '', timeSlot: '', room: '', lengthMin: '', description: '' });
+  pushSpeaker(sp);
+  renderScheduleView();
+}
+function removeTrackLeader(trackId) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
+  const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
+  const sp = trackLeaderForTrack(track.name); if (!sp) return;
+  const idx = (sp.data.sessions || []).findIndex(s => s.isTrackLead && s.track === track.name);
+  if (idx < 0) return;
+  sp.data.sessions.splice(idx, 1);
+  pushSpeaker(sp);
+  renderScheduleView();
+}
 function setScheduleRosterSearch(v) {
   scheduleRosterSearch = v;
   const chipsEl = document.getElementById('sch-roster-chips-list');
@@ -14596,7 +14635,15 @@ function renderBreakoutGrid() {
       return `<td><div class="${cls}" ${dragHandlers}>${cards}${roomHtml}${addSelect}</div></td>`;
     }).join('');
     const leader = trackLeaderForTrack(track.name);
-    const leaderHtml = leader ? `<div class="sp-sub" style="font-weight:400; text-transform:none; cursor:pointer;" onclick="event.stopPropagation(); jumpToSpeaker('${leader.id}')" title="Click to open their record">🎖️ ${escapeHtml(leader.name)}</div>` : '';
+    let leaderHtml;
+    if (leader) {
+      leaderHtml = `<div class="sch-leader-chip" onclick="event.stopPropagation(); jumpToSpeaker('${leader.id}')" title="Track Leader — click to open their record">🎖️ ${escapeHtml(leader.name)}${canEditSchedule ? `<span class="sch-leader-chip-x" onclick="event.stopPropagation(); removeTrackLeader('${track.id}')" title="Remove as Track Leader">×</span>` : ''}</div>`;
+    } else if (canEditSchedule) {
+      const leaderOptions = sortedSpeakers.map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
+      leaderHtml = `<select class="sch-track-leader-add" onclick="event.stopPropagation();" onchange="event.stopPropagation(); assignTrackLeader(this.value, '${track.id}'); this.value='';"><option value="">🎖️ + assign leader</option>${leaderOptions}</select>`;
+    } else {
+      leaderHtml = '';
+    }
     return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:5px;" onclick="editSessionTrack('${track.id}')" title="Rename this track">✎</span>` : ''}${leaderHtml}</td>${cells}</tr>`;
   }).join('');
 
