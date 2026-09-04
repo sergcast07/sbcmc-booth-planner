@@ -1176,7 +1176,9 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .rev-scenario-btn:hover:not(.active) { border-color: var(--teal); color: var(--ink); }
 
 .rev-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin-bottom: 18px; }
-.rev-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+.rev-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.rev-stat-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
+.rev-stat-card.hero:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.28); }
 .rev-stat-card.hero { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
 .rev-stat-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
 .rev-stat-card.hero .rev-stat-label { color: rgba(255,255,255,0.68); }
@@ -1635,6 +1637,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 <div id="sch-link-modal-root"></div>
 <div id="audit-history-modal-root"></div>
 <div id="cfp-drill-modal-root"></div>
+<div id="revenue-drill-modal-root"></div>
 
 <div id="driver-public-view" style="display:none;">
   <div class="dv-header">
@@ -8438,10 +8441,10 @@ function renderRevenueView() {
     </div>
 
     <div class="rev-stat-row">
-      <div class="rev-stat-card"><span class="rev-stat-label">Revenue</span><span class="rev-stat-value" id="rev-stat-revenue">$0</span><span class="rev-stat-sub" id="rev-stat-count-sub">0 registrants</span></div>
-      <div class="rev-stat-card"><span class="rev-stat-label">Cost</span><span class="rev-stat-value" id="rev-stat-cost">$0</span><span class="rev-stat-sub">meals/materials + covered hotel nights</span></div>
-      <div class="rev-stat-card hero"><span class="rev-stat-label">Net Margin</span><span class="rev-stat-value" id="rev-stat-net">$0</span><span class="rev-stat-sub" id="rev-stat-margin-pct">&mdash;% margin</span></div>
-      <div class="rev-stat-card"><span class="rev-stat-label">Avg. Net / Registrant</span><span class="rev-stat-value" id="rev-stat-avg-net">$0</span><span class="rev-stat-sub">blended across tiers</span></div>
+      <div class="rev-stat-card" onclick="openRevenueDrillModal('revenue')" title="Click to see what's included"><span class="rev-stat-label">Revenue</span><span class="rev-stat-value" id="rev-stat-revenue">$0</span><span class="rev-stat-sub" id="rev-stat-count-sub">0 registrants</span></div>
+      <div class="rev-stat-card" onclick="openRevenueDrillModal('cost')" title="Click to see what's included"><span class="rev-stat-label">Cost</span><span class="rev-stat-value" id="rev-stat-cost">$0</span><span class="rev-stat-sub">meals/materials + covered hotel nights</span></div>
+      <div class="rev-stat-card hero" onclick="openRevenueDrillModal('net')" title="Click to see how this is calculated"><span class="rev-stat-label">Net Margin</span><span class="rev-stat-value" id="rev-stat-net">$0</span><span class="rev-stat-sub" id="rev-stat-margin-pct">&mdash;% margin</span></div>
+      <div class="rev-stat-card" onclick="openRevenueDrillModal('avgnet')" title="Click to see the breakdown by tier"><span class="rev-stat-label">Avg. Net / Registrant</span><span class="rev-stat-value" id="rev-stat-avg-net">$0</span><span class="rev-stat-sub">blended across tiers</span></div>
     </div>
 
     <div class="rev-assumptions">
@@ -8615,6 +8618,95 @@ function revenueRecompute() {
   if (note) note.textContent = anyCost
     ? 'Shorter cost bar relative to its revenue bar means fatter margin for that category.'
     : 'Set a $/day cost and hotel nights on any tier to see its cost bar appear here.';
+}
+
+// Pure recompute of the same per-tier/per-group numbers revenueRecompute() writes into the
+// table -- kept separate (no DOM reads/writes) so the drill-down modal can build its breakdown
+// off the exact same math without depending on the table having already rendered.
+function revenueDrillCompute() {
+  const days = revenueState.globalDays, hotelRate = revenueState.globalHotelRate;
+  const groups = REVENUE_GROUPS.map(g => {
+    const tiers = REVENUE_TIER_DEFAULTS.filter(t => t.group === g.key).map(t => {
+      const st = revenueState.tiers[t.id];
+      const revenue = (st.rate || 0) * st.count;
+      const occupancy = st.occupancy > 0 ? st.occupancy : 1;
+      const costPerPerson = (days * st.costPerDay) + ((st.nights || 0) * hotelRate / occupancy);
+      const cost = costPerPerson * st.count;
+      const label = [t.name, t.phase].filter(Boolean).join(' — ');
+      return { id: t.id, label, count: st.count, rate: st.rate, revenue, cost, net: revenue - cost };
+    });
+    const revenue = tiers.reduce((s, t) => s + t.revenue, 0);
+    const cost = tiers.reduce((s, t) => s + t.cost, 0);
+    const count = tiers.reduce((s, t) => s + t.count, 0);
+    return { key: g.key, label: g.label, tiers, revenue, cost, net: revenue - cost, count };
+  });
+  const grandRevenue = groups.reduce((s, g) => s + g.revenue, 0);
+  const grandCost = groups.reduce((s, g) => s + g.cost, 0);
+  const grandCount = groups.reduce((s, g) => s + g.count, 0);
+  return { groups, grandRevenue, grandCost, grandNet: grandRevenue - grandCost, grandCount };
+}
+
+let revenueDrillModalState = null;
+function openRevenueDrillModal(kind) {
+  revenueDrillModalState = kind;
+  renderRevenueDrillModal();
+}
+function closeRevenueDrillModal() {
+  revenueDrillModalState = null;
+  const root = document.getElementById('revenue-drill-modal-root');
+  if (root) root.innerHTML = '';
+}
+function renderRevenueDrillModal() {
+  const root = document.getElementById('revenue-drill-modal-root');
+  if (!root) return;
+  const kind = revenueDrillModalState;
+  if (!kind || !revenueState) { root.innerHTML = ''; return; }
+  const c = revenueDrillCompute();
+
+  let title = '', bodyHtml = '';
+  if (kind === 'revenue') {
+    title = "What's in Total Revenue";
+    bodyHtml = c.groups.map(g =>
+      cfpDrillSection(g.label,
+        g.tiers.filter(t => t.count > 0).map(t => cfpDrillRow(t.label, t.revenue, `${t.count.toLocaleString('en-US')} × ${revenueMoney(t.rate)}`)).join(''),
+        g.label + ' subtotal', g.revenue)
+    ).join('') + cfpDrillGrandTotal('Total Revenue', c.grandRevenue) + cfpDrillNote('Rate × registration count, added up across every tier below — drag any count in the Rate Tiers table to see this change live.');
+  } else if (kind === 'cost') {
+    title = "What's in Total Cost";
+    bodyHtml = c.groups.map(g =>
+      cfpDrillSection(g.label,
+        g.tiers.filter(t => t.count > 0 && t.cost > 0).map(t => cfpDrillRow(t.label, t.cost, `${t.count.toLocaleString('en-US')} registrants`)).join(''),
+        g.label + ' subtotal', g.cost)
+    ).join('') + cfpDrillGrandTotal('Total Cost', c.grandCost) + cfpDrillNote('Per-day meals/materials cost × conference days, plus covered hotel nights × hotel rate ÷ people per room, for each tier — set these in the Rate Tiers table below.');
+  } else if (kind === 'net') {
+    title = 'How Net Margin is calculated';
+    bodyHtml =
+      cfpDrillRow('Revenue', c.grandRevenue, 'Click the Revenue tile to see the breakdown') +
+      cfpDrillRow('Cost', -c.grandCost, 'Click the Cost tile to see the breakdown') +
+      cfpDrillGrandTotal('Net Margin', c.grandNet) +
+      `<div class="cfp-drill-section"><h4>Net by Category</h4>${c.groups.map(g => cfpDrillRow(g.label, g.net, `${revenueMoney(g.revenue)} revenue − ${revenueMoney(g.cost)} cost`)).join('')}</div>` +
+      cfpDrillNote((c.grandRevenue ? Math.round(c.grandNet / c.grandRevenue * 100) : 0) + '% of revenue is retained as net margin.');
+  } else if (kind === 'avgnet') {
+    title = 'How Avg. Net / Registrant is calculated';
+    bodyHtml =
+      cfpDrillRow('Total Net Margin', c.grandNet, 'Click the Net Margin tile to see the breakdown') +
+      cfpDrillRow('Total Registrants', c.grandCount, '') +
+      cfpDrillGrandTotal('Avg. Net / Registrant', c.grandCount ? c.grandNet / c.grandCount : 0) +
+      `<div class="cfp-drill-section"><h4>Avg. Net / Registrant by Category</h4>${c.groups.filter(g => g.count > 0).map(g => cfpDrillRow(g.label, g.net / g.count, `${revenueMoney(g.net)} net ÷ ${g.count.toLocaleString('en-US')} registrants`)).join('')}</div>` +
+      cfpDrillNote('This blended average hides a wide spread — a category’s own average here is its net ÷ its own registrant count, not a share of the blended total above.');
+  }
+
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeRevenueDrillModal();">
+      <div class="qa-modal-card email-gen-card cfp-drill-card">
+        <h3>${escapeHtml(title)}</h3>
+        <div class="cfp-drill-body">${bodyHtml}</div>
+        <div style="margin-top:14px; text-align:right;">
+          <button class="sp-mini-btn" onclick="closeRevenueDrillModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // ==== Cash Flow Projection ====
