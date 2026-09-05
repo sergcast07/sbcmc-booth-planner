@@ -960,8 +960,6 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .db-bar-outer { width: 100%; height: 28px; background: var(--teal-pale); border-radius: 14px; overflow: hidden; }
 .db-bar-fill { height: 100%; background: linear-gradient(90deg, var(--teal-deep), var(--teal)); border-radius: 14px 0 0 14px; transition: width .4s ease; }
 .db-bar-caption { font-size: 12.5px; color: var(--ink-soft); margin-top: 10px; }
-.db-bar-subcaption { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
-.db-bar-subcaption b { color: var(--ink); font-weight: 600; }
 .db-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .db-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12.5px; padding: 3px 6px; border-radius: 6px; transition: background 0.12s; }
 .db-row:hover { background: var(--teal-pale); }
@@ -2373,7 +2371,6 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <div class="db-section-title">Cash Committed vs. Collected</div>
         <div class="db-bar-outer"><div class="db-bar-fill" id="db-progress-fill"></div></div>
         <div class="db-bar-caption" id="db-progress-caption"></div>
-        <div class="db-bar-subcaption" id="db-progress-gift-caption"></div>
       </div>
 
       <div class="db-section">
@@ -7981,10 +7978,6 @@ function renderDashboard() {
   document.getElementById('db-progress-fill').style.width = pct + '%';
   document.getElementById('db-progress-caption').textContent =
     fmt(totalCollected) + ' collected of ' + fmt(totalCommitted) + ' committed (' + pct.toFixed(0) + '%) — ' + fmt(totalOutstanding) + ' still outstanding (' + outstandingPct.toFixed(0) + '%)';
-  // Breaks the same committed total down by source, so gift/donation money reads as its own
-  // line right at the bar instead of only showing up in the Cash Committed card's fine print.
-  document.getElementById('db-progress-gift-caption').innerHTML =
-    '<b>' + fmt(boothTotal) + '</b> from sponsorship packages · <b>' + fmt(giftTotal) + '</b> in gifts · <b>' + fmt(otherAdhocTotal) + '</b> in other add-ons';
 
   // Status breakdown (count-based bars) -- registered + in-kind statuses only
   const statusCounts = {};
@@ -10300,43 +10293,72 @@ function renderSponsorshipProgressChart() {
 
   // A day-by-day timeline needs real registration dates, and most cash-committed sponsors
   // don't have one (they're "Committed, Not Registered" -- verbal/pending, not yet through
-  // checkout). Composition -- how much of the total is actually collected vs. registered-but-
-  // unpaid vs. still just a pending commitment -- doesn't need dates at all, and is a more
-  // honest picture of where things stand than a mostly-flat line ending in one big guess-date
-  // jump. Segments sum to the same Cash Committed figure as the dashboard cards above.
+  // checkout). Composition -- collected vs. outstanding, crossed with gift vs. package/other --
+  // doesn't need dates at all, and surfaces gift money as its own segments instead of it only
+  // showing up in the Cash Committed card's fine print. Segments sum to the same Cash Committed
+  // figure as the dashboard cards above.
   const cashSponsors = sponsors.filter(isCashCommitted);
   if (cashSponsors.length === 0) {
     container.innerHTML = '<div class="db-timeline-empty">No cash-committed sponsors yet to chart. This fills in automatically as sponsors register or commit.</div>';
     return;
   }
 
-  let collected = 0, registeredOutstanding = 0, committedNotRegistered = 0;
+  // Four buckets: collected/outstanding crossed with gift/package-and-other. A partially-paid
+  // sponsor's payment isn't tagged to a specific line item, so it's split proportionally across
+  // their own gift vs. non-gift committed amounts -- the simplest defensible allocation without
+  // inventing per-line-item payment tracking.
+  let collectedGift = 0, collectedOther = 0, outstandingGift = 0, outstandingOther = 0;
   cashSponsors.forEach(s => {
-    const committedAmt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
+    const boothAmt = parseMoneyNum(s.data.money.committed || s.data.checkoutTier);
+    let giftAmt = 0, otherAdhocAmt = 0;
+    (s.data.money.adhocItems || []).filter(i => i.checked).forEach(i => {
+      const amt = parseMoneyNum(i.amount);
+      if (i.label === 'Additional Gift (unrestricted cash donation)') giftAmt += amt;
+      else otherAdhocAmt += amt;
+    });
+    otherAdhocAmt += parseMoneyNum(s.data.money.adhocAmount);
+    const nonGiftAmt = boothAmt + otherAdhocAmt;
+    const committedAmt = giftAmt + nonGiftAmt;
     const collectedAmt = sponsorCollectedAmount(s);
-    collected += collectedAmt;
-    if (s.data.registeredDate) registeredOutstanding += committedAmt - collectedAmt;
-    else committedNotRegistered += committedAmt - collectedAmt;
+    const giftShare = committedAmt > 0 ? giftAmt / committedAmt : 0;
+    const collectedForGift = collectedAmt * giftShare;
+    const collectedForOther = collectedAmt - collectedForGift;
+    collectedGift += collectedForGift;
+    collectedOther += collectedForOther;
+    outstandingGift += giftAmt - collectedForGift;
+    outstandingOther += nonGiftAmt - collectedForOther;
   });
-  const total = collected + registeredOutstanding + committedNotRegistered;
+  const total = collectedGift + collectedOther + outstandingGift + outstandingOther;
 
+  // Hue = status (green family = already collected, gold family = still outstanding) so the
+  // two halves of the story read at a glance; shade = source (darker = ordinary sponsorship
+  // package/add-on money, lighter = gifts specifically) as a secondary encoding, backed by the
+  // legend's text labels + $ values (never color alone). Segment order keeps each hue family
+  // contiguous (both greens, then both golds) -- validate_palette.js flags the lighter green/
+  // lighter gold pair as too close if they end up adjacent instead.
   const segments = [
-    { label: 'Collected', value: collected, color: '#2E8B57' },
-    { label: 'Registered, outstanding', value: registeredOutstanding, color: 'var(--teal-deep)' },
-    { label: 'Committed, not registered', value: committedNotRegistered, color: 'var(--gold)' }
-  ].filter(seg => seg.value > 0);
+    { label: 'Collected — Packages/Other', value: collectedOther, color: '#1B7A46' },
+    { label: 'Collected — Gifts', value: collectedGift, color: '#5FAE82' },
+    { label: 'Outstanding — Packages/Other', value: outstandingOther, color: '#8B5E13' },
+    { label: 'Outstanding — Gifts', value: outstandingGift, color: '#C9973D' }
+  ].filter(seg => seg.value > 0.005);
 
   const W = 680, H = 108, padL = 20, padR = 20, barY = 34, barH = 34;
   const plotW = W - padL - padR;
   const maxVal = Math.max(total, goal || 0) * 1.06 || 100;
   const xFor = v => padL + (v / maxVal) * plotW;
 
+  // A 2px surface-color gap separates touching segments (rather than a stroke, which would
+  // add ink that isn't data) -- trimmed off the right edge of every segment but the last, so
+  // the underlying paper-colored bar shows through as a thin seam.
+  const SEG_GAP = 2;
   let cursor = 0;
-  const bars = segments.map(seg => {
+  const bars = segments.map((seg, i) => {
     const x0 = xFor(cursor);
     cursor += seg.value;
     const x1 = xFor(cursor);
-    return `<rect x="${x0.toFixed(1)}" y="${barY}" width="${Math.max(0, x1 - x0).toFixed(1)}" height="${barH}" fill="${seg.color}"/>`;
+    const w = Math.max(0, x1 - x0 - (i === segments.length - 1 ? 0 : SEG_GAP));
+    return `<rect x="${x0.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barH}" fill="${seg.color}"/>`;
   }).join('');
 
   const goalMarker = goal ? `
@@ -10352,11 +10374,6 @@ function renderSponsorshipProgressChart() {
       <span>${escapeHtml(seg.label)} <b>$${Math.round(seg.value).toLocaleString()}</b></span>
     </div>`).join('');
 
-  // Same source breakdown (booth/gift/other) shown on the Cash Committed card/progress bar
-  // above -- this chart segments by STATUS (collected/outstanding/pending), so gifts don't
-  // otherwise show up here at all despite being part of the same committed total.
-  const { boothTotal, giftTotal, otherAdhocTotal } = sponsorCashBreakdown(cashSponsors);
-
   container.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; max-height:130px;">
       <rect x="${padL}" y="${barY}" width="${plotW}" height="${barH}" rx="6" fill="var(--paper)" stroke="var(--line)"/>
@@ -10366,7 +10383,6 @@ function renderSponsorshipProgressChart() {
       ${totalLabel}
     </svg>
     <div class="db-comp-legend">${legend}</div>
-    <div class="db-bar-subcaption">${fmt(boothTotal)} from sponsorship packages · ${fmt(giftTotal)} in gifts · ${fmt(otherAdhocTotal)} in other add-ons</div>
   `;
 
   const caption = goal
