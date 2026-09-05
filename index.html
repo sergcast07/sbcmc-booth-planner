@@ -223,10 +223,10 @@
   .booth.editing { cursor: text; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--color-a-dark, #1740b8); z-index: 52; }
   .booth-label {
     outline: none; padding: 0 2px; pointer-events: none; max-width: 100%; text-align: center;
-    font-size: 9px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 9px; line-height: 1.05; white-space: normal; overflow: visible; word-break: break-word;
   }
   .booth.editing .booth-label {
-    pointer-events: auto; white-space: normal; word-break: break-word; overflow: visible; font-size: 10px;
+    pointer-events: auto; font-size: 10px;
   }
   .booth .del {
     position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; border-radius: 50%;
@@ -3013,17 +3013,32 @@ function applyZoom() {
   updateBoothLabelZoom();
 }
 
-// Unlike the free-floating area labels above, a booth's on-map label (the sponsor org name,
-// or "Open") is part of the booth's own footprint, not an independent annotation -- so instead
-// of counter-scaling to hold a fixed on-screen size, it should scale WITH the booth as the map
-// zooms, same as the box itself does. Without this it either overflows into an ellipsis at low
-// zoom or sits tiny and lost in a big box at high zoom, since box size scales with zoom but a
-// plain CSS font-size doesn't.
-const BOOTH_LABEL_BASE_FONT = 9; // matches the .booth-label fallback font-size in CSS
+// A booth's on-map label (the sponsor org name, or "Open") shrinks to fit inside the booth's
+// own box -- wrapping to as many lines as it needs and reducing font size until it fits,
+// rather than truncating with an ellipsis. Nothing is ever cut off; on a small booth at low
+// zoom the text just gets small. Re-run whenever the box's on-screen size changes (zoom) or
+// the label's text changes (a sponsor gets linked/unlinked).
+const BOOTH_LABEL_MAX_FONT = 11; // px, before zoom scaling
+const BOOTH_LABEL_MIN_FONT = 4;  // px, absolute floor -- not zoom-scaled, so it never vanishes
+function fitBoothLabel(el, labelSpan) {
+  if (labelSpan.contentEditable === 'true') return; // mid-rename -- leave the fixed edit size alone
+  const maxFont = BOOTH_LABEL_MAX_FONT * zoomLevel;
+  let lo = BOOTH_LABEL_MIN_FONT, hi = Math.max(maxFont, BOOTH_LABEL_MIN_FONT), best = BOOTH_LABEL_MIN_FONT;
+  for (let i = 0; i < 10; i++) {
+    const mid = (lo + hi) / 2;
+    labelSpan.style.fontSize = mid + 'px';
+    if (labelSpan.scrollHeight <= el.clientHeight && labelSpan.scrollWidth <= el.clientWidth) {
+      best = mid; lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  labelSpan.style.fontSize = best + 'px';
+}
 function updateBoothLabelZoom() {
-  plan.querySelectorAll('.booth-label').forEach(el => {
-    if (el.contentEditable === 'true') return; // mid-rename -- leave the fixed edit size alone
-    el.style.fontSize = (BOOTH_LABEL_BASE_FONT * zoomLevel) + 'px';
+  plan.querySelectorAll('.booth').forEach(el => {
+    const labelSpan = el.querySelector('.booth-label');
+    if (labelSpan) fitBoothLabel(el, labelSpan);
   });
 }
 
@@ -3123,7 +3138,10 @@ function refreshBoothLabels() {
     const el = plan.querySelector('.booth[data-id="' + b.id + '"]');
     if (!el) return;
     const labelSpan = el.querySelector('.booth-label');
-    if (labelSpan && labelSpan.contentEditable !== 'true') labelSpan.textContent = boothMapLabel(b);
+    if (labelSpan && labelSpan.contentEditable !== 'true') {
+      labelSpan.textContent = boothMapLabel(b);
+      fitBoothLabel(el, labelSpan);
+    }
     el.title = boothTitle(b);
   });
 }
@@ -3159,7 +3177,6 @@ function createBoothEl(b) {
   const label = document.createElement('span');
   label.className = 'booth-label';
   label.textContent = boothMapLabel(b);
-  label.style.fontSize = (BOOTH_LABEL_BASE_FONT * zoomLevel) + 'px';
   el.appendChild(label);
 
   const stalk = document.createElement('div');
@@ -3191,6 +3208,7 @@ function createBoothEl(b) {
   el.addEventListener('pointerdown', onPointerDown);
   el.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditSpotName(el, b, label); });
   plan.appendChild(el);
+  fitBoothLabel(el, label); // needs real layout (clientWidth/Height), so only after it's attached
   return el;
 }
 
@@ -3214,7 +3232,7 @@ function startEditSpotName(el, b, labelSpan) {
     const text = labelSpan.textContent.trim();
     b.spotName = text || nextSpotName(b.mapId);
     labelSpan.textContent = boothMapLabel(b);
-    labelSpan.style.fontSize = (BOOTH_LABEL_BASE_FONT * zoomLevel) + 'px';
+    fitBoothLabel(el, labelSpan);
     el.title = boothTitle(b);
     labelSpan.removeEventListener('blur', commit);
     labelSpan.removeEventListener('keydown', onKey);
