@@ -221,8 +221,14 @@
   .booth:active { cursor: grabbing; }
   .booth.dragging { opacity: 0.85; z-index: 50; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
   .booth.editing { cursor: text; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--color-a-dark, #1740b8); z-index: 52; }
-  .booth-label { outline: none; padding: 0 2px; white-space: nowrap; pointer-events: none; }
-  .booth.editing .booth-label { pointer-events: auto; white-space: normal; word-break: break-word; }
+  .booth-label {
+    outline: none; padding: 0 2px; pointer-events: none; max-width: 100%; text-align: center;
+    font-size: 9px; line-height: 1.15; white-space: normal; overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  }
+  .booth.editing .booth-label {
+    pointer-events: auto; word-break: break-word; -webkit-line-clamp: unset; overflow: visible; font-size: 10px;
+  }
   .booth .del {
     position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; border-radius: 50%;
     background: #c0392b; color: white; font-size: 11px; line-height: 18px; text-align: center;
@@ -3085,6 +3091,29 @@ function boothTitle(b) {
   return (b.spotName || p.label) + ' \u2014 ' + p.label + (sp ? ' \u2014 ' + sp.org : '') + ' \u2014 ' + Math.round(b.angle) + '\u00b0';
 }
 
+// The on-map label shows who's actually there (or that the spot is open), not the internal
+// spot name -- b.spotName still exists and drives the Spot Directory list/sort and the
+// double-click rename below, it's just no longer what's painted on the booth itself.
+function boothMapLabel(b) {
+  const sp = (typeof sponsors !== 'undefined') ? sponsors.find(s => s.linkedBoothId === b.id) : null;
+  return sp ? sp.org : 'Open';
+}
+
+// Re-paints every visible booth's label/tooltip on the current map from live sponsor-link
+// state, without tearing down and recreating the DOM (which would lose in-progress drag/rotate
+// interactions) -- call this anywhere a sponsor's booth link changes while the floor plan may
+// already be on screen.
+function refreshBoothLabels() {
+  if (typeof plan === 'undefined' || !plan) return;
+  booths.filter(b => b.mapId === currentMapId).forEach(b => {
+    const el = plan.querySelector('.booth[data-id="' + b.id + '"]');
+    if (!el) return;
+    const labelSpan = el.querySelector('.booth-label');
+    if (labelSpan && labelSpan.contentEditable !== 'true') labelSpan.textContent = boothMapLabel(b);
+    el.title = boothTitle(b);
+  });
+}
+
 function nextSpotName(mapId) {
   let maxN = 0;
   booths.filter(bb => bb.mapId === mapId).forEach(bb => {
@@ -3115,7 +3144,7 @@ function createBoothEl(b) {
 
   const label = document.createElement('span');
   label.className = 'booth-label';
-  label.textContent = b.spotName;
+  label.textContent = boothMapLabel(b);
   el.appendChild(label);
 
   const stalk = document.createElement('div');
@@ -3152,6 +3181,9 @@ function createBoothEl(b) {
 
 function startEditSpotName(el, b, labelSpan) {
   el.classList.add('editing');
+  // The label is normally showing the sponsor's name (or "Open"), not the spot's own name --
+  // swap in the real spotName to edit, since that's the thing double-click actually renames.
+  labelSpan.textContent = b.spotName;
   labelSpan.contentEditable = 'true';
   labelSpan.focus();
   const range = document.createRange();
@@ -3165,7 +3197,7 @@ function startEditSpotName(el, b, labelSpan) {
     el.classList.remove('editing');
     const text = labelSpan.textContent.trim();
     b.spotName = text || nextSpotName(b.mapId);
-    labelSpan.textContent = b.spotName;
+    labelSpan.textContent = boothMapLabel(b);
     el.title = boothTitle(b);
     labelSpan.removeEventListener('blur', commit);
     labelSpan.removeEventListener('keydown', onKey);
@@ -7097,6 +7129,7 @@ function switchTopView(view) {
   if (view === 'cashflow' && typeof initCashflowView === 'function' && cashflowViewEl) initCashflowView();
   if (view === 'floorplan') {
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
+    if (typeof refreshBoothLabels === 'function') refreshBoothLabels();
     // The map only just became visible (was display:none), so its container had zero
     // measurable width until now -- re-fit on the next frame once layout has settled,
     // otherwise the map can lock in at a tiny size and stay that way until zoomed manually.
@@ -10486,6 +10519,7 @@ function subscribeSponsorRealtime() {
       }
       if (document.getElementById('nav-sponsors-btn').classList.contains('active')) renderSponsorView();
       if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
+      if (typeof refreshBoothLabels === 'function') refreshBoothLabels();
       updateSponsorPendingBadge();
       updateMyItemsNavBadge();
     })
@@ -11873,11 +11907,12 @@ function linkBoothToSponsor(sponsorId, boothId) {
     }
   }
   s.linkedBoothId = boothId || '';
-  // The booth's on-map label always shows its spot name (e.g. "Spot 4"), never the
-  // sponsor org -- that pairing lives in the Spot Directory next to the map instead.
+  // The booth's on-map label shows the sponsor's org name (or "Open" once unlinked) --
+  // refreshBoothLabels() repaints it live in case the floor plan is already on screen.
   pushSponsor(s);
   renderSponsorRows(sponsorId);
   if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
+  if (typeof refreshBoothLabels === 'function') refreshBoothLabels();
 }
 
 function updateSponsorNoBoothNeeded(sponsorId, checked) {
@@ -11888,6 +11923,7 @@ function updateSponsorNoBoothNeeded(sponsorId, checked) {
   if (checked && s.linkedBoothId) {
     s.linkedBoothId = '';
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
+    if (typeof refreshBoothLabels === 'function') refreshBoothLabels();
   }
   pushSponsor(s);
   renderSponsorRows(sponsorId);
