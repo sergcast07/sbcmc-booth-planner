@@ -223,11 +223,10 @@
   .booth.editing { cursor: text; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--color-a-dark, #1740b8); z-index: 52; }
   .booth-label {
     outline: none; padding: 0 2px; pointer-events: none; max-width: 100%; text-align: center;
-    font-size: 9px; line-height: 1.15; white-space: normal; overflow: hidden; text-overflow: ellipsis;
-    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+    font-size: 9px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .booth.editing .booth-label {
-    pointer-events: auto; word-break: break-word; -webkit-line-clamp: unset; overflow: visible; font-size: 10px;
+    pointer-events: auto; white-space: normal; word-break: break-word; overflow: visible; font-size: 10px;
   }
   .booth .del {
     position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; border-radius: 50%;
