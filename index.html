@@ -960,6 +960,8 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .db-bar-outer { width: 100%; height: 28px; background: var(--teal-pale); border-radius: 14px; overflow: hidden; }
 .db-bar-fill { height: 100%; background: linear-gradient(90deg, var(--teal-deep), var(--teal)); border-radius: 14px 0 0 14px; transition: width .4s ease; }
 .db-bar-caption { font-size: 12.5px; color: var(--ink-soft); margin-top: 10px; }
+.db-bar-subcaption { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+.db-bar-subcaption b { color: var(--ink); font-weight: 600; }
 .db-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .db-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12.5px; padding: 3px 6px; border-radius: 6px; transition: background 0.12s; }
 .db-row:hover { background: var(--teal-pale); }
@@ -2371,6 +2373,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <div class="db-section-title">Cash Committed vs. Collected</div>
         <div class="db-bar-outer"><div class="db-bar-fill" id="db-progress-fill"></div></div>
         <div class="db-bar-caption" id="db-progress-caption"></div>
+        <div class="db-bar-subcaption" id="db-progress-gift-caption"></div>
       </div>
 
       <div class="db-section">
@@ -7973,6 +7976,10 @@ function renderDashboard() {
   document.getElementById('db-progress-fill').style.width = pct + '%';
   document.getElementById('db-progress-caption').textContent =
     fmt(totalCollected) + ' collected of ' + fmt(totalCommitted) + ' committed (' + pct.toFixed(0) + '%) — ' + fmt(totalOutstanding) + ' still outstanding (' + outstandingPct.toFixed(0) + '%)';
+  // Breaks the same committed total down by source, so gift/donation money reads as its own
+  // line right at the bar instead of only showing up in the Cash Committed card's fine print.
+  document.getElementById('db-progress-gift-caption').innerHTML =
+    '<b>' + fmt(boothTotal) + '</b> from sponsorship packages · <b>' + fmt(giftTotal) + '</b> in gifts · <b>' + fmt(otherAdhocTotal) + '</b> in other add-ons';
 
   // Status breakdown (count-based bars) -- registered + in-kind statuses only
   const statusCounts = {};
