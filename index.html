@@ -13854,7 +13854,7 @@ let speakerSearch = '';
 let speakerSortKey = null;
 let speakerSortDir = 1;
 
-const SPEAKER_TYPES = ['Keynote', 'Breakout Leader', 'Musician', 'Panelist', 'Other'];
+const SPEAKER_TYPES = ['Keynote', 'Breakout Leader', 'Musician', 'Panelist', 'Program Leader', 'Other'];
 
 // Every possible material item, with its display label. A speaker's actual checklist is
 // the UNION of whichever of these apply to each of their roles -- someone who's both a
@@ -13910,6 +13910,10 @@ const MATERIALS_BY_TYPE = {
   'Breakout Leader': ['bio', 'headshot', 'promoMaterials', 'sessionDescription', 'slideDeck', 'handouts', 'rider'],
   'Musician': ['bio', 'headshot', 'promoMaterials', 'rider', 'stagePlot', 'inputList', 'rfRequest', 'lyricsProPresenter', 'playbackDetails', 'lightingNotes'],
   'Panelist': ['bio', 'headshot', 'promoMaterials', 'sessionDescription', 'rider'],
+  // For someone directing/leading a program or ensemble (e.g. Collegiate Worship Collective)
+  // rather than delivering a single breakout session -- no session-specific items like Slide
+  // Deck/Handouts, since there's no one session to prep those for.
+  'Program Leader': ['bio', 'headshot', 'promoMaterials', 'rider'],
   'Other': ['bio', 'headshot', 'promoMaterials', 'rider']
 };
 // arrangement: pass sp.data.arrangement when known -- accepted for callers that still pass it,
