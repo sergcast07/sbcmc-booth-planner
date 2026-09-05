@@ -9160,6 +9160,28 @@ function cfpSponsorList() { return sponsors.filter(s => isCashCommitted(s) && sp
 // date entered on the record shows up here automatically instead of needing separate re-entry.
 // This only applies once, at creation -- once a schedule exists (split or not), it's the user's
 // to edit, and a later change to the record's due date won't silently overwrite it.
+// Shrinks/removes installments starting with whatever's due SOONEST until the schedule's
+// total matches the person's current live outstanding balance -- mirrors how a real payment
+// actually gets applied (deposit first, remainder later). Only ever removes/reduces, never
+// adds: if the schedule totals LESS than what's live (the committed/fee amount went up, not
+// down), that's a real change nothing here can safely guess how to distribute, so it's left
+// alone for the "this schedule no longer matches" banner + manual Reset instead. Mutates the
+// array in place (splice, not reassignment) since callers hold a direct reference into
+// cashflowState.
+function reconcileInstallments(list, liveTotal) {
+  const over = cfpPersonTotal(list) - liveTotal;
+  if (over <= 0.01) return false; // already matches, or schedule owes less than live -- not ours to fix
+  let remaining = over;
+  list.slice().sort((a, b) => (a.date || '9999-99-99').localeCompare(b.date || '9999-99-99')).forEach(inst => {
+    if (remaining <= 0) return;
+    if (inst.amount <= remaining) { remaining -= inst.amount; inst.amount = 0; }
+    else { inst.amount -= remaining; remaining = 0; }
+  });
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].amount <= 0) list.splice(i, 1);
+  }
+  return true;
+}
 function getSpeakerInstallments(sp) {
   const fin = sp.data.financial || {};
   const recordDate = fin.dueDate || '';
@@ -9172,12 +9194,15 @@ function getSpeakerInstallments(sp) {
     // the two-way sync (updateSpeakerNested) existed, or made through some other path, still
     // shows up here instead of staying silently stuck at whatever it was first seeded with.
     const list = cashflowState.speakerInstallments[sp.id];
+    let changed = false;
     if (list.length === 1 && list[0].date !== recordDate) {
       list[0].date = recordDate;
-      // Only a real editor's session persists the correction -- a view-only session still sees
-      // the corrected number immediately, it just doesn't attempt a write it isn't allowed to make.
-      if (canEdit('cashflow.all')) pushCashflowState();
+      changed = true;
     }
+    if (reconcileInstallments(list, speakerOutstanding(sp))) changed = true;
+    // Only a real editor's session persists the correction -- a view-only session still sees
+    // the corrected number immediately, it just doesn't attempt a write it isn't allowed to make.
+    if (changed && canEdit('cashflow.all')) pushCashflowState();
   }
   return cashflowState.speakerInstallments[sp.id];
 }
@@ -9187,12 +9212,15 @@ function getSponsorInstallments(s) {
   if (!cashflowState.sponsorInstallments[s.id]) {
     cashflowState.sponsorInstallments[s.id] = [{ label: 'Full payment', amount: sponsorOutstanding(s), date: recordDate }];
   } else {
-    // Same self-healing rule as getSpeakerInstallments above.
+    // Same self-healing rules as getSpeakerInstallments above.
     const list = cashflowState.sponsorInstallments[s.id];
+    let changed = false;
     if (list.length === 1 && list[0].date !== recordDate) {
       list[0].date = recordDate;
-      if (canEdit('cashflow.all')) pushCashflowState();
+      changed = true;
     }
+    if (reconcileInstallments(list, sponsorOutstanding(s))) changed = true;
+    if (changed && canEdit('cashflow.all')) pushCashflowState();
   }
   return cashflowState.sponsorInstallments[s.id];
 }
