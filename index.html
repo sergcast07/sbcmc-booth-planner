@@ -3010,6 +3010,21 @@ function applyZoom() {
   plan.style.width = px + 'px';
   document.getElementById('zoom-pct').textContent = Math.round(zoomLevel * 100) + '%';
   updateLabelZoom();
+  updateBoothLabelZoom();
+}
+
+// Unlike the free-floating area labels above, a booth's on-map label (the sponsor org name,
+// or "Open") is part of the booth's own footprint, not an independent annotation -- so instead
+// of counter-scaling to hold a fixed on-screen size, it should scale WITH the booth as the map
+// zooms, same as the box itself does. Without this it either overflows into an ellipsis at low
+// zoom or sits tiny and lost in a big box at high zoom, since box size scales with zoom but a
+// plain CSS font-size doesn't.
+const BOOTH_LABEL_BASE_FONT = 9; // matches the .booth-label fallback font-size in CSS
+function updateBoothLabelZoom() {
+  plan.querySelectorAll('.booth-label').forEach(el => {
+    if (el.contentEditable === 'true') return; // mid-rename -- leave the fixed edit size alone
+    el.style.fontSize = (BOOTH_LABEL_BASE_FONT * zoomLevel) + 'px';
+  });
 }
 
 // Labels are annotations, not footprints: when zoomed OUT (below 100%) we counter-scale
@@ -3144,6 +3159,7 @@ function createBoothEl(b) {
   const label = document.createElement('span');
   label.className = 'booth-label';
   label.textContent = boothMapLabel(b);
+  label.style.fontSize = (BOOTH_LABEL_BASE_FONT * zoomLevel) + 'px';
   el.appendChild(label);
 
   const stalk = document.createElement('div');
@@ -3184,6 +3200,7 @@ function startEditSpotName(el, b, labelSpan) {
   // swap in the real spotName to edit, since that's the thing double-click actually renames.
   labelSpan.textContent = b.spotName;
   labelSpan.contentEditable = 'true';
+  labelSpan.style.fontSize = ''; // drop the zoom-scaled size so the fixed .editing font-size applies
   labelSpan.focus();
   const range = document.createRange();
   range.selectNodeContents(labelSpan);
@@ -3197,6 +3214,7 @@ function startEditSpotName(el, b, labelSpan) {
     const text = labelSpan.textContent.trim();
     b.spotName = text || nextSpotName(b.mapId);
     labelSpan.textContent = boothMapLabel(b);
+    labelSpan.style.fontSize = (BOOTH_LABEL_BASE_FONT * zoomLevel) + 'px';
     el.title = boothTitle(b);
     labelSpan.removeEventListener('blur', commit);
     labelSpan.removeEventListener('keydown', onKey);
