@@ -7597,6 +7597,30 @@ function sponsorCollectedAmount(s) {
   return Math.min(parseMoneyNum(s.data.money.paid) || 0, committed);
 }
 
+// Shared by the Dashboard's "Cash Committed" card/progress bar and the Sponsorship Progress
+// chart, so both read the exact same numbers instead of two separately-maintained copies of
+// this math silently drifting apart. Breaks the cash-committed total down by source: booth
+// package price, the "Additional Gift" line specifically, and everything else ad-hoc (single
+// ads, food sponsorships, custom/other) -- alongside the collected/outstanding split.
+function sponsorCashBreakdown(cashSponsors) {
+  let totalCommitted = 0, totalCollected = 0;
+  let boothTotal = 0, giftTotal = 0, otherAdhocTotal = 0;
+  cashSponsors.forEach(s => {
+    const committed = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
+    totalCommitted += committed;
+    boothTotal += parseMoneyNum(s.data.money.committed || s.data.checkoutTier);
+    const items = s.data.money.adhocItems || [];
+    items.filter(i => i.checked).forEach(i => {
+      const amt = parseMoneyNum(i.amount);
+      if (i.label === 'Additional Gift (unrestricted cash donation)') giftTotal += amt;
+      else otherAdhocTotal += amt;
+    });
+    otherAdhocTotal += parseMoneyNum(s.data.money.adhocAmount); // custom/other free-text amount
+    totalCollected += sponsorCollectedAmount(s);
+  });
+  return { totalCommitted, totalCollected, totalOutstanding: totalCommitted - totalCollected, boothTotal, giftTotal, otherAdhocTotal };
+}
+
 const DASH_STATUS_COLORS = {
   'Registered, Paid': '#2E8B57',
   'Registered, Not Paid': '#2962FF',
@@ -7934,26 +7958,7 @@ function renderDashboard() {
   const cashSponsors = sponsors.filter(isCashCommitted);
   const inKindSponsors = sponsors.filter(s => /in-kind/i.test(s.trackerStatus));
 
-  let totalCommitted = 0, totalCollected = 0;
-  let boothTotal = 0, giftTotal = 0, otherAdhocTotal = 0;
-  cashSponsors.forEach(s => {
-    const committed = parseMoneyNum(s.data.money.committed || s.data.checkoutTier) + sponsorAdhocTotal(s);
-    totalCommitted += committed;
-
-    // Break the same total down into: booth package price, the "Additional Gift" line
-    // specifically, and everything else ad-hoc (single ads, food sponsorships, custom/other).
-    boothTotal += parseMoneyNum(s.data.money.committed || s.data.checkoutTier);
-    const items = s.data.money.adhocItems || [];
-    items.filter(i => i.checked).forEach(i => {
-      const amt = parseMoneyNum(i.amount);
-      if (i.label === 'Additional Gift (unrestricted cash donation)') giftTotal += amt;
-      else otherAdhocTotal += amt;
-    });
-    otherAdhocTotal += parseMoneyNum(s.data.money.adhocAmount); // custom/other free-text amount
-
-    totalCollected += sponsorCollectedAmount(s);
-  });
-  const totalOutstanding = totalCommitted - totalCollected;
+  const { totalCommitted, totalCollected, totalOutstanding, boothTotal, giftTotal, otherAdhocTotal } = sponsorCashBreakdown(cashSponsors);
 
   // Top cards
   const speakerFees = speakerFeeTotals();
@@ -10347,6 +10352,11 @@ function renderSponsorshipProgressChart() {
       <span>${escapeHtml(seg.label)} <b>$${Math.round(seg.value).toLocaleString()}</b></span>
     </div>`).join('');
 
+  // Same source breakdown (booth/gift/other) shown on the Cash Committed card/progress bar
+  // above -- this chart segments by STATUS (collected/outstanding/pending), so gifts don't
+  // otherwise show up here at all despite being part of the same committed total.
+  const { boothTotal, giftTotal, otherAdhocTotal } = sponsorCashBreakdown(cashSponsors);
+
   container.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; max-height:130px;">
       <rect x="${padL}" y="${barY}" width="${plotW}" height="${barH}" rx="6" fill="var(--paper)" stroke="var(--line)"/>
@@ -10356,6 +10366,7 @@ function renderSponsorshipProgressChart() {
       ${totalLabel}
     </svg>
     <div class="db-comp-legend">${legend}</div>
+    <div class="db-bar-subcaption">${fmt(boothTotal)} from sponsorship packages · ${fmt(giftTotal)} in gifts · ${fmt(otherAdhocTotal)} in other add-ons</div>
   `;
 
   const caption = goal
