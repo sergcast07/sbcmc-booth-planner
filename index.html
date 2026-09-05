@@ -1276,6 +1276,15 @@ tr.rev-group-total-row td.rev-line-revenue, tr.rev-group-total-row td.rev-line-c
 .cfp-page-head h2 { margin: 0; }
 .cfp-page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; max-width: 74ch; }
 
+.cfp-inkind-box {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: var(--gold-pale); border: 1px solid #e5d3a3; border-radius: 12px; padding: 12px 18px; margin: 0 0 18px;
+}
+.cfp-inkind-box-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold); }
+.cfp-inkind-box-title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink); margin-top: 2px; }
+.cfp-inkind-box-sub { font-size: 11.5px; color: var(--ink-soft); max-width: 56ch; }
+.cfp-inkind-box-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
 .cfp-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin: 18px 0; }
 .cfp-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
 .cfp-stat-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
@@ -7522,6 +7531,17 @@ function sponsorAdhocTotal(s) {
   return itemsSum + parseMoneyNum(s.data.money.adhocAmount);
 }
 
+// In-kind contributions: things a sponsor covers directly (printing, supplies, etc.) instead
+// of a cash payment. Never counted as cash in/out anywhere in the Cash Flow model -- purely a
+// tracked value so next year's budgeting knows what real cost would need to be covered if that
+// sponsor doesn't return. See sponsorsInKindGrandTotal() for the cross-sponsor rollup.
+function sponsorInKindTotal(s) {
+  return (s.data.inKindContributions || []).reduce((sum, c) => sum + parseMoneyNum(c.value), 0);
+}
+function sponsorsInKindGrandTotal() {
+  return sponsors.filter(isActiveThisYear).reduce((sum, s) => sum + sponsorInKindTotal(s), 0);
+}
+
 function toggleAdhocItem(id, idx, checked) {
   const s = getSponsor(id); if (!s) return;
   if (!s.data.money.adhocItems) s.data.money.adhocItems = defaultAdhocItems();
@@ -9531,6 +9551,17 @@ function renderCashflowView() {
       <div class="cfp-stat-card" id="cfp-stat-lowpoint-card" onclick="openCfpDrillModal('lowpoint')" title="Click to see the month-by-month balance"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
     </div>
 
+    ${sponsorsInKindGrandTotal() > 0 ? `
+    <div class="cfp-inkind-box">
+      <div>
+        <div class="cfp-inkind-box-label">Not cash — not counted above</div>
+        <div class="cfp-inkind-box-title">In-Kind Contributions</div>
+        <div class="cfp-inkind-box-sub">Covered directly by sponsors this year (see each sponsor's Financials tab). If any of them don't return next year, this is real cost you'd need to budget for.</div>
+      </div>
+      <div class="cfp-inkind-box-value">$${sponsorsInKindGrandTotal().toLocaleString()}</div>
+    </div>
+    ` : ''}
+
     <div class="cfp-assumptions">
       <span class="cfp-assump-title">STARTING CASH</span>
       <div class="cfp-assump-field"><label>Balance on Sep 1, 2026</label><input type="number" id="cfp-starting-balance" value="${cashflowState.startingBalance}"></div>
@@ -10527,7 +10558,8 @@ function rowToSponsor(row) {
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
       secondaryContact: { name: '', role: '', email: '', phone: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
-      comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
+      comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' },
+      inKindContributions: []
     }, row.data || {})
   };
 }
@@ -10613,7 +10645,8 @@ function addSponsor() {
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
       secondaryContact: { name: '', role: '', email: '', phone: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
-      comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' }
+      comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' },
+      inKindContributions: []
     }
   };
   sponsors.push(s);
@@ -11373,6 +11406,20 @@ function sponsorDetailHTML(s) {
           `}
           </div>
         </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>In-Kind Contributions <span class="sp-sub" style="font-weight:400;">— things they cover directly, not cash. Tracked so next year's budget knows the real cost if this sponsor doesn't return.</span></legend>
+          ${(s.data.inKindContributions || []).map(c => `
+            <div class="sp-add-row" style="margin-bottom:6px; align-items:center;">
+              <input type="text" placeholder="What they covered (e.g. Printed all attendee programs)" style="flex:2;" value="${escapeHtml(c.description)}" onchange="updateSponsorInKindContribution('${s.id}','${c.id}','description',this.value)">
+              <input type="text" class="sp-adhoc-amount" placeholder="$ value" value="${c.value == null ? '' : escapeHtml(String(c.value))}" onchange="updateSponsorInKindContribution('${s.id}','${c.id}','value',this.value)">
+              <input type="date" value="${escapeHtml(c.date || '')}" onchange="updateSponsorInKindContribution('${s.id}','${c.id}','date',this.value)">
+              <button class="sp-mini-btn" onclick="removeSponsorInKindContribution('${s.id}','${c.id}')">&times;</button>
+            </div>
+          `).join('') || '<div class="sp-sub" style="margin-bottom:8px;">Nothing logged yet.</div>'}
+          <button class="sp-mini-btn" onclick="addSponsorInKindContribution('${s.id}')">+ Add contribution</button>
+          ${(s.data.inKindContributions || []).length ? `<div class="sp-field" style="margin-top:10px;"><label>Total in-kind value</label><div class="bg-input bg-readonly" style="padding:7px 9px;">$${sponsorInKindTotal(s).toLocaleString()}</div></div>` : ''}
+        </fieldset>
         </div>
       </div>
       `}
@@ -11830,6 +11877,31 @@ function sponsorBadgeLimit(s) {
   const limit = parseInt(s.data.logistics.badgeLimit, 10);
   return Number.isFinite(limit) && limit >= 0 ? limit : 2;
 }
+// In-kind contributions are staff-tracked, not something a sponsor self-reports through the
+// public portal -- getSponsor/renderSponsorRows (not resolveSponsorForEdit/refreshSponsorAfterEdit)
+// keeps this admin-only, same as comms/action items/questions below.
+function addSponsorInKindContribution(id) {
+  const s = getSponsor(id); if (!s) return;
+  if (!s.data.inKindContributions) s.data.inKindContributions = [];
+  s.data.inKindContributions.push({ id: makeId(), description: '', value: '', date: '' });
+  pushSponsor(s);
+  renderSponsorRows(id);
+}
+function updateSponsorInKindContribution(id, contribId, field, value) {
+  const s = getSponsor(id); if (!s) return;
+  const c = (s.data.inKindContributions || []).find(x => x.id === contribId);
+  if (!c) return;
+  c[field] = value;
+  pushSponsor(s);
+  renderSponsorRows(id);
+}
+function removeSponsorInKindContribution(id, contribId) {
+  const s = getSponsor(id); if (!s) return;
+  s.data.inKindContributions = (s.data.inKindContributions || []).filter(c => c.id !== contribId);
+  pushSponsor(s);
+  renderSponsorRows(id);
+}
+
 function addSponsorBadgeName(id) {
   const s = resolveSponsorForEdit(id); if (!s) return;
   if (!s.data.logistics.badgeNames) s.data.logistics.badgeNames = [];
