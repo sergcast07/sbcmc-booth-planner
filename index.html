@@ -8680,15 +8680,15 @@ function revenueScenarioActualComparison(scenarioName) {
 
 // Collegiate Worship Collective / Student Leadership Summit actuals come from the applicants
 // already synced into the Applicants tab (its own Gravity Forms sync, formIds 6 and 20) --
-// never a separate pull. Only Approved applicants count as real registrants, same as the
-// Applicants tab's own "Approved" stat; Pending/Declined aren't confirmed attendees yet. Split
-// hotel vs. local the same way the revenue tiers do, via needsLodging (true = hotel-covered
-// tier, false = local tier). Anyone Approved with needsLodging still unset (null) isn't yet
-// attributable to either sub-tier -- rare in practice, since CWC's own form never asks this at
-// all, only ever set later by staff -- so they're left out of both counts rather than guessed.
+// never a separate pull. Everyone who applied counts, except Declined -- a Pending applicant is
+// still presumed to be coming until actually turned down. Split hotel vs. local the same way
+// the revenue tiers do, via needsLodging (true = hotel-covered tier, false = local tier).
+// Anyone with needsLodging still unset (null) isn't yet attributable to either sub-tier --
+// common for CWC early on, since that form never asks this at all, only ever set later by staff
+// -- so they're left out of both counts rather than guessed.
 function applicantActualCounts() {
   const counts = { collegiate: 0, collegiate_local: 0, sls: 0, sls_local: 0 };
-  applicants.filter(a => a.data.status === 'Approved').forEach(a => {
+  applicants.filter(a => a.data.status !== 'Declined').forEach(a => {
     const key = a.groupId === PROGRAM_PAGES.cwc.groupId ? 'collegiate'
       : a.groupId === PROGRAM_PAGES.sls.groupId ? 'sls' : null;
     if (!key) return;
@@ -8756,7 +8756,7 @@ function registrationActualsHTML() {
           </tbody>
         </table>
       </div>
-      <div class="rev-actuals-programs-note">Collegiate Worship Collective &amp; Student Leadership Summit — from the Applicants tab's own Approved count, not a separate portal pull:</div>
+      <div class="rev-actuals-programs-note">Collegiate Worship Collective &amp; Student Leadership Summit — from the Applicants tab (everyone who applied, minus Declined), not a separate portal pull:</div>
       <div class="rev-actuals-table-scroll">
         <table class="rev-actuals-table">
           <thead><tr><th></th><th>Hotel</th><th>Local</th><th>Total</th></tr></thead>
