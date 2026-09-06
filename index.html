@@ -1204,6 +1204,7 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .rev-actuals-unmodeled { color: var(--ink-soft); font-style: italic; }
 .rev-actuals-note { font-size: 10.5px; font-weight: 400; color: var(--ink-soft); font-style: italic; }
 .rev-actuals-programs-note { font-size: 10.5px; color: var(--ink-soft); margin: 14px 0 4px; }
+.rev-actuals-body.collapsed { display: none !important; }
 
 .rev-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin-bottom: 18px; }
 .rev-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
@@ -8683,17 +8684,19 @@ function revenueScenarioActualComparison(scenarioName) {
 // never a separate pull. Everyone who applied counts, except Declined -- a Pending applicant is
 // still presumed to be coming until actually turned down. Split hotel vs. local the same way
 // the revenue tiers do, via needsLodging (true = hotel-covered tier, false = local tier).
-// Anyone with needsLodging still unset (null) isn't yet attributable to either sub-tier --
-// common for CWC early on, since that form never asks this at all, only ever set later by staff
-// -- so they're left out of both counts rather than guessed.
+// Anyone with needsLodging still unset (null) is real and counted in the total -- common for
+// CWC early on, since that form never asks this at all, only ever set later by staff -- just
+// not yet attributable to hotel vs. local specifically, so they get their own bucket instead of
+// silently vanishing from the count.
 function applicantActualCounts() {
-  const counts = { collegiate: 0, collegiate_local: 0, sls: 0, sls_local: 0 };
+  const counts = { collegiate: 0, collegiate_local: 0, collegiate_unset: 0, sls: 0, sls_local: 0, sls_unset: 0 };
   applicants.filter(a => a.data.status !== 'Declined').forEach(a => {
     const key = a.groupId === PROGRAM_PAGES.cwc.groupId ? 'collegiate'
       : a.groupId === PROGRAM_PAGES.sls.groupId ? 'sls' : null;
     if (!key) return;
     if (a.data.needsLodging === true) counts[key]++;
     else if (a.data.needsLodging === false) counts[key + '_local']++;
+    else counts[key + '_unset']++;
   });
   return counts;
 }
@@ -8703,11 +8706,13 @@ function registrationActualsHTML() {
   if (!registrationActuals) {
     return `
       <div class="rev-actuals-box">
-        <div>
-          <div class="rev-actuals-label">Actual registrants</div>
-          <div class="rev-actuals-sub">Not synced yet — pull real counts from the registration portal to compare against this scenario.</div>
+        <div class="rev-actuals-head" data-section-toggle="rev-actuals" onclick="toggleSidebarSection('rev-actuals')" style="cursor:pointer;">
+          <div>
+            <div class="rev-actuals-label"><span class="sp-chevron">▸</span> Actual registrants</div>
+            <div class="rev-actuals-sub">Not synced yet — pull real counts from the registration portal to compare against this scenario.</div>
+          </div>
+          <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
         </div>
-        <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="syncActualRegistrants()">${btnLabel}</button>
       </div>`;
   }
   const c = registrationActuals.counts || {};
@@ -8734,15 +8739,18 @@ function registrationActualsHTML() {
       <td class="num rev-actuals-total">${g(key)}</td>
     </tr>`;
 
+  const unsetCell = (n) => n > 0 ? `<td class="num rev-actuals-unmodeled">${n}</td>` : unmodeledCell();
+
   return `
     <div class="rev-actuals-box">
-      <div class="rev-actuals-head">
+      <div class="rev-actuals-head" data-section-toggle="rev-actuals" onclick="toggleSidebarSection('rev-actuals')" style="cursor:pointer;">
         <div>
-          <div class="rev-actuals-label">Actual registrants <span class="rev-actuals-asof">as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>
+          <div class="rev-actuals-label"><span class="sp-chevron">▸</span> Actual registrants <span class="rev-actuals-asof">as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>
           <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} total, from the registration portal. Each cell reads actual/${escapeHtml(scenarioLabel)}.</div>
         </div>
-        <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="syncActualRegistrants()">${btnLabel}</button>
+        <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
       </div>
+      <div class="rev-actuals-body" data-section-key="rev-actuals">
       <div class="rev-actuals-table-scroll">
         <table class="rev-actuals-table">
           <thead><tr><th></th><th>Early Bird 1</th><th>Early Bird 2</th><th>Regular</th><th>Total</th></tr></thead>
@@ -8756,25 +8764,28 @@ function registrationActualsHTML() {
           </tbody>
         </table>
       </div>
-      <div class="rev-actuals-programs-note">Collegiate Worship Collective &amp; Student Leadership Summit — from the Applicants tab (everyone who applied, minus Declined), not a separate portal pull:</div>
+      <div class="rev-actuals-programs-note">Collegiate Worship Collective &amp; Student Leadership Summit — from the Applicants tab (everyone who applied, minus Declined), not a separate portal pull. "Not Yet Set" is real people whose lodging need hasn't been determined yet:</div>
       <div class="rev-actuals-table-scroll">
         <table class="rev-actuals-table">
-          <thead><tr><th></th><th>Hotel</th><th>Local</th><th>Total</th></tr></thead>
+          <thead><tr><th></th><th>Hotel</th><th>Local</th><th>Not Yet Set</th><th>Total</th></tr></thead>
           <tbody>
             <tr>
               <td>Collegiate Worship Collective</td>
               ${phaseCell(programActual.collegiate, expected.collegiate)}
               ${phaseCell(programActual.collegiate_local, expected.collegiate_local)}
-              <td class="num rev-actuals-total">${programActual.collegiate + programActual.collegiate_local}</td>
+              ${unsetCell(programActual.collegiate_unset)}
+              <td class="num rev-actuals-total">${programActual.collegiate + programActual.collegiate_local + programActual.collegiate_unset}</td>
             </tr>
             <tr>
               <td>Student Leadership Summit</td>
               ${phaseCell(programActual.sls, expected.sls)}
               ${phaseCell(programActual.sls_local, expected.sls_local)}
-              <td class="num rev-actuals-total">${programActual.sls + programActual.sls_local}</td>
+              ${unsetCell(programActual.sls_unset)}
+              <td class="num rev-actuals-total">${programActual.sls + programActual.sls_local + programActual.sls_unset}</td>
             </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </div>`;
 }
@@ -8989,6 +9000,7 @@ function renderRevenueView() {
   });
 
   revenueRecompute();
+  applyCollapsedSectionsState();
 }
 
 function revenueRecompute() {
