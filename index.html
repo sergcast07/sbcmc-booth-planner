@@ -1192,12 +1192,17 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .rev-actuals-label { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink); }
 .rev-actuals-asof { font-family: var(--font-body); font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-left: 6px; }
 .rev-actuals-sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; max-width: 62ch; }
-.rev-actuals-rows { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 12px; }
-.rev-actuals-row { display: flex; flex-direction: column; min-width: 140px; }
-.rev-actuals-row-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-soft); }
-.rev-actuals-row-actual { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
-.rev-actuals-row-expected { font-size: 11px; color: var(--ink-soft); }
-.rev-actuals-row-expected.rev-actuals-unmodeled { font-style: italic; }
+.rev-actuals-table-scroll { overflow-x: auto; margin-top: 12px; }
+.rev-actuals-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.rev-actuals-table th { text-align: right; font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-soft); padding: 0 8px 6px; }
+.rev-actuals-table th:first-child { text-align: left; }
+.rev-actuals-table td { padding: 5px 8px; border-top: 1px solid var(--line); }
+.rev-actuals-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.rev-actuals-table tr td:first-child { font-weight: 600; color: var(--ink); }
+.rev-actuals-vs { color: var(--ink-soft); font-weight: 400; }
+.rev-actuals-total { font-family: var(--font-display); font-weight: 700; color: var(--teal-deep); }
+.rev-actuals-unmodeled { color: var(--ink-soft); font-style: italic; }
+.rev-actuals-note { font-size: 10.5px; font-weight: 400; color: var(--ink-soft); font-style: italic; }
 
 .rev-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin-bottom: 18px; }
 .rev-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
@@ -8657,16 +8662,17 @@ async function syncActualRegistrants() {
   }
 }
 
-// Sums a scenario's per-phase tier counts into the same broad categories the registration
-// portal reports (it has no Early-Bird-vs-Regular field to compare against), so "Actual" and
-// "Scenario" numbers are apples-to-apples.
+// Reads a scenario's own per-phase tier counts directly -- the registration portal now
+// classifies by the same three phases (Early Bird 1 = before Oct 1, 2026; Early Bird 2 = Oct 1 -
+// Dec 31, 2026; Regular = Jan 1, 2027 on), so "Actual" and "Scenario" line up phase-for-phase
+// instead of needing to be collapsed together.
 function revenueScenarioActualComparison(scenarioName) {
   const tiers = revenueState.scenarios[scenarioName].tiers;
-  const sum = (...ids) => ids.reduce((s, id) => s + (parseInt(tiers[id] && tiers[id].count, 10) || 0), 0);
+  const count = (id) => parseInt(tiers[id] && tiers[id].count, 10) || 0;
   return {
-    member: sum('member_eb1', 'member_eb2', 'member_reg'),
-    nonmember: sum('nonmember_eb1', 'nonmember_eb2', 'nonmember_reg'),
-    spouse: sum('spouse'),
+    member_eb1: count('member_eb1'), member_eb2: count('member_eb2'), member_reg: count('member_reg'),
+    nonmember_eb1: count('nonmember_eb1'), nonmember_eb2: count('nonmember_eb2'), nonmember_reg: count('nonmember_reg'),
+    spouse: count('spouse'),
   };
 }
 
@@ -8683,30 +8689,49 @@ function registrationActualsHTML() {
       </div>`;
   }
   const c = registrationActuals.counts || {};
+  const g = (k) => c[k] || 0;
   const expected = revenueScenarioActualComparison(revenueState.activeScenario);
   const scenarioLabel = REVENUE_SCENARIO_LABELS[revenueState.activeScenario] || revenueState.activeScenario;
-  const row = (label, actual, expectedCount, note) => `
-    <div class="rev-actuals-row">
-      <span class="rev-actuals-row-label">${escapeHtml(label)}</span>
-      <span class="rev-actuals-row-actual">${actual}</span>
-      ${expectedCount !== undefined ? `<span class="rev-actuals-row-expected">vs. ${expectedCount} (${escapeHtml(scenarioLabel)})</span>` : `<span class="rev-actuals-row-expected rev-actuals-unmodeled">${escapeHtml(note || 'not a modeled tier')}</span>`}
-    </div>`;
+
+  const phaseCell = (actual, expectedCount) => `<td class="num">${actual}<span class="rev-actuals-vs">/${expectedCount}</span></td>`;
+  const unmodeledCell = () => `<td class="num rev-actuals-unmodeled">&mdash;</td>`;
+  const phasedRow = (label, prefix) => `
+    <tr>
+      <td>${escapeHtml(label)}</td>
+      ${phaseCell(g(prefix + '_eb1'), expected[prefix + '_eb1'])}
+      ${phaseCell(g(prefix + '_eb2'), expected[prefix + '_eb2'])}
+      ${phaseCell(g(prefix + '_reg'), expected[prefix + '_reg'])}
+      <td class="num rev-actuals-total">${g(prefix + '_eb1') + g(prefix + '_eb2') + g(prefix + '_reg')}</td>
+    </tr>`;
+  const flatRow = (label, key, expectedCount, note) => `
+    <tr>
+      <td>${escapeHtml(label)}${note ? `<span class="rev-actuals-note"> — ${escapeHtml(note)}</span>` : ''}</td>
+      ${expectedCount !== undefined ? phaseCell(g(key), expectedCount) : unmodeledCell()}
+      ${unmodeledCell()}${unmodeledCell()}
+      <td class="num rev-actuals-total">${g(key)}</td>
+    </tr>`;
+
   return `
     <div class="rev-actuals-box">
       <div class="rev-actuals-head">
         <div>
           <div class="rev-actuals-label">Actual registrants <span class="rev-actuals-asof">as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>
-          <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} total, from the registration portal — combined across Early Bird/Regular since the portal doesn't record which phase someone registered in.</div>
+          <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} total, from the registration portal. Each cell reads actual/${escapeHtml(scenarioLabel)}.</div>
         </div>
         <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="syncActualRegistrants()">${btnLabel}</button>
       </div>
-      <div class="rev-actuals-rows">
-        ${row('Member', c.member || 0, expected.member)}
-        ${row('Non-Member', c.nonmember || 0, expected.nonmember)}
-        ${row('Spouse', c.spouse || 0, expected.spouse)}
-        ${row('Student (general college discount)', c.student || 0, undefined, 'not the Collegiate Worship Collective program')}
-        ${row('Retiree', c.retiree || 0, undefined, 'not a modeled tier yet')}
-        ${row('Group', c.group || 0, undefined, 'not launched on the portal yet')}
+      <div class="rev-actuals-table-scroll">
+        <table class="rev-actuals-table">
+          <thead><tr><th></th><th>Early Bird 1</th><th>Early Bird 2</th><th>Regular</th><th>Total</th></tr></thead>
+          <tbody>
+            ${phasedRow('Member', 'member')}
+            ${phasedRow('Non-Member', 'nonmember')}
+            ${flatRow('Spouse', 'spouse', expected.spouse)}
+            ${flatRow('Student', 'student', undefined, 'general college discount, not Collegiate Worship Collective')}
+            ${flatRow('Retiree', 'retiree', undefined, 'not a modeled tier yet')}
+            ${flatRow('Group', 'group', undefined, 'not launched on the portal yet')}
+          </tbody>
+        </table>
       </div>
     </div>`;
 }
@@ -8947,7 +8972,12 @@ function revenueRecompute() {
     netCell.classList.toggle('pos', net >= 0);
     netCell.classList.toggle('neg', net < 0);
 
-    grandRevenue += revenue; grandCost += totalCost; grandCount += st.count;
+    // Membership Dues isn't a separate attendee -- someone paying dues almost always also shows
+    // up as their own Member registration, so counting both would double-count that person in
+    // the registrant headcount. Still counted toward revenue/cost (its rate is $0 today, but
+    // that's independent of this).
+    grandRevenue += revenue; grandCost += totalCost;
+    if (t.id !== 'dues') grandCount += st.count;
     catTotals[t.group].rev += revenue; catTotals[t.group].cost += totalCost;
   });
 
@@ -9024,7 +9054,8 @@ function revenueDrillCompute() {
     });
     const revenue = tiers.reduce((s, t) => s + t.revenue, 0);
     const cost = tiers.reduce((s, t) => s + t.cost, 0);
-    const count = tiers.reduce((s, t) => s + t.count, 0);
+    // Same dues exclusion as revenueRecompute() -- a dues payment isn't a separate attendee.
+    const count = tiers.reduce((s, t) => s + (t.id === 'dues' ? 0 : t.count), 0);
     return { key: g.key, label: g.label, tiers, revenue, cost, net: revenue - cost, count };
   });
   const grandRevenue = groups.reduce((s, g) => s + g.revenue, 0);
