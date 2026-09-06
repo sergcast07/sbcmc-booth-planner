@@ -1187,6 +1187,18 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .rev-scenario-btn.active { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
 .rev-scenario-btn:hover:not(.active) { border-color: var(--teal); color: var(--ink); }
 
+.rev-actuals-box { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; }
+.rev-actuals-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.rev-actuals-label { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink); }
+.rev-actuals-asof { font-family: var(--font-body); font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-left: 6px; }
+.rev-actuals-sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; max-width: 62ch; }
+.rev-actuals-rows { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 12px; }
+.rev-actuals-row { display: flex; flex-direction: column; min-width: 140px; }
+.rev-actuals-row-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-soft); }
+.rev-actuals-row-actual { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
+.rev-actuals-row-expected { font-size: 11px; color: var(--ink-soft); }
+.rev-actuals-row-expected.rev-actuals-unmodeled { font-style: italic; }
+
 .rev-stat-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 14px; margin-bottom: 18px; }
 .rev-stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
 .rev-stat-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
@@ -8593,9 +8605,110 @@ async function initRevenueView() {
     const root = document.getElementById('rev-root');
     if (root) root.innerHTML = '<div class="dv-loading">Loading revenue estimator…</div>';
     await loadRevenueEstimator();
+    await loadRegistrationActuals();
     revenueLoaded = true;
   }
   renderRevenueView();
+}
+
+// Real registrant counts pulled from the conference's registration portal (Gravity Forms Form
+// 9, via the gravity-forms-sync Edge Function), stored the same way cashflowState/revenueState
+// are -- a JSON blob in conference_settings. This is a read-only reference figure shown
+// alongside whichever scenario is active; it never edits the scenario's own counts, since the
+// scenarios stay the user's own forward-looking projections regardless of what's actually
+// registered so far.
+let registrationActuals = null;
+async function loadRegistrationActuals() {
+  registrationActuals = null;
+  if (!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'registration_actuals').eq('conference_year', activeConferenceYear).maybeSingle();
+    if (error) { console.warn('Registration actuals load failed:', errDetail(error)); return; }
+    if (data && data.value) registrationActuals = JSON.parse(data.value);
+  } catch (err) {
+    console.warn('Registration actuals load failed:', err);
+  }
+}
+
+async function syncActualRegistrants() {
+  if (!canView('revenue.all')) return;
+  if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
+  const btn = document.getElementById('rev-sync-registrants-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="sync-spinning">🔄</span> Syncing…'; }
+  toast('Pulling actual registrants from the registration portal…');
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=registrants', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+    await loadRegistrationActuals();
+    renderRevenueView();
+    toast('✅ Actual registrants updated.');
+  } catch (err) {
+    console.error('Registrant sync failed:', err);
+    toast(err.name === 'AbortError' ? 'Sync timed out — try again in a moment.' : 'Sync failed — see console for details.');
+  } finally {
+    clearTimeout(abortTimer);
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Actual Registrants'; }
+  }
+}
+
+// Sums a scenario's per-phase tier counts into the same broad categories the registration
+// portal reports (it has no Early-Bird-vs-Regular field to compare against), so "Actual" and
+// "Scenario" numbers are apples-to-apples.
+function revenueScenarioActualComparison(scenarioName) {
+  const tiers = revenueState.scenarios[scenarioName].tiers;
+  const sum = (...ids) => ids.reduce((s, id) => s + (parseInt(tiers[id] && tiers[id].count, 10) || 0), 0);
+  return {
+    member: sum('member_eb1', 'member_eb2', 'member_reg'),
+    nonmember: sum('nonmember_eb1', 'nonmember_eb2', 'nonmember_reg'),
+    spouse: sum('spouse'),
+  };
+}
+
+function registrationActualsHTML() {
+  const btnLabel = '🔄 Sync Actual Registrants';
+  if (!registrationActuals) {
+    return `
+      <div class="rev-actuals-box">
+        <div>
+          <div class="rev-actuals-label">Actual registrants</div>
+          <div class="rev-actuals-sub">Not synced yet — pull real counts from the registration portal to compare against this scenario.</div>
+        </div>
+        <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="syncActualRegistrants()">${btnLabel}</button>
+      </div>`;
+  }
+  const c = registrationActuals.counts || {};
+  const expected = revenueScenarioActualComparison(revenueState.activeScenario);
+  const scenarioLabel = REVENUE_SCENARIO_LABELS[revenueState.activeScenario] || revenueState.activeScenario;
+  const row = (label, actual, expectedCount, note) => `
+    <div class="rev-actuals-row">
+      <span class="rev-actuals-row-label">${escapeHtml(label)}</span>
+      <span class="rev-actuals-row-actual">${actual}</span>
+      ${expectedCount !== undefined ? `<span class="rev-actuals-row-expected">vs. ${expectedCount} (${escapeHtml(scenarioLabel)})</span>` : `<span class="rev-actuals-row-expected rev-actuals-unmodeled">${escapeHtml(note || 'not a modeled tier')}</span>`}
+    </div>`;
+  return `
+    <div class="rev-actuals-box">
+      <div class="rev-actuals-head">
+        <div>
+          <div class="rev-actuals-label">Actual registrants <span class="rev-actuals-asof">as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>
+          <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} total, from the registration portal — combined across Early Bird/Regular since the portal doesn't record which phase someone registered in.</div>
+        </div>
+        <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="syncActualRegistrants()">${btnLabel}</button>
+      </div>
+      <div class="rev-actuals-rows">
+        ${row('Member', c.member || 0, expected.member)}
+        ${row('Non-Member', c.nonmember || 0, expected.nonmember)}
+        ${row('Spouse', c.spouse || 0, expected.spouse)}
+        ${row('Student (general college discount)', c.student || 0, undefined, 'not the Collegiate Worship Collective program')}
+        ${row('Retiree', c.retiree || 0, undefined, 'not a modeled tier yet')}
+        ${row('Group', c.group || 0, undefined, 'not launched on the portal yet')}
+      </div>
+    </div>`;
 }
 
 async function loadRevenueEstimator() {
@@ -8713,6 +8826,8 @@ function renderRevenueView() {
         <button class="rev-scenario-btn${revenueState.activeScenario === 'optimistic' ? ' active' : ''}" data-scenario="optimistic">Optimistic</button>
       </div>
     </div>
+
+    ${registrationActualsHTML()}
 
     <div class="rev-stat-row">
       <div class="rev-stat-card" onclick="openRevenueDrillModal('revenue')" title="Click to see what's included"><span class="rev-stat-label">Revenue</span><span class="rev-stat-value" id="rev-stat-revenue">$0</span><span class="rev-stat-sub" id="rev-stat-count-sub">0 registrants</span></div>
