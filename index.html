@@ -8675,6 +8675,58 @@ async function syncActualRegistrants() {
   }
 }
 
+// Pushes into the MOBILE APP's own, separate Supabase project (attendee_profiles -- badges/QR/
+// check-in), not anything read back here -- this app has no visibility into that other
+// project's data, so there's nothing to load/display beyond the result summary each push
+// returns. Runs alongside that app's existing Google Sheet sync pipeline, not in place of it;
+// see the Edge Function's own comments for how the two stay conflict-free.
+async function syncAttendeeDatabase() {
+  if (!canView('revenue.all')) return;
+  if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
+  const btn = document.getElementById('rev-sync-attendees-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="sync-spinning">🔄</span> Syncing…'; }
+  toast('Pushing attendee records to the mobile app’s badge/check-in database…');
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 60000);
+  try {
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=attendees', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+    const summary = await res.json();
+    if (btn) btn.innerHTML = '<span class="sync-check-pop">✅</span> Done';
+    alert(
+      'Attendee database updated:\n' +
+      '  General registration: ' + summary.generalRegistration + '\n' +
+      '  Collegiate Worship Collective: ' + summary.collegiateWorshipCollective + '\n' +
+      '  Student Leadership Summit (students): ' + summary.studentLeadershipSummitStudents + '\n' +
+      '  Student Leadership Summit (parents/guardians): ' + summary.studentLeadershipSummitParents + '\n' +
+      '  Total pushed: ' + summary.totalPushed
+    );
+  } catch (err) {
+    console.error('Attendee database sync failed:', err);
+    toast(err.name === 'AbortError' ? 'Sync timed out — try again in a moment.' : 'Sync failed — see console for details.');
+  } finally {
+    clearTimeout(abortTimer);
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Attendee Database'; }
+  }
+}
+
+function attendeeDatabaseSyncHTML() {
+  return `
+    <div class="rev-actuals-box">
+      <div class="rev-actuals-head">
+        <div>
+          <div class="rev-actuals-label">Attendee Database (Mobile App)</div>
+          <div class="rev-actuals-sub">Pushes general registration + approved Collegiate Worship Collective/Student Leadership Summit attendees (plus each SLS student's parent/guardian) into the mobile app's own badge/QR/check-in database. Runs alongside its existing Google Sheet sync — never replaces it.</div>
+        </div>
+        <button class="sp-mini-btn" id="rev-sync-attendees-btn" onclick="syncAttendeeDatabase()">🔄 Sync Attendee Database</button>
+      </div>
+    </div>`;
+}
+
 // Reads a scenario's own per-phase tier counts directly -- the registration portal now
 // classifies by the same three phases (Early Bird 1 = before Oct 1, 2026; Early Bird 2 = Oct 1 -
 // Dec 31, 2026; Regular = Jan 1, 2027 on), so "Actual" and "Scenario" line up phase-for-phase
@@ -8918,6 +8970,7 @@ function renderRevenueView() {
     </div>
 
     ${registrationActualsHTML()}
+    ${attendeeDatabaseSyncHTML()}
 
     <div class="rev-stat-row">
       <div class="rev-stat-card" onclick="openRevenueDrillModal('revenue')" title="Click to see what's included"><span class="rev-stat-label">Revenue</span><span class="rev-stat-value" id="rev-stat-revenue">$0</span><span class="rev-stat-sub" id="rev-stat-count-sub">0 registrants</span></div>
