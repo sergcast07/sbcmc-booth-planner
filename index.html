@@ -8612,8 +8612,19 @@ async function initRevenueView() {
     const root = document.getElementById('rev-root');
     if (root) root.innerHTML = '<div class="dv-loading">Loading revenue estimator…</div>';
     await loadRevenueEstimator();
-    await loadRegistrationActuals();
     revenueLoaded = true;
+  }
+  // Deliberately its OWN flag, not folded into the revenueLoaded check above -- revenueState
+  // also gets pre-loaded (and revenueLoaded set true) from two other places that have nothing
+  // to do with this tab (the initial app bootstrap, when the signed-in user can view Cash Flow,
+  // and initCashflowView() itself), neither of which knows to also load registration actuals.
+  // Gating on revenueLoaded meant this almost never actually ran for a real session -- by the
+  // time anyone opened this tab, that flag was already true from one of those other loads, so
+  // the "if" was skipped and the panel stayed on "Not synced yet" until Sync was clicked by
+  // hand, every single session.
+  if (!registrationActualsLoaded) {
+    await loadRegistrationActuals();
+    registrationActualsLoaded = true;
   }
   renderRevenueView();
 }
@@ -8625,6 +8636,7 @@ async function initRevenueView() {
 // scenarios stay the user's own forward-looking projections regardless of what's actually
 // registered so far.
 let registrationActuals = null;
+let registrationActualsLoaded = false;
 async function loadRegistrationActuals() {
   registrationActuals = null;
   if (!sbClient) return;
