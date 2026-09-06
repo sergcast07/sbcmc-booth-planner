@@ -1202,7 +1202,6 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .rev-actuals-vs { color: var(--ink-soft); font-weight: 400; }
 .rev-actuals-total { font-family: var(--font-display); font-weight: 700; color: var(--teal-deep); }
 .rev-actuals-unmodeled { color: var(--ink-soft); font-style: italic; }
-.rev-actuals-note { font-size: 10.5px; font-weight: 400; color: var(--ink-soft); font-style: italic; }
 .rev-actuals-programs-note { font-size: 10.5px; color: var(--ink-soft); margin: 14px 0 4px; }
 .rev-actuals-body.collapsed { display: none !important; }
 
@@ -8743,9 +8742,9 @@ function registrationActualsHTML() {
       ${phaseCell(g(prefix + '_reg'), expected[prefix + '_reg'])}
       <td class="num rev-actuals-total">${g(prefix + '_eb1') + g(prefix + '_eb2') + g(prefix + '_reg')}</td>
     </tr>`;
-  const flatRow = (label, key, expectedCount, note) => `
+  const flatRow = (label, key, expectedCount) => `
     <tr>
-      <td>${escapeHtml(label)}${note ? `<span class="rev-actuals-note"> — ${escapeHtml(note)}</span>` : ''}</td>
+      <td>${escapeHtml(label)}</td>
       ${expectedCount !== undefined ? phaseCell(g(key), expectedCount) : unmodeledCell()}
       ${unmodeledCell()}${unmodeledCell()}
       <td class="num rev-actuals-total">${g(key)}</td>
@@ -8770,9 +8769,9 @@ function registrationActualsHTML() {
             ${phasedRow('Member', 'member')}
             ${phasedRow('Non-Member', 'nonmember')}
             ${flatRow('Spouse', 'spouse', expected.spouse)}
-            ${flatRow('Student', 'student', undefined, 'general college discount, not Collegiate Worship Collective')}
-            ${flatRow('Retiree', 'retiree', undefined, 'not a modeled tier yet')}
-            ${flatRow('Group', 'group', undefined, 'not launched on the portal yet')}
+            ${flatRow('Student', 'student')}
+            ${flatRow('Retiree', 'retiree')}
+            ${flatRow('Group', 'group')}
           </tbody>
         </table>
       </div>
