@@ -14478,6 +14478,12 @@ function defaultSpeakerData() {
     // specialNotes (internal-only) and the "bio" materials-checklist item (a fulfillment
     // checkbox, not the actual text).
     bio: '',
+    // Candidate headshot photos, uploaded here after staff pulls them from the (private,
+    // login-gated) SharePoint headshot folder -- [{id, fileName, filePath, fileSize, url,
+    // uploadedAt}]. All candidates sync to the mobile app manager; picking which one actually
+    // publishes as the live photo is a decision made over there (auto-published only when
+    // there's exactly one candidate), never here.
+    photoCandidates: [],
     // '' (standard: flat fee, travel not tracked here), 'travel' (fee + travel is arranged and
     // tracked), or 'sponsor' (presenting as part of a sponsorship -- see linkedSponsorId, no fee
     // tracked). Purely a FEE/logistics-tracking split -- whether someone is local is a separate,
@@ -15169,17 +15175,22 @@ function updateSpeakerData(id, field, value) {
 
 // ---- File uploads (real Supabase Storage, not just links) ----
 async function uploadSpeakerFile(id, kind) {
-  // kind is 'materialsToShare' (attendee-facing) or 'internalDocuments' (team-only, e.g. a rider/contract/W9)
+  // kind is 'materialsToShare' (attendee-facing), 'internalDocuments' (team-only, e.g. a
+  // rider/contract/W9), or 'photoCandidates' (headshot options pulled from the SharePoint folder)
   const sp = getSpeaker(id); if (!sp) return;
-  const suffix = kind === 'internalDocuments' ? 'internal' : 'file';
+  const suffix = kind === 'internalDocuments' ? 'internal' : kind === 'photoCandidates' ? 'photo' : 'file';
   const input = document.getElementById('sk-' + suffix + '-input-' + id);
   const labelInput = document.getElementById('sk-' + suffix + '-label-' + id);
   if (!input || !input.files || !input.files[0]) { toast('Choose a file first.'); return; }
   if (!sbClient) { toast('Not connected to shared storage \u2014 can\u2019t upload right now.'); return; }
   const file = input.files[0];
+  if (kind === 'photoCandidates' && file.type && !file.type.startsWith('image/')) {
+    toast('Please choose an image file.');
+    return;
+  }
   const label = (labelInput && labelInput.value.trim()) || file.name;
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = id + '/' + (kind === 'internalDocuments' ? 'internal/' : '') + Date.now() + '_' + safeName;
+  const path = id + '/' + (kind === 'internalDocuments' ? 'internal/' : kind === 'photoCandidates' ? 'photos/' : '') + Date.now() + '_' + safeName;
 
   toast('Uploading ' + file.name + '...');
   const { error: uploadError } = await sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).upload(path, file);
@@ -15202,6 +15213,7 @@ async function uploadSpeakerFile(id, kind) {
 }
 function uploadSpeakerMaterial(id) { return uploadSpeakerFile(id, 'materialsToShare'); }
 function uploadSpeakerInternalDoc(id) { return uploadSpeakerFile(id, 'internalDocuments'); }
+function uploadSpeakerPhotoCandidate(id) { return uploadSpeakerFile(id, 'photoCandidates'); }
 
 async function removeSpeakerFile(id, kind, materialId) {
   const sp = getSpeaker(id); if (!sp) return;
@@ -15217,6 +15229,7 @@ async function removeSpeakerFile(id, kind, materialId) {
 }
 function removeSpeakerMaterial(id, materialId) { return removeSpeakerFile(id, 'materialsToShare', materialId); }
 function removeSpeakerInternalDoc(id, materialId) { return removeSpeakerFile(id, 'internalDocuments', materialId); }
+function removeSpeakerPhotoCandidate(id, materialId) { return removeSpeakerFile(id, 'photoCandidates', materialId); }
 
 function fmtFileSize(bytes) {
   if (!bytes) return '';
@@ -17275,6 +17288,16 @@ function speakerDetailHTML(sp) {
     </div>
   `).join('') || '<div class="sp-sub">No documents uploaded yet.</div>';
 
+  const photoCandidatesHtml = (sp.data.photoCandidates || []).map(m => `
+    <div class="sk-file-row">
+      <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">
+        <img src="${escapeHtml(m.url)}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:6px; vertical-align:middle; margin-right:8px;">${escapeHtml(m.fileName)}
+      </a>
+      <span class="sp-sub">${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}</span>
+      <button class="sp-mini-btn" onclick="removeSpeakerPhotoCandidate('${sp.id}','${m.id}')">&times;</button>
+    </div>
+  `).join('') || '<div class="sp-sub">No photos uploaded yet.</div>';
+
   const completeness = speakerCompleteness(sp);
   const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
   const completenessHtml = completeness === null
@@ -17599,6 +17622,16 @@ function speakerDetailHTML(sp) {
             <input type="text" id="sk-internal-label-${sp.id}" placeholder="Label (e.g. 'Hospitality Rider')" style="flex:1 1 100%; margin-bottom:6px;">
             <input type="file" id="sk-internal-input-${sp.id}" style="flex:1;">
             <button class="sp-mini-btn" onclick="uploadSpeakerInternalDoc('${sp.id}')">Upload</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset" style="grid-column:1/-1;">
+          <legend>Photo Candidates <span class="sp-sub" style="font-weight:400;">(pull options from the SharePoint headshot folder \u2014 with more than one, staff picks which one publishes on the mobile app manager's Speakers page)</span></legend>
+          ${photoCandidatesHtml}
+          <div class="sp-subhead" style="margin-top:10px;">Upload a Photo</div>
+          <div class="sp-add-row" style="flex-wrap:wrap;">
+            <input type="file" id="sk-photo-input-${sp.id}" accept="image/*" style="flex:1;">
+            <button class="sp-mini-btn" onclick="uploadSpeakerPhotoCandidate('${sp.id}')">Upload</button>
           </div>
         </fieldset>
       </div>
