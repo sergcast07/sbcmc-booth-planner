@@ -2282,7 +2282,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       </div>
       <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-sls-status-filter-row">
         <button class="sch-toggle-btn active" data-sf="all" onclick="setApplicantStatusFilter('sls', 'all')">All Statuses</button>
-        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('sls', 'Pending')">Pending</button>
+        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('sls', 'Pending')">Pending Review</button>
         <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('sls', 'Approved')">Approved</button>
         <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('sls', 'Declined')">Declined</button>
         <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('sls', '__lodging__')">🏨 Needs Lodging</button>
@@ -2342,7 +2342,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       </div>
       <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-cwc-status-filter-row">
         <button class="sch-toggle-btn active" data-sf="all" onclick="setApplicantStatusFilter('cwc', 'all')">All Statuses</button>
-        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('cwc', 'Pending')">Pending</button>
+        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('cwc', 'Pending')">Pending Review</button>
         <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('cwc', 'Approved')">Approved</button>
         <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('cwc', 'Declined')">Declined</button>
         <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('cwc', '__lodging__')">🏨 Needs Lodging</button>
@@ -13365,6 +13365,11 @@ function subscribeApplicantsRealtime() {
 function applicantStatusBadgeClass(status) {
   return status === 'Approved' ? 'sp-badge-reg' : status === 'Declined' ? 'sp-badge-lapsed' : 'sp-badge-inkind';
 }
+// Display only -- the stored value stays exactly 'Pending' (filters, stats, and every
+// data.status comparison key off that), this just reads better on the badge itself.
+function applicantStatusLabel(status) {
+  return status === 'Pending' ? 'Pending Review' : status;
+}
 // Gravity Forms' own Payment Status, already captured into data.raw by the sync (see the Edge
 // Function) but previously only visible buried inside the collapsed "Payment & submission
 // details" panel. Null means the program doesn't track a fee at all (Collegiate Worship
@@ -13380,7 +13385,7 @@ function applicantPaymentBadgeHtml(a) {
   const style = isPaid
     ? 'background:#E1EFE4; color:#256B3F; border-color:#256B3F;'
     : 'background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;';
-  return ` <span class="sp-badge" style="${style}" title="Payment status: ${escapeHtml(ps)}">${isPaid ? '💰 Paid' : '⚠ ' + escapeHtml(ps)}</span>`;
+  return ` <span class="sp-badge" style="${style}" title="Payment status: ${escapeHtml(ps)}">${isPaid ? '✓ Paid' : '⚠ ' + escapeHtml(ps)}</span>`;
 }
 function toggleApplicantDetail(programKey, id) {
   const st = applicantPageState[programKey];
@@ -13395,10 +13400,10 @@ function buildApplicantRowPair(a, programKey) {
   tr.dataset.id = a.id;
   tr.innerHTML = `
     <td data-label=""><span class="sp-chevron ${isOpen ? 'open' : ''}">▸</span></td>
-    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
+    <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}${applicantRowLocationValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowLocationValue(a)) + '</div>' : ''}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Date Applied">${applicantAppliedDate(a) ? escapeHtml(friendlyDate(applicantAppliedDate(a))) : '<span class="sp-sub">—</span>'}</td>
-    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}" id="ap-status-badge-${a.id}">${escapeHtml(status)}</span>${applicantPaymentBadgeHtml(a)}</td>
+    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}" id="ap-status-badge-${a.id}">${escapeHtml(applicantStatusLabel(status))}</span>${applicantPaymentBadgeHtml(a)}</td>
     <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
   tr.addEventListener('click', () => toggleApplicantDetail(programKey, a.id));
@@ -13471,6 +13476,11 @@ function applicantRowHighlightValue(a) {
   const raw = a.data.raw || {};
   return raw['School / Seminary you are attending'] || raw['Church You Attend'] || '';
 }
+// City/state of the church they attend -- only captured for Student Leadership Summit (form
+// field 13); empty for Collegiate Worship Collective, which doesn't ask for it.
+function applicantRowLocationValue(a) {
+  return (a.data.raw || {})['City and State of Church You Attend'] || '';
+}
 // Payment/submission bookkeeping -- real, but not something staff reviewing an application
 // needs to see up front. Tucked under a collapsed "Payment & submission details" instead of
 // competing with the actual answers for attention.
@@ -13519,7 +13529,7 @@ function applicantDetailHTML(a) {
   return `
     <div class="sp-detail-inner">
       <div class="sk-detail-header">
-        <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span>${applicantPaymentBadgeHtml(a)}
+        <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(applicantStatusLabel(status))}</span>${applicantPaymentBadgeHtml(a)}
         <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleApplicantDetail('${programKey}','${a.id}')">▴ Close</button>
       </div>
       <div class="sp-detail-grid sp-detail-2col">
