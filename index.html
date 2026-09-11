@@ -17035,16 +17035,19 @@ function renderSpeakerRows(dirtyId) {
   if (!tbody) return;
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  // Contact Only entries live in their own section below (see renderContactOnlyRows) rather
-  // than mixed into the main pipeline table -- they're a rolodex of people who aren't actively
-  // being worked, and scattering them through "All" just added noise to the list everyone else
-  // is scanning. A dedicated filter click ("Contact Only" in the sidebar) still shows just them
-  // in the main table, same as any other status.
+  // Inactive speakers (Declined, Cancelled, Contact Only) live in their own section below (see
+  // renderContactOnlyRows) rather than mixed into the main pipeline table under "All" -- they
+  // aren't actively being worked, and scattering them through the main list just added noise to
+  // what everyone else is scanning. A dedicated filter click (e.g. "Declined" in the sidebar)
+  // still shows just that status in the main table, same as any other -- this only changes what
+  // shows under "All". Excluding them here is required, not just tidy: renderContactOnlyRows
+  // already renders their row using the same element ids (sk-comm-input-<id>, etc.), and a
+  // second copy under "All" would collide with those ids and silently break their forms.
   renderContactOnlyRows();
 
   let filtered = speakers.filter(sp => {
     let matchesFilter;
-    if (speakerFilter === 'all') matchesFilter = sp.trackerStatus !== 'Contact Only';
+    if (speakerFilter === 'all') matchesFilter = !SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus);
     else if (speakerFilter === '__flagged__') matchesFilter = !!sp.data.flagged;
     else matchesFilter = sp.trackerStatus === speakerFilter;
     let matchesTypeFilter;
