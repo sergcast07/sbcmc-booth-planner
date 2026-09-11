@@ -13365,6 +13365,23 @@ function subscribeApplicantsRealtime() {
 function applicantStatusBadgeClass(status) {
   return status === 'Approved' ? 'sp-badge-reg' : status === 'Declined' ? 'sp-badge-lapsed' : 'sp-badge-inkind';
 }
+// Gravity Forms' own Payment Status, already captured into data.raw by the sync (see the Edge
+// Function) but previously only visible buried inside the collapsed "Payment & submission
+// details" panel. Null means the program doesn't track a fee at all (Collegiate Worship
+// Collective has no registration-fee field) -- that's genuinely different from "hasn't paid," so
+// it renders as nothing here rather than a false warning.
+function applicantPaymentStatus(a) {
+  return (a.data.raw || {})['Payment Status'] || null;
+}
+function applicantPaymentBadgeHtml(a) {
+  const ps = applicantPaymentStatus(a);
+  if (!ps) return '';
+  const isPaid = ps === 'Paid';
+  const style = isPaid
+    ? 'background:#E1EFE4; color:#256B3F; border-color:#256B3F;'
+    : 'background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;';
+  return ` <span class="sp-badge" style="${style}" title="Payment status: ${escapeHtml(ps)}">${isPaid ? '💰 Paid' : '⚠ ' + escapeHtml(ps)}</span>`;
+}
 function toggleApplicantDetail(programKey, id) {
   const st = applicantPageState[programKey];
   st.openId = st.openId === id ? null : id;
@@ -13381,7 +13398,7 @@ function buildApplicantRowPair(a, programKey) {
     <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}</td>
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Date Applied">${applicantAppliedDate(a) ? escapeHtml(friendlyDate(applicantAppliedDate(a))) : '<span class="sp-sub">—</span>'}</td>
-    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}" id="ap-status-badge-${a.id}">${escapeHtml(status)}</span></td>
+    <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}" id="ap-status-badge-${a.id}">${escapeHtml(status)}</span>${applicantPaymentBadgeHtml(a)}</td>
     <td data-label="Lodging">${a.data.needsLodging === true ? '🏨 Yes' + (a.data.gender ? ' <span class="sp-sub">(' + escapeHtml(a.data.gender) + ')</span>' : '') + (a.data.roomLabel ? '<div class="sp-sub">' + escapeHtml(a.data.roomLabel) + '</div>' : '') : a.data.needsLodging === false ? 'No' : '—'}</td>
   `;
   tr.addEventListener('click', () => toggleApplicantDetail(programKey, a.id));
@@ -13502,7 +13519,7 @@ function applicantDetailHTML(a) {
   return `
     <div class="sp-detail-inner">
       <div class="sk-detail-header">
-        <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span>
+        <span class="sp-badge ${applicantStatusBadgeClass(status)}">${escapeHtml(status)}</span>${applicantPaymentBadgeHtml(a)}
         <button class="sp-mini-btn" style="margin-left:auto;" onclick="toggleApplicantDetail('${programKey}','${a.id}')">▴ Close</button>
       </div>
       <div class="sp-detail-grid sp-detail-2col">
