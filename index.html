@@ -1431,9 +1431,12 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 
   /* Hide everything that isn't the Dashboard report itself, regardless of what's showing
-     on screen at the moment Print is clicked. */
+     on screen at the moment Print is clicked. #gate-user-bar and #view-only-banner are both
+     position:fixed/sticky with a huge z-index -- left out of this list, they float on top of
+     the report on every printed page instead of just staying in the corner of the screen. */
   .top-nav, .app, #sponsor-view, #budget-view,
   .admin-overlay, #access-gate, #dashboard-drill-overlay,
+  #gate-user-bar, #view-only-banner,
   .no-print { display: none !important; }
 
   #dashboard-view { display: block !important; }
@@ -1530,32 +1533,57 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   }
   body.printing-breakout-grid #breakout-print-view { display: block !important; }
 
-  .bo-print-header { border-bottom: 1.5px solid var(--gold); margin-bottom: 20px; padding-bottom: 12px; }
-  .bo-print-header h1 { font-family: var(--font-display); color: var(--teal-deep); font-size: 22px; margin: 0 0 4px; }
-  .bo-print-title { font-size: 14px; font-weight: 700; color: var(--ink); }
-  .bo-print-date { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+  #breakout-print-view { font-family: 'Inter', sans-serif; color: var(--ink); }
 
-  .bo-print-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .bo-print-table th, .bo-print-table td { border: 1px solid var(--line); vertical-align: top; padding: 6px; }
-  .bo-print-table thead th {
-    background: var(--panel); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--ink-soft); text-align: left; padding: 8px 6px;
+  .bo-print-header { border-bottom: 1.5px solid var(--gold); margin-bottom: 16px; padding-bottom: 12px; }
+  .bo-print-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+  .bo-print-header h1 { font-family: var(--font-display); color: var(--teal-deep); font-size: 24px; margin: 2px 0 8px; }
+  .bo-print-subrow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .bo-print-mode {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--teal-deep); background: var(--teal-pale); border-radius: 3px; padding: 2px 8px;
   }
-  .bo-print-track-col { width: 15%; }
-  .bo-print-slot-time { font-weight: 400; text-transform: none; letter-spacing: 0; margin-top: 2px; font-size: 9.5px; }
+  .bo-print-date { font-size: 11px; color: var(--ink-soft); }
+  .bo-print-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 9.5px; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 8px; }
+  .bo-print-legend-item strong { color: var(--ink); font-weight: 700; }
 
-  .bo-print-track-label { font-size: 12px; font-weight: 700; color: var(--ink); }
-  .bo-print-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
-  .bo-print-leader { font-weight: 400; font-size: 10px; color: var(--ink-soft); margin-top: 3px; }
+  /* Flexbox rows/columns standing in for a table -- see the render functions' comment for why:
+     a real <tr>'s break-inside:avoid isn't reliably honored during print, but a flex container
+     is a genuine block box the print engine can cleanly keep together or push to the next page
+     whole. table-header-group's free "repeat on every page" is the tradeoff; the legend above
+     covers that instead. */
+  .bo-print-grid { border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+  .bo-print-headrow, .bo-print-row { display: flex; }
+  .bo-print-headrow {
+    background: var(--panel); border-bottom: 1.5px solid var(--line);
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft);
+  }
+  .bo-print-row { border-bottom: 1px solid var(--line); break-inside: avoid; page-break-inside: avoid; }
+  .bo-print-row:last-child { border-bottom: none; }
+  .bo-print-col { flex: 1 1 0; min-width: 0; padding: 7px 8px; border-left: 1px solid var(--line); }
+  .bo-print-col:first-child { border-left: none; }
+  .bo-print-track-col { flex: 0 0 15%; }
 
-  .bo-print-cell { border-top: 3px solid var(--line); padding-top: 4px; break-inside: avoid; page-break-inside: avoid; }
-  .bo-print-cell-empty { border-top-color: transparent; color: var(--ink-soft); text-align: center; padding-top: 8px; }
-  .bo-print-card + .bo-print-card { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
-  .bo-print-name { font-size: 11.5px; font-weight: 700; color: var(--ink); }
+  .bo-print-track-label {
+    font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--ink);
+    border-left: 4px solid transparent; padding-left: 8px !important; margin-left: -1px;
+  }
+  .bo-print-leader { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 9.5px; color: var(--ink-soft); margin-top: 4px; }
+
+  .bo-print-cell { display: flex; flex-direction: column; }
+  .bo-print-cell-empty { color: var(--ink-soft); text-align: center; padding-top: 12px; opacity: 0.5; }
+  .bo-print-card + .bo-print-card { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--line); }
+  .bo-print-name { font-size: 11px; font-weight: 700; color: var(--ink); }
   .bo-print-session-title { font-size: 10px; font-style: italic; color: var(--ink-soft); margin-top: 1px; }
-  .bo-print-room { font-size: 9.5px; color: var(--ink-soft); margin-top: 4px; }
-
-  tr { break-inside: avoid; page-break-inside: avoid; }
+  .bo-print-room {
+    font-size: 8.5px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-soft);
+    background: var(--panel); border-radius: 3px; padding: 1px 6px; margin-top: 6px; align-self: flex-start;
+  }
+  .bo-print-conflict-chip {
+    display: inline-block; font-size: 8px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    color: #a52620; background: #a5262015; border-radius: 3px; padding: 1px 5px; margin-top: 2px;
+  }
+  .bo-print-card-conflict .bo-print-name { color: #a52620; }
 }
 
 /* ==== Schedule tab ==== */
@@ -16377,6 +16405,24 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
 // page never carries drag handles, room-assignment dropdowns, edit pencils, or empty-cell
 // "+assign" controls. Shares the same track/slot(/room) indexing the live grid uses so the two
 // never drift apart, but renders plain cards instead of interactive ones.
+// Flexbox rows/cells, not a real <table> -- a real <table>'s <tr> unreliably honors
+// break-inside:avoid during print in WebKit (rows with a long wrapped session title got cut
+// mid-row across a page boundary, each column stopping wherever it happened to be). A flex
+// container is a genuine block box the print engine can cleanly keep together or push whole to
+// the next page. The tradeoff is losing <thead>'s free "repeat on every page" behavior -- the
+// compact legend line under the report header covers that instead.
+function breakoutPrintLegendHtml(breakoutSlots) {
+  return breakoutSlots.map(slot => `<span class="bo-print-legend-item"><strong>${escapeHtml(slot.label)}</strong> ${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</span>`).join('');
+}
+
+function breakoutPrintCardHtml(occSp, sess, isConflict, showTitle) {
+  return `<div class="bo-print-card ${isConflict ? 'bo-print-card-conflict' : ''}">
+    <div class="bo-print-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
+    ${isConflict ? '<span class="bo-print-conflict-chip">Conflict</span>' : ''}
+    ${showTitle ? `<div class="bo-print-session-title">${escapeHtml(sess.title)}</div>` : ''}
+  </div>`;
+}
+
 function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
   const index = {};
   speakers.forEach(sp => {
@@ -16388,30 +16434,35 @@ function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
       (index[key] = index[key] || []).push({ speakerId: sp.id, sessionIndex: i, sess });
     });
   });
-  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<div class="bo-print-slot-time">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
+  const headCols = breakoutSlots.map(slot => `<div class="bo-print-col">${escapeHtml(slot.label)}</div>`).join('');
   const rows = sessionTracks.map((track, trackIdx) => {
     const trackColor = trackColorForIndex(trackIdx);
     const leader = trackLeaderForTrack(track.name);
-    const cells = breakoutSlots.map(slot => {
+    const cols = breakoutSlots.map(slot => {
       const occs = (index[track.name + '|' + slot.id] || []).slice();
       sortCellOccupants(occs);
-      if (!occs.length) return '<td><div class="bo-print-cell bo-print-cell-empty">—</div></td>';
+      if (!occs.length) return '<div class="bo-print-col bo-print-cell bo-print-cell-empty">—</div>';
       const titlesMatch = occs.length > 1 && !!occs[0].sess.title && occs.every(o => o.sess.title === occs[0].sess.title);
       const room = occs[0].sess.room;
       const cards = occs.map((occ, occIdx) => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
-        const showTitle = !titlesMatch || occIdx === 0;
-        return `<div class="bo-print-card">
-          <div class="bo-print-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}${isConflict ? ' ⚠️' : ''}</div>
-          ${showTitle && occ.sess.title ? `<div class="bo-print-session-title">${escapeHtml(occ.sess.title)}</div>` : ''}
-        </div>`;
+        const showTitle = (!titlesMatch || occIdx === 0) && !!occ.sess.title;
+        return breakoutPrintCardHtml(occSp, occ.sess, isConflict, showTitle);
       }).join('');
-      return `<td><div class="bo-print-cell" style="border-top-color:${trackColor};">${cards}${room ? `<div class="bo-print-room">📍 ${escapeHtml(roomLabelWithCapacity(room))}</div>` : ''}</div></td>`;
+      return `<div class="bo-print-col bo-print-cell">${cards}${room ? `<div class="bo-print-room">${escapeHtml(roomLabelWithCapacity(room))}</div>` : ''}</div>`;
     }).join('');
-    return `<tr><td class="bo-print-track-label"><span class="bo-print-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}${leader ? `<div class="bo-print-leader">Leader: ${escapeHtml(leader.name)}</div>` : ''}</td>${cells}</tr>`;
+    return `<div class="bo-print-row">
+      <div class="bo-print-col bo-print-track-col bo-print-track-label" style="border-left-color:${trackColor};">
+        ${escapeHtml(track.name)}${leader ? `<div class="bo-print-leader">Leader: ${escapeHtml(leader.name)}</div>` : ''}
+      </div>
+      ${cols}
+    </div>`;
   }).join('');
-  return `<table class="bo-print-table"><thead><tr><th class="bo-print-track-col">Track</th>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
+  return `<div class="bo-print-grid">
+    <div class="bo-print-headrow"><div class="bo-print-col bo-print-track-col">Track</div>${headCols}</div>
+    ${rows}
+  </div>`;
 }
 
 function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
@@ -16434,28 +16485,35 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
   if (!rowRooms.length) return '<p class="bo-print-empty">No rooms set up yet.</p>';
   const trackColorByName = {};
   sessionTracks.forEach((t, i) => { trackColorByName[t.name] = trackColorForIndex(i); });
-  const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<div class="bo-print-slot-time">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
+  const headCols = breakoutSlots.map(slot => `<div class="bo-print-col">${escapeHtml(slot.label)}</div>`).join('');
   const rows = rowRooms.map(roomKey => {
     const isNone = roomKey === '__none__';
-    const cells = breakoutSlots.map(slot => {
+    const cols = breakoutSlots.map(slot => {
       const occs = (roomIndex[roomKey + '|' + slot.id] || []).slice();
       sortCellOccupants(occs);
-      if (!occs.length) return '<td><div class="bo-print-cell bo-print-cell-empty">—</div></td>';
+      if (!occs.length) return '<div class="bo-print-col bo-print-cell bo-print-cell-empty">—</div>';
       const cards = occs.map(occ => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
-        const trackColor = trackColorByName[occ.sess.track] || '#999';
-        return `<div class="bo-print-card" style="border-top-color:${trackColor};">
-          <div class="bo-print-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}${isConflict ? ' ⚠️' : ''}</div>
+        const trackColor = trackColorByName[occ.sess.track] || 'var(--line)';
+        return `<div class="bo-print-card ${isConflict ? 'bo-print-card-conflict' : ''}" style="border-left-color:${trackColor};">
+          <div class="bo-print-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
+          ${isConflict ? '<span class="bo-print-conflict-chip">Conflict</span>' : ''}
           <div class="bo-print-session-title">${escapeHtml(occ.sess.track || '')}</div>
         </div>`;
       }).join('');
-      return `<td><div class="bo-print-cell">${cards}</div></td>`;
+      return `<div class="bo-print-col bo-print-cell">${cards}</div>`;
     }).join('');
     const label = isNone ? 'No room set' : roomLabelWithCapacity(roomKey);
-    return `<tr><td class="bo-print-track-label"${isNone ? ' style="font-style:italic;"' : ''}>${escapeHtml(label)}</td>${cells}</tr>`;
+    return `<div class="bo-print-row">
+      <div class="bo-print-col bo-print-track-col bo-print-track-label"${isNone ? ' style="font-style:italic;"' : ''}>${escapeHtml(label)}</div>
+      ${cols}
+    </div>`;
   }).join('');
-  return `<table class="bo-print-table"><thead><tr><th class="bo-print-track-col">Room</th>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
+  return `<div class="bo-print-grid">
+    <div class="bo-print-headrow"><div class="bo-print-col bo-print-track-col">Room</div>${headCols}</div>
+    ${rows}
+  </div>`;
 }
 
 function printBreakoutGridReport() {
@@ -16465,20 +16523,35 @@ function printBreakoutGridReport() {
   if (!breakoutSlots.length) { toast('No breakout slots to print yet.'); return; }
   const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
   const modeLabel = breakoutGridViewMode === 'room' ? 'By Room' : 'By Track';
-  const tableHtml = breakoutGridViewMode === 'room'
+  const gridHtml = breakoutGridViewMode === 'room'
     ? renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds)
     : renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds);
   const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   container.innerHTML = `
     <div class="bo-print-header">
-      <h1>SBCMC 2027</h1>
-      <div class="bo-print-title">Breakout Session Grid — ${modeLabel}</div>
-      <div class="bo-print-date">Generated ${dateStr}</div>
+      <div class="bo-print-eyebrow">SBCMC 2027</div>
+      <h1>Breakout Session Grid</h1>
+      <div class="bo-print-subrow">
+        <span class="bo-print-mode">${modeLabel}</span>
+        <span class="bo-print-date">Generated ${dateStr}</span>
+      </div>
+      <div class="bo-print-legend">${breakoutPrintLegendHtml(breakoutSlots)}</div>
     </div>
-    ${tableHtml}
+    ${gridHtml}
   `;
+  // Landscape gives the slot columns real width, which keeps session titles from wrapping
+  // onto enough lines to make a track's row too tall for one page -- injected as its own
+  // stylesheet (rather than adding to the always-on print CSS) so the Dashboard report, which
+  // has never needed landscape, is untouched by it.
+  const pageStyle = document.createElement('style');
+  pageStyle.id = 'bo-print-page-style';
+  pageStyle.textContent = '@page { size: landscape; margin: 0.45in; }';
+  document.head.appendChild(pageStyle);
   document.body.classList.add('printing-breakout-grid');
-  window.addEventListener('afterprint', () => document.body.classList.remove('printing-breakout-grid'), { once: true });
+  window.addEventListener('afterprint', () => {
+    document.body.classList.remove('printing-breakout-grid');
+    pageStyle.remove();
+  }, { once: true });
   setTimeout(() => window.print(), 50);
 }
 
