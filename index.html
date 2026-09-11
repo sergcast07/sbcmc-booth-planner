@@ -7708,6 +7708,7 @@ function speakerFeeTotals() {
   let committed = 0, paid = 0, feeOwed = 0, travelOwed = 0, feeOutstanding = 0, travelOutstanding = 0;
   speakers.forEach(sp => {
     if (sp.data.arrangement === 'sponsor') return;
+    if (SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus)) return;
     const total = speakerTotalCost(sp);
     if (!total) return;
     const fin = sp.data.financial || {};
@@ -7731,7 +7732,7 @@ function speakerFeeTotals() {
   return { committed, paid, outstanding: committed - paid, feeOwed, travelOwed, feeOutstanding, travelOutstanding };
 }
 function speakersForFeeDrillKey(key) {
-  const relevant = speakers.filter(sp => sp.data.arrangement !== 'sponsor' && speakerTotalCost(sp) > 0);
+  const relevant = speakers.filter(sp => sp.data.arrangement !== 'sponsor' && !SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus) && speakerTotalCost(sp) > 0);
   if (key === 'speakerFee:total') return relevant;
   // "Paid" on the dashboard card totals every dollar actually received, which includes partial
   // payments, not just fully-paid speakers -- the drill-down list has to match that or a
@@ -9374,7 +9375,7 @@ function sponsorOutstanding(s) {
 function sponsorHasUnscheduledMoney(s) {
   return isCashCommitted(s) && sponsorOutstanding(s) > 0 && !(s.data.money || {}).dueDate;
 }
-function cfpSpeakerList() { return speakers.filter(sp => speakerOutstanding(sp) > 0); }
+function cfpSpeakerList() { return speakers.filter(sp => !SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus) && speakerOutstanding(sp) > 0); }
 function cfpSponsorList() { return sponsors.filter(s => isCashCommitted(s) && sponsorOutstanding(s) > 0); }
 
 // Installment schedules (splits/dates) are lazily created on first render, one per person --
@@ -14355,6 +14356,10 @@ function materialsForTypes(types, arrangement) {
 // (a future prospect, a past speaker kept for reference), not a real in-progress booking.
 // speakerCompleteness() and the "Tracked" dashboard count both know to skip this status.
 const SPEAKER_STATUS_PRESETS = ['Invited', 'Confirmed', 'Contract Signed', 'Complete', 'Declined', 'Cancelled', 'Contact Only'];
+// Mirrors SPONSOR_INACTIVE_STATUSES: a speaker who declined, cancelled, or is only a rolodex
+// contact isn't actively participating in this conference, so they move to the Inactive section
+// and drop out of every roster count and fee total (Dashboard, Speaker Overview, Cash Flow).
+const SPEAKER_INACTIVE_STATUSES = ['Declined', 'Cancelled', 'Contact Only'];
 const SPEAKER_STATUS_COLORS = {
   'Invited': '#8a8f98', 'Confirmed': '#2962FF', 'Contract Signed': '#9B59B6',
   'Complete': '#2E8B57', 'Declined': '#a52620', 'Cancelled': '#4b5563'
@@ -16823,9 +16828,10 @@ function toggleSpeakerType(id, typeName, checked) {
 }
 
 function renderSpeakerView() {
-  // "Contact Only" rolodex entries aren't part of this conference's roster -- don't inflate
-  // the working "Tracked" count with people who aren't actually being booked.
-  const stats = { total: speakers.filter(sp => sp.trackerStatus !== 'Contact Only').length };
+  // Inactive speakers (declined, cancelled, or a "Contact Only" rolodex entry) aren't part of
+  // this conference's roster -- don't inflate the working "Tracked" count with people who
+  // aren't actually being booked.
+  const stats = { total: speakers.filter(sp => !SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus)).length };
   const el = document.getElementById('sk-stat-total');
   if (el) el.textContent = stats.total;
   const fees = speakerFeeTotals();
@@ -17001,15 +17007,15 @@ function renderContactOnlyRows() {
   const tbody = document.getElementById('sk-contact-rows');
   const countEl = document.getElementById('sk-contact-only-count');
   const activeCountEl = document.getElementById('sk-active-count');
-  if (activeCountEl) activeCountEl.textContent = speakers.filter(sp => sp.trackerStatus !== 'Contact Only').length;
+  if (activeCountEl) activeCountEl.textContent = speakers.filter(sp => !SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus)).length;
   if (!wrap || !tbody) return;
 
   const contactOnly = speakers
-    .filter(sp => sp.trackerStatus === 'Contact Only')
+    .filter(sp => SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus))
     .filter(sp => !speakerSearch || speakerSearchHaystack(sp).includes(speakerSearch.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  if (countEl) countEl.textContent = speakers.filter(sp => sp.trackerStatus === 'Contact Only').length;
+  if (countEl) countEl.textContent = speakers.filter(sp => SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus)).length;
 
   const shouldShow = speakerFilter === 'all' && contactOnly.length > 0;
   wrap.style.display = shouldShow ? '' : 'none';
