@@ -13476,10 +13476,48 @@ function applicantRowHighlightValue(a) {
   const raw = a.data.raw || {};
   return raw['School / Seminary you are attending'] || raw['Church You Attend'] || '';
 }
-// City/state of the church they attend -- only captured for Student Leadership Summit (form
-// field 13); empty for Collegiate Worship Collective, which doesn't ask for it.
+// Best-effort locations for Collegiate Worship Collective's "School Attended" answer -- that
+// form only asks for the school NAME (no city/state field, unlike Student Leadership Summit's
+// dedicated question), so this fills the gap for schools known to send students here, matched
+// by name (case/whitespace-insensitive). An unrecognized school just shows nothing rather than
+// a guess -- add it here once someone tells you where it actually is.
+const SCHOOL_LOCATIONS = {
+  'samford university': 'Birmingham, AL',
+  'southeastern baptist theological seminary': 'Wake Forest, NC',
+  'southwestern baptist theological seminary': 'Fort Worth, TX',
+  'the southern baptist theological seminary': 'Louisville, KY',
+  'southern baptist theological seminary': 'Louisville, KY',
+  'new orleans baptist theological seminary': 'New Orleans, LA',
+  'midwestern baptist theological seminary': 'Kansas City, MO',
+  'gateway seminary': 'Ontario, CA',
+  'liberty university': 'Lynchburg, VA',
+  'union university': 'Jackson, TN',
+  'california baptist university': 'Riverside, CA',
+  'charleston southern university': 'Charleston, SC',
+  'dallas baptist university': 'Dallas, TX',
+  'oklahoma baptist university': 'Shawnee, OK',
+  'ouachita baptist university': 'Arkadelphia, AR',
+  'mississippi college': 'Clinton, MS',
+  'carson-newman university': 'Jefferson City, TN',
+  'east texas baptist university': 'Marshall, TX',
+  'hardin-simmons university': 'Abilene, TX',
+  'williams baptist university': 'Walnut Ridge, AR',
+  'truett mcconnell university': 'Cleveland, GA',
+  'north greenville university': 'Tigerville, SC',
+  'campbellsville university': 'Campbellsville, KY',
+  'anderson university': 'Anderson, SC',
+  'lee university': 'Cleveland, TN',
+};
+function schoolLocation(schoolName) {
+  if (!schoolName) return '';
+  return SCHOOL_LOCATIONS[schoolName.trim().toLowerCase()] || '';
+}
+// City/state of where the applicant is coming from -- Student Leadership Summit's form asks for
+// this directly (field 13); Collegiate Worship Collective's only asks for the school name, so
+// this falls back to the best-effort lookup above for that program.
 function applicantRowLocationValue(a) {
-  return (a.data.raw || {})['City and State of Church You Attend'] || '';
+  const raw = a.data.raw || {};
+  return raw['City and State of Church You Attend'] || schoolLocation(raw['School Attended']);
 }
 // Payment/submission bookkeeping -- real, but not something staff reviewing an application
 // needs to see up front. Tucked under a collapsed "Payment & submission details" instead of
