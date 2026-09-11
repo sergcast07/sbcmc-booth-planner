@@ -14474,6 +14474,10 @@ function defaultSpeakerData() {
     // Self-service portal (?view=speaker&t=...) -- same shape as sponsors' equivalent fields.
     publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
     specialNotes: '', flagged: false,
+    // Public-facing biography, synced to the mobile app's speaker profile -- separate from
+    // specialNotes (internal-only) and the "bio" materials-checklist item (a fulfillment
+    // checkbox, not the actual text).
+    bio: '',
     // '' (standard: flat fee, travel not tracked here), 'travel' (fee + travel is arranged and
     // tracked), or 'sponsor' (presenting as part of a sponsorship -- see linkedSponsorId, no fee
     // tracked). Purely a FEE/logistics-tracking split -- whether someone is local is a separate,
@@ -17330,6 +17334,12 @@ function speakerDetailHTML(sp) {
             ${sponsors.slice().sort((a, b) => a.org.localeCompare(b.org)).map(s => `<option value="${s.id}" ${sp.data.linkedSponsorId === s.id ? 'selected' : ''}>${escapeHtml(s.org)}</option>`).join('')}
           </select></div>` : ''}
           <div class="sp-check"><input id="sk-flagged-${sp.id}" type="checkbox" ${sp.data.flagged ? 'checked' : ''} onchange="updateSpeakerData('${sp.id}','flagged',this.checked)"><label for="sk-flagged-${sp.id}"> Flag for review</label></div>
+        </fieldset>
+
+        <fieldset class="sp-fieldset">
+          <legend>Bio</legend>
+          <p class="sp-sub sp-sub-wrap">Public-facing — this syncs to the mobile app's speaker profile.</p>
+          <textarea rows="4" placeholder="Public biography for the mobile app…" onchange="updateSpeakerData('${sp.id}','bio',this.value)">${escapeHtml(sp.data.bio || '')}</textarea>
         </fieldset>
 
         <fieldset class="sp-fieldset">
