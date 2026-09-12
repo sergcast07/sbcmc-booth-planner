@@ -1517,23 +1517,28 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
 }
 
 @media print {
-  /* Both stay hidden by default on any print job (e.g. printing the Dashboard while the
-     Schedule tab happens to still be open) -- printBreakoutGridReport() below is the only
-     thing that ever shows #breakout-print-view. */
-  #schedule-view, #breakout-print-view { display: none !important; }
+  /* All three stay hidden by default on any print job (e.g. printing the Dashboard while the
+     Schedule tab happens to still be open) -- printBreakoutGridReport()/
+     printScheduleTimelineReport() below are the only things that ever show their own container. */
+  #schedule-view, #breakout-print-view, #schedule-print-view { display: none !important; }
 
-  /* Printing the Breakout Grid report flips this body class just long enough to print --
-     the extra class specificity overrides the Dashboard rules' unconditional
+  /* Printing either custom report flips its own body class just long enough to print -- the
+     extra class specificity overrides the Dashboard rules' unconditional
      #dashboard-view{display:block} above, and hides the same set of overlays/other views. */
   body.printing-breakout-grid .top-nav, body.printing-breakout-grid .app,
   body.printing-breakout-grid #sponsor-view, body.printing-breakout-grid #budget-view,
   body.printing-breakout-grid #dashboard-view, body.printing-breakout-grid .admin-overlay,
-  body.printing-breakout-grid #access-gate, body.printing-breakout-grid #dashboard-drill-overlay {
+  body.printing-breakout-grid #access-gate, body.printing-breakout-grid #dashboard-drill-overlay,
+  body.printing-schedule-report .top-nav, body.printing-schedule-report .app,
+  body.printing-schedule-report #sponsor-view, body.printing-schedule-report #budget-view,
+  body.printing-schedule-report #dashboard-view, body.printing-schedule-report .admin-overlay,
+  body.printing-schedule-report #access-gate, body.printing-schedule-report #dashboard-drill-overlay {
     display: none !important;
   }
   body.printing-breakout-grid #breakout-print-view { display: block !important; }
+  body.printing-schedule-report #schedule-print-view { display: block !important; }
 
-  #breakout-print-view { font-family: 'Inter', sans-serif; color: var(--ink); background: #FBF8F1; }
+  #breakout-print-view, #schedule-print-view { font-family: 'Inter', sans-serif; color: var(--ink); background: #FBF8F1; }
 
   /* Cover band -- the report's own title page, in the app's real teal/gold rather than a plain
      ruled header. */
@@ -1574,6 +1579,32 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
     color: #a52620; background: #a5262015; border-radius: 10px; padding: 1px 7px; margin-top: 3px;
   }
   .bo-print-card-conflict .bo-print-name { color: #a52620; }
+
+  /* Conference Schedule report -- a simple chronological list, so each day is the "section"
+     that needs to stay together where possible (same break-inside:avoid reasoning as the
+     Breakout Grid's per-track sections), with individual rows also protected since a day can
+     run past one page on its own. */
+  .sc-print-day { margin-bottom: 22px; break-inside: avoid; page-break-inside: avoid; }
+  .sc-print-day-title {
+    font-family: var(--font-display); font-weight: 700; font-size: 17px; color: var(--teal-deep);
+    border-bottom: 1.5px solid var(--gold); padding-bottom: 6px; margin-bottom: 10px;
+  }
+  .sc-print-day-date { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 12px; color: var(--ink-soft); margin-left: 8px; }
+  .sc-print-row {
+    display: flex; align-items: baseline; gap: 14px; background: var(--panel);
+    border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 3px;
+    padding: 8px 12px; margin-bottom: 6px; break-inside: avoid; page-break-inside: avoid;
+  }
+  .sc-print-time { flex: 0 0 92px; font-size: 11px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .sc-print-what { flex: 1; min-width: 0; }
+  .sc-print-label { font-size: 12px; font-weight: 700; color: var(--ink); }
+  .sc-print-names { font-size: 10.5px; color: var(--ink-soft); margin-top: 2px; }
+  .sc-print-room { font-size: 9.5px; color: var(--ink-soft); margin-top: 3px; }
+  .sc-print-note { font-size: 9.5px; font-style: italic; color: var(--ink-soft); margin-top: 2px; }
+  .sc-print-audience {
+    flex-shrink: 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--teal-deep); background: var(--teal-pale); border-radius: 3px; padding: 2px 7px;
+  }
 }
 
 /* ==== Schedule tab ==== */
@@ -2315,6 +2346,11 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
      copy of the Breakout Grid, kept separate from the live editable grid above so the printed
      report never has to fight that grid's drag handles/selects/edit icons via CSS. -->
 <div id="breakout-print-view" style="display:none;"></div>
+
+<!-- Same idea, for printScheduleTimelineReport() -- a clean day-by-day agenda, matching the
+     Breakout Grid report's band/typography but laid out as a simple chronological list instead
+     of a track grid, since the Timeline has no track dimension to grid against. -->
+<div id="schedule-print-view" style="display:none;"></div>
 
 <div id="applicants-sls-view" style="display:none;" data-section="applicants.all">
   <div class="sp-wrap">
@@ -16525,19 +16561,111 @@ function printBreakoutGridReport() {
     </div>
   `;
   // Landscape gives the slot columns real width, which keeps session titles from wrapping
-  // onto enough lines to make a track's row too tall for one page -- injected as its own
-  // stylesheet (rather than adding to the always-on print CSS) so the Dashboard report, which
-  // has never needed landscape, is untouched by it.
+  // onto enough lines to make a track's row too tall for one page. Zero page margin lets the
+  // band's teal background actually reach the edge of the sheet instead of sitting inside a
+  // white border -- the band/body's own internal padding (not the page margin) is what keeps
+  // text off the physical edge. Both injected as their own stylesheet (rather than added to the
+  // always-on print CSS) so the Dashboard report, which has never needed either, is untouched.
+  runScopedPrint('printing-breakout-grid', 'bo-print-page-style', '@page { size: landscape; margin: 0; }');
+}
+
+// Shared by every custom print report (Breakout Grid, Conference Schedule, ...): flips the
+// given body class just long enough to print (each report's own print CSS uses that class to
+// hide every other view and show only its own container), injects a scoped <style> for
+// anything @page can't be conditioned on with a normal selector (size/margin), then cleans both
+// up once the print dialog closes.
+function runScopedPrint(bodyClass, styleId, pageCss) {
   const pageStyle = document.createElement('style');
-  pageStyle.id = 'bo-print-page-style';
-  pageStyle.textContent = '@page { size: landscape; margin: 0.45in; }';
+  pageStyle.id = styleId;
+  pageStyle.textContent = pageCss;
   document.head.appendChild(pageStyle);
-  document.body.classList.add('printing-breakout-grid');
+  document.body.classList.add(bodyClass);
   window.addEventListener('afterprint', () => {
-    document.body.classList.remove('printing-breakout-grid');
+    document.body.classList.remove(bodyClass);
     pageStyle.remove();
   }, { once: true });
   setTimeout(() => window.print(), 50);
+}
+
+// ---- Conference Schedule print report ----
+// Same band/typography as the Breakout Grid report, but a simple chronological day-by-day list
+// instead of a track grid -- the Timeline has no track dimension to grid against. Color-coded
+// by kind (keynote/panel/meal/...) instead of by track, since that's the dimension that
+// actually varies here.
+const SCHEDULE_KIND_COLORS = {
+  keynote: '#A17A26',
+  panel: '#4A6B93',
+  meal: '#4A8C5C',
+  business: '#6E6A5E',
+  breakout: '#8B5FA3',
+  other: '#24404A',
+};
+
+function renderScheduleTimelinePrintHtml() {
+  const visibleSlots = scheduleSlots.filter(slot => slotAudiences(slot).some(a => scheduleAudienceFilter.has(a)));
+  const days = {};
+  visibleSlots.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).forEach(slot => {
+    (days[slot.date] = days[slot.date] || []).push(slot);
+  });
+  const dateKeys = Object.keys(days).sort();
+  if (!dateKeys.length) return '<p class="bo-print-empty">No sessions in the group(s) currently selected.</p>';
+
+  return dateKeys.map(date => {
+    const rows = days[date].map(slot => {
+      const kindColor = SCHEDULE_KIND_COLORS[slot.kind] || SCHEDULE_KIND_COLORS.other;
+      const nonMainAudiences = slotAudiences(slot).filter(a => a !== MAIN_AUDIENCE_ID)
+        .map(id => (scheduleAudiences.find(a => a.id === id) || {}).name).filter(Boolean);
+      const audienceTag = nonMainAudiences.length ? `<span class="sc-print-audience">${escapeHtml(nonMainAudiences.join(' + '))}</span>` : '';
+      if (slot.kind === 'breakout') {
+        return `<div class="sc-print-row" style="border-left-color:${kindColor};">
+          <div class="sc-print-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
+          <div class="sc-print-what">
+            <div class="sc-print-label">${escapeHtml(slot.label)}</div>
+            <div class="sc-print-note">See the Breakout Grid report for tracks, speakers, and rooms.</div>
+          </div>
+          ${audienceTag}
+        </div>`;
+      }
+      const assignedSpeakers = [];
+      speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
+        if (sess.slotId === slot.id || (!sess.slotId && !sess.track && sess.sessionDate === slot.date && sess.timeSlot === slot.start)) assignedSpeakers.push(sp);
+      }));
+      const names = assignedSpeakers.map(sp => escapeHtml(sp.name)).join(', ');
+      return `<div class="sc-print-row" style="border-left-color:${kindColor};">
+        <div class="sc-print-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
+        <div class="sc-print-what">
+          <div class="sc-print-label">${escapeHtml(slot.label)}</div>
+          ${names ? `<div class="sc-print-names">${names}</div>` : ''}
+          ${slot.room ? `<div class="sc-print-room">${escapeHtml(roomLabelWithCapacity(slot.room))}</div>` : ''}
+        </div>
+        ${audienceTag}
+      </div>`;
+    }).join('');
+    return `<div class="sc-print-day">
+      <div class="sc-print-day-title">${escapeHtml(fullWeekday(date))} <span class="sc-print-day-date">${escapeHtml(friendlyDate(date).replace(/^[A-Za-z]+,\s*/, ''))}</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function printScheduleTimelineReport() {
+  const container = document.getElementById('schedule-print-view');
+  if (!container) return;
+  const html = renderScheduleTimelinePrintHtml();
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const activeAudiences = orderedScheduleAudiences().filter(a => scheduleAudienceFilter.has(a.id));
+  const scopeLabel = activeAudiences.length ? activeAudiences.map(a => a.name).join(' + ') : 'All Groups';
+  container.innerHTML = `
+    <div class="bo-print-band">
+      <div class="bo-print-eyebrow">SBCMC 2027</div>
+      <h1>Conference Schedule</h1>
+      <div class="bo-print-tag">${escapeHtml(scopeLabel)} — Generated ${dateStr}</div>
+    </div>
+    <div class="bo-print-body">
+      <div class="sc-print-days">${html}</div>
+    </div>
+  `;
+  runScopedPrint('printing-schedule-report', 'sc-print-page-style', '@page { size: portrait; margin: 0; }');
 }
 
 // A JS-string-literal-safe version of a value for embedding inside a single-quoted argument
@@ -16979,6 +17107,9 @@ function renderScheduleTimeline() {
 
   body.innerHTML = `
     ${audienceFacetBarHtml()}
+    <div class="sch-view-toggle" style="margin-bottom:12px;">
+      <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="printScheduleTimelineReport()" title="Print a clean, read-only copy of this schedule">🖶 Print</button>
+    </div>
     ${dayBlocks || `<div class="sch-conflicts-empty">${emptyMsg}</div>`}
     <div class="sch-slot-editor">
       <div class="db-section-title">Add a schedule slot</div>
