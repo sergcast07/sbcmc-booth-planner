@@ -1424,10 +1424,11 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
 @media print {
   @page { margin: 0.55in 0.6in; }
   /* Named pages for the two custom reports below (assigned via the `page:` property on their
-     containers) -- static, not injected by JS at print time. A <style>@page{...}</style> tag
-     appended to <head> right before window.print() looked correct but Safari's print pipeline
-     doesn't reliably pick up an @page rule added after the initial page load; declaring it here,
-     already present in the DOM when printing starts, actually takes effect. */
+     containers) -- static, not injected by JS at print time. A dynamically inserted style
+     element carrying an @page rule, appended to the document head right before window.print(),
+     looked correct but Safari's print pipeline doesn't reliably pick up an @page rule added
+     after the initial page load; declaring it here, already present in the DOM when printing
+     starts, actually takes effect. */
   @page breakout-report { size: landscape; margin: 0; }
   @page schedule-report { margin: 0; }
 
