@@ -1423,6 +1423,13 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
 /* ==== Print (Dashboard Report) ==== */
 @media print {
   @page { margin: 0.55in 0.6in; }
+  /* Named pages for the two custom reports below (assigned via the `page:` property on their
+     containers) -- static, not injected by JS at print time. A <style>@page{...}</style> tag
+     appended to <head> right before window.print() looked correct but Safari's print pipeline
+     doesn't reliably pick up an @page rule added after the initial page load; declaring it here,
+     already present in the DOM when printing starts, actually takes effect. */
+  @page breakout-report { size: landscape; margin: 0; }
+  @page schedule-report { margin: 0; }
 
   /* Force colors/backgrounds to actually print instead of relying on the user enabling
      "background graphics" in their print dialog -- otherwise white text on the dark hero
@@ -1547,6 +1554,8 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   body.printing-breakout-grid, body.printing-schedule-report { background: #FBF8F1 !important; margin: 0 !important; }
 
   #breakout-print-view, #schedule-print-view { font-family: 'Inter', sans-serif; color: var(--ink); background: #FBF8F1; }
+  #breakout-print-view { page: breakout-report; }
+  #schedule-print-view { page: schedule-report; }
 
   /* Cover band -- the report's own title page, in the app's real teal/gold rather than a plain
      ruled header. */
@@ -16570,30 +16579,22 @@ function printBreakoutGridReport() {
       <div class="bo-print-tracks">${gridHtml}</div>
     </div>
   `;
-  // Landscape gives the slot columns real width, which keeps session titles from wrapping
-  // onto enough lines to make a track's row too tall for one page. Zero page margin lets the
-  // band's teal background actually reach the edge of the sheet instead of sitting inside a
-  // white border -- the band/body's own internal padding (not the page margin) is what keeps
-  // text off the physical edge. Both injected as their own stylesheet (rather than added to the
-  // always-on print CSS) so the Dashboard report, which has never needed either, is untouched.
-  runScopedPrint('printing-breakout-grid', 'bo-print-page-style', '@page { size: landscape; margin: 0; }');
+  // Landscape + zero margin come from the static "breakout-report" named @page rule (assigned
+  // to #breakout-print-view via the `page:` property) -- lets the band's teal background
+  // actually reach the edge of the sheet instead of sitting inside a white border, while the
+  // band/body's own internal padding (not the page margin) is what keeps text off the physical
+  // edge. See that rule's comment for why it's declared statically instead of injected here.
+  runScopedPrint('printing-breakout-grid');
 }
 
 // Shared by every custom print report (Breakout Grid, Conference Schedule, ...): flips the
-// given body class just long enough to print (each report's own print CSS uses that class to
-// hide every other view and show only its own container), injects a scoped <style> for
-// anything @page can't be conditioned on with a normal selector (size/margin), then cleans both
-// up once the print dialog closes.
-function runScopedPrint(bodyClass, styleId, pageCss) {
-  const pageStyle = document.createElement('style');
-  pageStyle.id = styleId;
-  pageStyle.textContent = pageCss;
-  document.head.appendChild(pageStyle);
+// given body class just long enough to print -- each report's own print CSS uses that class to
+// hide every other view and show only its own container (and, via a static named @page rule
+// assigned to that container, gets its own size/margin) -- then clears the class once the print
+// dialog closes.
+function runScopedPrint(bodyClass) {
   document.body.classList.add(bodyClass);
-  window.addEventListener('afterprint', () => {
-    document.body.classList.remove(bodyClass);
-    pageStyle.remove();
-  }, { once: true });
+  window.addEventListener('afterprint', () => document.body.classList.remove(bodyClass), { once: true });
   setTimeout(() => window.print(), 50);
 }
 
@@ -16689,7 +16690,7 @@ function printScheduleTimelineReport() {
       <div class="sc-print-days">${html}</div>
     </div>
   `;
-  runScopedPrint('printing-schedule-report', 'sc-print-page-style', '@page { size: portrait; margin: 0; }');
+  runScopedPrint('printing-schedule-report');
 }
 
 // A JS-string-literal-safe version of a value for embedding inside a single-quoted argument
