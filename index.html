@@ -1538,6 +1538,14 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   body.printing-breakout-grid #breakout-print-view { display: block !important; }
   body.printing-schedule-report #schedule-print-view { display: block !important; }
 
+  /* @page's margin is 0 so nothing here fights the printer over how close to the physical edge
+     it can actually go -- that's a hardware limit, not ours to solve. But the browser's own
+     default body margin, and whatever sliver a real printer can't reach, would otherwise show
+     as a stark white gap around the tan report -- setting html/body's own background to the
+     same tan (never the Dashboard's white) means any such gap reads as more paper, not a seam. */
+  html:has(body.printing-breakout-grid), html:has(body.printing-schedule-report),
+  body.printing-breakout-grid, body.printing-schedule-report { background: #FBF8F1 !important; margin: 0 !important; }
+
   #breakout-print-view, #schedule-print-view { font-family: 'Inter', sans-serif; color: var(--ink); background: #FBF8F1; }
 
   /* Cover band -- the report's own title page, in the app's real teal/gold rather than a plain
@@ -1580,11 +1588,13 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   }
   .bo-print-card-conflict .bo-print-name { color: #a52620; }
 
-  /* Conference Schedule report -- a simple chronological list, so each day is the "section"
-     that needs to stay together where possible (same break-inside:avoid reasoning as the
-     Breakout Grid's per-track sections), with individual rows also protected since a day can
-     run past one page on its own. */
-  .sc-print-day { margin-bottom: 22px; break-inside: avoid; page-break-inside: avoid; }
+  /* Conference Schedule report -- a simple chronological list. Unlike the Breakout Grid's
+     per-track sections, a day is deliberately NOT break-inside:avoid -- a real day's worth of
+     sessions usually runs longer than one page anyway, and forcing the whole day to hold
+     together would just push it to start on a fresh page even when the current one still has
+     room. Individual rows are still protected so a session never splits mid-card; the day
+     itself just flows, picking up wherever there's space. */
+  .sc-print-day { margin-bottom: 22px; }
   .sc-print-day-title {
     font-family: var(--font-display); font-weight: 700; font-size: 17px; color: var(--teal-deep);
     border-bottom: 1.5px solid var(--gold); padding-bottom: 6px; margin-bottom: 10px;
@@ -16613,9 +16623,14 @@ function renderScheduleTimelinePrintHtml() {
   return dateKeys.map(date => {
     const rows = days[date].map(slot => {
       const kindColor = SCHEDULE_KIND_COLORS[slot.kind] || SCHEDULE_KIND_COLORS.other;
-      const nonMainAudiences = slotAudiences(slot).filter(a => a !== MAIN_AUDIENCE_ID)
-        .map(id => (scheduleAudiences.find(a => a.id === id) || {}).name).filter(Boolean);
-      const audienceTag = nonMainAudiences.length ? `<span class="sc-print-audience">${escapeHtml(nonMainAudiences.join(' + '))}</span>` : '';
+      // One plain-English phrase, never a pill per audience -- "All Attendees" the moment Main
+      // Conference is among the tags (open to everyone regardless of who else is also tagged),
+      // otherwise "Only <group(s)>" for whatever it's actually restricted to.
+      const auds = slotAudiences(slot);
+      const audienceLabel = auds.includes(MAIN_AUDIENCE_ID)
+        ? 'All Attendees'
+        : 'Only ' + auds.map(id => (scheduleAudiences.find(a => a.id === id) || {}).name).filter(Boolean).join(' + ');
+      const audienceTag = `<span class="sc-print-audience">${escapeHtml(audienceLabel)}</span>`;
       if (slot.kind === 'breakout') {
         return `<div class="sc-print-row" style="border-left-color:${kindColor};">
           <div class="sc-print-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
