@@ -652,6 +652,21 @@
   background: #fff; color: var(--ink); cursor: pointer; transition: border-color 0.15s;
 }
 .sp-sort-select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-pale); }
+/* A filter dropdown sitting inside a table <th> itself, e.g. the Status/University columns on
+   the Applicants tables -- same control, styled to read as a column header rather than a
+   floating pill, since the table header row already has its own background/weight. */
+/* Explicit values, not `inherit` -- a native <select>'s rendered text size doesn't reliably
+   pick up an inherited font-size the way plain text does in every browser, which is exactly
+   what made these read larger than the plain-text <th>s (Name, Contact, Lodging) next to them.
+   Matches table.sp-table thead th's own values (font-size/text-transform/letter-spacing/weight/
+   color) so a filter/sort header looks identical to a plain-label header. */
+.sp-th-select {
+  width: 100%; padding: 2px 4px; border: none; border-radius: 4px;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700;
+  font-family: inherit; background: transparent; color: var(--teal-deep); cursor: pointer;
+}
+.sp-th-select:hover, .sp-th-select:focus { background: rgba(255,255,255,0.35); outline: none; }
+.sp-th-sort-arrow { font-size: 9px; margin-left: 2px; }
 .sp-add-btn {
   padding: 9px 16px; border-radius: 20px; border: none; background: var(--teal-deep); color: #fff;
   font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s;
@@ -1198,8 +1213,82 @@ table.bg-table tr.bg-total td { font-weight: 700; background: var(--teal-pale); 
 .rev-actuals-table th:first-child { text-align: left; }
 .rev-actuals-table td { padding: 5px 8px; border-top: 1px solid var(--line); }
 .rev-actuals-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.sp-table td.num, table.sp-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rev-actuals-table tr td:first-child { font-weight: 600; color: var(--ink); }
 .rev-actuals-vs { color: var(--ink-soft); font-weight: 400; }
+/* Food Planning location board -- rows are physical serving locations, columns are meal slots.
+   Each cell holds one chip per group eating there; two groups in the same cell share that meal. */
+table.food-board-table { table-layout: auto; }
+table.food-board-table th { vertical-align: bottom; }
+td.food-loc-cell, th.food-loc-cell { min-width: 168px; }
+td.food-loc-cell { vertical-align: top; }
+td.food-meal-cell { min-width: 158px; vertical-align: top; }
+.food-loc-name-row { display: flex; align-items: center; gap: 4px; }
+.food-loc-name-row input { flex: 1; min-width: 0; border: none; background: transparent; font-size: 13px; font-weight: 700; color: var(--ink); padding: 2px 0; font-family: inherit; }
+.food-loc-name-row input:disabled { color: var(--ink); opacity: 1; }
+.food-loc-remove-btn { border: none; background: none; color: var(--ink-soft); cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px; flex-shrink: 0; }
+.food-loc-remove-btn:hover { color: #9C3A2E; }
+.food-chip { display: flex; align-items: center; gap: 5px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 4px 5px; margin-bottom: 5px; }
+.food-chip:last-child { margin-bottom: 0; }
+.food-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.food-chip-label { font-size: 11px; flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.food-chip-label-input { font-size: 11px; flex-grow: 1; min-width: 0; border: none; background: transparent; padding: 0; font-family: inherit; color: var(--ink); }
+.food-chip-count { font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.food-chip input[type=number] { width: 38px; border: 1px solid var(--line); border-radius: 5px; padding: 2px 3px; font-size: 10.5px; text-align: right; font-family: inherit; }
+.food-chip select { border: 1px solid var(--line); border-radius: 5px; font-size: 10px; padding: 2px; color: var(--teal-deep); font-family: inherit; max-width: 30px; flex-shrink: 0; }
+.food-chip-remove-btn { border: none; background: none; color: var(--ink-soft); cursor: pointer; font-size: 12px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+.food-chip-handle { cursor: grab; color: var(--ink-soft); font-size: 12px; line-height: 1; flex-shrink: 0; user-select: none; touch-action: none; }
+.food-chip-handle:active { cursor: grabbing; }
+.food-chip-dragging { opacity: 0.4; }
+td.food-meal-cell.food-drop-hover { background: var(--teal-pale); outline: 2px dashed var(--teal); outline-offset: -2px; }
+.food-drag-ghost {
+  position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none;
+  background: var(--teal-deep); color: #fff; font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 20px; box-shadow: 0 4px 14px rgba(23,38,43,0.3);
+  white-space: nowrap; transform: translate(0, 0);
+}
+.food-empty-cell { font-size: 11px; color: var(--ink-soft); }
+/* The generic table.sp-table mobile rules (a phone stacks each row into a card) know how to label
+   a plain entity table, but not a grid where BOTH axes carry meaning -- without this, a phone
+   would show every location's chips run together under one meal with no indication which room
+   each one is in. Rebuilds the card here specifically for the board: the meal date/name as the
+   card's own header, then each location's chip group under its own bold label (from the cell's
+   data-label, the same attribute/mechanism the generic rule already uses elsewhere), then the
+   total at the bottom -- so the location context lost by stacking columns into rows is restored. */
+@media (max-width: 900px) {
+  table.food-board-table tr {
+    display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(23,38,43,0.06);
+  }
+  table.food-board-table td.food-loc-cell {
+    padding: 0 0 10px; margin: 0 0 10px; border-bottom: 1px dashed var(--line);
+    font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  }
+  table.food-board-table td.food-meal-cell { padding: 0 0 10px; }
+  table.food-board-table td.food-meal-cell[data-label]:not([data-label=""])::before {
+    content: attr(data-label); display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--teal-deep); margin-bottom: 6px;
+  }
+  table.food-board-table td.food-total-cell {
+    margin-top: 4px; padding: 10px 12px; border-radius: 8px; text-align: left;
+  }
+  table.food-cost-table tr {
+    display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(23,38,43,0.06);
+  }
+  table.food-cost-table td.food-total-cell { margin-top: 6px; padding: 10px 12px; border-radius: 8px; text-align: left; }
+  table.food-cost-table tr.food-cost-subrow {
+    background: var(--paper); margin: -8px 0 10px 16px; width: calc(100% - 16px);
+    border-top: none; box-shadow: none;
+  }
+}
+td.food-total-cell { background: var(--teal-pale); font-size: 15px; color: var(--teal-deep); min-width: 60px; }
+.food-excluded-row { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.food-excluded-row .sp-sub { font-size: 10px; margin-bottom: 1px; }
+.food-restore-link { align-self: flex-start; border: none; background: none; color: var(--teal); font-size: 11px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; text-decoration-style: dotted; }
+.food-restore-link:hover { color: var(--teal-deep); }
+table.food-cost-table tr.food-cost-subrow td { background: var(--paper); font-size: 12.5px; padding-left: 22px; }
+table.food-cost-table tr.food-cost-subrow td.num:last-child { font-weight: 600; }
 .rev-actuals-total { font-family: var(--font-display); font-weight: 700; color: var(--teal-deep); }
 .rev-actuals-unmodeled { color: var(--ink-soft); font-style: italic; }
 .rev-actuals-programs-note { font-size: 10.5px; color: var(--ink-soft); margin: 14px 0 4px; }
@@ -1894,7 +1983,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 
   var ALL_SECTION_KEYS = ['dashboard.all', 'sponsors.contact', 'sponsors.financial', 'speakers.roster',
     'speakers.logistics', 'speakers.financial', 'speakers.internal_docs', 'schedule.all', 'applicants.all',
-    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'team_access.all'];
+    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'food.all', 'team_access.all'];
 
   // ---- Legacy shared-password fallback -- Phase B/C transition only. Delete this whole
   // block (and the two hash constants) once every real user has an individual Supabase Auth
@@ -2066,8 +2155,14 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="nav-dropdown-item" id="nav-applicants-cwc-btn" onclick="switchTopView('applicants_cwc')">Collegiate Worship Collective<span class="sp-nav-badge" id="nav-applicants-cwc-pending-badge" title="Applications awaiting leader review"></span></button>
     </div>
   </div>
-  <button class="top-nav-btn" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
-  <button class="top-nav-btn" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
+  <div class="nav-dropdown">
+    <button class="top-nav-btn" id="nav-logistics-btn" onclick="toggleLogisticsDropdown(event)">Logistics <span class="nav-caret">▾</span></button>
+    <div class="nav-dropdown-menu" id="nav-logistics-menu">
+      <button class="nav-dropdown-item" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
+      <button class="nav-dropdown-item" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
+      <button class="nav-dropdown-item" id="nav-food-btn" onclick="switchTopView('food')">Food Planning</button>
+    </div>
+  </div>
   <div class="nav-dropdown">
     <button class="top-nav-btn" id="nav-money-btn" onclick="toggleMoneyDropdown(event)">Financials <span class="nav-caret">▾</span></button>
     <div class="nav-dropdown-menu" id="nav-money-menu">
@@ -2094,6 +2189,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <div class="nav-dropdown-label">Conference Year</div>
       <select class="year-select" id="year-selector" onchange="switchActiveYear(this.value)" title="Which conference year you're viewing"></select>
       <button class="nav-dropdown-item" id="start-new-year-btn" onclick="startNewConferenceYear(); toggleGearMenu();" style="display:none;">+ Start New Year</button>
+      <button class="nav-dropdown-item" id="edit-venue-btn" onclick="editVenueInfo(); toggleGearMenu();" style="display:none;">Edit Venue Info</button>
       <button class="nav-dropdown-item" id="close-books-btn" onclick="closeBooksOnActiveYear(); toggleGearMenu();" style="display:none;">Close Books on Active Year</button>
       <div class="nav-dropdown-divider"></div>
       <button class="nav-dropdown-item" id="backup-now-btn" onclick="backupNow(); toggleGearMenu();" style="display:none;">Backup Now</button>
@@ -2395,21 +2491,12 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <div class="sp-topbar">
         <input class="sp-search" id="ap-sls-search" placeholder="Search name, email, answers…" oninput="setApplicantSearch('sls', this.value)">
         <select class="sp-sort-select" id="ap-sls-sort-select" onchange="setApplicantSortFromDropdown('sls', this.value)">
-          <option value="">Sort by…</option>
-          <option value="date-desc" selected>Date Applied (newest)</option>
-          <option value="date-asc">Date Applied (oldest)</option>
+          <option value="" selected>Sort by name…</option>
           <option value="name-asc">Name (A–Z)</option>
           <option value="name-desc">Name (Z–A)</option>
         </select>
         <button class="sp-add-btn" onclick="openApplicantImportModal('sls')">📥 Import CSV</button>
         <button class="sp-add-btn" id="ap-sls-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()" title="Pulls the latest entries from both Gravity Forms — can take up to a minute.">🔄 Sync Latest Applications</button>
-      </div>
-      <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-sls-status-filter-row">
-        <button class="sch-toggle-btn active" data-sf="all" onclick="setApplicantStatusFilter('sls', 'all')">All Statuses</button>
-        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('sls', 'Pending')">Pending Review</button>
-        <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('sls', 'Approved')">Approved</button>
-        <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('sls', 'Declined')">Declined</button>
-        <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('sls', '__lodging__')">🏨 Needs Lodging</button>
       </div>
       <div class="sp-table-wrap">
       <table class="sp-table" id="ap-sls-table">
@@ -2417,8 +2504,16 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <th style="width:56px;"></th>
           <th style="width:220px;">Name</th>
           <th style="width:220px;">Contact</th>
-          <th style="width:110px;">Date Applied</th>
-          <th style="width:120px;">Status</th>
+          <th style="width:110px; cursor:pointer;" onclick="toggleApplicantDateSort('sls')" title="Sort by date applied">Date Applied<span class="sp-th-sort-arrow" id="ap-sls-date-sort-arrow"></span></th>
+          <th style="width:150px;">
+            <select class="sp-sort-select sp-th-select" id="ap-sls-status-th-select" onchange="setApplicantStatusFilter('sls', this.value)" title="Filter by status">
+              <option value="all">Status</option>
+              <option value="Pending">Pending Review</option>
+              <option value="Approved">Approved</option>
+              <option value="Declined">Declined</option>
+              <option value="__lodging__">🏨 Needs Lodging</option>
+            </select>
+          </th>
           <th style="width:110px;">Lodging</th>
         </tr></thead>
         <tbody id="ap-sls-rows"></tbody>
@@ -2454,9 +2549,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <div class="sp-topbar">
         <input class="sp-search" id="ap-cwc-search" placeholder="Search name, email, answers…" oninput="setApplicantSearch('cwc', this.value)">
         <select class="sp-sort-select" id="ap-cwc-sort-select" onchange="setApplicantSortFromDropdown('cwc', this.value)">
-          <option value="">Sort by…</option>
-          <option value="date-desc" selected>Date Applied (newest)</option>
-          <option value="date-asc">Date Applied (oldest)</option>
+          <option value="" selected>Sort by name…</option>
           <option value="name-asc">Name (A–Z)</option>
           <option value="name-desc">Name (Z–A)</option>
         </select>
@@ -2464,22 +2557,28 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <button class="sp-add-btn" id="ap-cwc-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()" title="Pulls the latest entries from both Gravity Forms — can take up to a minute.">🔄 Sync Latest Applications</button>
         <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
       </div>
-      <div class="sch-view-toggle" style="margin-bottom:16px;" id="ap-cwc-status-filter-row">
-        <button class="sch-toggle-btn active" data-sf="all" onclick="setApplicantStatusFilter('cwc', 'all')">All Statuses</button>
-        <button class="sch-toggle-btn" data-sf="Pending" onclick="setApplicantStatusFilter('cwc', 'Pending')">Pending Review</button>
-        <button class="sch-toggle-btn" data-sf="Approved" onclick="setApplicantStatusFilter('cwc', 'Approved')">Approved</button>
-        <button class="sch-toggle-btn" data-sf="Declined" onclick="setApplicantStatusFilter('cwc', 'Declined')">Declined</button>
-        <button class="sch-toggle-btn" data-sf="__lodging__" onclick="setApplicantStatusFilter('cwc', '__lodging__')">🏨 Needs Lodging</button>
-        <button class="sch-toggle-btn" data-sf="__scholarship__" onclick="setApplicantStatusFilter('cwc', '__scholarship__')">🎓 Scholarship Requested</button>
-      </div>
       <div class="sp-table-wrap">
       <table class="sp-table" id="ap-cwc-table">
         <thead><tr id="ap-cwc-thead-row">
           <th style="width:56px;"></th>
           <th style="width:220px;">Name</th>
+          <th style="width:180px;">
+            <select class="sp-sort-select sp-th-select" id="ap-cwc-university-select" onchange="setApplicantUniversityFilter('cwc', this.value)" title="Filter by the school they answered on their application">
+              <option value="all">University</option>
+            </select>
+          </th>
           <th style="width:220px;">Contact</th>
-          <th style="width:110px;">Date Applied</th>
-          <th style="width:120px;">Status</th>
+          <th style="width:110px; cursor:pointer;" onclick="toggleApplicantDateSort('cwc')" title="Sort by date applied">Date Applied<span class="sp-th-sort-arrow" id="ap-cwc-date-sort-arrow"></span></th>
+          <th style="width:150px;">
+            <select class="sp-sort-select sp-th-select" id="ap-cwc-status-th-select" onchange="setApplicantStatusFilter('cwc', this.value)" title="Filter by status">
+              <option value="all">Status</option>
+              <option value="Pending">Pending Review</option>
+              <option value="Approved">Approved</option>
+              <option value="Declined">Declined</option>
+              <option value="__lodging__">🏨 Needs Lodging</option>
+              <option value="__scholarship__">🎓 Scholarship Requested</option>
+            </select>
+          </th>
           <th style="width:110px;">Lodging</th>
         </tr></thead>
         <tbody id="ap-cwc-rows"></tbody>
@@ -2598,6 +2697,10 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 
 <div id="cashflow-view" style="display:none;" data-section="cashflow.all">
   <div id="cfp-root" class="cfp-page"></div>
+</div>
+
+<div id="food-view" style="display:none;" data-section="food.all">
+  <div id="food-root" class="cfp-page"></div>
 </div>
 
 <div id="team-access-view" style="display:none; padding: 22px 26px;" data-section="team_access.all">
@@ -3827,7 +3930,10 @@ const TABLE_TO_SECTION_KEYS = {
   conference_drivers: ['transportation.all'], conference_hotels: ['transportation.all'],
   booth_layouts: ['floorplan.all'], booth_layout_maps: ['floorplan.all'],
   booth_layout_packages: ['floorplan.all'], booth_layout_versions: ['floorplan.all'],
-  conference_settings: ['revenue.all', 'cashflow.all'],
+  // food.all added alongside revenue.all/cashflow.all -- this table is a shared key/value store
+  // (revenue estimator config, cashflow config, AND the Food Planning meal list/location board),
+  // so a food.all-only role needs to be let through too, not just revenue/cashflow roles.
+  conference_settings: ['revenue.all', 'cashflow.all', 'food.all'],
   conference_documents: ['speakers.internal_docs']
 };
 function canView(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey]); }
@@ -4236,7 +4342,7 @@ const DATA_BACKUPS_TABLE = 'data_backups';
 // data side by side without either one touching the other. Deliberately per-browser
 // (localStorage), not a shared setting -- switching your own view should never move the ground
 // under anyone else mid-conference.
-let conferenceYears = []; // [{id, label, status}], newest first
+let conferenceYears = []; // [{id, label, status, venueName, venueLocation}], newest first
 let activeConferenceYear = null;
 // Set true only while switching INTO a just-created conference year -- tells the
 // packages/maps loaders' empty-table branch to leave the new year blank instead of running
@@ -4255,12 +4361,15 @@ async function loadConferenceYears() {
     const { data, error } = await sbClient.from(CONFERENCE_YEARS_TABLE).select('*').order('id', { ascending: false });
     if (error) { console.warn('Conference years table not available:', errDetail(error)); activeConferenceYear = activeConferenceYear || '2027'; return; }
     if (!data || data.length === 0) {
-      const seed = { id: '2027', label: 'SBCMC 2027', status: 'active' };
+      const seed = { id: '2027', label: 'SBCMC 2027', status: 'active', venue_name: 'Hunter Street Baptist Church', venue_location: 'Birmingham, Alabama' };
       const { error: seedErr } = await sbClient.from(CONFERENCE_YEARS_TABLE).insert(seed);
       if (seedErr) console.warn('Could not seed conference_years:', errDetail(seedErr));
-      conferenceYears = [seed];
+      conferenceYears = [{ id: seed.id, label: seed.label, status: seed.status, venueName: seed.venue_name, venueLocation: seed.venue_location }];
     } else {
-      conferenceYears = data.map(y => ({ id: y.id, label: y.label, status: y.status }));
+      // venue_name/venue_location are read as '' rather than left undefined on a row saved
+      // before that migration ran -- so every consumer (the invoice PDF included) can just check
+      // truthiness instead of also handling undefined as a third state.
+      conferenceYears = data.map(y => ({ id: y.id, label: y.label, status: y.status, venueName: y.venue_name || '', venueLocation: y.venue_location || '' }));
     }
     let stored = null;
     try { stored = localStorage.getItem(ACTIVE_YEAR_KEY); } catch (e) { /* private browsing, etc */ }
@@ -4302,10 +4411,38 @@ function renderYearSelector() {
     const activeRow = conferenceYears.find(y => y.id === activeConferenceYear);
     brandLabel.textContent = activeRow ? activeRow.label : ('SBCMC ' + (activeConferenceYear || ''));
   }
-  ['start-new-year-btn', 'backup-now-btn', 'restore-backup-btn', 'close-books-btn'].forEach(id => {
+  ['start-new-year-btn', 'backup-now-btn', 'restore-backup-btn', 'close-books-btn', 'edit-venue-btn'].forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.style.display = window.isAdminUser ? '' : 'none';
   });
+}
+
+// Where the invoice PDF (and eventually other documents) should pull venue text from, instead
+// of the hardcoded CHURCH_NAME/city-state strings scattered elsewhere in this file. Falls back
+// to those hardcoded values only for a year whose venue fields haven't been filled in yet, so
+// existing documents don't regress to blank venue text the moment this shipped.
+function activeYearVenue() {
+  const y = conferenceYears.find(y => y.id === activeConferenceYear);
+  return {
+    name: (y && y.venueName) || CHURCH_NAME,
+    location: (y && y.venueLocation) || 'Birmingham, Alabama',
+  };
+}
+
+async function editVenueInfo() {
+  if (!window.isAdminUser) return;
+  if (!sbClient) { toast('Not connected to shared data — can’t edit venue info right now.'); return; }
+  const y = conferenceYears.find(y => y.id === activeConferenceYear);
+  if (!y) return;
+  const venueName = (prompt('Venue name for ' + y.label + ':', y.venueName || '') || '').trim();
+  if (!venueName) return; // cancelled, or cleared -- don't save an empty venue over a real one
+  const venueLocation = (prompt('City, State for ' + y.label + ':', y.venueLocation || '') || '').trim();
+
+  const { error } = await sbClient.from(CONFERENCE_YEARS_TABLE).update({ venue_name: venueName, venue_location: venueLocation }).eq('id', y.id);
+  if (error) { toast('Could not save venue info — see console.'); console.error(error); return; }
+  y.venueName = venueName;
+  y.venueLocation = venueLocation;
+  toast('Venue updated for ' + y.label + '.');
 }
 
 async function switchActiveYear(year) {
@@ -4329,6 +4466,11 @@ async function switchActiveYear(year) {
     (typeof loadApplicantGroups === 'function' && canView('applicants.all') ? loadApplicantGroups() : Promise.resolve()),
     (typeof loadApplicants === 'function' && canView('applicants.all') ? loadApplicants() : Promise.resolve())
   ]);
+  // Sequential, after scheduleSlots has reloaded for the new year -- same reasoning as the
+  // initial-load path above (its default-seeding reads foodConferenceDays(), which reads
+  // scheduleSlots).
+  if (typeof loadFoodMealsConfig === 'function') await loadFoodMealsConfig();
+  if (typeof loadFoodBoardConfig === 'function') await loadFoodBoardConfig();
   rebuildMapRegistry();
   renderPackageSidebar();
   buildTabs();
@@ -4359,7 +4501,10 @@ async function startNewConferenceYear() {
 
   const { error: yearErr } = await sbClient.from(CONFERENCE_YEARS_TABLE).insert({ id, label, status: 'active' });
   if (yearErr) { toast('Could not create that year \u2014 see console.'); console.error(yearErr); return; }
-  conferenceYears.unshift({ id, label, status: 'active' });
+  // Deliberately blank, not carried forward from the old year -- a new year almost always means
+  // a new venue, and silently inheriting last year's would be worse than an obvious blank
+  // prompting whoever's setting this up to fill it in via "Edit Venue Info".
+  conferenceYears.unshift({ id, label, status: 'active', venueName: '', venueLocation: '' });
 
   // Carry track names and audience names forward as a fresh, editable starting point --
   // building an id remap for audiences so copied schedule slots point at the NEW audience ids,
@@ -5478,6 +5623,11 @@ async function initSupabase() {
           ])
         : Promise.resolve())
     ]);
+    // Sequential, not folded into the Promise.all above -- this seeds its default meal list from
+    // foodConferenceDays(), which reads scheduleSlots, so it has to run after that load finishes
+    // rather than racing it.
+    if (typeof loadFoodMealsConfig === 'function') await loadFoodMealsConfig();
+    if (typeof loadFoodBoardConfig === 'function') await loadFoodBoardConfig();
     initialDataLoaded = true;
     if (typeof updateMyItemsNavBadge === 'function') updateMyItemsNavBadge();
     if (typeof renderApplicantStats === 'function') { renderApplicantStats('sls'); renderApplicantStats('cwc'); }
@@ -7190,13 +7340,14 @@ const VIEW_SECTION_KEYS = {
   transport: ['transportation.all'],
   floorplan: ['floorplan.all'],
   revenue: ['revenue.all'],
-  cashflow: ['cashflow.all']
+  cashflow: ['cashflow.all'],
+  food: ['food.all']
 };
 // Order matters: the first entry here that the signed-in user can actually view is where
 // switchTopView lands them when the tab they asked for is denied -- 'dashboard' can no longer
 // be assumed to always be safe now that it's gated too (see VIEW_SECTION_KEYS above).
 const FALLBACK_VIEW_ORDER = ['dashboard', 'sponsors', 'speakers', 'schedule', 'applicants_sls', 'applicants_cwc',
-  'transport', 'floorplan', 'revenue', 'cashflow'];
+  'transport', 'floorplan', 'revenue', 'cashflow', 'food'];
 function firstAccessibleView() {
   return FALLBACK_VIEW_ORDER.find(v => canViewAny(VIEW_SECTION_KEYS[v])) || null;
 }
@@ -7215,6 +7366,21 @@ function toggleMoneyDropdown(e) {
 document.addEventListener('click', function(e) {
   const menu = document.getElementById('nav-money-menu');
   if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'nav-money-btn') {
+    menu.classList.remove('open');
+  }
+});
+// Transportation + Floor Plan + Food Planning share one "Logistics" nav slot as a dropdown --
+// same mechanics as the Financials dropdown above. Each item keeps its own section key
+// (transportation.all/floorplan.all/food.all) completely independent of the others -- this only
+// changes how you navigate to them, not who can see or edit each one.
+function toggleLogisticsDropdown(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('nav-logistics-menu');
+  if (menu) menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('nav-logistics-menu');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'nav-logistics-btn') {
     menu.classList.remove('open');
   }
 });
@@ -7256,7 +7422,7 @@ function switchTopView(view) {
   if (!view) {
     document.querySelectorAll('.top-nav-btn').forEach(b => b.classList.remove('active'));
     ['sponsor-view', 'dashboard-view', 'budget-view', 'speaker-view', 'transport-view',
-      'schedule-view', 'applicants-sls-view', 'applicants-cwc-view', 'revenue-view', 'cashflow-view', 'team-access-view']
+      'schedule-view', 'applicants-sls-view', 'applicants-cwc-view', 'revenue-view', 'cashflow-view', 'food-view', 'team-access-view']
       .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     const appEl = document.querySelector('.app'); if (appEl) appEl.style.display = 'none';
     return; // no section assigned at all -- nothing to show, nowhere safe to redirect to
@@ -7278,15 +7444,23 @@ function switchTopView(view) {
   if (revenueViewEl) revenueViewEl.style.display = view === 'revenue' ? 'block' : 'none';
   const cashflowViewEl = document.getElementById('cashflow-view');
   if (cashflowViewEl) cashflowViewEl.style.display = view === 'cashflow' ? 'block' : 'none';
+  const foodViewEl = document.getElementById('food-view');
+  if (foodViewEl) foodViewEl.style.display = view === 'food' ? 'block' : 'none';
   const teamAccessViewEl = document.getElementById('team-access-view');
   if (teamAccessViewEl) teamAccessViewEl.style.display = view === 'team_access' ? 'block' : 'none';
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
+  const foodBtnEl = document.getElementById('nav-food-btn');
+  if (foodBtnEl) foodBtnEl.classList.toggle('active', view === 'food');
   document.getElementById('nav-sponsors-btn').classList.toggle('active', view === 'sponsors');
   document.getElementById('nav-dashboard-btn').classList.toggle('active', view === 'dashboard');
   const speakerBtnEl = document.getElementById('nav-speakers-btn');
   if (speakerBtnEl) speakerBtnEl.classList.toggle('active', view === 'speakers');
   const transportBtnEl = document.getElementById('nav-transport-btn');
   if (transportBtnEl) transportBtnEl.classList.toggle('active', view === 'transport');
+  const logisticsBtnEl = document.getElementById('nav-logistics-btn');
+  if (logisticsBtnEl) logisticsBtnEl.classList.toggle('active', view === 'transport' || view === 'floorplan' || view === 'food');
+  const logisticsMenuEl = document.getElementById('nav-logistics-menu');
+  if (logisticsMenuEl) logisticsMenuEl.classList.remove('open');
   const scheduleBtnEl = document.getElementById('nav-schedule-btn');
   if (scheduleBtnEl) scheduleBtnEl.classList.toggle('active', view === 'schedule');
   const applicantsBtnEl = document.getElementById('nav-applicants-btn');
@@ -7315,6 +7489,7 @@ function switchTopView(view) {
   if ((view === 'applicants_sls' || view === 'applicants_cwc') && typeof refreshApplicantsAll === 'function') refreshApplicantsAll();
   if (view === 'revenue' && typeof initRevenueView === 'function' && revenueViewEl) initRevenueView();
   if (view === 'cashflow' && typeof initCashflowView === 'function' && cashflowViewEl) initCashflowView();
+  if (view === 'food' && typeof renderFoodView === 'function' && foodViewEl) renderFoodView();
   if (view === 'floorplan') {
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
     if (typeof refreshBoothLabels === 'function') refreshBoothLabels();
@@ -7335,6 +7510,11 @@ function applyNavVisibility() {
   });
   const moneyBtn = document.getElementById('nav-money-btn');
   if (moneyBtn) moneyBtn.style.display = canViewAny(['revenue.all', 'cashflow.all']) ? '' : 'none';
+  // Individual items (nav-transport-btn/nav-floorplan-btn/nav-food-btn) are already shown/hidden
+  // by the generic per-view loop above, each still gated by its own section key -- this only
+  // controls whether the "Logistics" trigger itself shows, same as the Financials trigger does.
+  const logisticsBtn = document.getElementById('nav-logistics-btn');
+  if (logisticsBtn) logisticsBtn.style.display = canViewAny(['transportation.all', 'floorplan.all', 'food.all']) ? '' : 'none';
   // The generic per-view loop above looks up nav-${view}-btn, which doesn't resolve for
   // applicants_sls/applicants_cwc (the trigger and its two dropdown items use their own ids,
   // same as the Financials dropdown's revenue/cashflow items need their own handling too --
@@ -7361,6 +7541,754 @@ function applyNavVisibility() {
   if (dueTh) dueTh.style.display = showFinancialCols ? '' : 'none';
 }
 
+// ==== Food Planning ====
+//
+// Headcounts are computed live from data that already exists elsewhere -- registration actuals,
+// approved applicants, the booth roster, and each speaker's own travel dates -- rather than a
+// separate manual tally, so this can never drift out of sync with the tracker itself. The one new
+// piece of data is the per-day meal list (Breakfast/Lunch/Dinner, which days get which), since
+// nothing else in the app has any reason to know that.
+//
+// Which days a given population actually needs feeding is read straight off the Schedule tab's
+// own audience tags -- Collegiate Collective and Student Leadership Summit both end before the
+// main conference does, and rather than hardcode "SLS = Mon only, CWC = Mon-Tue" (which breaks
+// the moment the schedule shifts a year from now), this finds the actual last day each audience
+// has a slot on and treats that as their real day range. Confirmed against the live 2027 schedule
+// while building this: SLS tagged Sun-Mon only, Collegiate Collective tagged Sun-Tue only, Main
+// Conference and Executive Council tagged all four days -- exactly matching what Sergio described
+// verbally (SLS gone by Monday night, CWC gone by Tuesday night) with zero hardcoded dates.
+
+const FOOD_MEALS_SETTINGS_ID = 'food_meals_config';
+let foodMealsConfig = {}; // { 'YYYY-MM-DD': ['Breakfast', 'Lunch', 'Dinner'] }
+let foodMealsConfigLoaded = false;
+
+// Every distinct day the Schedule tab actually has slots on, in order -- this is "the
+// conference" as far as food planning is concerned. A day with zero slots (nothing scheduled)
+// never shows up here, so there's nothing to accidentally plan meals for on a day nobody's
+// actually arrived yet.
+function foodConferenceDays() {
+  return [...new Set(scheduleSlots.map(s => s.date).filter(Boolean))].sort();
+}
+
+// The real day range a schedule audience (Main Conference, Collegiate Collective, Student
+// Leadership Summit, ...) is tagged on, read straight from schedule_slots -- not assumed from
+// anything hardcoded. Returns [] for an audience with no slots at all (e.g. brand new, not yet
+// scheduled), which correctly contributes zero headcount everywhere below rather than guessing.
+function foodAudienceDays(audienceId) {
+  return [...new Set(scheduleSlots.filter(s => (s.audiences || []).includes(audienceId)).map(s => s.date))].sort();
+}
+function foodAudienceIdByName(name) {
+  const a = scheduleAudiences.find(a => a.name === name);
+  return a ? a.id : null;
+}
+
+async function loadFoodMealsConfig() {
+  foodMealsConfigLoaded = false;
+  foodMealsConfig = {};
+  if (!sbClient) { foodMealsConfigLoaded = true; return; }
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', FOOD_MEALS_SETTINGS_ID).eq('conference_year', activeConferenceYear).maybeSingle();
+    if (!error && data && data.value) {
+      foodMealsConfig = JSON.parse(data.value);
+    } else {
+      // First time this year -- seed a sensible default (every day gets Breakfast/Lunch/Dinner
+      // except the final day, which only gets Breakfast, matching a typical departure-day
+      // schedule) rather than leaving every meal row blank with nothing to compute against.
+      const days = foodConferenceDays();
+      days.forEach((d, i) => { foodMealsConfig[d] = i === days.length - 1 ? ['Breakfast'] : ['Breakfast', 'Lunch', 'Dinner']; });
+      await pushFoodMealsConfig();
+    }
+  } catch (err) {
+    console.warn('Food meals config load failed:', err);
+  }
+  foodMealsConfigLoaded = true;
+}
+async function pushFoodMealsConfig() {
+  if (!sbClient) return;
+  const { error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert(
+    { id: FOOD_MEALS_SETTINGS_ID, value: JSON.stringify(foodMealsConfig), conference_year: activeConferenceYear },
+    { onConflict: 'id,conference_year' }
+  );
+  if (error) { reportWriteError('food-meals-config', 'Couldn’t save the meal list — see console.', error); console.error(error); }
+  else reportWriteSuccess('food-meals-config');
+}
+// Flattened (date, meal) pairs in schedule order -- the single source of truth for both the Food
+// Planning grid's rows and each speaker's meal-exception checkboxes, so the two can never show a
+// different set of meals from each other.
+function foodAllMealSlots() {
+  const days = foodConferenceDays();
+  const slots = [];
+  days.forEach(d => { (foodMealsConfig[d] || []).forEach(meal => slots.push({ date: d, meal })); });
+  return slots;
+}
+
+function foodMealKey(date, meal) { return date + '|' + meal; }
+
+// True/false wins outright over the smart default below -- this is the only way to handle the
+// "here for one specific event's meal, nothing else" case (a guest choir, a one-session
+// speaker) that no date range could express on its own.
+function speakerAttendsMeal(sp, date, meal) {
+  const overrides = sp.data.mealOverrides || {};
+  const key = foodMealKey(date, meal);
+  if (key in overrides) return overrides[key];
+  const { arrivalDate, departureDate } = sp.data.logistics || {};
+  if (arrivalDate && departureDate) return date >= arrivalDate && date <= departureDate;
+  // Neither travel date is set -- default to present the whole conference rather than
+  // defaulting to absent, since most speakers on the roster ARE there the whole time and
+  // forcing every one of them to be explicitly opted in would make this tool more tedious than
+  // the manual headcount it's replacing.
+  return true;
+}
+function updateSpeakerMealOverride(id, date, meal, checked) {
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!sp.data.mealOverrides) sp.data.mealOverrides = {};
+  sp.data.mealOverrides[foodMealKey(date, meal)] = checked;
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+}
+
+// One number per population per meal slot. Kept as separate named counts (never pre-summed
+// into one blob) specifically because Sergio described several of these being fed at a
+// different time/place than the main lunch/dinner crowd -- a caterer ordering for just the
+// Collegiate Collective room needs that row on its own, not folded into a combined total.
+function foodHeadcounts(date, meal) {
+  const mainDays = foodAudienceDays(MAIN_AUDIENCE_ID);
+  const cwcAudienceId = foodAudienceIdByName('Collegiate Collective');
+  const slsAudienceId = foodAudienceIdByName('Student Leadership Summit');
+  const cwcDays = cwcAudienceId ? foodAudienceDays(cwcAudienceId) : [];
+  const slsDays = slsAudienceId ? foodAudienceDays(slsAudienceId) : [];
+
+  const mainConferenceCount = mainDays.includes(date) ? registrationActualsTotalHeadcount() : 0;
+
+  const cwcCount = cwcDays.includes(date)
+    ? applicants.filter(a => a.groupId === PROGRAM_PAGES.cwc.groupId && (a.data.status || 'Pending') === 'Approved').length
+    : 0;
+  const slsCount = slsDays.includes(date)
+    ? applicants.filter(a => a.groupId === PROGRAM_PAGES.sls.groupId && (a.data.status || 'Pending') === 'Approved').length
+    : 0;
+
+  // Linked-group speakers (a band member counted under the act's lead record) are skipped here
+  // for the same reason they're skipped for badges/travel -- their headcount already lives on
+  // the record they're linked to, via that record's own partySize.
+  const speakerCount = speakers.filter(sp => !sp.data.logistics.linkedGroupId && speakerAttendsMeal(sp, date, meal)).length;
+
+  const exhibitorCount = mainDays.includes(date)
+    ? sponsors.filter(s => isActiveThisYear(s) && !s.data.noBoothNeeded)
+        .reduce((sum, s) => sum + (s.data.logistics.badgeNames || []).filter(n => n && n.trim()).length, 0)
+    : 0;
+
+  const total = mainConferenceCount + cwcCount + slsCount + speakerCount + exhibitorCount;
+  return { mainConferenceCount, cwcCount, slsCount, speakerCount, exhibitorCount, total };
+}
+
+// ---- Food Planning: Location Board -----------------------------------------------------------
+// Where each group actually eats, per meal -- a caterer's seating chart, not just a headcount
+// table. Locations are admin-editable rooms; each of the five live-computed populations
+// (Main/CWC/SLS/Speakers/Exhibitors) can be assigned to any of them per meal slot, hand-overridden
+// for planning ("what if 20 more walk in"), and reset back to the live number at any time. Any
+// number of manually-managed "extra" groups (staff, volunteers, VIP guests -- people none of the
+// other four tabs know about) can also be added with their own hand-entered counts. Two groups
+// assigned to the same location for the same meal are eating together; different locations means
+// served separately.
+const FOOD_BOARD_SETTINGS_ID = 'food_board_config';
+// { locations: [{id,name}], assignments: { '<date>|<meal>': { '<groupKey>': '<locationId>' } },
+//   overrides: { '<date>|<meal>': { '<builtinGroupKey>': n } }, labels: { '<builtinGroupKey>': 'Custom Name' },
+//   excluded: { '<date>|<meal>': { '<builtinGroupKey>': true } }, mealCosts: { '<mealName>': dollarsPerPerson },
+//   mealCostSplit: { '<mealName>': true }, mealGroupCosts: { '<mealName>': { '<groupKey>': dollarsPerPerson } },
+//   extraGroups: [{id,label,color,counts:{'<date>|<meal>':n}}] }
+// labels renames a built-in group everywhere at once (not per meal) -- nobody wants "Main
+// Conference" called something different at breakfast than at dinner. excluded is the opposite
+// of that -- per-meal, not global -- for "no [group] after Monday": pulling one of the five live
+// populations off just one meal slot's board without touching any other slot. mealCosts is
+// global too, like labels -- a $/person for "Breakfast" applies to every day that has a
+// Breakfast, not one price for Monday's and another for Tuesday's. mealCostSplit/mealGroupCosts
+// are the per-group override of that same idea -- Dinner might cost one thing for Main Conference
+// and another for Collegiate Collective -- and only kick in once a meal is explicitly split.
+let foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, extraGroups: [] };
+let foodBoardConfigLoaded = false;
+
+// The five populations foodHeadcounts() computes live -- that's the DEFAULT shown here, but any
+// one of them can be hand-overridden per meal for planning purposes (a manual override always
+// wins over the live number) and reset back to live with one click.
+const FOOD_BUILTIN_GROUP_DEFS = [
+  { key: 'main', label: 'Main Conference', color: 'var(--teal-deep)' },
+  { key: 'cwc', label: 'Collegiate Collective', color: '#2962FF' },
+  { key: 'sls', label: 'Student Leadership Summit', color: '#FF8C00' },
+  { key: 'speakers', label: 'Speakers & Artists', color: 'var(--gold)' },
+  { key: 'exhibitors', label: 'Exhibitors', color: '#9B59B6' }
+];
+
+async function loadFoodBoardConfig() {
+  foodBoardConfigLoaded = false;
+  foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, extraGroups: [] };
+  if (!sbClient) { foodBoardConfigLoaded = true; return; }
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', FOOD_BOARD_SETTINGS_ID).eq('conference_year', activeConferenceYear).maybeSingle();
+    if (!error && data && data.value) {
+      const parsed = JSON.parse(data.value);
+      foodBoardConfig = {
+        locations: Array.isArray(parsed.locations) && parsed.locations.length ? parsed.locations : foodBoardConfig.locations,
+        assignments: (parsed.assignments && typeof parsed.assignments === 'object') ? parsed.assignments : {},
+        overrides: (parsed.overrides && typeof parsed.overrides === 'object') ? parsed.overrides : {},
+        labels: (parsed.labels && typeof parsed.labels === 'object') ? parsed.labels : {},
+        excluded: (parsed.excluded && typeof parsed.excluded === 'object') ? parsed.excluded : {},
+        mealCosts: (parsed.mealCosts && typeof parsed.mealCosts === 'object') ? parsed.mealCosts : {},
+        mealCostSplit: (parsed.mealCostSplit && typeof parsed.mealCostSplit === 'object') ? parsed.mealCostSplit : {},
+        mealGroupCosts: (parsed.mealGroupCosts && typeof parsed.mealGroupCosts === 'object') ? parsed.mealGroupCosts : {},
+        extraGroups: Array.isArray(parsed.extraGroups) ? parsed.extraGroups : []
+      };
+    }
+    // No row yet for this year -- the single-default-location seed above already means every
+    // group lands in "Main Dining Hall" with nothing to reassign, i.e. behaves exactly like the
+    // old flat table until someone actually adds a second location.
+  } catch (err) {
+    console.warn('Food location board load failed:', err);
+  }
+  foodBoardConfigLoaded = true;
+}
+async function pushFoodBoardConfig() {
+  if (!sbClient) return;
+  const { error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert(
+    { id: FOOD_BOARD_SETTINGS_ID, value: JSON.stringify(foodBoardConfig), conference_year: activeConferenceYear },
+    { onConflict: 'id,conference_year' }
+  );
+  if (error) { reportWriteError('food-board-config', 'Couldn’t save the location board — see console.', error); console.error(error); }
+  else reportWriteSuccess('food-board-config');
+}
+
+function foodGroupLocationId(mealKey, groupKey) {
+  const assigned = foodBoardConfig.assignments[mealKey] && foodBoardConfig.assignments[mealKey][groupKey];
+  if (assigned && foodBoardConfig.locations.some(l => l.id === assigned)) return assigned;
+  return foodBoardConfig.locations[0] ? foodBoardConfig.locations[0].id : 'main';
+}
+function setFoodGroupLocation(mealKey, groupKey, locId) {
+  if (!foodBoardConfig.assignments[mealKey]) foodBoardConfig.assignments[mealKey] = {};
+  foodBoardConfig.assignments[mealKey][groupKey] = locId;
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+// Drag a chip's handle onto another location's cell in the SAME meal row to reassign it there --
+// replaces the old per-chip location dropdown. Built on Pointer Events (not the HTML5
+// dragstart/dragover/drop API) specifically because native drag-and-drop never fires from a touch
+// gesture on a phone/tablet -- Pointer Events unify mouse, touch and pen into one model, so the
+// same code drives both. A drop into a different meal row's cell is ignored (mealKey mismatch):
+// dragging only ever reassigns location, never which meal a group belongs to.
+let foodDragState = null;
+function foodChipHandlePointerDown(e, mealKey, groupKey) {
+  if (e.button !== undefined && e.button > 0) return; // ignore right/middle mouse button
+  e.preventDefault();
+  const chipEl = e.currentTarget.closest('.food-chip');
+  const labelInput = chipEl ? chipEl.querySelector('input[type=text]') : null;
+  const ghost = document.createElement('div');
+  ghost.className = 'food-drag-ghost';
+  ghost.textContent = labelInput ? labelInput.value : 'Moving…';
+  document.body.appendChild(ghost);
+  foodPositionDragGhost(ghost, e.clientX, e.clientY);
+  foodDragState = { mealKey, groupKey, ghostEl: ghost, hoveredCell: null };
+  if (chipEl) chipEl.classList.add('food-chip-dragging');
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* not critical */ }
+  document.addEventListener('pointermove', foodDragPointerMove);
+  document.addEventListener('pointerup', foodDragPointerUp);
+  document.addEventListener('pointercancel', foodDragPointerUp);
+}
+function foodPositionDragGhost(ghost, x, y) {
+  ghost.style.left = (x + 14) + 'px';
+  ghost.style.top = (y + 14) + 'px';
+}
+function foodDragPointerMove(e) {
+  if (!foodDragState) return;
+  foodPositionDragGhost(foodDragState.ghostEl, e.clientX, e.clientY);
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const cell = under ? under.closest('td.food-meal-cell[data-meal-key]') : null;
+  if (foodDragState.hoveredCell && foodDragState.hoveredCell !== cell) {
+    foodDragState.hoveredCell.classList.remove('food-drop-hover');
+  }
+  if (cell && cell.dataset.mealKey === foodDragState.mealKey) {
+    cell.classList.add('food-drop-hover');
+    foodDragState.hoveredCell = cell;
+  } else {
+    foodDragState.hoveredCell = null;
+  }
+}
+function foodDragPointerUp(e) {
+  if (!foodDragState) return;
+  const { mealKey, groupKey, ghostEl, hoveredCell } = foodDragState;
+  document.removeEventListener('pointermove', foodDragPointerMove);
+  document.removeEventListener('pointerup', foodDragPointerUp);
+  document.removeEventListener('pointercancel', foodDragPointerUp);
+  ghostEl.remove();
+  document.querySelectorAll('.food-chip-dragging').forEach(el => el.classList.remove('food-chip-dragging'));
+  if (hoveredCell) {
+    hoveredCell.classList.remove('food-drop-hover');
+    const locId = hoveredCell.dataset.locId;
+    if (locId) setFoodGroupLocation(mealKey, groupKey, locId);
+  }
+  foodDragState = null;
+}
+
+// A manual override always wins over the live-computed count for that meal -- returns null when
+// nothing's been overridden, so the caller falls back to the real number.
+function foodGroupCountOverride(mealKey, groupKey) {
+  const row = foodBoardConfig.overrides[mealKey];
+  return row && Number.isFinite(row[groupKey]) ? row[groupKey] : null;
+}
+function setFoodGroupCountOverride(mealKey, groupKey, value) {
+  const n = parseInt(value, 10);
+  if (isNaN(n)) return;
+  if (!foodBoardConfig.overrides[mealKey]) foodBoardConfig.overrides[mealKey] = {};
+  foodBoardConfig.overrides[mealKey][groupKey] = n;
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+function resetFoodGroupCountOverride(mealKey, groupKey) {
+  if (foodBoardConfig.overrides[mealKey]) delete foodBoardConfig.overrides[mealKey][groupKey];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+// Renames a built-in group (Main Conference, Collegiate Collective, ...) everywhere on the board
+// at once. An empty value clears the rename and falls back to the default name.
+function foodGroupLabel(groupKey, defaultLabel) {
+  const custom = foodBoardConfig.labels[groupKey];
+  return (typeof custom === 'string' && custom.trim()) ? custom : defaultLabel;
+}
+function setFoodGroupLabel(groupKey, value) {
+  const trimmed = (value || '').trim();
+  if (trimmed) foodBoardConfig.labels[groupKey] = trimmed;
+  else delete foodBoardConfig.labels[groupKey];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+// Pulls one of the five live populations off the board for just ONE meal slot -- "no Student
+// Leadership Summit after Monday" without touching that group at any other meal. Restorable,
+// since a live population isn't really "deleted" so much as told not to count for this one meal.
+function foodGroupExcluded(mealKey, groupKey) {
+  return !!(foodBoardConfig.excluded[mealKey] && foodBoardConfig.excluded[mealKey][groupKey]);
+}
+function excludeFoodGroupFromMeal(mealKey, groupKey) {
+  if (!foodBoardConfig.excluded[mealKey]) foodBoardConfig.excluded[mealKey] = {};
+  foodBoardConfig.excluded[mealKey][groupKey] = true;
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+function restoreFoodGroupToMeal(mealKey, groupKey) {
+  if (foodBoardConfig.excluded[mealKey]) delete foodBoardConfig.excluded[mealKey][groupKey];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+// $/person target for a meal NAME (e.g. "Breakfast"), applied to every day that has one -- see
+// the mealCosts shape note above.
+function setFoodMealCost(mealName, value) {
+  const n = parseFloat(value);
+  if (!isNaN(n) && n >= 0) foodBoardConfig.mealCosts[mealName] = n;
+  else delete foodBoardConfig.mealCosts[mealName];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+// Flips a meal between one combined $/person and a per-group breakdown ("Dinner costs one thing
+// for Main Conference, another for Collegiate Collective"). Toggling back to combined leaves the
+// per-group prices in place (not cleared) -- just not used in the total -- so switching back and
+// forth to compare doesn't lose anything typed in.
+function toggleFoodMealCostSplit(mealName) {
+  foodBoardConfig.mealCostSplit[mealName] = !foodBoardConfig.mealCostSplit[mealName];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+function setFoodMealGroupCost(mealName, groupKey, value) {
+  const n = parseFloat(value);
+  if (!foodBoardConfig.mealGroupCosts[mealName]) foodBoardConfig.mealGroupCosts[mealName] = {};
+  if (!isNaN(n) && n >= 0) foodBoardConfig.mealGroupCosts[mealName][groupKey] = n;
+  else delete foodBoardConfig.mealGroupCosts[mealName][groupKey];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+function addFoodLocation() {
+  const id = 'loc' + Date.now();
+  foodBoardConfig.locations = [...foodBoardConfig.locations, { id, name: 'New Location' }];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+function renameFoodLocation(id, value) {
+  foodBoardConfig.locations = foodBoardConfig.locations.map(l => l.id !== id ? l : { ...l, name: value });
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+function removeFoodLocation(id) {
+  if (foodBoardConfig.locations.length <= 1) { toast('Keep at least one serving location.'); return; }
+  if (!confirm('Remove this location? Everyone assigned here moves back to the first location.')) return;
+  foodBoardConfig.locations = foodBoardConfig.locations.filter(l => l.id !== id);
+  const fallback = foodBoardConfig.locations[0].id;
+  Object.keys(foodBoardConfig.assignments).forEach(mealKey => {
+    const row = foodBoardConfig.assignments[mealKey];
+    Object.keys(row).forEach(groupKey => { if (row[groupKey] === id) row[groupKey] = fallback; });
+  });
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+// Manually-managed groups -- the "add values for people the other tabs don't know about" escape
+// hatch (AV crew, security, volunteers, board members, a spouse tagging along).
+// A group is "present" at a given meal slot only when that meal's key actually exists in
+// counts -- so a brand-new group is seeded present at every CURRENT meal slot (matching how it
+// used to just always show everywhere), but removing it from one slot is a real, separate action
+// from removing it from any other.
+function addFoodExtraGroup() {
+  const palette = ['#2E8B57', '#6e3c81', '#b56200', '#1f5f3b', '#a52620', '#2c5a82'];
+  const id = 'extra' + Date.now();
+  const counts = {};
+  foodAllMealSlots().forEach(s => { counts[foodMealKey(s.date, s.meal)] = 0; });
+  foodBoardConfig.extraGroups = [...foodBoardConfig.extraGroups, {
+    id, label: 'New group', color: palette[foodBoardConfig.extraGroups.length % palette.length], counts
+  }];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+function setFoodExtraGroupLabel(id, value) {
+  foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g => g.id !== id ? g : { ...g, label: value });
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+function setFoodExtraGroupCount(id, mealKey, value) {
+  const n = parseInt(value, 10);
+  foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g => g.id !== id ? g : { ...g, counts: { ...g.counts, [mealKey]: isNaN(n) ? 0 : n } });
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+// Removes a group from just ONE meal slot ("no students after Monday") -- not the whole group.
+// Once it's been removed from every slot it's actually gone (nothing left to show anywhere), so
+// that last removal also drops the now-empty group definition and its location assignment.
+function removeFoodExtraGroupFromMeal(id, mealKey) {
+  const group = foodBoardConfig.extraGroups.find(g => g.id === id);
+  if (!group) return;
+  const counts = { ...group.counts };
+  delete counts[mealKey];
+  if (Object.keys(counts).length === 0) {
+    foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.filter(g => g.id !== id);
+    Object.keys(foodBoardConfig.assignments).forEach(mk => { delete foodBoardConfig.assignments[mk][id]; });
+  } else {
+    foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g => g.id !== id ? g : { ...g, counts });
+  }
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+
+// The five live populations for one meal slot, in chip form, skipping anyone at zero for that
+// day (a program that's already ended, an exhibitor day with no booths) so the board doesn't
+// clutter every cell with permanently-empty rows.
+// Not filtered by count here -- a group at zero (a program that's already ended) still needs to
+// be reachable so it can be manually overridden back up for planning; the caller filters using
+// the EFFECTIVE (post-override) count instead, so an override is what decides visibility.
+function foodBuiltinGroupsForMeal(date, meal) {
+  const h = foodHeadcounts(date, meal);
+  const countsByKey = { main: h.mainConferenceCount, cwc: h.cwcCount, sls: h.slsCount, speakers: h.speakerCount, exhibitors: h.exhibitorCount };
+  return FOOD_BUILTIN_GROUP_DEFS.map(g => ({
+    key: g.key, label: foodGroupLabel(g.key, g.label), defaultLabel: g.label, color: g.color, count: countsByKey[g.key] || 0
+  }));
+}
+
+// Main Conference's own headcount, reusing whichever counts are already the best available --
+// actual synced registrants once that's run, falling back to the active revenue scenario's
+// projected counts before then so the tool still shows something meaningful pre-sync.
+function registrationActualsTotalHeadcount() {
+  if (registrationActuals && registrationActuals.counts) {
+    return Object.values(registrationActuals.counts).reduce((sum, n) => sum + (parseInt(n, 10) || 0), 0);
+  }
+  if (revenueState) {
+    const tiers = revenueActiveTiers();
+    return Object.values(tiers).reduce((sum, t) => sum + (parseInt(t.count, 10) || 0), 0);
+  }
+  return 0;
+}
+
+function friendlyFoodDate(dateStr) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+async function renderFoodView() {
+  const root = document.getElementById('food-root');
+  if (!root) return;
+  root.innerHTML = '<p class="sp-sub" style="padding:20px;">Loading…</p>';
+  if (!foodMealsConfigLoaded) await loadFoodMealsConfig();
+  if (!foodBoardConfigLoaded) await loadFoodBoardConfig();
+  // registration_actuals is otherwise only fetched when someone opens the Revenue tab (and the
+  // revenueState fallback it needs is further gated behind revenue.all/cashflow.all permission)
+  // -- Food Planning has its own separate permission and needs a real Main Conference number
+  // regardless of whether either of those was ever visited this session.
+  if (!registrationActuals && typeof loadRegistrationActuals === 'function') await loadRegistrationActuals();
+  // Same reasoning for the scenario-count fallback registrationActualsTotalHeadcount() uses when
+  // actuals haven't been synced yet.
+  if (!revenueLoaded && typeof loadRevenueEstimator === 'function') { await loadRevenueEstimator(); revenueLoaded = true; }
+
+  const days = foodConferenceDays();
+  const canEditFood = canEdit('food.all') || window.isAdminUser;
+
+  const configEditorHtml = days.map(d => `
+    <div class="sp-field" style="margin-bottom:8px;">
+      <label>${escapeHtml(friendlyFoodDate(d))}</label>
+      <input type="text" id="food-meals-input-${d}" value="${escapeHtml((foodMealsConfig[d] || []).join(', '))}"
+        placeholder="e.g. Breakfast, Lunch, Dinner" ${canEditFood ? '' : 'disabled'}
+        onchange="setFoodMealsForDay('${d}', this.value)">
+    </div>
+  `).join('') || '<p class="sp-sub">No schedule days found yet — add slots on the Schedule tab first.</p>';
+
+  const mealCols = foodAllMealSlots().map(s => ({ key: foodMealKey(s.date, s.meal), date: s.date, meal: s.meal }));
+
+  // Every group (the 5 live populations + any manually-added extras), per meal column, already
+  // carrying its assigned location -- computed once up front so the per-location, per-meal cells
+  // below are just a filter, not a recompute.
+  const groupsByMeal = {};
+  mealCols.forEach(col => {
+    const allBuiltins = foodBuiltinGroupsForMeal(col.date, col.meal).map(g => {
+      const override = foodGroupCountOverride(col.key, g.key);
+      return {
+        ...g, locId: foodGroupLocationId(col.key, g.key), isExtra: false,
+        liveCount: g.count, count: override !== null ? override : g.count, isOverridden: override !== null,
+        isRenamed: g.label !== g.defaultLabel, isExcluded: foodGroupExcluded(col.key, g.key)
+      };
+    });
+    const builtins = allBuiltins.filter(g => (g.count > 0 || g.isOverridden) && !g.isExcluded);
+    const excludedBuiltins = allBuiltins.filter(g => g.isExcluded);
+    const extras = foodBoardConfig.extraGroups
+      .filter(g => g.counts && Object.prototype.hasOwnProperty.call(g.counts, col.key))
+      .map(g => ({
+        key: g.id, label: g.label, color: g.color, count: g.counts[col.key] || 0,
+        locId: foodGroupLocationId(col.key, g.id), isExtra: true
+      }));
+    groupsByMeal[col.key] = builtins.concat(extras);
+    groupsByMeal[col.key + '|excluded'] = excludedBuiltins;
+  });
+
+  // Every group's count, summed across every location -- the at-a-glance "how many am I feeding
+  // this meal" number, and the per-meal-NAME aggregation the cost table below needs (a Monday
+  // Breakfast and a Tuesday Breakfast share one $/person, but their headcounts still add up
+  // separately into one combined total).
+  const mealTotalsByKey = {};
+  const mealNameTotals = {};
+  // Per-group headcount rolled up by meal NAME too (a Monday Dinner's Main Conference count plus
+  // a Tuesday Dinner's) -- the cost table's per-group breakdown needs this the same way its
+  // combined total needs mealNameTotals.
+  const mealNameGroupTotals = {};
+  mealCols.forEach(col => {
+    const total = groupsByMeal[col.key].reduce((sum, g) => sum + g.count, 0);
+    mealTotalsByKey[col.key] = total;
+    if (!mealNameTotals[col.meal]) mealNameTotals[col.meal] = { headcount: 0, occurrences: 0 };
+    mealNameTotals[col.meal].headcount += total;
+    mealNameTotals[col.meal].occurrences += 1;
+    if (!mealNameGroupTotals[col.meal]) mealNameGroupTotals[col.meal] = {};
+    groupsByMeal[col.key].forEach(g => {
+      if (!mealNameGroupTotals[col.meal][g.key]) mealNameGroupTotals[col.meal][g.key] = { label: g.label, color: g.color, headcount: 0 };
+      mealNameGroupTotals[col.meal][g.key].headcount += g.count;
+    });
+  });
+
+  const chipHtml = (g, col) => {
+    let countHtml;
+    if (g.isExtra) {
+      countHtml = `<input type="number" min="0" value="${g.count}" ${canEditFood ? '' : 'disabled'} onchange="setFoodExtraGroupCount('${g.key}','${col.key}', this.value)">`;
+    } else {
+      const resetBtn = g.isOverridden
+        ? `<button class="food-chip-remove-btn" title="Reset to the live count (${g.liveCount})" onclick="resetFoodGroupCountOverride('${col.key}','${g.key}')">↺</button>`
+        : '';
+      countHtml = `<input type="number" min="0" value="${g.count}" title="${g.isOverridden ? 'Manually overridden — live count is ' + g.liveCount : 'Live count — type a number to override it for planning.'}"
+          style="${g.isOverridden ? 'border-color:var(--gold); background:var(--gold-pale);' : ''}"
+          ${canEditFood ? '' : 'disabled'} onchange="setFoodGroupCountOverride('${col.key}','${g.key}', this.value)">${resetBtn}`;
+    }
+    const labelHtml = g.isExtra
+      ? `<input type="text" class="food-chip-label-input" value="${escapeHtml(g.label)}" ${canEditFood ? '' : 'disabled'} onchange="setFoodExtraGroupLabel('${g.key}', this.value)">`
+      : `<input type="text" class="food-chip-label-input" value="${escapeHtml(g.label)}"
+          title="${g.isRenamed ? 'Renamed — default is “' + escapeHtml(g.defaultLabel) + '”' : 'Type to rename this group everywhere on the board.'}"
+          ${canEditFood ? '' : 'disabled'} onchange="setFoodGroupLabel('${g.key}', this.value)">`;
+    const labelResetHtml = (!g.isExtra && g.isRenamed && canEditFood)
+      ? `<button class="food-chip-remove-btn" title="Reset name to “${escapeHtml(g.defaultLabel)}”" onclick="setFoodGroupLabel('${g.key}', '')">↺</button>`
+      : '';
+    const removeHtml = canEditFood
+      ? (g.isExtra
+          ? `<button class="food-chip-remove-btn" title="Remove from just this meal" onclick="removeFoodExtraGroupFromMeal('${g.key}','${col.key}')">×</button>`
+          : `<button class="food-chip-remove-btn" title="Remove from just this meal (restorable)" onclick="excludeFoodGroupFromMeal('${col.key}','${g.key}')">×</button>`)
+      : '';
+    const handleHtml = canEditFood
+      ? `<span class="food-chip-handle" title="Drag to move to another location" onpointerdown="foodChipHandlePointerDown(event,'${col.key}','${g.key}')">⠿</span>`
+      : '';
+    return `
+      <div class="food-chip">
+        ${handleHtml}
+        <span class="food-chip-dot" style="background:${g.color};"></span>
+        ${labelHtml}
+        ${labelResetHtml}
+        ${countHtml}
+        ${removeHtml}
+      </div>`;
+  };
+
+  // Locations are the columns, meal slots are the rows -- a handful of locations fits on screen
+  // without horizontal scrolling, and a whole conference's worth of meal slots just scrolls down
+  // the page like any other long list.
+  const headerCellsHtml = foodBoardConfig.locations.map(loc => {
+    const removeBtn = (canEditFood && foodBoardConfig.locations.length > 1)
+      ? `<button class="food-loc-remove-btn" title="Remove this location" onclick="removeFoodLocation('${loc.id}')">×</button>`
+      : '';
+    return `
+      <th class="food-loc-cell">
+        <div class="food-loc-name-row">
+          <input type="text" value="${escapeHtml(loc.name)}" ${canEditFood ? '' : 'disabled'} onchange="renameFoodLocation('${loc.id}', this.value)">
+          ${removeBtn}
+        </div>
+      </th>`;
+  }).join('');
+
+  const bodyRowsHtml = mealCols.map(col => {
+    const cellsHtml = foodBoardConfig.locations.map(loc => {
+      const chips = groupsByMeal[col.key].filter(g => g.locId === loc.id);
+      const chipsHtml = chips.map(g => chipHtml(g, col)).join('');
+      return `<td class="food-meal-cell" data-meal-key="${escapeHtml(col.key)}" data-loc-id="${escapeHtml(loc.id)}" data-label="${escapeHtml(loc.name)}">${chipsHtml || '<span class="food-empty-cell">—</span>'}</td>`;
+    }).join('');
+    const mealTotal = mealTotalsByKey[col.key];
+    const excludedHtml = (groupsByMeal[col.key + '|excluded'] || []).map(g => `
+      <button class="food-restore-link" title="Add ${escapeHtml(g.label)} back to this meal" onclick="restoreFoodGroupToMeal('${col.key}','${g.key}')">+ ${escapeHtml(g.label)}</button>
+    `).join('');
+    const excludedRowHtml = (canEditFood && excludedHtml)
+      ? `<div class="food-excluded-row"><span class="sp-sub">Removed from this meal:</span>${excludedHtml}</div>`
+      : '';
+    return `
+      <tr>
+        <td class="food-loc-cell">
+          <div>${escapeHtml(friendlyFoodDate(col.date))}</div>
+          <div style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(col.meal)}</div>
+          ${excludedRowHtml}
+        </td>
+        ${cellsHtml}
+        <td class="food-total-cell num"><b>${mealTotal}</b></td>
+      </tr>`;
+  }).join('') || '<tr><td class="sp-sub">Add at least one meal to a day above to see the board.</td></tr>';
+
+  // Cost planning -- one $/person target per meal NAME (not per date), since "Breakfast" should
+  // cost the same whether it's Monday's or Tuesday's. Rolls every occurrence of that name's
+  // headcount into one combined total before multiplying, so a caterer quote given per meal type
+  // maps directly onto a field here.
+  const costRows = Object.keys(mealNameTotals).map(name => {
+    const t = mealNameTotals[name];
+    const isSplit = !!foodBoardConfig.mealCostSplit[name];
+    const cost = foodBoardConfig.mealCosts[name];
+    const hasCost = typeof cost === 'number' && !isNaN(cost);
+    const groupRows = Object.keys(mealNameGroupTotals[name] || {})
+      .map(gk => ({ key: gk, ...mealNameGroupTotals[name][gk] }))
+      .filter(g => g.headcount > 0)
+      .map(g => {
+        const gc = foodBoardConfig.mealGroupCosts[name] && foodBoardConfig.mealGroupCosts[name][g.key];
+        const hasGc = typeof gc === 'number' && !isNaN(gc);
+        return { ...g, cost: hasGc ? gc : '', estTotal: hasGc ? gc * g.headcount : 0, hasCost: hasGc };
+      });
+    const splitEstTotal = groupRows.reduce((s, g) => s + g.estTotal, 0);
+    return {
+      name, occurrences: t.occurrences, headcount: t.headcount, isSplit,
+      cost: hasCost ? cost : '', hasCost,
+      estTotal: isSplit ? splitEstTotal : (hasCost ? cost * t.headcount : 0),
+      groupRows
+    };
+  });
+  const grandOccurrences = costRows.reduce((s, r) => s + r.occurrences, 0);
+  const grandHeadcount = costRows.reduce((s, r) => s + r.headcount, 0);
+  const grandEstTotal = costRows.reduce((s, r) => s + r.estTotal, 0);
+  const costRowsHtml = costRows.map(r => {
+    const toggleBtn = canEditFood
+      ? `<button class="food-restore-link" style="display:block; margin-top:4px;" onclick="toggleFoodMealCostSplit('${jsAttrString(r.name)}')">${r.isSplit ? '− Combine into one price' : '+ Split by group'}</button>`
+      : '';
+    const headerCostHtml = r.isSplit
+      ? `<span class="sp-sub">split by group below</span>`
+      : `<span style="color:var(--ink-soft);">$</span>
+         <input type="number" min="0" step="0.01" value="${r.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
+           style="width:72px; text-align:right;" onchange="setFoodMealCost('${jsAttrString(r.name)}', this.value)">
+         <span style="color:var(--ink-soft); font-size:11px;">/person</span>`;
+    const headerRow = `
+      <tr>
+        <td data-label=""><b>${escapeHtml(r.name)}</b>${toggleBtn}</td>
+        <td class="num" data-label="# of Meals">${r.occurrences}</td>
+        <td class="num" data-label="Total Headcount">${r.headcount}</td>
+        <td class="num" data-label="$ / Person">${headerCostHtml}</td>
+        <td class="food-total-cell num" data-label="Estimated Cost"><b>${r.estTotal > 0 ? cfpMoney(r.estTotal) : '—'}</b></td>
+      </tr>`;
+    const groupRowsHtml = !r.isSplit ? '' : (r.groupRows.map(g => `
+      <tr class="food-cost-subrow">
+        <td data-label="">
+          <span class="food-chip-dot" style="background:${g.color}; display:inline-block; margin-right:6px; vertical-align:middle;"></span>${escapeHtml(g.label)}
+        </td>
+        <td class="num" data-label=""></td>
+        <td class="num" data-label="Headcount">${g.headcount}</td>
+        <td class="num" data-label="$ / Person">
+          <span style="color:var(--ink-soft);">$</span>
+          <input type="number" min="0" step="0.01" value="${g.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
+            style="width:72px; text-align:right;" onchange="setFoodMealGroupCost('${jsAttrString(r.name)}','${jsAttrString(g.key)}', this.value)">
+          <span style="color:var(--ink-soft); font-size:11px;">/person</span>
+        </td>
+        <td class="num" data-label="Cost">${g.hasCost ? cfpMoney(g.estTotal) : '—'}</td>
+      </tr>`).join('') || '<tr class="food-cost-subrow"><td class="sp-sub" colspan="5">No groups eating this meal yet.</td></tr>');
+    return headerRow + groupRowsHtml;
+  }).join('') || '<tr><td class="sp-sub" colspan="5">Add at least one meal to a day above to plan costs.</td></tr>';
+
+  root.innerHTML = `
+    <div style="padding:20px 26px;">
+      <h2 style="margin:0 0 4px;">Food Planning</h2>
+      <p class="sp-sub" style="margin:0 0 20px;">A seating chart for catering: columns are physical serving locations, rows are meal slots. Main Conference, Collegiate Collective, Student Leadership Summit, Speakers/Artists, and Exhibitor headcounts default to the live number from their own tabs — type over any of them to play with the numbers for planning, and use the ↺ button to snap a renamed group or overridden number back to default. Drag a chip by its ⠿ handle into another location's column to move it there for that meal. Rename any group's label too, or add your own groups (staff, volunteers, VIP guests) below for anyone the other tabs don't track. Click × on any chip to drop that group from just that one meal (e.g. no Student Leadership Summit after Monday night) — every other meal for that group is untouched, and it's a "+" link away from coming back. Changes save for everyone on the team, not just this browser.</p>
+
+      <fieldset class="sp-fieldset" style="margin-bottom:20px;">
+        <legend>Meals served each day ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
+        <p class="sp-sub" style="margin-top:0;">Comma-separated. Leave a day blank if nothing's served that day (e.g. a Sunday arrival day with no meals yet).</p>
+        ${configEditorHtml}
+      </fieldset>
+
+      <div class="sp-table-wrap" style="overflow-x:auto;">
+        <table class="sp-table food-board-table">
+          <thead><tr>
+            <th class="food-loc-cell">Meal</th>
+            ${headerCellsHtml}
+            <th class="num">Total</th>
+          </tr></thead>
+          <tbody>${bodyRowsHtml}</tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap;">
+        ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodLocation()" style="padding:7px 16px; font-size:12.5px;">+ Add serving location</button>` : ''}
+        ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodExtraGroup()" style="padding:7px 16px; font-size:12.5px; background:var(--teal);">+ Add a group (staff, volunteers, VIP guests…)</button>` : ''}
+      </div>
+      <p class="sp-sub" style="margin-top:14px;">Speakers/artists default to the whole conference. To mark someone as only there for part of it, set their Arrival/Departure dates on the Speakers &amp; Artists tab (Logistics), or open their record and uncheck specific meals under Logistics → Meals for one-off exceptions like a guest choir attending a single event. Two groups assigned to the same location for a meal are eating together; different locations means served separately.</p>
+
+      <fieldset class="sp-fieldset" style="margin-top:28px;">
+        <legend>Estimated Food Cost ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
+        <p class="sp-sub" style="margin-top:0;">One $/person target per meal — set it once for "Breakfast" and it applies to every day that has one. Headcounts pull straight from the board above. If a meal costs different amounts for different groups (Dinner for Collegiate Collective vs. everyone else), click "+ Split by group" on that row to price each group separately.</p>
+        <div class="sp-table-wrap" style="overflow-x:auto;">
+          <table class="sp-table food-cost-table">
+            <thead><tr>
+              <th>Meal</th><th class="num"># of Meals</th><th class="num">Total Headcount</th><th class="num">$ / Person</th><th class="num">Estimated Cost</th>
+            </tr></thead>
+            <tbody>
+              ${costRowsHtml}
+              <tr>
+                <td data-label=""><b>Grand Total</b></td>
+                <td class="num" data-label="# of Meals"><b>${grandOccurrences}</b></td>
+                <td class="num" data-label="Total Headcount"><b>${grandHeadcount}</b></td>
+                <td class="num" data-label=""></td>
+                <td class="food-total-cell num" data-label="Estimated Cost"><b>${cfpMoney(grandEstTotal)}</b></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </fieldset>
+    </div>
+  `;
+}
+function setFoodMealsForDay(date, value) {
+  const meals = value.split(',').map(m => m.trim()).filter(Boolean);
+  foodMealsConfig[date] = meals;
+  pushFoodMealsConfig();
+  renderFoodView();
+}
+
 // ==== Team Access (admin-only): manage roles, permissions, and who's assigned to which role ====
 const ALL_SECTION_KEYS_LIST = [
   ['dashboard.all', 'Dashboard'],
@@ -7376,6 +8304,7 @@ const ALL_SECTION_KEYS_LIST = [
   ['floorplan.all', 'Floor Plan'],
   ['revenue.all', 'Registration Revenue'],
   ['cashflow.all', 'Cash Flow'],
+  ['food.all', 'Food Planning'],
   ['team_access.all', 'Team Access (admin)']
 ];
 // Groups the same keys/labels above under headers, purely for scanability in the permission
@@ -7385,7 +8314,7 @@ const PERMISSION_CATEGORIES = [
   ['Sponsors', ['sponsors.contact', 'sponsors.financial']],
   ['Speakers & Artists', ['speakers.roster', 'speakers.logistics', 'speakers.financial', 'speakers.internal_docs']],
   ['Schedule & Applicants', ['schedule.all', 'applicants.all']],
-  ['Logistics', ['transportation.all', 'floorplan.all']],
+  ['Logistics', ['transportation.all', 'floorplan.all', 'food.all']],
   ['Money', ['revenue.all', 'cashflow.all']],
   ['Admin', ['team_access.all']]
 ];
@@ -8889,7 +9818,7 @@ function registrationActualsHTML() {
       <div class="rev-actuals-head" data-section-toggle="rev-actuals" onclick="toggleSidebarSection('rev-actuals')" style="cursor:pointer;">
         <div>
           <div class="rev-actuals-label"><span class="sp-chevron">▸</span> Actual registrants <span class="rev-actuals-asof">as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>
-          <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} total, from the registration portal. Each cell reads actual/${escapeHtml(scenarioLabel)}.</div>
+          <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} main conference registrants, from the registration portal. Collegiate Worship Collective and Student Leadership Summit are tracked separately below — never combined into this number. Each cell reads actual/${escapeHtml(scenarioLabel)}.</div>
         </div>
         <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
       </div>
@@ -9498,6 +10427,193 @@ function sponsorOutstanding(s) {
 // different, quieter problem: nothing here looks unscheduled at a glance, it just isn't real.
 function sponsorHasUnscheduledMoney(s) {
   return isCashCommitted(s) && sponsorOutstanding(s) > 0 && !(s.data.money || {}).dueDate;
+}
+
+// Maps a sponsor's package code to the query param the live exhibitor-payment page expects --
+// confirmed against SBCMC_20_Outstanding_Exhibitor_Payment_Links.csv (real payment links Gravity
+// Forms had already generated). Only the base packages are known-good; a package code outside
+// this map (or a sponsor with an ad-hoc/upgrade amount on top of their base package) gets no pay
+// link at all on the invoice rather than a guessed param that might silently charge the wrong
+// amount -- see the note text in sponsorInvoiceLineItems below.
+const SPONSOR_PAYMENT_PACKAGE_PARAM = { A: 'package_a', B: 'package_b', C: 'package_c', D: 'package_d', SPACE: 'exhibit_space' };
+// SBCMC wordmark used on the invoice header -- same asset already embedded in the exhibitor
+// confirmation email templates, so both documents show the same logo consistently.
+const SBCMC_LOGO_BASE64 = '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';
+
+
+function sponsorPaymentLink(s) {
+  const param = SPONSOR_PAYMENT_PACKAGE_PARAM[s.package];
+  if (!param) return null; // unrecognized package code -- don't guess
+  const first = (s.contactName || '').split(' ')[0] || '';
+  const last = (s.contactName || '').split(' ').slice(1).join(' ') || '';
+  const qs = new URLSearchParams({ first, last, email: s.contactEmail || '', organization: s.org || '', package: param });
+  return 'https://sbcmc.org/exhibitor-payment/?' + qs.toString();
+}
+
+// Itemized breakdown for the invoice -- mirrors sponsorOutstanding()'s own math exactly (base
+// package + checked ad-hoc items + custom ad-hoc amount, minus what's already paid) so the
+// invoice total can never silently drift from what the tracker itself considers owed.
+function sponsorInvoiceLineItems(s) {
+  const m = s.data.money || {};
+  const items = [];
+  const committed = parseFloat(m.committed) || 0;
+  if (committed > 0) items.push({ label: 'Exhibitor Package ' + (s.package || ''), amount: committed });
+  (m.adhocItems || []).filter(it => it.checked).forEach(it => {
+    const amt = parseFloat(it.amount) || 0;
+    if (amt > 0) items.push({ label: it.label, amount: amt });
+  });
+  const adhocAmount = parseFloat(m.adhocAmount) || 0;
+  if (adhocAmount > 0) items.push({ label: m.adhocDescription || 'Additional item', amount: adhocAmount });
+  return items;
+}
+
+async function generateSponsorInvoicePDF(sponsorId) {
+  const s = sponsors.find(x => x.id === sponsorId);
+  if (!s) return;
+  if (typeof window.jspdf === 'undefined') { toast('PDF tools didn’t load — check your internet connection and try again.'); return; }
+  const { jsPDF } = window.jspdf;
+
+  const NAVY = [36, 64, 74];
+  const CREAM = [251, 248, 241];
+  const BORDER = [226, 225, 218];
+  const INK = [23, 38, 43];
+  const MUTED = [87, 103, 107];
+
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const M = 56; // 0.78in margins, matches the app's other PDF export
+  const pageW = doc.internal.pageSize.getWidth();
+  const usableW = pageW - M * 2;
+
+  // Header band
+  const dueDateRaw = (s.data.money || {}).dueDate;
+  const dueDateLabel = dueDateRaw
+    ? new Date(dueDateRaw + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Due Upon Receipt';
+
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, pageW, 116, 'F');
+  doc.setTextColor(255, 255, 255);
+  // Real aspect ratio is ~106:39 (confirmed from the logo as Gmail rendered it in the exhibitor
+  // emails) -- sized here to roughly match the text it's replacing.
+  doc.addImage('data:image/png;base64,' + SBCMC_LOGO_BASE64, 'PNG', M, 18, 110, 40.5);
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
+  doc.text('Southern Baptist Church Music Collective', M, 72);
+  // Pulled from conference_years (see activeYearVenue/editVenueInfo) instead of a hardcoded
+  // string -- a future year's coordinator updates it once via "Edit Venue Info" in the gear
+  // menu, and every invoice generated after that reflects the new location automatically.
+  const venue = activeYearVenue();
+  doc.text('Held at ' + venue.name + (venue.location ? ', ' + venue.location : ''), M, 85);
+  doc.text('April ' + activeConferenceYear, M, 98);
+
+  doc.setFont(undefined, 'bold'); doc.setFontSize(22);
+  doc.text('INVOICE', pageW - M, 40, { align: 'right' });
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
+  const invoiceNo = 'SBCMC' + activeConferenceYear + '-' + String(s.sortOrder || 0).padStart(3, '0');
+  doc.text('Invoice #: ' + invoiceNo, pageW - M, 58, { align: 'right' });
+  doc.text('Date: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), pageW - M, 72, { align: 'right' });
+  doc.setFont(undefined, 'bold');
+  doc.text('Due: ' + dueDateLabel, pageW - M, 90, { align: 'right' });
+
+  let y = 142;
+  doc.setTextColor(...MUTED);
+  doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
+  doc.text('BILL TO', M, y); y += 16;
+  doc.setTextColor(...INK);
+  doc.setFont(undefined, 'bold'); doc.setFontSize(11);
+  doc.text(s.org || '', M, y); y += 15;
+  doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+  doc.text(s.contactName || '', M, y); y += 13;
+  doc.text(s.contactEmail || '', M, y); y += 28;
+
+  // Line items table
+  const items = sponsorInvoiceLineItems(s);
+  const colDescW = usableW - 100;
+  doc.setFillColor(...NAVY);
+  doc.rect(M, y, usableW, 24, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
+  doc.text('DESCRIPTION', M + 10, y + 16);
+  doc.text('AMOUNT', M + usableW - 10, y + 16, { align: 'right' });
+  y += 24;
+
+  doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+  if (items.length === 0) {
+    doc.setFillColor(...CREAM);
+    doc.rect(M, y, usableW, 22, 'F');
+    doc.setTextColor(...MUTED);
+    doc.text('No package or add-on amount on file yet.', M + 10, y + 15);
+    y += 22;
+  }
+  items.forEach((item, idx) => {
+    const rowH = 22;
+    doc.setFillColor(...CREAM);
+    doc.rect(M, y, usableW, rowH, 'F');
+    doc.setTextColor(...INK);
+    const wrapped = doc.splitTextToSize(item.label, colDescW);
+    doc.text(wrapped[0], M + 10, y + 15);
+    doc.text('$' + item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }), M + usableW - 10, y + 15, { align: 'right' });
+    y += rowH;
+  });
+  doc.setDrawColor(...BORDER);
+  doc.line(M, y, M + usableW, y);
+  y += 18;
+
+  const paid = parseFloat((s.data.money || {}).paid) || 0;
+  if (paid > 0) {
+    doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.setTextColor(...MUTED);
+    doc.text('Paid to date', M, y);
+    doc.text('-$' + paid.toLocaleString(undefined, { minimumFractionDigits: 2 }), M + usableW, y, { align: 'right' });
+    y += 20;
+  }
+
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(1.2);
+  doc.line(M, y, M + usableW, y);
+  y += 20;
+  doc.setFont(undefined, 'bold'); doc.setFontSize(13); doc.setTextColor(...NAVY);
+  doc.text('TOTAL DUE', M, y);
+  doc.text('$' + sponsorOutstanding(s).toLocaleString(undefined, { minimumFractionDigits: 2 }), M + usableW, y, { align: 'right' });
+  y += 34;
+
+  // Only auto-generate the online pay link when the total is JUST the base package -- with any
+  // ad-hoc add-on in the mix (like Semsen's disputed breakout-track amount), the auto-built link
+  // would only ever charge the base package price, silently undercharging relative to the total
+  // shown above. Either way -- unrecognized package code, or an add-on that disqualifies
+  // auto-generation -- give the option to paste a real link by hand (e.g. a one-off Stripe
+  // payment link already created for that sponsor's exact total) rather than shipping an invoice
+  // with no way to pay online at all.
+  let payLink = items.length === 1 ? sponsorPaymentLink(s) : null;
+  if (!payLink && items.length > 0) {
+    const pasted = (prompt('No payment link is set up for this sponsor’s package/total. Paste one to include on the invoice, or leave blank to skip it:') || '').trim();
+    if (pasted) payLink = pasted;
+  }
+  if (payLink) {
+    const btnW = 130, btnH = 26;
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(M, y, btnW, btnH, 4, 4, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold'); doc.setFontSize(10);
+    // Plain ASCII only -- jsPDF's built-in fonts don't cover the Unicode arrow (U+2192), which
+    // rendered as a broken glyph the first time this used "Pay Online →".
+    doc.text('Pay Online', M + btnW / 2, y + btnH / 2 + 3.5, { align: 'center' });
+    doc.link(M, y, btnW, btnH, { url: payLink });
+    y += btnH + 20;
+  } else if (items.length > 0) {
+    doc.setFont(undefined, 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
+    const reason = items.length > 1
+      ? 'This total includes an add-on beyond the base package, so there’s no ready-made online link for the full amount'
+      : 'There’s no payment link on file for this package';
+    doc.splitTextToSize(reason + ' -- reach out to Sergio directly to arrange payment.', usableW).forEach(line => { doc.text(line, M, y); y += 13; });
+    y += 8;
+  }
+
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(...BORDER);
+  doc.line(M, pageH - 60, pageW - M, pageH - 60);
+  doc.setFontSize(8); doc.setTextColor(...MUTED);
+  doc.text('Questions about this invoice? Contact Sergio Castillo, Conference Coordinator — sergiolcastillo7@gmail.com · (956) 648-6464', pageW / 2, pageH - 44, { align: 'center' });
+
+  doc.save('SBCMC-Invoice-' + (s.org || 'Sponsor').replace(/[^a-z0-9]+/gi, '-') + '.pdf');
 }
 function cfpSpeakerList() { return speakers.filter(sp => !SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus) && speakerOutstanding(sp) > 0); }
 function cfpSponsorList() { return sponsors.filter(s => isCashCommitted(s) && sponsorOutstanding(s) > 0); }
@@ -11807,7 +12923,9 @@ function sponsorDetailHTML(s) {
           <div class="sp-field"><label for="sp-paystatus-${s.id}">Payment status</label><select id="sp-paystatus-${s.id}" onchange="updateSponsorNested('${s.id}','money','paymentStatus',this.value)"><option value="" ${!s.data.money.paymentStatus ? 'selected' : ''}>\u2014 not set \u2014</option><option value="Not Paid" ${s.data.money.paymentStatus === 'Not Paid' ? 'selected' : ''}>Not Paid</option><option value="Partially Paid" ${s.data.money.paymentStatus === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option><option value="Paid in Full" ${s.data.money.paymentStatus === 'Paid in Full' ? 'selected' : ''}>Paid in Full</option></select></div>
           <div class="sp-field"><label for="sp-amtpaid-${s.id}">Amount paid ($)</label><input id="sp-amtpaid-${s.id}" type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
           <div class="sp-field"><label for="sp-paydue-${s.id}">Payment due date</label><input id="sp-paydue-${s.id}" type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
-          <div class="sp-check"><input id="sp-invoicesent-${s.id}" type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"><label for="sp-invoicesent-${s.id}"> Invoice sent</label></div>
+          <div class="sp-check"><input id="sp-invoicesent-${s.id}" type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"><label for="sp-invoicesent-${s.id}"> Invoice sent</label>
+            <button class="sp-mini-btn" style="margin-left:10px;" onclick="generateSponsorInvoicePDF('${s.id}')" title="Generate a PDF invoice from this sponsor's current package, add-ons, and amount paid">🧾 Generate Invoice</button>
+          </div>
           ${paymentScheduleEditorHTML(s.id, 'sponsor')}
           `}
           </div>
@@ -13306,8 +14424,17 @@ const PROGRAM_PAGES = {
 };
 let applicantPageState = {
   sls: { statusFilter: 'all', search: '', sortKey: 'date', sortDir: -1, openId: null },
-  cwc: { statusFilter: 'all', search: '', sortKey: 'date', sortDir: -1, openId: null },
+  // universityFilter is CWC-only -- SLS applicants answer "Name of High School", a different
+  // field entirely, so there's nothing for it to filter there.
+  cwc: { statusFilter: 'all', search: '', sortKey: 'date', sortDir: -1, openId: null, universityFilter: 'all' },
 };
+
+// The Collegiate Worship Collective form's own "School Attended" answer, trimmed -- the same
+// raw field schoolLocation() already reads for the location column, reused here as the single
+// source of truth for what counts as an applicant's school.
+function applicantSchoolName(a) {
+  return ((a.data.raw || {})['School Attended'] || '').trim();
+}
 
 function makeApplicantId() { return 'ap_' + Date.now() + '_' + Math.floor(Math.random() * 10000); }
 function makeApplicantGroupId() { return 'apg_' + Date.now() + '_' + Math.floor(Math.random() * 10000); }
@@ -13414,16 +14541,42 @@ function applicantGroupName(groupId) { const g = applicantGroups.find(x => x.id 
 
 function setApplicantStatusFilter(programKey, f) {
   applicantPageState[programKey].statusFilter = f;
-  document.querySelectorAll('#ap-' + programKey + '-status-filter-row .sch-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.sf === f));
+  const sel = document.getElementById('ap-' + programKey + '-status-th-select');
+  // Keeps the header select showing the right value even when this was called some other way
+  // (nothing else does today, but matches the defensive pattern used for the university select).
+  if (sel && sel.value !== f) sel.value = f;
   renderApplicantRows(programKey);
 }
 function setApplicantSearch(programKey, v) { applicantPageState[programKey].search = v; renderApplicantRows(programKey); }
+function setApplicantUniversityFilter(programKey, v) { applicantPageState[programKey].universityFilter = v; renderApplicantRows(programKey); }
 function setApplicantSortFromDropdown(programKey, v) {
   const st = applicantPageState[programKey];
   if (!v) { st.sortKey = ''; renderApplicantRows(programKey); return; }
   const [key, dir] = v.split('-');
   st.sortKey = key; st.sortDir = dir === 'desc' ? -1 : 1;
   renderApplicantRows(programKey);
+}
+// Click-to-sort on the Date Applied column header, same convention as a typical sortable table
+// column (first click sorts newest-first, clicking again flips direction) -- replaces the old
+// date-desc/date-asc options that used to live in the Sort by… dropdown alongside Name.
+function toggleApplicantDateSort(programKey) {
+  const st = applicantPageState[programKey];
+  if (st.sortKey === 'date') st.sortDir *= -1;
+  else { st.sortKey = 'date'; st.sortDir = -1; }
+  renderApplicantRows(programKey);
+}
+// Keeps the Date Applied header's arrow and the Name dropdown's placeholder honest about which
+// one is actually driving the current sort -- called on every render rather than only from the
+// two setters above, so it stays correct even if sort state ever changes some other way.
+function syncApplicantSortIndicators(programKey) {
+  const st = applicantPageState[programKey];
+  const arrow = document.getElementById('ap-' + programKey + '-date-sort-arrow');
+  if (arrow) arrow.textContent = st.sortKey === 'date' ? (st.sortDir === -1 ? ' ▼' : ' ▲') : '';
+  const nameSel = document.getElementById('ap-' + programKey + '-sort-select');
+  if (nameSel) {
+    const expected = st.sortKey === 'name' ? ('name-' + (st.sortDir === 1 ? 'asc' : 'desc')) : '';
+    if (nameSel.value !== expected) nameSel.value = expected;
+  }
 }
 function applicantSearchHaystack(a) {
   return [a.name, a.email, a.phone, a.data.reviewNotes, JSON.stringify(a.data.raw || {})].join(' ').toLowerCase();
@@ -13439,7 +14592,8 @@ function currentFilteredApplicants(programKey) {
     else if (st.statusFilter === '__scholarship__') matchesStatus = !!(a.data.scholarship && a.data.scholarship.requested);
     else matchesStatus = (a.data.status || 'Pending') === st.statusFilter;
     const matchesSearch = !st.search || applicantSearchHaystack(a).includes(st.search.toLowerCase());
-    return matchesStatus && matchesSearch;
+    const matchesUniversity = !st.universityFilter || st.universityFilter === 'all' || applicantSchoolName(a) === st.universityFilter;
+    return matchesStatus && matchesSearch && matchesUniversity;
   });
   if (st.sortKey === 'name') {
     filtered = filtered.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '') * st.sortDir);
@@ -13525,6 +14679,7 @@ function buildApplicantRowPair(a, programKey) {
   tr.innerHTML = `
     <td data-label=""><span class="sp-chevron ${isOpen ? 'open' : ''}">▸</span></td>
     <td class="sp-org" data-label="Name">${escapeHtml(a.name || 'Unnamed')}${a.data.scholarship && a.data.scholarship.requested ? ' <span class="sp-badge" style="background:#FCEFC7; color:#8a6d1d; border-color:#e0c56b;" title="Scholarship requested">🎓</span>' : ''}${applicantRowHighlightValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowHighlightValue(a)) + '</div>' : ''}${applicantRowLocationValue(a) ? '<div class="sp-sub sp-sub-wrap">' + escapeHtml(applicantRowLocationValue(a)) + '</div>' : ''}</td>
+    ${programKey === 'cwc' ? `<td data-label="University">${escapeHtml(applicantSchoolName(a)) || '<span class="sp-sub">—</span>'}</td>` : ''}
     <td data-label="Contact">${escapeHtml(a.email) || '—'}<div class="sp-sub">${escapeHtml(a.phone || '')}</div></td>
     <td data-label="Date Applied">${applicantAppliedDate(a) ? escapeHtml(friendlyDate(applicantAppliedDate(a))) : '<span class="sp-sub">—</span>'}</td>
     <td data-label="Status"><span class="sp-badge ${applicantStatusBadgeClass(status)}" id="ap-status-badge-${a.id}">${escapeHtml(applicantStatusLabel(status))}</span>${applicantPaymentBadgeHtml(a)}</td>
@@ -13534,12 +14689,14 @@ function buildApplicantRowPair(a, programKey) {
   const dtr = document.createElement('tr');
   dtr.className = 'sp-detail-row' + (isOpen ? ' open' : '');
   dtr.id = 'ap-detail-' + a.id;
-  dtr.innerHTML = `<td class="sp-detail-cell" colspan="6">${isOpen ? applicantDetailHTML(a) : ''}</td>`;
+  dtr.innerHTML = `<td class="sp-detail-cell" colspan="${programKey === 'cwc' ? 7 : 6}">${isOpen ? applicantDetailHTML(a) : ''}</td>`;
   return [tr, dtr];
 }
 function renderApplicantRows(programKey) {
   const tbody = document.getElementById('ap-' + programKey + '-rows');
   if (!tbody) return;
+  if (programKey === 'cwc') renderCwcUniversityFilterOptions();
+  syncApplicantSortIndicators(programKey);
   const filtered = currentFilteredApplicants(programKey);
   tbody.innerHTML = '';
   filtered.forEach(a => {
@@ -13547,6 +14704,29 @@ function renderApplicantRows(programKey) {
     tbody.appendChild(tr);
     tbody.appendChild(dtr);
   });
+}
+
+// Options come from every CWC applicant regardless of the status/search filters currently
+// applied -- so switching to "Approved" doesn't also shrink which schools show up as choices.
+// Rebuilt on every render (schools can change as new applications sync in) but keeps whatever
+// was already selected as long as it's still a real option, rather than silently resetting the
+// filter back to "All Universities" underneath someone mid-review.
+function renderCwcUniversityFilterOptions() {
+  const sel = document.getElementById('ap-cwc-university-select');
+  if (!sel) return;
+  const groupId = PROGRAM_PAGES.cwc.groupId;
+  const schools = new Set();
+  applicants.forEach(a => { if (a.groupId === groupId) { const school = applicantSchoolName(a); if (school) schools.add(school); } });
+  const sorted = [...schools].sort((a, b) => a.localeCompare(b));
+  const current = applicantPageState.cwc.universityFilter || 'all';
+  sel.innerHTML = '<option value="all">All Universities</option>' +
+    sorted.map(school => '<option value="' + escapeHtml(school) + '"' + (school === current ? ' selected' : '') + '>' + escapeHtml(school) + '</option>').join('');
+  // The selected school may have disappeared entirely (e.g. its one applicant got deleted) --
+  // fall back to "all" rather than leaving the dropdown showing a value with no matching option.
+  if (current !== 'all' && !sorted.includes(current)) {
+    applicantPageState.cwc.universityFilter = 'all';
+    sel.value = 'all';
+  }
 }
 // Only bumps when the number actually changed -- renderApplicantStats runs on every refresh,
 // including ones where nothing numeric moved, so this avoids animating a stat that's identical
@@ -17851,6 +19031,20 @@ function speakerDetailHTML(sp) {
       })()}
       ${sp.data.arrangement !== 'travel' ? `<div class="sp-linked-group-box">${speakerLogisticsArrangementNote(sp)}${sp.data.arrangement === '' ? `<div class="sp-check" style="margin-top:8px;"><input id="sk-local-${sp.id}" type="checkbox" ${sp.data.logistics.local ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','logistics','local',this.checked)"><label for="sk-local-${sp.id}"> \u{1F4CD} Local — no travel or lodging needed</label></div>` : ''}</div>` : ''}
       <div class="sk-logistics-grid">
+        <fieldset class="sp-fieldset">
+          <legend>Meals</legend>
+          <p class="sp-sub" style="margin-top:0;">Defaults to the whole conference, or to Arrival/Departure dates below once both are set. Uncheck individual meals here for exceptions those dates don't cover — e.g. a guest choir here for a single evening event.</p>
+          ${foodConferenceDays().length === 0 ? '<div class="sp-sub">No schedule days yet — add slots on the Schedule tab first.</div>' : foodConferenceDays().map(d => {
+            const meals = foodMealsConfig[d] || [];
+            if (!meals.length) return '';
+            return `<div class="sp-field" style="margin-bottom:6px;">
+              <label style="font-weight:600;">${escapeHtml(friendlyFoodDate(d))}</label>
+              <div style="display:flex; gap:14px; flex-wrap:wrap;">
+                ${meals.map(meal => `<label class="sp-check" style="margin-bottom:0;"><input type="checkbox" ${speakerAttendsMeal(sp, d, meal) ? 'checked' : ''} onchange="updateSpeakerMealOverride('${sp.id}','${d}','${jsAttrString(meal)}',this.checked)"> ${escapeHtml(meal)}</label>`).join('')}
+              </div>
+            </div>`;
+          }).join('') || '<div class="sp-sub">No meals configured yet — set them up on the Food Planning tab first.</div>'}
+        </fieldset>
         ${sp.data.arrangement !== 'travel' ? '' : `
         <fieldset class="sp-fieldset">
           <legend>Travel</legend>
