@@ -1220,8 +1220,12 @@ table.sp-table td.num, table.sp-table th.num { text-align: right; font-variant-n
    Each cell holds one chip per group eating there; two groups in the same cell share that meal. */
 table.food-board-table { table-layout: auto; }
 table.food-board-table th { vertical-align: bottom; }
-td.food-loc-cell, th.food-loc-cell { min-width: 168px; }
-td.food-loc-cell { vertical-align: top; }
+th.food-loc-cell { min-width: 168px; }
+/* The Meal (row-label) column used to share a class with the location headers, which meant
+   shrinking one always shrank the other -- split so this one column can stay narrow on its own,
+   leaving more of the table's width for the location columns before it needs to scroll. */
+td.food-row-label-cell, th.food-row-label-cell { width: 140px; min-width: 140px; max-width: 140px; }
+td.food-row-label-cell { vertical-align: top; }
 td.food-meal-cell { min-width: 158px; vertical-align: top; }
 .food-loc-name-row { display: flex; align-items: center; gap: 4px; }
 .food-loc-name-row input { flex: 1; min-width: 0; border: none; background: transparent; font-size: 13px; font-weight: 700; color: var(--ink); padding: 2px 0; font-family: inherit; }
@@ -1260,9 +1264,10 @@ td.food-meal-cell.food-drop-hover { background: var(--teal-pale); outline: 2px d
     display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
     padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(23,38,43,0.06);
   }
-  table.food-board-table td.food-loc-cell {
+  table.food-board-table td.food-row-label-cell {
     padding: 0 0 10px; margin: 0 0 10px; border-bottom: 1px dashed var(--line);
     font-family: var(--font-display); font-size: 16px; font-weight: 600;
+    width: auto; min-width: 0; max-width: none;
   }
   table.food-board-table td.food-meal-cell { padding: 0 0 10px; }
   table.food-board-table td.food-meal-cell[data-label]:not([data-label=""])::before {
@@ -2171,7 +2176,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   </div>
   <div class="nav-dropdown">
     <button class="top-nav-btn" id="nav-money-btn" onclick="toggleMoneyDropdown(event)">Financials <span class="nav-caret">▾</span></button>
-    <div class="nav-dropdown-menu" id="nav-money-menu">
+    <div class="nav-dropdown-menu align-right" id="nav-money-menu">
       <button class="nav-dropdown-item" id="nav-revenue-btn" onclick="switchTopView('revenue')">Registration Revenue</button>
       <button class="nav-dropdown-item" id="nav-cashflow-btn" onclick="switchTopView('cashflow')">Cash Flow</button>
     </div>
@@ -8259,7 +8264,7 @@ async function renderFoodView() {
       : '';
     return `
       <tr>
-        <td class="food-loc-cell">
+        <td class="food-row-label-cell">
           <div>${escapeHtml(friendlyFoodDate(col.date))}</div>
           <div style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(col.meal)}</div>
           ${excludedRowHtml}
@@ -8356,7 +8361,7 @@ async function renderFoodView() {
       <div class="sp-table-wrap" style="overflow-x:auto;">
         <table class="sp-table food-board-table">
           <thead><tr>
-            <th class="food-loc-cell">Meal</th>
+            <th class="food-row-label-cell">Meal</th>
             ${headerCellsHtml}
             <th class="num">Total</th>
           </tr></thead>
