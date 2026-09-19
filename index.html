@@ -7782,9 +7782,11 @@ const FOOD_BUILTIN_GROUP_DEFS = [
 ];
 // Groups whose count override is ONE shared number across every meal, not per-meal -- also
 // exactly the groups that don't get a reset-to-live button, since once it's shared there's no
-// single "the live number" left to reset any one meal back to.
-const FOOD_GROUP_WIDE_SYNC_KEYS = ['speakers'];
-const FOOD_NO_RESET_KEYS = ['main', ...FOOD_GROUP_WIDE_SYNC_KEYS];
+// single "the live number" left to reset any one meal back to. All five built-in populations are
+// bound this way (not just Speakers & Artists) -- overriding one meal's headcount is meant as
+// "here's the real planning number for this group," not a single day's exception.
+const FOOD_GROUP_WIDE_SYNC_KEYS = ['main', 'cwc', 'sls', 'speakers', 'exhibitors'];
+const FOOD_NO_RESET_KEYS = [...FOOD_GROUP_WIDE_SYNC_KEYS];
 
 async function loadFoodBoardConfig() {
   foodBoardConfigLoaded = false;
