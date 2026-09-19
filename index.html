@@ -2083,8 +2083,11 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     // the app's "home" tab) -- without this, someone denied dashboard.all would still see it
     // fully rendered until they happened to click something else. Force the initial view to
     // whichever tab this session can actually see, same fallback order switchTopView itself uses.
+    // If the URL was opened with a #hash naming a tab this session can view (a deep link),
+    // land there instead of the default -- switchTopView itself falls back safely if not.
     if (typeof window.firstAccessibleView === 'function' && typeof window.switchTopView === 'function') {
-      window.switchTopView(window.firstAccessibleView());
+      const hashView = (window.location.hash || '').slice(1);
+      window.switchTopView(hashView || window.firstAccessibleView());
     }
     // Admin data loading is deferred until permissions are actually known (see
     // window.onAppUnlocked, registered by the bottom-of-page bootstrap) rather than starting
@@ -2168,14 +2171,14 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   <button class="top-nav-btn" id="nav-schedule-btn" onclick="switchTopView('schedule')">Schedule</button>
   <div class="nav-dropdown">
     <button class="top-nav-btn" id="nav-applicants-btn" onclick="toggleApplicantsDropdown(event)">Applicants <span class="nav-caret">▾</span></button>
-    <div class="nav-dropdown-menu" id="nav-applicants-menu">
+    <div class="nav-dropdown-menu align-right" id="nav-applicants-menu">
       <button class="nav-dropdown-item" id="nav-applicants-sls-btn" onclick="switchTopView('applicants_sls')">Student Leadership Summit<span class="sp-nav-badge" id="nav-applicants-sls-pending-badge" title="Applications awaiting leader review"></span></button>
       <button class="nav-dropdown-item" id="nav-applicants-cwc-btn" onclick="switchTopView('applicants_cwc')">Collegiate Worship Collective<span class="sp-nav-badge" id="nav-applicants-cwc-pending-badge" title="Applications awaiting leader review"></span></button>
     </div>
   </div>
   <div class="nav-dropdown">
     <button class="top-nav-btn" id="nav-logistics-btn" onclick="toggleLogisticsDropdown(event)">Logistics <span class="nav-caret">▾</span></button>
-    <div class="nav-dropdown-menu" id="nav-logistics-menu">
+    <div class="nav-dropdown-menu align-right" id="nav-logistics-menu">
       <button class="nav-dropdown-item" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
       <button class="nav-dropdown-item" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
       <button class="nav-dropdown-item" id="nav-food-btn" onclick="switchTopView('food')">Food Planning</button>
@@ -7457,6 +7460,14 @@ function switchTopView(view) {
   const requiredKeys = VIEW_SECTION_KEYS[view];
   if (requiredKeys && !canViewAny(requiredKeys)) view = firstAccessibleView();
   currentTopView = view;
+  // Keep the URL's #hash in sync so a tab can be bookmarked/shared/reopened directly (e.g.
+  // .../#food). Uses replaceState (not a plain location.hash assignment) so clicking around
+  // the nav doesn't spam the browser's back button with one stop per tab, and so it doesn't
+  // re-trigger the hashchange listener below -- that listener is only for a hash landing from
+  // outside this function (a manual URL edit or browser back/forward).
+  if (view && window.location.hash.slice(1) !== view) {
+    try { history.replaceState(null, '', '#' + view); } catch (e) {}
+  }
   if (!view) {
     document.querySelectorAll('.top-nav-btn').forEach(b => b.classList.remove('active'));
     ['sponsor-view', 'dashboard-view', 'budget-view', 'speaker-view', 'transport-view',
@@ -7538,6 +7549,17 @@ function switchTopView(view) {
   }
   if (view === 'team_access' && typeof renderTeamAccessView === 'function') renderTeamAccessView();
 }
+
+// Supports the browser's back/forward buttons and manually-typed/edited #hash URLs -- switchTopView
+// itself only pushes into the hash (via replaceState, which doesn't fire this event), so this is the
+// other half: catches a hash that changed some other way and brings the visible tab in line with it.
+// Ignored while the login gate is still up (nothing to switch to yet -- finishUnlock reads the
+// hash itself once unlocked) and skipped if it's just switchTopView's own hash catching up.
+window.addEventListener('hashchange', function() {
+  if (document.body.classList.contains('gate-locked')) return;
+  const view = (window.location.hash || '').slice(1);
+  if (view && view !== currentTopView && typeof switchTopView === 'function') switchTopView(view);
+});
 
 // Hides nav buttons for tabs you have no view access to at all -- called once permissions are
 // known (see finishUnlock() in the gate script). Team Access is admin-only, not section-based.
