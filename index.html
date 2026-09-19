@@ -1234,7 +1234,7 @@ td.food-meal-cell { min-width: 158px; vertical-align: top; }
 .food-chip-label { font-size: 11px; flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .food-chip-label-input { font-size: 11px; flex-grow: 1; min-width: 0; border: none; background: transparent; padding: 0; font-family: inherit; color: var(--ink); }
 .food-chip-count { font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); white-space: nowrap; }
-.food-chip input[type=number] { width: 38px; border: 1px solid var(--line); border-radius: 5px; padding: 2px 3px; font-size: 10.5px; text-align: right; font-family: inherit; }
+.food-chip input[type=number] { width: 52px; border: 1px solid var(--line); border-radius: 5px; padding: 2px 3px; font-size: 10.5px; text-align: right; font-family: inherit; }
 .food-chip select { border: 1px solid var(--line); border-radius: 5px; font-size: 10px; padding: 2px; color: var(--teal-deep); font-family: inherit; max-width: 30px; flex-shrink: 0; }
 .food-chip-remove-btn { border: none; background: none; color: var(--ink-soft); cursor: pointer; font-size: 12px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
 .food-chip-handle { cursor: grab; color: var(--ink-soft); font-size: 12px; line-height: 1; flex-shrink: 0; user-select: none; touch-action: none; }
@@ -1283,8 +1283,12 @@ td.food-meal-cell.food-drop-hover { background: var(--teal-pale); outline: 2px d
   }
 }
 td.food-total-cell { background: var(--teal-pale); font-size: 15px; color: var(--teal-deep); min-width: 60px; }
-.food-excluded-row { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
-.food-excluded-row .sp-sub { font-size: 10px; margin-bottom: 1px; }
+.food-excluded-row { margin-top: 6px; }
+.food-add-select {
+  width: auto; max-width: 100%; padding: 3px 6px; border: 1px dashed var(--line); border-radius: 20px;
+  font-size: 11px; font-weight: 600; color: var(--teal); background: transparent; cursor: pointer;
+}
+.food-add-select:hover, .food-add-select:focus { border-style: solid; border-color: var(--teal); outline: none; }
 .food-restore-link { align-self: flex-start; border: none; background: none; color: var(--teal); font-size: 11px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; text-decoration-style: dotted; }
 .food-restore-link:hover { color: var(--teal-deep); }
 table.food-cost-table tr.food-cost-subrow td { background: var(--paper); font-size: 12.5px; padding-left: 22px; }
@@ -1877,9 +1881,9 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 </div>
 <div id="access-gate">
   <div class="gate-card">
-    <div class="gate-eyebrow">SBCMC 2027</div>
+    <div class="gate-eyebrow">SBCMC</div>
     <h1>The Southern Baptist Church Music Collective</h1>
-    <div class="gate-subname">2027 Conference</div>
+    <div class="gate-subname">Conference Planning Tool</div>
     <div id="gate-login-panel">
       <p>Welcome to the SBCMC Planning tool. Please sign in below.</p>
       <input type="email" id="gate-email-input" placeholder="Email" autocomplete="username">
@@ -5345,7 +5349,7 @@ function sponsorEmailWelcome(s) {
   const subject = 'SBCMC 2027 Welcome';
   const body = `Dear ${sponsorGreetingName(s)},
 
-We are thrilled to welcome ${s.org} as an exhibitor at the Southern Baptist Church Music Conference! We are already seeing God\u2019s hand at work in every detail as we prepare for this gathering, and your participation plays a vital role in making this conference meaningful for all attendees. Thank you for your generous support\u2014it will truly make a lasting difference in the lives of worship pastors and leaders who will come to be encouraged, equipped, and inspired. The information below is provided to help you prepare for the conference.
+We are thrilled to welcome ${s.org} as an exhibitor at the Southern Baptist Church Music Collective! We are already seeing God\u2019s hand at work in every detail as we prepare for this gathering, and your participation plays a vital role in making this conference meaningful for all attendees. Thank you for your generous support\u2014it will truly make a lasting difference in the lives of worship pastors and leaders who will come to be encouraged, equipped, and inspired. The information below is provided to help you prepare for the conference.
 
 SPONSORSHIP INFORMATION
 As you plan for your exhibit, please keep the following details in mind:
@@ -5394,7 +5398,7 @@ function sponsorEmailActionRequired(s) {
   const subject = 'SBCMC Sponsor & Exhibit Information \u2014 Action Required [DEADLINE]';
   const body = `Dear ${sponsorGreetingName(s)},
 
-Thank you for your partnership as a sponsor of the Southern Baptist Church Music Conference. As we finalize preparations, we kindly request the materials and information listed below no later than [DEADLINE DATE] to ensure inclusion in all appropriate conference materials.
+Thank you for your partnership as a sponsor of the Southern Baptist Church Music Collective. As we finalize preparations, we kindly request the materials and information listed below no later than [DEADLINE DATE] to ensure inclusion in all appropriate conference materials.
 
 Materials not received by the deadline cannot be included. If you anticipate any issues meeting this deadline, please contact [SPONSOR CONTACT INFORMATION].
 
@@ -7355,11 +7359,28 @@ function firstAccessibleView() {
 // Dashboard) once real data has actually loaded -- see the call site around line 4228.
 let currentTopView = 'dashboard';
 
+// Every top-nav dropdown menu (Financials, Logistics, Applicants, the gear icon, My Items) --
+// each one's own toggle function calls e.stopPropagation(), specifically so ITS freshly-opened
+// menu doesn't get immediately closed by its own document-level "click outside" listener below.
+// The side effect: that stopPropagation() also stops the click from ever reaching document,
+// which means every OTHER dropdown's "click outside" listener never runs either -- clicking one
+// trigger while a different menu is open left that other menu stuck open. Each toggle function
+// closes every other one of these explicitly before doing its own thing, so only one is ever open.
+const NAV_DROPDOWN_MENU_IDS = ['nav-money-menu', 'nav-logistics-menu', 'nav-applicants-menu', 'nav-gear-menu', 'nav-my-items-menu'];
+function closeOtherNavDropdowns(exceptMenuId) {
+  NAV_DROPDOWN_MENU_IDS.forEach(id => {
+    if (id === exceptMenuId) return;
+    const menu = document.getElementById(id);
+    if (menu) menu.classList.remove('open');
+  });
+}
+
 // Registration Revenue + Cash Flow share one "Money" nav slot as a dropdown, to keep the top
 // nav from growing another pill -- switchTopView still routes to 'revenue'/'cashflow' exactly
 // as before, this just changes how you get there.
 function toggleMoneyDropdown(e) {
   if (e) e.stopPropagation();
+  closeOtherNavDropdowns('nav-money-menu');
   const menu = document.getElementById('nav-money-menu');
   if (menu) menu.classList.toggle('open');
 }
@@ -7375,6 +7396,7 @@ document.addEventListener('click', function(e) {
 // changes how you navigate to them, not who can see or edit each one.
 function toggleLogisticsDropdown(e) {
   if (e) e.stopPropagation();
+  closeOtherNavDropdowns('nav-logistics-menu');
   const menu = document.getElementById('nav-logistics-menu');
   if (menu) menu.classList.toggle('open');
 }
@@ -7390,6 +7412,7 @@ document.addEventListener('click', function(e) {
 // 'applicants_sls'/'applicants_cwc'.
 function toggleApplicantsDropdown(e) {
   if (e) e.stopPropagation();
+  closeOtherNavDropdowns('nav-applicants-menu');
   const menu = document.getElementById('nav-applicants-menu');
   if (menu) menu.classList.toggle('open');
 }
@@ -7404,6 +7427,7 @@ document.addEventListener('click', function(e) {
 // just anchored to the gear icon instead of a text button.
 function toggleGearMenu(e) {
   if (e) e.stopPropagation();
+  closeOtherNavDropdowns('nav-gear-menu');
   const menu = document.getElementById('nav-gear-menu');
   if (menu) menu.classList.toggle('open');
 }
@@ -7937,16 +7961,48 @@ function removeFoodLocation(id) {
 // counts -- so a brand-new group is seeded present at every CURRENT meal slot (matching how it
 // used to just always show everywhere), but removing it from one slot is a real, separate action
 // from removing it from any other.
+const FOOD_EXTRA_PALETTE = ['#2E8B57', '#6e3c81', '#b56200', '#1f5f3b', '#a52620', '#2c5a82'];
 function addFoodExtraGroup() {
-  const palette = ['#2E8B57', '#6e3c81', '#b56200', '#1f5f3b', '#a52620', '#2c5a82'];
   const id = 'extra' + Date.now();
   const counts = {};
   foodAllMealSlots().forEach(s => { counts[foodMealKey(s.date, s.meal)] = 0; });
   foodBoardConfig.extraGroups = [...foodBoardConfig.extraGroups, {
-    id, label: 'New group', color: palette[foodBoardConfig.extraGroups.length % palette.length], counts
+    id, label: 'New group', color: FOOD_EXTRA_PALETTE[foodBoardConfig.extraGroups.length % FOOD_EXTRA_PALETTE.length], counts
   }];
   pushFoodBoardConfig();
   renderFoodView();
+}
+// Same as addFoodExtraGroup(), but seeded present at just ONE meal slot instead of every current
+// one -- for a group that only ever applies to a single meal (no reason for it to show up, at
+// zero, on every other row too).
+function addFoodExtraGroupToMeal(mealKey) {
+  const id = 'extra' + Date.now();
+  foodBoardConfig.extraGroups = [...foodBoardConfig.extraGroups, {
+    id, label: 'New group', color: FOOD_EXTRA_PALETTE[foodBoardConfig.extraGroups.length % FOOD_EXTRA_PALETTE.length],
+    counts: { [mealKey]: 0 }
+  }];
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+// Adds an EXISTING extra group back to a meal slot it isn't currently present at -- same group
+// (same id, label, color), so removing it from Dinner and then re-adding it there later doesn't
+// spawn a disconnected duplicate.
+function addExistingFoodExtraGroupToMeal(id, mealKey) {
+  foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g =>
+    g.id !== id ? g : { ...g, counts: { ...g.counts, [mealKey]: 0 } }
+  );
+  pushFoodBoardConfig();
+  renderFoodView();
+}
+// Routes the single "+ Add group" picker's choice to the right add/restore function -- one
+// control per meal instead of a separate link for every excluded/missing group.
+function handleFoodAddToMeal(mealKey, selectEl) {
+  const value = selectEl.value;
+  if (!value) return;
+  if (value === 'new') { addFoodExtraGroupToMeal(mealKey); return; }
+  const [kind, id] = value.split(':');
+  if (kind === 'builtin') restoreFoodGroupToMeal(mealKey, id);
+  else if (kind === 'extra') addExistingFoodExtraGroupToMeal(id, mealKey);
 }
 function setFoodExtraGroupLabel(id, value) {
   foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g => g.id !== id ? g : { ...g, label: value });
@@ -8091,7 +8147,9 @@ async function renderFoodView() {
     if (g.isExtra) {
       countHtml = `<input type="number" min="0" value="${g.count}" ${canEditFood ? '' : 'disabled'} onchange="setFoodExtraGroupCount('${g.key}','${col.key}', this.value)">`;
     } else {
-      const resetBtn = g.isOverridden
+      // Main Conference doesn't get a reset-to-live button -- its override is treated as the
+      // real planning number, not a temporary "what if" to snap back from.
+      const resetBtn = (g.isOverridden && g.key !== 'main')
         ? `<button class="food-chip-remove-btn" title="Reset to the live count (${g.liveCount})" onclick="resetFoodGroupCountOverride('${col.key}','${g.key}')">↺</button>`
         : '';
       countHtml = `<input type="number" min="0" value="${g.count}" title="${g.isOverridden ? 'Manually overridden — live count is ' + g.liveCount : 'Live count — type a number to override it for planning.'}"
@@ -8148,11 +8206,22 @@ async function renderFoodView() {
       return `<td class="food-meal-cell" data-meal-key="${escapeHtml(col.key)}" data-loc-id="${escapeHtml(loc.id)}" data-label="${escapeHtml(loc.name)}">${chipsHtml || '<span class="food-empty-cell">—</span>'}</td>`;
     }).join('');
     const mealTotal = mealTotalsByKey[col.key];
-    const excludedHtml = (groupsByMeal[col.key + '|excluded'] || []).map(g => `
-      <button class="food-restore-link" title="Add ${escapeHtml(g.label)} back to this meal" onclick="restoreFoodGroupToMeal('${col.key}','${g.key}')">+ ${escapeHtml(g.label)}</button>
-    `).join('');
-    const excludedRowHtml = (canEditFood && excludedHtml)
-      ? `<div class="food-excluded-row"><span class="sp-sub">Removed from this meal:</span>${excludedHtml}</div>`
+    // One compact "+" picker instead of a link per option -- built-in groups currently excluded
+    // from this meal, extra groups not yet present at this meal (re-adds the SAME group, same id/
+    // color/other-meal counts, not a disconnected duplicate), and "New group" always last.
+    const excludedBuiltinOptions = (groupsByMeal[col.key + '|excluded'] || [])
+      .map(g => `<option value="builtin:${escapeHtml(g.key)}">${escapeHtml(g.label)}</option>`).join('');
+    const missingExtraOptions = foodBoardConfig.extraGroups
+      .filter(g => !(g.counts && Object.prototype.hasOwnProperty.call(g.counts, col.key)))
+      .map(g => `<option value="extra:${escapeHtml(g.id)}">${escapeHtml(g.label)}</option>`).join('');
+    const excludedRowHtml = canEditFood
+      ? `<div class="food-excluded-row">
+          <select class="food-add-select" onchange="handleFoodAddToMeal('${col.key}', this)">
+            <option value="" selected disabled>+ Add group</option>
+            ${excludedBuiltinOptions}${missingExtraOptions}
+            <option value="new">+ New group…</option>
+          </select>
+        </div>`
       : '';
     return `
       <tr>
@@ -8233,7 +8302,7 @@ async function renderFoodView() {
   root.innerHTML = `
     <div style="padding:20px 26px;">
       <h2 style="margin:0 0 4px;">Food Planning</h2>
-      <p class="sp-sub" style="margin:0 0 20px;">A seating chart for catering: columns are physical serving locations, rows are meal slots. Main Conference, Collegiate Collective, Student Leadership Summit, Speakers/Artists, and Exhibitor headcounts default to the live number from their own tabs — type over any of them to play with the numbers for planning, and use the ↺ button to snap a renamed group or overridden number back to default. Drag a chip by its ⠿ handle into another location's column to move it there for that meal. Rename any group's label too, or add your own groups (staff, volunteers, VIP guests) below for anyone the other tabs don't track. Click × on any chip to drop that group from just that one meal (e.g. no Student Leadership Summit after Monday night) — every other meal for that group is untouched, and it's a "+" link away from coming back. Changes save for everyone on the team, not just this browser.</p>
+      <p class="sp-sub" style="margin:0 0 20px;">A seating chart for catering: columns are physical serving locations, rows are meal slots. Main Conference, Collegiate Collective, Student Leadership Summit, Speakers/Artists, and Exhibitor headcounts default to the live number from their own tabs — type over any of them to play with the numbers for planning, and use the ↺ button to snap a renamed group or overridden number back to default. Drag a chip by its ⠿ handle into another location's column to move it there for that meal. Rename any group's label too, or add your own groups (staff, volunteers, VIP guests) below for anyone the other tabs don't track. Click × on any chip to drop that group from just that one meal (e.g. no Student Leadership Summit after Monday night) — every other meal for that group is untouched, and the "+ Add group" picker under that meal's date brings it right back. That same picker also adds an existing manually-added group to a meal it isn't at yet, or starts a brand-new group scoped to just that one meal — no new group has to apply to the whole board. Changes save for everyone on the team, not just this browser.</p>
 
       <fieldset class="sp-fieldset" style="margin-bottom:20px;">
         <legend>Meals served each day ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
@@ -8254,7 +8323,7 @@ async function renderFoodView() {
 
       <div style="display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap;">
         ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodLocation()" style="padding:7px 16px; font-size:12.5px;">+ Add serving location</button>` : ''}
-        ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodExtraGroup()" style="padding:7px 16px; font-size:12.5px; background:var(--teal);">+ Add a group (staff, volunteers, VIP guests…)</button>` : ''}
+        ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodExtraGroup()" style="padding:7px 16px; font-size:12.5px; background:var(--teal);" title="Adds the new group to every meal currently on the board">+ Add a group to every meal (staff, volunteers, VIP guests…)</button>` : ''}
       </div>
       <p class="sp-sub" style="margin-top:14px;">Speakers/artists default to the whole conference. To mark someone as only there for part of it, set their Arrival/Departure dates on the Speakers &amp; Artists tab (Logistics), or open their record and uncheck specific meals under Logistics → Meals for one-off exceptions like a guest choir attending a single event. Two groups assigned to the same location for a meal are eating together; different locations means served separately.</p>
 
@@ -9193,6 +9262,7 @@ function updateMyItemsNavBadge() {
 }
 function toggleMyItemsMenu(e) {
   if (e) e.stopPropagation();
+  closeOtherNavDropdowns('nav-my-items-menu');
   const menu = document.getElementById('nav-my-items-menu');
   if (!menu) return;
   const willOpen = !menu.classList.contains('open');
