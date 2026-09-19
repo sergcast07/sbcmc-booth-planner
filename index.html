@@ -1293,6 +1293,8 @@ td.food-total-cell { background: var(--teal-pale); font-size: 15px; color: var(-
 .food-restore-link:hover { color: var(--teal-deep); }
 table.food-cost-table tr.food-cost-subrow td { background: var(--paper); font-size: 12.5px; padding-left: 22px; }
 table.food-cost-table tr.food-cost-subrow td.num:last-child { font-weight: 600; }
+.food-cost-varies-note { font-size: 10.5px; color: var(--ink-soft); white-space: nowrap; margin-bottom: 3px; }
+.food-cost-varies-dot { color: var(--gold); font-weight: 700; letter-spacing: 0; }
 .rev-actuals-total { font-family: var(--font-display); font-weight: 700; color: var(--teal-deep); }
 .rev-actuals-unmodeled { color: var(--ink-soft); font-style: italic; }
 .rev-actuals-programs-note { font-size: 10.5px; color: var(--ink-soft); margin: 14px 0 4px; }
@@ -7922,18 +7924,27 @@ function restoreFoodGroupToMeal(mealKey, groupKey) {
 
 // $/person target for a meal NAME (e.g. "Breakfast"), applied to every day that has one -- see
 // the mealCosts shape note above.
+// The combined $/person field is a bulk-setter, not a separate number of its own -- every
+// group's price for this meal IS the per-group breakdown underneath, always (expanding or
+// collapsing the "Split by group" rows never changes a number, only whether you can see them).
+// Typing here sets every group present at this meal to the same value in one shot; clearing it
+// clears every group's price for this meal, back to fully unset.
 function setFoodMealCost(mealName, value) {
   const n = parseFloat(value);
-  if (!isNaN(n) && n >= 0) foodBoardConfig.mealCosts[mealName] = n;
-  else delete foodBoardConfig.mealCosts[mealName];
+  if (!foodBoardConfig.mealGroupCosts[mealName]) foodBoardConfig.mealGroupCosts[mealName] = {};
+  if (!isNaN(n) && n >= 0) {
+    const allGroupKeys = FOOD_BUILTIN_GROUP_DEFS.map(g => g.key).concat(foodBoardConfig.extraGroups.map(g => g.id));
+    allGroupKeys.forEach(gk => { foodBoardConfig.mealGroupCosts[mealName][gk] = n; });
+  } else {
+    foodBoardConfig.mealGroupCosts[mealName] = {};
+  }
   pushFoodBoardConfig();
   renderFoodView();
 }
 
-// Flips a meal between one combined $/person and a per-group breakdown ("Dinner costs one thing
-// for Main Conference, another for Collegiate Collective"). Toggling back to combined leaves the
-// per-group prices in place (not cleared) -- just not used in the total -- so switching back and
-// forth to compare doesn't lose anything typed in.
+// Purely a view toggle -- shows or hides the per-group breakdown rows under a meal. Every
+// group's price is always tracked individually underneath (see setFoodMealCost below), so
+// expanding or collapsing never changes a single number or the meal's total.
 function toggleFoodMealCostSplit(mealName) {
   foodBoardConfig.mealCostSplit[mealName] = !foodBoardConfig.mealCostSplit[mealName];
   pushFoodBoardConfig();
@@ -8265,22 +8276,28 @@ async function renderFoodView() {
   const costRows = Object.keys(mealNameTotals).map(name => {
     const t = mealNameTotals[name];
     const isSplit = !!foodBoardConfig.mealCostSplit[name];
-    const cost = foodBoardConfig.mealCosts[name];
-    const hasCost = typeof cost === 'number' && !isNaN(cost);
     const groupRows = Object.keys(mealNameGroupTotals[name] || {})
       .map(gk => ({ key: gk, ...mealNameGroupTotals[name][gk] }))
       .filter(g => g.headcount > 0)
       .map(g => {
         const gc = foodBoardConfig.mealGroupCosts[name] && foodBoardConfig.mealGroupCosts[name][g.key];
         const hasGc = typeof gc === 'number' && !isNaN(gc);
-        return { ...g, cost: hasGc ? gc : '', estTotal: hasGc ? gc * g.headcount : 0, hasCost: hasGc };
+        return { ...g, cost: hasGc ? gc : null, estTotal: hasGc ? gc * g.headcount : 0, hasCost: hasGc };
       });
-    const splitEstTotal = groupRows.reduce((s, g) => s + g.estTotal, 0);
+    // The meal's total is always the sum of its per-group prices -- identical whether the
+    // breakdown rows are showing or not, since expanding/collapsing never changes a number.
+    const estTotal = groupRows.reduce((s, g) => s + g.estTotal, 0);
+    const setCosts = groupRows.filter(g => g.hasCost).map(g => g.cost);
+    // "Uniform" needs EVERY present group priced, all at the same number -- not just the ones
+    // that happen to have a price yet -- so a still-partially-priced meal reads as varying
+    // (there's a real gap to fill in) rather than silently showing one group's number as if it
+    // were already the group-wide price.
+    const uniform = groupRows.length > 0 && setCosts.length === groupRows.length && setCosts.every(c => c === setCosts[0]);
+    const varies = setCosts.length > 0 && !uniform;
     return {
-      name, occurrences: t.occurrences, headcount: t.headcount, isSplit,
-      cost: hasCost ? cost : '', hasCost,
-      estTotal: isSplit ? splitEstTotal : (hasCost ? cost * t.headcount : 0),
-      groupRows
+      name, occurrences: t.occurrences, headcount: t.headcount, isSplit, estTotal, groupRows,
+      uniform, uniformValue: uniform ? setCosts[0] : null,
+      varies, rangeMin: setCosts.length ? Math.min(...setCosts) : null, rangeMax: setCosts.length ? Math.max(...setCosts) : null
     };
   });
   const grandOccurrences = costRows.reduce((s, r) => s + r.occurrences, 0);
@@ -8288,12 +8305,15 @@ async function renderFoodView() {
   const grandEstTotal = costRows.reduce((s, r) => s + r.estTotal, 0);
   const costRowsHtml = costRows.map(r => {
     const toggleBtn = canEditFood
-      ? `<button class="food-restore-link" style="display:block; margin-top:4px;" onclick="toggleFoodMealCostSplit('${jsAttrString(r.name)}')">${r.isSplit ? '− Combine into one price' : '+ Split by group'}</button>`
+      ? `<button class="food-restore-link" style="display:block; margin-top:4px;" onclick="toggleFoodMealCostSplit('${jsAttrString(r.name)}')">${r.isSplit ? '− Hide group breakdown' : '+ Show group breakdown'}</button>`
       : '';
-    const headerCostHtml = r.isSplit
-      ? `<span class="sp-sub">split by group below</span>`
-      : `<span style="color:var(--ink-soft);">$</span>
-         <input type="number" min="0" step="0.01" value="${r.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
+    // Typing into this field always sets EVERY group's price to that one number, whether it was
+    // uniform, varying, or blank a moment ago -- it's a bulk-setter, not a separate number.
+    const rangeNoteHtml = r.varies
+      ? `<div class="food-cost-varies-note" title="Different groups are priced differently for this meal">${cfpMoney(r.rangeMin)}–${cfpMoney(r.rangeMax)}/person <span class="food-cost-varies-dot">● varies</span></div>`
+      : '';
+    const headerCostHtml = `${rangeNoteHtml}<span style="color:var(--ink-soft);">$</span>
+         <input type="number" min="0" step="0.01" value="${r.uniform ? r.uniformValue : ''}" placeholder="${r.varies ? 'Set all…' : '0.00'}" ${canEditFood ? '' : 'disabled'}
            style="width:72px; text-align:right;" onchange="setFoodMealCost('${jsAttrString(r.name)}', this.value)">
          <span style="color:var(--ink-soft); font-size:11px;">/person</span>`;
     const headerRow = `
@@ -8313,7 +8333,7 @@ async function renderFoodView() {
         <td class="num" data-label="Headcount">${g.headcount}</td>
         <td class="num" data-label="$ / Person">
           <span style="color:var(--ink-soft);">$</span>
-          <input type="number" min="0" step="0.01" value="${g.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
+          <input type="number" min="0" step="0.01" value="${g.cost === null ? '' : g.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
             style="width:72px; text-align:right;" onchange="setFoodMealGroupCost('${jsAttrString(r.name)}','${jsAttrString(g.key)}', this.value)">
           <span style="color:var(--ink-soft); font-size:11px;">/person</span>
         </td>
@@ -8325,7 +8345,7 @@ async function renderFoodView() {
   root.innerHTML = `
     <div style="padding:20px 26px;">
       <h2 style="margin:0 0 4px;">Food Planning</h2>
-      <p class="sp-sub sp-sub-wrap" style="margin:0 0 20px;">A seating chart for catering: columns are physical serving locations, rows are meal slots. Main Conference, Collegiate Collective, Student Leadership Summit, Speakers/Artists, and Exhibitor headcounts default to the live number from their own tabs — type over any of them to play with the numbers for planning, and use the ↺ button to snap a renamed group or overridden number back to default. Speakers/Artists is shared across every meal instead — type a number in any one of its fields and every other meal updates to match. Drag a chip by its ⠿ handle into another location's column to move it there for that meal. Rename any group's label too, or add your own groups (staff, volunteers, VIP guests) below for anyone the other tabs don't track. Click × on any chip to drop that group from just that one meal (e.g. no Student Leadership Summit after Monday night) — every other meal for that group is untouched, and the "+ Add group" picker under that meal's date brings it right back. That same picker also adds an existing manually-added group to a meal it isn't at yet, or starts a brand-new group scoped to just that one meal — no new group has to apply to the whole board. Changes save for everyone on the team, not just this browser.</p>
+      <p class="sp-sub sp-sub-wrap" style="margin:0 0 20px;">Columns are serving locations, rows are meals. Type over any headcount to override it, drag a chip's ⠿ handle to move it to another location, and use "+ Add group" under a meal to add or bring back a group. Changes save for the whole team.</p>
 
       <fieldset class="sp-fieldset" style="margin-bottom:20px;">
         <legend>Meals served each day ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
@@ -8348,11 +8368,10 @@ async function renderFoodView() {
         ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodLocation()" style="padding:7px 16px; font-size:12.5px;">+ Add serving location</button>` : ''}
         ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodExtraGroup()" style="padding:7px 16px; font-size:12.5px; background:var(--teal);" title="Adds the new group to every meal currently on the board">+ Add a group to every meal (staff, volunteers, VIP guests…)</button>` : ''}
       </div>
-      <p class="sp-sub sp-sub-wrap" style="margin-top:14px;">Speakers/artists default to the whole conference. To mark someone as only there for part of it, set their Arrival/Departure dates on the Speakers &amp; Artists tab (Logistics), or open their record and uncheck specific meals under Logistics → Meals for one-off exceptions like a guest choir attending a single event. Two groups assigned to the same location for a meal are eating together; different locations means served separately.</p>
 
       <fieldset class="sp-fieldset" style="margin-top:28px;">
         <legend>Estimated Food Cost ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
-        <p class="sp-sub sp-sub-wrap" style="margin-top:0;">One $/person target per meal — set it once for "Breakfast" and it applies to every day that has one. Headcounts pull straight from the board above. If a meal costs different amounts for different groups (Dinner for Collegiate Collective vs. everyone else), click "+ Split by group" on that row to price each group separately.</p>
+        <p class="sp-sub sp-sub-wrap" style="margin-top:0;">One $/person per meal, applied to every group. Click "+ Show group breakdown" to price a group differently.</p>
         <div class="sp-table-wrap" style="overflow-x:auto;">
           <table class="sp-table food-cost-table">
             <thead><tr>
