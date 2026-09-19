@@ -7719,7 +7719,7 @@ const FOOD_BOARD_SETTINGS_ID = 'food_board_config';
 //   overrides: { '<date>|<meal>': { '<builtinGroupKey>': n } }, labels: { '<builtinGroupKey>': 'Custom Name' },
 //   excluded: { '<date>|<meal>': { '<builtinGroupKey>': true } }, mealCosts: { '<mealName>': dollarsPerPerson },
 //   mealCostSplit: { '<mealName>': true }, mealGroupCosts: { '<mealName>': { '<groupKey>': dollarsPerPerson } },
-//   extraGroups: [{id,label,color,counts:{'<date>|<meal>':n}}] }
+//   groupWideOverrides: { '<groupKey>': n }, extraGroups: [{id,label,color,counts:{'<date>|<meal>':n}}] }
 // labels renames a built-in group everywhere at once (not per meal) -- nobody wants "Main
 // Conference" called something different at breakfast than at dinner. excluded is the opposite
 // of that -- per-meal, not global -- for "no [group] after Monday": pulling one of the five live
@@ -7728,12 +7728,15 @@ const FOOD_BOARD_SETTINGS_ID = 'food_board_config';
 // Breakfast, not one price for Monday's and another for Tuesday's. mealCostSplit/mealGroupCosts
 // are the per-group override of that same idea -- Dinner might cost one thing for Main Conference
 // and another for Collegiate Collective -- and only kick in once a meal is explicitly split.
-let foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, extraGroups: [] };
+// groupWideOverrides is like labels but for the NUMBER: for groups in FOOD_GROUP_WIDE_SYNC_KEYS,
+// typing a count anywhere sets this one shared value instead of a per-meal override, so every
+// meal that group is on shows (and edits) the same number together.
+let foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, groupWideOverrides: {}, extraGroups: [] };
 let foodBoardConfigLoaded = false;
 
 // The five populations foodHeadcounts() computes live -- that's the DEFAULT shown here, but any
-// one of them can be hand-overridden per meal for planning purposes (a manual override always
-// wins over the live number) and reset back to live with one click.
+// one of them can be hand-overridden for planning purposes (a manual override always wins over
+// the live number).
 const FOOD_BUILTIN_GROUP_DEFS = [
   { key: 'main', label: 'Main Conference', color: 'var(--teal-deep)' },
   { key: 'cwc', label: 'Collegiate Collective', color: '#2962FF' },
@@ -7741,10 +7744,15 @@ const FOOD_BUILTIN_GROUP_DEFS = [
   { key: 'speakers', label: 'Speakers & Artists', color: 'var(--gold)' },
   { key: 'exhibitors', label: 'Exhibitors', color: '#9B59B6' }
 ];
+// Groups whose count override is ONE shared number across every meal, not per-meal -- also
+// exactly the groups that don't get a reset-to-live button, since once it's shared there's no
+// single "the live number" left to reset any one meal back to.
+const FOOD_GROUP_WIDE_SYNC_KEYS = ['speakers'];
+const FOOD_NO_RESET_KEYS = ['main', ...FOOD_GROUP_WIDE_SYNC_KEYS];
 
 async function loadFoodBoardConfig() {
   foodBoardConfigLoaded = false;
-  foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, extraGroups: [] };
+  foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, groupWideOverrides: {}, extraGroups: [] };
   if (!sbClient) { foodBoardConfigLoaded = true; return; }
   try {
     const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', FOOD_BOARD_SETTINGS_ID).eq('conference_year', activeConferenceYear).maybeSingle();
@@ -7759,6 +7767,7 @@ async function loadFoodBoardConfig() {
         mealCosts: (parsed.mealCosts && typeof parsed.mealCosts === 'object') ? parsed.mealCosts : {},
         mealCostSplit: (parsed.mealCostSplit && typeof parsed.mealCostSplit === 'object') ? parsed.mealCostSplit : {},
         mealGroupCosts: (parsed.mealGroupCosts && typeof parsed.mealGroupCosts === 'object') ? parsed.mealGroupCosts : {},
+        groupWideOverrides: (parsed.groupWideOverrides && typeof parsed.groupWideOverrides === 'object') ? parsed.groupWideOverrides : {},
         extraGroups: Array.isArray(parsed.extraGroups) ? parsed.extraGroups : []
       };
     }
@@ -7854,14 +7863,22 @@ function foodDragPointerUp(e) {
 // A manual override always wins over the live-computed count for that meal -- returns null when
 // nothing's been overridden, so the caller falls back to the real number.
 function foodGroupCountOverride(mealKey, groupKey) {
+  if (FOOD_GROUP_WIDE_SYNC_KEYS.includes(groupKey)) {
+    const shared = foodBoardConfig.groupWideOverrides[groupKey];
+    return Number.isFinite(shared) ? shared : null;
+  }
   const row = foodBoardConfig.overrides[mealKey];
   return row && Number.isFinite(row[groupKey]) ? row[groupKey] : null;
 }
 function setFoodGroupCountOverride(mealKey, groupKey, value) {
   const n = parseInt(value, 10);
   if (isNaN(n)) return;
-  if (!foodBoardConfig.overrides[mealKey]) foodBoardConfig.overrides[mealKey] = {};
-  foodBoardConfig.overrides[mealKey][groupKey] = n;
+  if (FOOD_GROUP_WIDE_SYNC_KEYS.includes(groupKey)) {
+    foodBoardConfig.groupWideOverrides[groupKey] = n;
+  } else {
+    if (!foodBoardConfig.overrides[mealKey]) foodBoardConfig.overrides[mealKey] = {};
+    foodBoardConfig.overrides[mealKey][groupKey] = n;
+  }
   pushFoodBoardConfig();
   renderFoodView();
 }
@@ -8090,7 +8107,7 @@ async function renderFoodView() {
         placeholder="e.g. Breakfast, Lunch, Dinner" ${canEditFood ? '' : 'disabled'}
         onchange="setFoodMealsForDay('${d}', this.value)">
     </div>
-  `).join('') || '<p class="sp-sub">No schedule days found yet — add slots on the Schedule tab first.</p>';
+  `).join('') || '<p class="sp-sub sp-sub-wrap">No schedule days found yet — add slots on the Schedule tab first.</p>';
 
   const mealCols = foodAllMealSlots().map(s => ({ key: foodMealKey(s.date, s.meal), date: s.date, meal: s.meal }));
 
@@ -8147,12 +8164,18 @@ async function renderFoodView() {
     if (g.isExtra) {
       countHtml = `<input type="number" min="0" value="${g.count}" ${canEditFood ? '' : 'disabled'} onchange="setFoodExtraGroupCount('${g.key}','${col.key}', this.value)">`;
     } else {
-      // Main Conference doesn't get a reset-to-live button -- its override is treated as the
-      // real planning number, not a temporary "what if" to snap back from.
-      const resetBtn = (g.isOverridden && g.key !== 'main')
+      // Main Conference and any group-wide-synced group (Speakers & Artists) don't get a
+      // reset-to-live button -- their override is treated as the real planning number, not a
+      // temporary "what if" to snap back from (and for a synced group there's no longer a single
+      // "the live number" for any one meal to reset back to).
+      const resetBtn = (g.isOverridden && !FOOD_NO_RESET_KEYS.includes(g.key))
         ? `<button class="food-chip-remove-btn" title="Reset to the live count (${g.liveCount})" onclick="resetFoodGroupCountOverride('${col.key}','${g.key}')">↺</button>`
         : '';
-      countHtml = `<input type="number" min="0" value="${g.count}" title="${g.isOverridden ? 'Manually overridden — live count is ' + g.liveCount : 'Live count — type a number to override it for planning.'}"
+      const isSynced = FOOD_GROUP_WIDE_SYNC_KEYS.includes(g.key);
+      const countTitle = isSynced
+        ? 'Shared across every meal — type a number here and it updates everywhere this group appears.'
+        : (g.isOverridden ? 'Manually overridden — live count is ' + g.liveCount : 'Live count — type a number to override it for planning.');
+      countHtml = `<input type="number" min="0" value="${g.count}" title="${countTitle}"
           style="${g.isOverridden ? 'border-color:var(--gold); background:var(--gold-pale);' : ''}"
           ${canEditFood ? '' : 'disabled'} onchange="setFoodGroupCountOverride('${col.key}','${g.key}', this.value)">${resetBtn}`;
     }
@@ -8302,11 +8325,11 @@ async function renderFoodView() {
   root.innerHTML = `
     <div style="padding:20px 26px;">
       <h2 style="margin:0 0 4px;">Food Planning</h2>
-      <p class="sp-sub" style="margin:0 0 20px;">A seating chart for catering: columns are physical serving locations, rows are meal slots. Main Conference, Collegiate Collective, Student Leadership Summit, Speakers/Artists, and Exhibitor headcounts default to the live number from their own tabs — type over any of them to play with the numbers for planning, and use the ↺ button to snap a renamed group or overridden number back to default. Drag a chip by its ⠿ handle into another location's column to move it there for that meal. Rename any group's label too, or add your own groups (staff, volunteers, VIP guests) below for anyone the other tabs don't track. Click × on any chip to drop that group from just that one meal (e.g. no Student Leadership Summit after Monday night) — every other meal for that group is untouched, and the "+ Add group" picker under that meal's date brings it right back. That same picker also adds an existing manually-added group to a meal it isn't at yet, or starts a brand-new group scoped to just that one meal — no new group has to apply to the whole board. Changes save for everyone on the team, not just this browser.</p>
+      <p class="sp-sub sp-sub-wrap" style="margin:0 0 20px;">A seating chart for catering: columns are physical serving locations, rows are meal slots. Main Conference, Collegiate Collective, Student Leadership Summit, Speakers/Artists, and Exhibitor headcounts default to the live number from their own tabs — type over any of them to play with the numbers for planning, and use the ↺ button to snap a renamed group or overridden number back to default. Speakers/Artists is shared across every meal instead — type a number in any one of its fields and every other meal updates to match. Drag a chip by its ⠿ handle into another location's column to move it there for that meal. Rename any group's label too, or add your own groups (staff, volunteers, VIP guests) below for anyone the other tabs don't track. Click × on any chip to drop that group from just that one meal (e.g. no Student Leadership Summit after Monday night) — every other meal for that group is untouched, and the "+ Add group" picker under that meal's date brings it right back. That same picker also adds an existing manually-added group to a meal it isn't at yet, or starts a brand-new group scoped to just that one meal — no new group has to apply to the whole board. Changes save for everyone on the team, not just this browser.</p>
 
       <fieldset class="sp-fieldset" style="margin-bottom:20px;">
         <legend>Meals served each day ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
-        <p class="sp-sub" style="margin-top:0;">Comma-separated. Leave a day blank if nothing's served that day (e.g. a Sunday arrival day with no meals yet).</p>
+        <p class="sp-sub sp-sub-wrap" style="margin-top:0;">Comma-separated. Leave a day blank if nothing's served that day (e.g. a Sunday arrival day with no meals yet).</p>
         ${configEditorHtml}
       </fieldset>
 
@@ -8325,11 +8348,11 @@ async function renderFoodView() {
         ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodLocation()" style="padding:7px 16px; font-size:12.5px;">+ Add serving location</button>` : ''}
         ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodExtraGroup()" style="padding:7px 16px; font-size:12.5px; background:var(--teal);" title="Adds the new group to every meal currently on the board">+ Add a group to every meal (staff, volunteers, VIP guests…)</button>` : ''}
       </div>
-      <p class="sp-sub" style="margin-top:14px;">Speakers/artists default to the whole conference. To mark someone as only there for part of it, set their Arrival/Departure dates on the Speakers &amp; Artists tab (Logistics), or open their record and uncheck specific meals under Logistics → Meals for one-off exceptions like a guest choir attending a single event. Two groups assigned to the same location for a meal are eating together; different locations means served separately.</p>
+      <p class="sp-sub sp-sub-wrap" style="margin-top:14px;">Speakers/artists default to the whole conference. To mark someone as only there for part of it, set their Arrival/Departure dates on the Speakers &amp; Artists tab (Logistics), or open their record and uncheck specific meals under Logistics → Meals for one-off exceptions like a guest choir attending a single event. Two groups assigned to the same location for a meal are eating together; different locations means served separately.</p>
 
       <fieldset class="sp-fieldset" style="margin-top:28px;">
         <legend>Estimated Food Cost ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
-        <p class="sp-sub" style="margin-top:0;">One $/person target per meal — set it once for "Breakfast" and it applies to every day that has one. Headcounts pull straight from the board above. If a meal costs different amounts for different groups (Dinner for Collegiate Collective vs. everyone else), click "+ Split by group" on that row to price each group separately.</p>
+        <p class="sp-sub sp-sub-wrap" style="margin-top:0;">One $/person target per meal — set it once for "Breakfast" and it applies to every day that has one. Headcounts pull straight from the board above. If a meal costs different amounts for different groups (Dinner for Collegiate Collective vs. everyone else), click "+ Split by group" on that row to price each group separately.</p>
         <div class="sp-table-wrap" style="overflow-x:auto;">
           <table class="sp-table food-cost-table">
             <thead><tr>
