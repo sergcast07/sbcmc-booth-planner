@@ -1300,6 +1300,13 @@ table.food-cost-table tr.food-cost-subrow td { background: var(--paper); font-si
 table.food-cost-table tr.food-cost-subrow td.num:last-child { font-weight: 600; }
 .food-cost-varies-note { font-size: 10.5px; color: var(--ink-soft); white-space: nowrap; margin-bottom: 3px; }
 .food-cost-varies-dot { color: var(--gold); font-weight: 700; letter-spacing: 0; }
+/* A stray click on a number input's native spinner arrow fires the exact same change event as
+   deliberately typing a value -- for these fields that means one misclick can silently flatten
+   a meal's carefully-set per-group prices into one number (setFoodMealCost's own confirm guard
+   protects against that, but there's no reason to leave the accidental trigger sitting there too). */
+.food-cost-input-nospin::-webkit-outer-spin-button,
+.food-cost-input-nospin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.food-cost-input-nospin[type=number] { -moz-appearance: textfield; }
 .rev-actuals-total { font-family: var(--font-display); font-weight: 700; color: var(--teal-deep); }
 .rev-actuals-unmodeled { color: var(--ink-soft); font-style: italic; }
 .rev-actuals-programs-note { font-size: 10.5px; color: var(--ink-soft); margin: 14px 0 4px; }
@@ -7934,15 +7941,44 @@ function restoreFoodGroupToMeal(mealKey, groupKey) {
 // collapsing the "Split by group" rows never changes a number, only whether you can see them).
 // Typing here sets every group present at this meal to the same value in one shot; clearing it
 // clears every group's price for this meal, back to fully unset.
+// True once two different groups have been priced differently for this meal -- an accidental
+// bulk-set (even a single stray click on the number input's spinner arrow, which fires a real
+// change event same as typing) would silently flatten that work into one number with no trace,
+// so this gates a confirmation before it's allowed to happen.
+function foodMealCostsVary(mealName) {
+  const costs = Object.values(foodBoardConfig.mealGroupCosts[mealName] || {});
+  return costs.length > 1 && !costs.every(c => c === costs[0]);
+}
 function setFoodMealCost(mealName, value) {
   const n = parseFloat(value);
   if (!foodBoardConfig.mealGroupCosts[mealName]) foodBoardConfig.mealGroupCosts[mealName] = {};
   if (!isNaN(n) && n >= 0) {
+    if (foodMealCostsVary(mealName) && !confirm(`Set every group's price for ${mealName} to $${n.toFixed(2)}? This overwrites the different prices you've set per group.`)) {
+      renderFoodView();
+      return;
+    }
     const allGroupKeys = FOOD_BUILTIN_GROUP_DEFS.map(g => g.key).concat(foodBoardConfig.extraGroups.map(g => g.id));
     allGroupKeys.forEach(gk => { foodBoardConfig.mealGroupCosts[mealName][gk] = n; });
+    pushFoodBoardConfig();
+    renderFoodView();
   } else {
-    foodBoardConfig.mealGroupCosts[mealName] = {};
+    // Blanking this field is how you'd normally clear it, but when prices already vary across
+    // groups the field is ALREADY blank (see the "varies" display below) -- clearing an
+    // already-empty field never fires a change event, so nothing here would ever run. The
+    // explicit "Clear" button below is the reliable trigger; this branch only covers the case
+    // where the field actually held a real (uniform) value that just got erased.
+    clearFoodMealCost(mealName);
   }
+}
+// The one reliable way to wipe every group's price for a meal -- always confirms first, since
+// this can't be undone. Called both from actually clearing a non-blank $/person field above, and
+// from the explicit "Clear" button next to it (needed for a "varies" meal, whose field is
+// already blank and so can't itself detect being "cleared").
+function clearFoodMealCost(mealName) {
+  const hadAnyCosts = Object.keys(foodBoardConfig.mealGroupCosts[mealName] || {}).length > 0;
+  if (!hadAnyCosts) { renderFoodView(); return; }
+  if (!confirm(`Clear every group's price for ${mealName}? This can't be undone.`)) { renderFoodView(); return; }
+  foodBoardConfig.mealGroupCosts[mealName] = {};
   pushFoodBoardConfig();
   renderFoodView();
 }
@@ -8301,7 +8337,7 @@ async function renderFoodView() {
     const varies = setCosts.length > 0 && !uniform;
     return {
       name, occurrences: t.occurrences, headcount: t.headcount, isSplit, estTotal, groupRows,
-      uniform, uniformValue: uniform ? setCosts[0] : null,
+      uniform, uniformValue: uniform ? setCosts[0] : null, hasAnyCost: setCosts.length > 0,
       varies, rangeMin: setCosts.length ? Math.min(...setCosts) : null, rangeMax: setCosts.length ? Math.max(...setCosts) : null
     };
   });
@@ -8317,10 +8353,16 @@ async function renderFoodView() {
     const rangeNoteHtml = r.varies
       ? `<div class="food-cost-varies-note" title="Different groups are priced differently for this meal">${cfpMoney(r.rangeMin)}–${cfpMoney(r.rangeMax)}/person <span class="food-cost-varies-dot">● varies</span></div>`
       : '';
+    // A "Clear" button next to the field, not just relying on blanking it -- a varying meal's
+    // field is ALREADY blank (see rangeNoteHtml above), so there's no "change" for the browser to
+    // detect if you just click in and out of it. This is the one reliable trigger either way.
+    const clearBtn = (canEditFood && r.hasAnyCost)
+      ? `<button class="food-restore-link" style="display:inline; margin-left:6px;" title="Clear every group's price for this meal" onclick="clearFoodMealCost('${jsAttrString(r.name)}')">Clear</button>`
+      : '';
     const headerCostHtml = `${rangeNoteHtml}<span style="color:var(--ink-soft);">$</span>
-         <input type="number" min="0" step="0.01" value="${r.uniform ? r.uniformValue : ''}" placeholder="${r.varies ? 'Set all…' : '0.00'}" ${canEditFood ? '' : 'disabled'}
+         <input type="number" min="0" step="0.01" class="food-cost-input-nospin" value="${r.uniform ? r.uniformValue : ''}" placeholder="${r.varies ? 'Set all…' : '0.00'}" ${canEditFood ? '' : 'disabled'}
            style="width:72px; text-align:right;" onchange="setFoodMealCost('${jsAttrString(r.name)}', this.value)">
-         <span style="color:var(--ink-soft); font-size:11px;">/person</span>`;
+         <span style="color:var(--ink-soft); font-size:11px;">/person</span>${clearBtn}`;
     const headerRow = `
       <tr>
         <td data-label=""><b>${escapeHtml(r.name)}</b>${toggleBtn}</td>
@@ -8338,7 +8380,7 @@ async function renderFoodView() {
         <td class="num" data-label="Headcount">${g.headcount}</td>
         <td class="num" data-label="$ / Person">
           <span style="color:var(--ink-soft);">$</span>
-          <input type="number" min="0" step="0.01" value="${g.cost === null ? '' : g.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
+          <input type="number" min="0" step="0.01" class="food-cost-input-nospin" value="${g.cost === null ? '' : g.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
             style="width:72px; text-align:right;" onchange="setFoodMealGroupCost('${jsAttrString(r.name)}','${jsAttrString(g.key)}', this.value)">
           <span style="color:var(--ink-soft); font-size:11px;">/person</span>
         </td>
