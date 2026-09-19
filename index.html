@@ -8079,9 +8079,14 @@ function addFoodExtraGroupToMeal(mealKey) {
 // (same id, label, color), so removing it from Dinner and then re-adding it there later doesn't
 // spawn a disconnected duplicate.
 function addExistingFoodExtraGroupToMeal(id, mealKey) {
-  foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g =>
-    g.id !== id ? g : { ...g, counts: { ...g.counts, [mealKey]: 0 } }
-  );
+  foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g => {
+    if (g.id !== id) return g;
+    // Seed from the group's existing (shared) count rather than 0, so re-adding it to a meal
+    // doesn't itself break the sync setFoodExtraGroupCount maintains everywhere else.
+    const existing = Object.values(g.counts);
+    const seed = existing.length ? existing[0] : 0;
+    return { ...g, counts: { ...g.counts, [mealKey]: seed } };
+  });
   pushFoodBoardConfig();
   renderFoodView();
 }
@@ -8100,9 +8105,19 @@ function setFoodExtraGroupLabel(id, value) {
   pushFoodBoardConfig();
   renderFoodView();
 }
+// An extra group's count is shared across every meal it currently appears at -- editing it from
+// any one meal's cell updates all of them, rather than needing the same number re-typed into
+// every day (there's no live-computed count to override for these like the five built-in
+// populations have, so "the number for this group" is just one value, not one per meal).
 function setFoodExtraGroupCount(id, mealKey, value) {
   const n = parseInt(value, 10);
-  foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g => g.id !== id ? g : { ...g, counts: { ...g.counts, [mealKey]: isNaN(n) ? 0 : n } });
+  const v = isNaN(n) ? 0 : n;
+  foodBoardConfig.extraGroups = foodBoardConfig.extraGroups.map(g => {
+    if (g.id !== id) return g;
+    const counts = {};
+    Object.keys(g.counts).forEach(mk => { counts[mk] = v; });
+    return { ...g, counts };
+  });
   pushFoodBoardConfig();
   renderFoodView();
 }
@@ -8236,7 +8251,7 @@ async function renderFoodView() {
   const chipHtml = (g, col) => {
     let countHtml;
     if (g.isExtra) {
-      countHtml = `<input type="number" min="0" value="${g.count}" ${canEditFood ? '' : 'disabled'} onchange="setFoodExtraGroupCount('${g.key}','${col.key}', this.value)">`;
+      countHtml = `<input type="number" min="0" value="${g.count}" title="Shared across every meal — type a number here and it updates everywhere this group appears." ${canEditFood ? '' : 'disabled'} onchange="setFoodExtraGroupCount('${g.key}','${col.key}', this.value)">`;
     } else {
       // Main Conference and any group-wide-synced group (Speakers & Artists) don't get a
       // reset-to-live button -- their override is treated as the real planning number, not a
