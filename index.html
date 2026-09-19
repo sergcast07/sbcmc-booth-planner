@@ -2068,7 +2068,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     finishUnlock();
   }
 
-  function finishUnlock() {
+  async function finishUnlock() {
     document.body.classList.remove('gate-locked');
     gateEl.style.display = 'none';
     const userBadge = document.getElementById('gate-user-badge');
@@ -2079,6 +2079,14 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     // even exists yet, which is fine, since that script does its own initial sweep.
     if (typeof window.applyPermissionLock === 'function') window.applyPermissionLock();
     if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
+    // activeConferenceYear is normally set later, inside initSupabase() (called from
+    // window.onAppUnlocked below) -- but a #hash deep link can now land straight on a
+    // year-scoped tab (Food, Schedule, Applicants, ...) the instant this function runs, and that
+    // tab's own load/save calls read activeConferenceYear immediately. Resolve it here first so
+    // those calls never fire with it still null (which trips a NOT NULL constraint on any save).
+    if (typeof window.loadConferenceYears === 'function') {
+      try { await window.loadConferenceYears(); } catch (e) { /* loadConferenceYears already falls back to '2027' internally */ }
+    }
     // Dashboard is visible by default in the static HTML (no inline display:none, since it's
     // the app's "home" tab) -- without this, someone denied dashboard.all would still see it
     // fully rendered until they happened to click something else. Force the initial view to
