@@ -2001,7 +2001,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 
   var ALL_SECTION_KEYS = ['dashboard.all', 'sponsors.contact', 'sponsors.financial', 'speakers.roster',
     'speakers.logistics', 'speakers.financial', 'speakers.internal_docs', 'schedule.all', 'applicants.all',
-    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'food.all', 'team_access.all'];
+    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'food.all', 'food.financial', 'team_access.all'];
 
   // ---- Legacy shared-password fallback -- Phase B/C transition only. Delete this whole
   // block (and the two hash constants) once every real user has an individual Supabase Auth
@@ -3959,10 +3959,11 @@ const TABLE_TO_SECTION_KEYS = {
   conference_drivers: ['transportation.all'], conference_hotels: ['transportation.all'],
   booth_layouts: ['floorplan.all'], booth_layout_maps: ['floorplan.all'],
   booth_layout_packages: ['floorplan.all'], booth_layout_versions: ['floorplan.all'],
-  // food.all added alongside revenue.all/cashflow.all -- this table is a shared key/value store
-  // (revenue estimator config, cashflow config, AND the Food Planning meal list/location board),
-  // so a food.all-only role needs to be let through too, not just revenue/cashflow roles.
-  conference_settings: ['revenue.all', 'cashflow.all', 'food.all'],
+  // food.all/food.financial added alongside revenue.all/cashflow.all -- this table is a shared
+  // key/value store (revenue estimator config, cashflow config, AND the Food Planning meal
+  // list/location board/cost table), so a food-only role (either half) needs to be let through
+  // too, not just revenue/cashflow roles.
+  conference_settings: ['revenue.all', 'cashflow.all', 'food.all', 'food.financial'],
   conference_documents: ['speakers.internal_docs']
 };
 function canView(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey]); }
@@ -7370,7 +7371,7 @@ const VIEW_SECTION_KEYS = {
   floorplan: ['floorplan.all'],
   revenue: ['revenue.all'],
   cashflow: ['cashflow.all'],
-  food: ['food.all']
+  food: ['food.all', 'food.financial']
 };
 // Order matters: the first entry here that the signed-in user can actually view is where
 // switchTopView lands them when the tab they asked for is denied -- 'dashboard' can no longer
@@ -7582,7 +7583,7 @@ function applyNavVisibility() {
   // by the generic per-view loop above, each still gated by its own section key -- this only
   // controls whether the "Logistics" trigger itself shows, same as the Financials trigger does.
   const logisticsBtn = document.getElementById('nav-logistics-btn');
-  if (logisticsBtn) logisticsBtn.style.display = canViewAny(['transportation.all', 'floorplan.all', 'food.all']) ? '' : 'none';
+  if (logisticsBtn) logisticsBtn.style.display = canViewAny(['transportation.all', 'floorplan.all', 'food.all', 'food.financial']) ? '' : 'none';
   // The generic per-view loop above looks up nav-${view}-btn, which doesn't resolve for
   // applicants_sls/applicants_cwc (the trigger and its two dropdown items use their own ids,
   // same as the Financials dropdown's revenue/cashflow items need their own handling too --
@@ -8198,6 +8199,9 @@ async function renderFoodView() {
 
   const days = foodConferenceDays();
   const canEditFood = canEdit('food.all') || window.isAdminUser;
+  const canViewFoodBoard = canView('food.all') || window.isAdminUser;
+  const canViewFoodFinancial = canView('food.financial') || window.isAdminUser;
+  const canEditFoodFinancial = canEdit('food.financial') || window.isAdminUser;
 
   const configEditorHtml = days.map(d => `
     <div class="sp-field" style="margin-bottom:8px;">
@@ -8392,7 +8396,7 @@ async function renderFoodView() {
   const grandHeadcount = costRows.reduce((s, r) => s + r.headcount, 0);
   const grandEstTotal = costRows.reduce((s, r) => s + r.estTotal, 0);
   const costRowsHtml = costRows.map(r => {
-    const toggleBtn = canEditFood
+    const toggleBtn = canEditFoodFinancial
       ? `<button class="food-restore-link" style="display:block; margin-top:4px;" onclick="toggleFoodMealCostSplit('${jsAttrString(r.name)}')">${r.isSplit ? '− Hide group breakdown' : '+ Show group breakdown'}</button>`
       : '';
     // Typing into this field always sets EVERY group's price to that one number, whether it was
@@ -8403,11 +8407,11 @@ async function renderFoodView() {
     // A "Clear" button next to the field, not just relying on blanking it -- a varying meal's
     // field is ALREADY blank (see rangeNoteHtml above), so there's no "change" for the browser to
     // detect if you just click in and out of it. This is the one reliable trigger either way.
-    const clearBtn = (canEditFood && r.hasAnyCost)
+    const clearBtn = (canEditFoodFinancial && r.hasAnyCost)
       ? `<button class="food-restore-link" style="display:inline; margin-left:6px;" title="Clear every group's price for this meal" onclick="clearFoodMealCost('${jsAttrString(r.name)}')">Clear</button>`
       : '';
     const headerCostHtml = `${rangeNoteHtml}<span style="color:var(--ink-soft);">$</span>
-         <input type="number" min="0" step="0.01" class="food-cost-input-nospin" value="${r.uniform ? r.uniformValue : ''}" placeholder="${r.varies ? 'Set all…' : '0.00'}" ${canEditFood ? '' : 'disabled'}
+         <input type="number" min="0" step="0.01" class="food-cost-input-nospin" value="${r.uniform ? r.uniformValue : ''}" placeholder="${r.varies ? 'Set all…' : '0.00'}" ${canEditFoodFinancial ? '' : 'disabled'}
            style="width:72px; text-align:right;" onchange="setFoodMealCost('${jsAttrString(r.name)}', this.value)">
          <span style="color:var(--ink-soft); font-size:11px;">/person</span>${clearBtn}`;
     const headerRow = `
@@ -8427,7 +8431,7 @@ async function renderFoodView() {
         <td class="num" data-label="Headcount">${g.headcount}</td>
         <td class="num" data-label="$ / Person">
           <span style="color:var(--ink-soft);">$</span>
-          <input type="number" min="0" step="0.01" class="food-cost-input-nospin" value="${g.cost === null ? '' : g.cost}" placeholder="0.00" ${canEditFood ? '' : 'disabled'}
+          <input type="number" min="0" step="0.01" class="food-cost-input-nospin" value="${g.cost === null ? '' : g.cost}" placeholder="0.00" ${canEditFoodFinancial ? '' : 'disabled'}
             style="width:72px; text-align:right;" onchange="setFoodMealGroupCost('${jsAttrString(r.name)}','${jsAttrString(g.key)}', this.value)">
           <span style="color:var(--ink-soft); font-size:11px;">/person</span>
         </td>
@@ -8436,11 +8440,12 @@ async function renderFoodView() {
     return headerRow + groupRowsHtml;
   }).join('') || '<tr><td class="sp-sub" colspan="5">Add at least one meal to a day above to plan costs.</td></tr>';
 
-  root.innerHTML = `
-    <div style="padding:20px 26px;">
-      <h2 style="margin:0 0 4px;">Food Planning</h2>
-      <p class="sp-sub sp-sub-wrap" style="margin:0 0 20px;">Columns are serving locations, rows are meals. Type over any headcount to override it, drag a chip's ⠿ handle to move it to another location, and use "+ Add group" under a meal to add or bring back a group. Changes save for the whole team.</p>
-
+  // Headcounts/locations (food.all) and cost (food.financial) are two separate access levels --
+  // each section below only renders for someone who can actually view that half, so a
+  // financial-only role never sees headcount/location detail, and a board-only role never sees
+  // pricing. VIEW_SECTION_KEYS.food already requires at least one of the two just to reach this
+  // tab at all; the "neither" case below is just defense in depth, not a normal path.
+  const boardHtml = !canViewFoodBoard ? '' : `
       <fieldset class="sp-fieldset" style="margin-bottom:20px;">
         <legend>Meals served each day ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
         <p class="sp-sub sp-sub-wrap" style="margin-top:0;">Comma-separated. Leave a day blank if nothing's served that day (e.g. a Sunday arrival day with no meals yet).</p>
@@ -8462,9 +8467,11 @@ async function renderFoodView() {
         ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodLocation()" style="padding:7px 16px; font-size:12.5px;">+ Add serving location</button>` : ''}
         ${canEditFood ? `<button class="sp-add-btn" onclick="addFoodExtraGroup()" style="padding:7px 16px; font-size:12.5px; background:var(--teal);" title="Adds the new group to every meal currently on the board">+ Add a group to every meal (staff, volunteers, VIP guests…)</button>` : ''}
       </div>
+  `;
 
-      <fieldset class="sp-fieldset" style="margin-top:28px;">
-        <legend>Estimated Food Cost ${canEditFood ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
+  const financialHtml = !canViewFoodFinancial ? '' : `
+      <fieldset class="sp-fieldset" style="${canViewFoodBoard ? 'margin-top:28px;' : ''}">
+        <legend>Estimated Food Cost ${canEditFoodFinancial ? '' : '<span class="sp-sub" style="font-weight:400;">(view only)</span>'}</legend>
         <p class="sp-sub sp-sub-wrap" style="margin-top:0;">One $/person per meal, applied to every group. Click "+ Show group breakdown" to price a group differently.</p>
         <div class="sp-table-wrap" style="overflow-x:auto;">
           <table class="sp-table food-cost-table">
@@ -8484,6 +8491,15 @@ async function renderFoodView() {
           </table>
         </div>
       </fieldset>
+  `;
+
+  root.innerHTML = `
+    <div style="padding:20px 26px;">
+      <h2 style="margin:0 0 4px;">Food Planning</h2>
+      <p class="sp-sub sp-sub-wrap" style="margin:0 0 20px;">Columns are serving locations, rows are meals. Type over any headcount to override it, drag a chip's ⠿ handle to move it to another location, and use "+ Add group" under a meal to add or bring back a group. Changes save for the whole team.</p>
+      ${boardHtml}
+      ${financialHtml}
+      ${(!canViewFoodBoard && !canViewFoodFinancial) ? '<p class="sp-sub">You don’t have access to any part of Food Planning.</p>' : ''}
     </div>
   `;
 }
@@ -8510,6 +8526,7 @@ const ALL_SECTION_KEYS_LIST = [
   ['revenue.all', 'Registration Revenue'],
   ['cashflow.all', 'Cash Flow'],
   ['food.all', 'Food Planning'],
+  ['food.financial', 'Food Planning — Estimated Cost'],
   ['team_access.all', 'Team Access (admin)']
 ];
 // Groups the same keys/labels above under headers, purely for scanability in the permission
@@ -8519,7 +8536,7 @@ const PERMISSION_CATEGORIES = [
   ['Sponsors', ['sponsors.contact', 'sponsors.financial']],
   ['Speakers & Artists', ['speakers.roster', 'speakers.logistics', 'speakers.financial', 'speakers.internal_docs']],
   ['Schedule & Applicants', ['schedule.all', 'applicants.all']],
-  ['Logistics', ['transportation.all', 'floorplan.all', 'food.all']],
+  ['Logistics', ['transportation.all', 'floorplan.all', 'food.all', 'food.financial']],
   ['Money', ['revenue.all', 'cashflow.all']],
   ['Admin', ['team_access.all']]
 ];
