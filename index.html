@@ -1802,6 +1802,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-card .sch-card-edit:hover { opacity: 1; color: var(--teal-deep); }
 .sch-card .sch-card-room { color: var(--ink-soft); font-size: 10.5px; margin-top: 3px; }
 .sch-card .sch-card-room-select { width: 100%; box-sizing: border-box; margin-top: 4px; font-size: 10.5px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink-soft); cursor: pointer; }
+.sch-booking-title-input { width: 100%; box-sizing: border-box; margin-bottom: 4px; font-size: 10.5px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); }
 .sch-card.sch-conflict { border-color: #c0392b; box-shadow: 0 0 0 1px #c0392b inset; padding-right: 26px; }
 .sch-card .sch-conflict-icon { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 11px; }
 .sch-cell.sch-room-conflict { background: rgba(192,57,43,0.08); outline: 1px dashed #c0392b; outline-offset: -1px; }
@@ -9785,6 +9786,7 @@ const REVENUE_TIER_DEFAULTS = [
   { id: 'group_eb2', group: 'group', name: 'Early Bird', phase: 'Phase 2', rate: 275, count: 50 },
   { id: 'group_reg', group: 'group', name: 'Regular', phase: 'Regular', rate: 325, count: 50 },
   { id: 'spouse', group: 'other', name: 'Spouse', phase: '', rate: 150, count: 30 },
+  { id: 'retiree', group: 'other', name: 'Retiree', phase: '', rate: 0, count: 0 },
   { id: 'dues', group: 'other', name: 'Membership Dues', phase: '', rate: 0, count: 0 },
   { id: 'collegiate', group: 'student', name: 'Collegiate Worship Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3, occupancy: 4 },
   { id: 'collegiate_local', group: 'student', name: 'Collegiate Worship Collective', phase: 'Local', rate: 60, count: 20 },
@@ -14539,24 +14541,30 @@ const HOTELS_TABLE = 'conference_hotels';
 const SESSION_ROOMS_TABLE = 'session_rooms';
 const SESSION_TRACKS_TABLE = 'session_tracks';
 
-// Lets staff tie a track to a room for a breakout slot before any speaker has been assigned
-// there -- e.g. "Kids Worship is in E102 for Breakout 3" decided ahead of who's actually
-// presenting. Once a real session for that track+slot exists, it inherits the reserved room
-// automatically (see assignSpeakerToBreakoutCell) and the booking clears itself (see
-// clearRoomBookingIfFulfilled), so it never lingers as a stale duplicate once it's fulfilled.
+// Lets staff tie a track to a room -- and/or a working session title -- for a breakout slot
+// before any speaker has been assigned there -- e.g. "Kids Worship is in E102, 'Loud Praise for
+// Little Voices', for Breakout 3" decided ahead of who's actually presenting. Once a real session
+// for that track+slot exists, it inherits both the reserved room AND title automatically (see
+// assignSpeakerToBreakoutCell) and the booking clears itself (see clearRoomBookingIfFulfilled),
+// so it never lingers as a stale duplicate once it's fulfilled. Either field can be set without
+// the other (room-only, title-only, or both) -- the booking only goes away once both are empty.
 // Deliberately its own table rather than a field on schedule_slots: one breakout slot spans
 // many tracks/rooms in parallel, so a booking has to be keyed by (track, slot), not by slot
 // alone. Requires its own table:
 //   create table if not exists breakout_room_bookings (
-//     id text primary key, track_id text not null, slot_id text not null, room text not null
+//     id text primary key, track_id text not null, slot_id text not null, room text not null,
+//     session_title text not null default ''
 //   );
 //   alter table breakout_room_bookings enable row level security;
 //   create policy "public read breakout_room_bookings" on breakout_room_bookings for select using (true);
 //   create policy "public write breakout_room_bookings" on breakout_room_bookings for insert with check (true);
 //   create policy "public update breakout_room_bookings" on breakout_room_bookings for update using (true);
 //   create policy "public delete breakout_room_bookings" on breakout_room_bookings for delete using (true);
-// Until that table exists, bookings made here still work for the current session but won't
-// persist across a reload (same graceful-degradation behavior as everything else in this app).
+// For a table that already existed before session_title was added:
+//   alter table breakout_room_bookings add column if not exists session_title text not null default '';
+// Until that column exists, pushRoomBooking() falls back to saving just the room (a typed title
+// still shows locally but reverts on the next reload) -- same graceful-degradation pattern as
+// pushSessionRoom()'s capacity fallback below.
 const BREAKOUT_ROOM_BOOKINGS_TABLE = 'breakout_room_bookings';
 
 // Master conference schedule (Schedule tab): every named block of time across all four days --
@@ -16924,7 +16932,7 @@ async function loadBreakoutRoomBookings() {
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).select('*').eq('conference_year', activeConferenceYear);
-    if (!error && data) breakoutRoomBookings = data.map(r => ({ id: r.id, trackId: r.track_id, slotId: r.slot_id, room: r.room }));
+    if (!error && data) breakoutRoomBookings = data.map(r => ({ id: r.id, trackId: r.track_id, slotId: r.slot_id, room: r.room, sessionTitle: r.session_title || '' }));
     else if (error) console.warn('Breakout room bookings table not available:', errDetail(error));
   } catch (err) {
     console.warn('Breakout room bookings load failed:', err);
@@ -16936,33 +16944,43 @@ function findRoomBookingByTrack(trackId, slotId) {
 function findRoomBookingByRoom(room, slotId) {
   return breakoutRoomBookings.find(function(b) { return b.room === room && b.slotId === slotId; });
 }
+// Graceful fallback if "breakout_room_bookings.session_title" hasn't been added to the schema
+// yet (see the migration note above) -- the room still saves even before that migration runs.
 function pushRoomBooking(booking) {
   if (!sbClient) return;
-  sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, track_id: booking.trackId, slot_id: booking.slotId, room: booking.room, conference_year: activeConferenceYear }).then(({ error }) => {
-    if (error) reportWriteError('room-booking:' + booking.id, 'Couldn’t save that reservation — it’ll disappear next reload.', error);
-    else reportWriteSuccess('room-booking:' + booking.id);
+  const key = 'room-booking:' + booking.id;
+  sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, track_id: booking.trackId, slot_id: booking.slotId, room: booking.room, session_title: booking.sessionTitle || '', conference_year: activeConferenceYear }).then(({ error }) => {
+    if (!error) { reportWriteSuccess(key); return; }
+    sbClient.from(BREAKOUT_ROOM_BOOKINGS_TABLE).upsert({ id: booking.id, track_id: booking.trackId, slot_id: booking.slotId, room: booking.room, conference_year: activeConferenceYear }).then(({ error: err2 }) => {
+      if (err2) { reportWriteError(key, 'Couldn’t save that reservation — it’ll disappear next reload.', err2); }
+      else { reportWriteSuccess(key); console.warn('Session title didn’t save — "breakout_room_bookings.session_title" column may be missing. (' + errDetail(error) + ')'); }
+    });
   });
 }
-// Sets (or clears, with an empty room) which room a track is reserved into for a slot, ahead
-// of any speaker being assigned there. One booking per track+slot -- a track can only actually
-// occupy one room at a time, so picking a new room here replaces the old one rather than
-// stacking a second reservation.
-function setBreakoutRoomBooking(trackId, slotId, room) {
+// Sets (or clears) the room and/or session title a track is reserved with for a slot, ahead of
+// any speaker being assigned there. One booking per track+slot -- a track can only actually
+// occupy one room (and have one working title) at a time, so setting a new value here replaces
+// the old one rather than stacking a second reservation. Either field can carry the booking on
+// its own (title with no room yet, or room with no title yet); it only disappears once both are
+// empty, so clearing one field never silently discards the other.
+function upsertBreakoutBooking(trackId, slotId, patch) {
   if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const existing = findRoomBookingByTrack(trackId, slotId);
-  if (!room) {
+  const booking = existing || { id: makeId(), trackId: trackId, slotId: slotId, room: '', sessionTitle: '' };
+  Object.assign(booking, patch);
+  if (!booking.room && !booking.sessionTitle) {
     if (existing) releaseBreakoutRoomBooking(existing.id);
     return;
   }
-  if (existing) {
-    existing.room = room;
-    pushRoomBooking(existing);
-  } else {
-    const booking = { id: makeId(), trackId: trackId, slotId: slotId, room: room };
-    breakoutRoomBookings.push(booking);
-    pushRoomBooking(booking);
-  }
+  if (!existing) breakoutRoomBookings.push(booking);
+  pushRoomBooking(booking);
   renderScheduleView();
+}
+function setBreakoutRoomBooking(trackId, slotId, room) {
+  upsertBreakoutBooking(trackId, slotId, { room: room || '' });
+}
+function setBreakoutSessionTitleBooking(trackId, slotId, title) {
+  upsertBreakoutBooking(trackId, slotId, { sessionTitle: (title || '').trim() });
 }
 function releaseBreakoutRoomBooking(id) {
   if (!canEditOrWarn('schedule.all', 'schedule')) return;
@@ -17583,11 +17601,12 @@ function assignSpeakerToBreakoutCell(speakerId, trackId, slotId) {
   const track = sessionTracks.find(t => t.id === trackId); if (!track) return;
   const sp = getSpeaker(speakerId); if (!sp) return;
   if (!sp.data.sessions) sp.data.sessions = [];
-  // If this track+slot was already reserved a room ahead of anyone being assigned (see
-  // setBreakoutRoomBooking), the new session inherits it instead of starting blank -- that's
-  // the whole point of booking ahead of time.
+  // If this track+slot was already reserved a room and/or a working session title ahead of
+  // anyone being assigned (see setBreakoutRoomBooking/setBreakoutSessionTitleBooking), the new
+  // session inherits both instead of starting blank -- that's the whole point of booking ahead
+  // of time.
   const booking = findRoomBookingByTrack(trackId, slotId);
-  sp.data.sessions.push({ id: makeId(), title: '', track: track.name, slotId: slot.id, sessionDate: slot.date, day: fullWeekday(slot.date), timeSlot: slot.start, room: booking ? booking.room : '', lengthMin: '', description: '' });
+  sp.data.sessions.push({ id: makeId(), title: booking ? booking.sessionTitle : '', track: track.name, slotId: slot.id, sessionDate: slot.date, day: fullWeekday(slot.date), timeSlot: slot.start, room: booking ? booking.room : '', lengthMin: '', description: '' });
   pushSpeaker(sp);
   if (booking) clearRoomBookingIfFulfilled(trackId, slotId);
   renderScheduleView();
@@ -17704,13 +17723,17 @@ function renderBreakoutGrid() {
           ? `<select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); propagateBreakoutCellRoom('${track.id}', '${slot.id}', this.value)">${sessionRoomOptionsHtml(cellRoom)}</select>`
           : (cellRoom ? `<div class="sch-card-room">📍 ${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : '');
       } else {
-        // A track can be tied to a room ahead of anyone being assigned to it -- see
-        // setBreakoutRoomBooking. Picking a speaker afterward inherits this room automatically.
+        // A track can be tied to a room and/or a working session title ahead of anyone being
+        // assigned to it -- see setBreakoutRoomBooking/setBreakoutSessionTitleBooking. Picking a
+        // speaker afterward inherits both automatically.
         const booking = findRoomBookingByTrack(track.id, slot.id);
         if (canEditSchedule) {
-          roomHtml = `<select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setBreakoutRoomBooking('${track.id}', '${slot.id}', this.value)" title="Reserve a room for this track/slot ahead of assigning a speaker">${sessionRoomOptionsHtml(booking ? booking.room : '')}</select>`;
+          roomHtml = `<input type="text" class="sch-booking-title-input" placeholder="Session title…" value="${escapeHtml(booking ? booking.sessionTitle : '')}" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setBreakoutSessionTitleBooking('${track.id}', '${slot.id}', this.value)" title="Reserve a working session title for this track/slot ahead of assigning a speaker">
+            <select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setBreakoutRoomBooking('${track.id}', '${slot.id}', this.value)" title="Reserve a room for this track/slot ahead of assigning a speaker">${sessionRoomOptionsHtml(booking ? booking.room : '')}</select>`;
         } else {
-          roomHtml = booking ? `<div class="sch-room-booking">🔒 ${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : '';
+          const titleHtml = booking && booking.sessionTitle ? `<div class="sch-card-title">${escapeHtml(booking.sessionTitle)}</div>` : '';
+          const roomBadgeHtml = booking && booking.room ? `<div class="sch-room-booking">🔒 ${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : '';
+          roomHtml = titleHtml + roomBadgeHtml;
         }
       }
       const occupantIds = new Set(occs.map(o => o.speakerId));
@@ -17826,7 +17849,7 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
         const booking = isNone ? null : findRoomBookingByRoom(roomKey, slot.id);
         if (booking) {
           const bookedTrack = sessionTracks.find(t => t.id === booking.trackId);
-          emptyHtml = `<div class="sch-room-booking">🔒 Reserved: ${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="releaseBreakoutRoomBooking('${booking.id}')" title="Release this reservation">×</span>` : ''}</div>`;
+          emptyHtml = `<div class="sch-room-booking">🔒 Reserved: ${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}${booking.sessionTitle ? ' — ' + escapeHtml(booking.sessionTitle) : ''}${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="releaseBreakoutRoomBooking('${booking.id}')" title="Release this reservation">×</span>` : ''}</div>`;
         } else if (!isNone && canEditSchedule) {
           const trackOptions = sessionTracks.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
           emptyHtml = `<select class="sch-cell-add" style="width:100%;" onchange="if(this.value){setBreakoutRoomBooking(this.value, '${slot.id}', '${jsAttrString(roomKey)}'); this.value='';}"><option value="">+ Reserve for track…</option>${trackOptions}</select>`;
