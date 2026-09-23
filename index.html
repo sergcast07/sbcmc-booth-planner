@@ -1694,6 +1694,13 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
     border-radius: 3px 3px 6px 6px; padding: 10px 11px;
   }
   .bo-print-cell-empty { color: var(--ink-soft); text-align: center; opacity: 0.55; }
+  /* A room/title reserved ahead of a speaker is real, useful information -- fading it out at
+     55% opacity (like a truly blank cell) made it read as broken or unfinished on paper instead
+     of "this part's already decided." Full opacity, left-aligned like a real card, with a plain
+     gold accent instead of a lock icon (emoji can render as a missing-glyph box in some
+     print/PDF pipelines, which is worse than no icon at all). */
+  .bo-print-cell-reserved { background: var(--gold-pale); border-color: var(--gold); border-style: dashed; text-align: left; }
+  .bo-print-reserved-note { font-size: 8.5px; font-style: italic; color: #8B6A1F; margin-top: 6px; }
   .bo-print-slot-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 6px; }
   .bo-print-card + .bo-print-card { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
   .bo-print-name { font-size: 11.5px; font-weight: 700; color: var(--ink); }
@@ -17921,7 +17928,7 @@ function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
         // touched yet.
         const booking = findRoomBookingByTrack(track.id, slot.id);
         if (booking && (booking.room || booking.sessionTitle)) {
-          return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}${booking.room ? `<div class="bo-print-room">🔒 ${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : ''}</div>`;
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}${booking.sessionTitle ? `<div class="bo-print-name" style="font-style:italic;">${escapeHtml(booking.sessionTitle)}</div>` : ''}${booking.room ? `<div class="bo-print-room">${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
@@ -17977,7 +17984,7 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
         const booking = isNone ? null : findRoomBookingByRoom(roomKey, slot.id);
         if (booking) {
           const bookedTrack = sessionTracks.find(t => t.id === booking.trackId);
-          return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}<div class="bo-print-session-title">Reserved: ${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}${booking.sessionTitle ? ' — ' + escapeHtml(booking.sessionTitle) : ''}</div></div>`;
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-name" style="font-style:italic;">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div>${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
