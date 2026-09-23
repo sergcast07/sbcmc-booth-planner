@@ -1692,6 +1692,10 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
     flex: 1; min-width: 0; display: flex; flex-direction: column;
     background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--line);
     border-radius: 3px 3px 6px 6px; padding: 10px 11px;
+    /* A long unbroken word (a session title that's really a URL, e.g. "Lifewayworship.com")
+       doesn't have a space to wrap at, so without this it either overflows past the card's
+       border or gets clipped outright at print time -- break it mid-word instead. */
+    overflow-wrap: break-word; word-break: break-word;
   }
   .bo-print-cell-empty { color: var(--ink-soft); text-align: center; opacity: 0.55; }
   /* A room/title reserved ahead of a speaker is real, useful information -- fading it out at
@@ -17928,7 +17932,7 @@ function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
         // touched yet.
         const booking = findRoomBookingByTrack(track.id, slot.id);
         if (booking && (booking.room || booking.sessionTitle)) {
-          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}${booking.sessionTitle ? `<div class="bo-print-name" style="font-style:italic;">${escapeHtml(booking.sessionTitle)}</div>` : ''}${booking.room ? `<div class="bo-print-room">${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}${booking.room ? `<div class="bo-print-room">${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
@@ -17984,7 +17988,8 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
         const booking = isNone ? null : findRoomBookingByRoom(roomKey, slot.id);
         if (booking) {
           const bookedTrack = sessionTracks.find(t => t.id === booking.trackId);
-          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-name" style="font-style:italic;">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div>${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
+          const bookedTrackColor = trackColorByName[bookedTrack ? bookedTrack.name : ''] || 'var(--line)';
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title" style="color:${bookedTrackColor};">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div>${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
