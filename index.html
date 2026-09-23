@@ -17914,7 +17914,17 @@ function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
       const occs = (index[track.name + '|' + slot.id] || []).slice();
       sortCellOccupants(occs);
       const slotLabel = `<div class="bo-print-slot-label">${escapeHtml(slot.label)}</div>`;
-      if (!occs.length) return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
+      if (!occs.length) {
+        // A room/title reserved ahead of a speaker (see setBreakoutRoomBooking/
+        // setBreakoutSessionTitleBooking) is still worth printing -- otherwise a cell that's
+        // fully planned except for who's presenting looks identical on paper to one nobody's
+        // touched yet.
+        const booking = findRoomBookingByTrack(track.id, slot.id);
+        if (booking && (booking.room || booking.sessionTitle)) {
+          return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}${booking.room ? `<div class="bo-print-room">🔒 ${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : ''}</div>`;
+        }
+        return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
+      }
       const titlesMatch = occs.length > 1 && !!occs[0].sess.title && occs.every(o => o.sess.title === occs[0].sess.title);
       const room = occs[0].sess.room;
       const cards = occs.map((occ, occIdx) => {
@@ -17963,7 +17973,14 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
       const occs = (roomIndex[roomKey + '|' + slot.id] || []).slice();
       sortCellOccupants(occs);
       const slotLabel = `<div class="bo-print-slot-label">${escapeHtml(slot.label)}</div>`;
-      if (!occs.length) return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
+      if (!occs.length) {
+        const booking = isNone ? null : findRoomBookingByRoom(roomKey, slot.id);
+        if (booking) {
+          const bookedTrack = sessionTracks.find(t => t.id === booking.trackId);
+          return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}<div class="bo-print-session-title">Reserved: ${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}${booking.sessionTitle ? ' — ' + escapeHtml(booking.sessionTitle) : ''}</div></div>`;
+        }
+        return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
+      }
       const cards = occs.map(occ => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
