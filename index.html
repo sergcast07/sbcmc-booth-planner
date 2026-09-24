@@ -13623,6 +13623,20 @@ function updateSponsorSimple(id, field, value) {
         s.data.checkoutTier = '';
       }
     }
+    // "Registered, Paid" IS "paid in full" -- fill in the fields that say so instead of leaving
+    // someone to separately flip Payment Status to "Paid in Full" and copy the committed amount
+    // into Amount Paid by hand. Backfills Committed from the checkout tier first if that's the
+    // only dollar figure on file (same fallback order already used elsewhere for this sponsor),
+    // then sets Amount Paid to match it. Only fires on the transition into this status, so
+    // re-selecting it (or picking a different status later) never overwrites a real paid amount
+    // someone already typed in.
+    if (value === 'Registered, Paid' && prevValue !== 'Registered, Paid') {
+      if (!parseMoneyNum(s.data.money.committed) && parseMoneyNum(s.data.checkoutTier)) {
+        s.data.money.committed = s.data.checkoutTier;
+      }
+      s.data.money.paymentStatus = 'Paid in Full';
+      if (parseMoneyNum(s.data.money.committed)) s.data.money.paid = s.data.money.committed;
+    }
   }
   pushSponsor(s);
   refreshSponsorAfterEdit(id);
@@ -17926,13 +17940,14 @@ function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
       sortCellOccupants(occs);
       const slotLabel = `<div class="bo-print-slot-label">${escapeHtml(slot.label)}</div>`;
       if (!occs.length) {
-        // A room/title reserved ahead of a speaker (see setBreakoutRoomBooking/
-        // setBreakoutSessionTitleBooking) is still worth printing -- otherwise a cell that's
-        // fully planned except for who's presenting looks identical on paper to one nobody's
-        // touched yet.
+        // A working session title reserved ahead of a speaker (see
+        // setBreakoutSessionTitleBooking) is worth printing -- otherwise a cell that's already
+        // got a planned topic looks identical on paper to one nobody's touched yet. A booking
+        // that only reserves a ROOM (no title) isn't shown here, though -- that's internal
+        // planning scaffolding, not something the printed handout needs to call out.
         const booking = findRoomBookingByTrack(track.id, slot.id);
-        if (booking && (booking.room || booking.sessionTitle)) {
-          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}${booking.room ? `<div class="bo-print-room">${escapeHtml(roomLabelWithCapacity(booking.room))}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
+        if (booking && booking.sessionTitle) {
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div><div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
@@ -17985,11 +18000,13 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
       sortCellOccupants(occs);
       const slotLabel = `<div class="bo-print-slot-label">${escapeHtml(slot.label)}</div>`;
       if (!occs.length) {
+        // Same rule as the By Track view: only a reserved session TITLE is worth printing --
+        // a room booked for a track with no title yet is internal scaffolding, left off the page.
         const booking = isNone ? null : findRoomBookingByRoom(roomKey, slot.id);
-        if (booking) {
+        if (booking && booking.sessionTitle) {
           const bookedTrack = sessionTracks.find(t => t.id === booking.trackId);
           const bookedTrackColor = trackColorByName[bookedTrack ? bookedTrack.name : ''] || 'var(--line)';
-          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title" style="color:${bookedTrackColor};">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div>${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title" style="color:${bookedTrackColor};">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div><div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div><div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
