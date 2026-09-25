@@ -2676,6 +2676,11 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         </div>
       </div>
 
+      <div class="db-section">
+        <div class="db-section-title">Registrations Over Time</div>
+        <div id="db-registrations-chart"></div>
+      </div>
+
       <div class="db-section db-print-page2-start">
         <div class="db-section-title">Committed $ by Package Tier</div>
         <div id="db-package-breakdown"></div>
@@ -9327,6 +9332,7 @@ function renderDashboard() {
 
   renderNewReturningBreakdown();
   renderSponsorshipProgressChart();
+  if (typeof renderRegistrationsTimelineChart === 'function') renderRegistrationsTimelineChart();
   renderOpportunitySection(totalCommitted);
   renderOpenTasksSection();
   renderCapacitySection();
@@ -9949,8 +9955,11 @@ async function loadRegistrationActuals() {
 async function syncActualRegistrants() {
   if (!canView('revenue.all')) return;
   if (!sbClient || !SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
-  const btn = document.getElementById('rev-sync-registrants-btn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="sync-spinning">🔄</span> Syncing…'; }
+  // Two possible trigger points now -- the Revenue tab's original button, and the Dashboard's
+  // copy next to the registrations chart -- kept in sync since either one can be visible/absent
+  // depending on which tab is open.
+  const btns = [document.getElementById('rev-sync-registrants-btn'), document.getElementById('db-sync-registrants-btn')].filter(Boolean);
+  btns.forEach(btn => { btn.disabled = true; btn.innerHTML = '<span class="sync-spinning">🔄</span> Syncing…'; });
   toast('Pulling actual registrants from the registration portal…');
   const controller = new AbortController();
   const abortTimer = setTimeout(() => controller.abort(), 30000);
@@ -9963,13 +9972,14 @@ async function syncActualRegistrants() {
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
     await loadRegistrationActuals();
     renderRevenueView();
+    if (typeof renderRegistrationsTimelineChart === 'function') renderRegistrationsTimelineChart();
     toast('✅ Actual registrants updated.');
   } catch (err) {
     console.error('Registrant sync failed:', err);
     toast(err.name === 'AbortError' ? 'Sync timed out — try again in a moment.' : 'Sync failed — see console for details.');
   } finally {
     clearTimeout(abortTimer);
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Actual Registrants'; }
+    btns.forEach(btn => { btn.disabled = false; btn.textContent = '🔄 Sync Actual Registrants'; });
   }
 }
 
@@ -10102,6 +10112,225 @@ function registrationActualsHTML() {
       </div>
       </div>
     </div>`;
+}
+
+// Cumulative registrations-over-time line chart for the Dashboard -- individual people, plotted
+// by the date they actually registered. Reads registrationActuals.byDate, a per-day headcount
+// gravity-forms-sync builds from the same Form 9 entries it already aggregates into the tier
+// counts above (one entry's whole registrant group all shares that entry's submission date,
+// since the repeater has no per-person timestamp of its own). Not its own sync -- piggybacks on
+// whatever "Sync Actual Registrants" (Revenue tab) already pulled, so this chart is only ever as
+// fresh as the last time that ran; registrationActuals.asOf (shown on the axis label) makes that
+// explicit rather than implying this is live.
+// Present whenever the viewer can trigger the sync at all, in every state this chart can be
+// in (loading, empty, or drawn) -- so a first-time sync can be kicked off right here without
+// detouring to the Revenue tab. `no-print` since a live "click me" control has no business on a
+// printed report; the chart itself prints fine (it's just an svg/text, no `no-print` on it).
+function dbRegistrationsSyncButtonHtml() {
+  return canView('revenue.all')
+    ? `<button class="sp-mini-btn no-print" id="db-sync-registrants-btn" onclick="syncActualRegistrants()" style="margin-bottom:8px;">🔄 Sync Actual Registrants</button>`
+    : '';
+}
+// {date: {total, dayCount}} for the currently-drawn chart -- onmouseenter can only pass a plain
+// string through the SVG markup, so the real numbers to show live here instead, same pattern
+// the Cash Flow balance chart uses for its own hover (cfpChartBalanceCache).
+let dbRegChartCache = {};
+function dbRegShowTooltip(evt, dateStr) {
+  const tip = document.getElementById('db-reg-chart-tooltip');
+  const wrap = tip && tip.parentElement;
+  const info = dbRegChartCache[dateStr];
+  if (!tip || !wrap || !info) return;
+  const grandTotal = info.general + info.cwc + info.sls;
+  const row = (label, total, dayCount) => `<div class="cfp-chart-tooltip-row"><span class="who">${label}</span><span class="amt in">${total}${dayCount ? ' (+' + dayCount + ')' : ''}</span></div>`;
+  tip.innerHTML = `<div class="cfp-chart-tooltip-date">${escapeHtml(friendlyDate(dateStr))}</div>` +
+    `<div class="cfp-chart-tooltip-balance">${grandTotal} total so far</div>` +
+    row('General Conference', info.general, info.generalDay) +
+    (info.cwc || info.cwcDay ? row('Collegiate Worship Collective', info.cwc, info.cwcDay) : '') +
+    (info.sls || info.slsDay ? row('Student Leadership Summit', info.sls, info.slsDay) : '');
+  tip.style.display = 'block';
+  const wrapRect = wrap.getBoundingClientRect();
+  const targetRect = evt.target.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  let left = (targetRect.left - wrapRect.left) + (targetRect.width / 2) - (tipRect.width / 2);
+  left = Math.max(4, Math.min(left, wrapRect.width - tipRect.width - 4));
+  let top = (targetRect.top - wrapRect.top) - tipRect.height - 10;
+  if (top < 0) top = (targetRect.bottom - wrapRect.top) + 10;
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+function dbRegHideTooltip() {
+  const tip = document.getElementById('db-reg-chart-tooltip');
+  if (tip) tip.style.display = 'none';
+}
+
+// Collegiate Worship Collective / Student Leadership Summit "registered by date" needs no sync
+// of its own -- unlike general conference registration, applicants are already loaded locally
+// (see loadApplicants()), so this just re-buckets what's already in memory. Same inclusion rule
+// applicantActualCounts() already uses elsewhere on this Dashboard/Revenue tab: everyone except
+// Declined counts (a Pending applicant is presumed coming until actually turned down), dated by
+// applicantAppliedDate() (the real Gravity Forms submission date, not whenever a sync happened
+// to run).
+function applicantsByDateForGroup(groupId) {
+  const byDate = {};
+  applicants.filter(a => a.groupId === groupId && a.data.status !== 'Declined').forEach(a => {
+    const d = applicantAppliedDate(a);
+    if (d) byDate[d] = (byDate[d] || 0) + 1;
+  });
+  return byDate;
+}
+function dbRegCumulativePoints(byDate) {
+  const dates = Object.keys(byDate).sort();
+  let running = 0;
+  return dates.map(d => { running += byDate[d]; return { date: d, total: running }; });
+}
+// The value a step-cumulative series had as of dateStr -- the last point at or before it, or 0
+// if dateStr is before that series' own first data point.
+function dbRegValueAsOf(points, dateStr) {
+  let val = 0;
+  for (const p of points) { if (p.date <= dateStr) val = p.total; else break; }
+  return val;
+}
+
+async function renderRegistrationsTimelineChart() {
+  const container = document.getElementById('db-registrations-chart');
+  if (!container) return;
+  if (!canView('dashboard.all')) { container.innerHTML = ''; return; }
+  const syncBtnHtml = dbRegistrationsSyncButtonHtml();
+  if (!registrationActualsLoaded) {
+    container.innerHTML = syncBtnHtml + '<div class="db-timeline-empty">Loading…</div>';
+    await loadRegistrationActuals();
+    registrationActualsLoaded = true;
+  }
+  const byDateGeneral = (registrationActuals && registrationActuals.byDate) || {};
+  // Whoever can't see Applicants at all still gets the general-conference line (registration
+  // data, gated separately by revenue.all) -- just without the two program breakdowns they don't
+  // have access to.
+  const showPrograms = canView('applicants.all');
+  const byDateCwc = showPrograms ? applicantsByDateForGroup(PROGRAM_PAGES.cwc.groupId) : {};
+  const byDateSls = showPrograms ? applicantsByDateForGroup(PROGRAM_PAGES.sls.groupId) : {};
+
+  const allDateKeys = [...Object.keys(byDateGeneral), ...Object.keys(byDateCwc), ...Object.keys(byDateSls)];
+  if (!allDateKeys.length) {
+    container.innerHTML = syncBtnHtml + '<div class="db-timeline-empty">No registration date data yet — click 🔄 Sync Actual Registrants above to pull it in.</div>';
+    return;
+  }
+
+  const genPoints = dbRegCumulativePoints(byDateGeneral);
+  const cwcPoints = dbRegCumulativePoints(byDateCwc);
+  const slsPoints = dbRegCumulativePoints(byDateSls);
+  const grandTotalGeneral = genPoints.length ? genPoints[genPoints.length - 1].total : 0;
+  const grandTotalCwc = cwcPoints.length ? cwcPoints[cwcPoints.length - 1].total : 0;
+  const grandTotalSls = slsPoints.length ? slsPoints[slsPoints.length - 1].total : 0;
+  const grandTotal = grandTotalGeneral + grandTotalCwc + grandTotalSls;
+
+  const W = 900, H = 236, padL = 50, padR = 20, padT = 16, padB = 40;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const sortedDateKeys = allDateKeys.slice().sort();
+  const firstDate = sortedDateKeys[0];
+  const lastActualDate = sortedDateKeys[sortedDateKeys.length - 1];
+  const lastDate = (registrationActuals.asOf || '').slice(0, 10) > lastActualDate
+    ? registrationActuals.asOf.slice(0, 10)
+    : lastActualDate;
+  const dayMs = 86400000;
+  const spanDays = Math.max(1, (new Date(lastDate) - new Date(firstDate)) / dayMs);
+  const x = d => padL + ((new Date(d) - new Date(firstDate)) / dayMs / spanDays) * plotW;
+  const floorY = padT + plotH;
+
+  const ticks = cfpNiceTicks(0, grandTotal, 4);
+  const niceMax = ticks[ticks.length - 1] || 1;
+  const y = v => padT + plotH - (v / niceMax) * plotH;
+
+  let svgContent = '';
+  ticks.forEach(t => {
+    const ty = y(t);
+    svgContent += `<line x1="${padL}" y1="${ty}" x2="${W - padR}" y2="${ty}" stroke="var(--line)" stroke-width="1" ${t === 0 ? '' : 'stroke-dasharray="4,3"'}/>`;
+    svgContent += `<text x="${padL - 8}" y="${ty + 4}" text-anchor="end" font-size="10" fill="var(--ink-soft)">${Math.round(t)}</text>`;
+  });
+
+  // X-axis date labels -- evenly spaced across the real elapsed time (not one per data point,
+  // which would bunch up unreadably during a burst of registrations and leave the quiet
+  // stretches unlabeled). "Apr 12" format via friendlyDate, with the weekday stripped off --
+  // there's no room for it at this scale, and the day of the week isn't what this axis needs to
+  // communicate anyway.
+  const xTickCount = Math.min(6, Math.max(1, Math.round(spanDays)));
+  for (let i = 0; i <= xTickCount; i++) {
+    const frac = i / xTickCount;
+    const tickDate = new Date(new Date(firstDate + 'T00:00:00').getTime() + frac * spanDays * dayMs).toISOString().slice(0, 10);
+    const tx = x(tickDate);
+    const label = friendlyDate(tickDate).replace(/^[A-Za-z]+,\s*/, '');
+    svgContent += `<line x1="${tx}" y1="${floorY}" x2="${tx}" y2="${floorY + 4}" stroke="var(--ink-soft)" stroke-width="1"/>`;
+    svgContent += `<text x="${tx}" y="${floorY + 16}" text-anchor="${i === 0 ? 'start' : i === xTickCount ? 'end' : 'middle'}" font-size="10" fill="var(--ink-soft)">${escapeHtml(label)}</text>`;
+  }
+
+  // Stacked step chart -- SLS at the bottom, CWC in the middle, General Conference on top, so
+  // the topmost boundary line is always the grand total across all three, and the thickness of
+  // each band at any point is that program's own count. A single shared timeline (every date any
+  // of the three series actually changed on, plus the overall start/end) keeps all three bands'
+  // steps landing at the same x-positions, so they stack cleanly with no gaps or overlaps.
+  const timeline = Array.from(new Set([firstDate, ...sortedDateKeys, lastDate])).sort();
+  const stepPointsArr = valueAtFn => {
+    const pts = [[x(timeline[0]), y(valueAtFn(timeline[0]))]];
+    for (let i = 1; i < timeline.length; i++) {
+      const prevVal = valueAtFn(timeline[i - 1]);
+      const px = x(timeline[i]);
+      pts.push([px, y(prevVal)]);
+      pts.push([px, y(valueAtFn(timeline[i]))]);
+    }
+    return pts;
+  };
+  const toPointsStr = pts => pts.map(p => p.join(',')).join(' ');
+  const slsAt = d => dbRegValueAsOf(slsPoints, d);
+  const cwcAt = d => dbRegValueAsOf(cwcPoints, d);
+  const stack0At = d => slsAt(d); // SLS alone
+  const stack1At = d => slsAt(d) + cwcAt(d); // SLS + CWC
+  const stack2At = d => slsAt(d) + cwcAt(d) + dbRegValueAsOf(genPoints, d); // grand total
+
+  const zeroPts = stepPointsArr(() => 0);
+  const line0Pts = stepPointsArr(stack0At);
+  const line1Pts = stepPointsArr(stack1At);
+  const line2Pts = stepPointsArr(stack2At);
+
+  const COLOR_SLS = '#FF8C00', COLOR_CWC = '#2962FF', COLOR_GENERAL = 'var(--teal-deep)';
+  svgContent += `<polygon points="${toPointsStr([...zeroPts, ...line0Pts.slice().reverse()])}" fill="${COLOR_SLS}" opacity="0.5"/>`;
+  svgContent += `<polygon points="${toPointsStr([...line0Pts, ...line1Pts.slice().reverse()])}" fill="${COLOR_CWC}" opacity="0.35"/>`;
+  svgContent += `<polygon points="${toPointsStr([...line1Pts, ...line2Pts.slice().reverse()])}" fill="var(--teal)" opacity="0.18"/>`;
+  svgContent += `<polyline points="${toPointsStr(line2Pts)}" fill="none" stroke="${COLOR_GENERAL}" stroke-width="2.5"/>`;
+  if (grandTotalCwc > 0 || grandTotalSls > 0) {
+    svgContent += `<polyline points="${toPointsStr(line1Pts)}" fill="none" stroke="${COLOR_CWC}" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+    svgContent += `<polyline points="${toPointsStr(line0Pts)}" fill="none" stroke="${COLOR_SLS}" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+  }
+
+  // Hover dots on the TOP (grand total) line only, at every date any series actually changed --
+  // one tooltip showing the full breakdown rather than three separate hover targets to find.
+  dbRegChartCache = {};
+  sortedDateKeys.forEach(d => {
+    dbRegChartCache[d] = {
+      general: dbRegValueAsOf(genPoints, d), cwc: dbRegValueAsOf(cwcPoints, d), sls: dbRegValueAsOf(slsPoints, d),
+      generalDay: byDateGeneral[d] || 0, cwcDay: byDateCwc[d] || 0, slsDay: byDateSls[d] || 0,
+    };
+    const px = x(d), py = y(stack2At(d));
+    svgContent += `<circle cx="${px}" cy="${py}" r="3" fill="${COLOR_GENERAL}"/>`;
+    svgContent += `<circle cx="${px}" cy="${py}" r="9" fill="transparent" onmouseenter="dbRegShowTooltip(event,'${d}')" onmousemove="dbRegShowTooltip(event,'${d}')" onmouseleave="dbRegHideTooltip()"/>`;
+  });
+
+  const legendItem = (color, label, total) => `<span style="display:inline-flex; align-items:center; gap:5px; margin-right:14px;"><span style="width:9px; height:9px; border-radius:2px; background:${color}; display:inline-block;"></span>${escapeHtml(label)} (${total})</span>`;
+  const legendHtml = showPrograms
+    ? `<div style="margin:6px 0 2px;">${legendItem(COLOR_GENERAL, 'General Conference', grandTotalGeneral)}${legendItem(COLOR_CWC, 'Collegiate Worship Collective', grandTotalCwc)}${legendItem(COLOR_SLS, 'Student Leadership Summit', grandTotalSls)}</div>`
+    : '';
+
+  container.innerHTML = `
+    ${syncBtnHtml}
+    <div style="position:relative;">
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:236px; overflow:visible;">${svgContent}</svg>
+      <div class="cfp-chart-tooltip" id="db-reg-chart-tooltip"></div>
+    </div>
+    ${legendHtml}
+    <div class="db-timeline-empty" style="text-align:left; padding:4px 0 0;">
+      ${escapeHtml(friendlyDate(firstDate))} – ${escapeHtml(friendlyDate(lastDate))} &middot; ${grandTotal} total registrants
+      ${registrationActuals.asOf ? `&middot; general count as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}` : ''}
+    </div>
+  `;
 }
 
 async function loadRevenueEstimator() {
@@ -17559,6 +17788,29 @@ function computeScheduleConflicts() {
         }
       }
     }
+    // Orphaned breakout link: a session with a track (i.e. meant to be a breakout occurrence,
+    // not just a Track Leader placeholder) that no longer resolves to any current breakout slot.
+    // The most common cause: a breakout slot's start time got edited on the Timeline after
+    // sessions already existed for it -- findSlotForSession() falls back to matching by the
+    // session's own stored date+time when there's no slotId (or the slotId's target is gone),
+    // so a time change on the slot silently orphans every session that predates it. It vanishes
+    // from the Breakout Grid with no visible error there, so it has to be caught here instead.
+    (sp.data.sessions || []).forEach(sess => {
+      if (!sess.track || sess.isTrackLead) return;
+      const slot = findSlotForSession(sess);
+      const when = sess.sessionDate ? ` (was set for ${friendlyDate(sess.sessionDate)}, ${friendlyTime(sess.timeSlot)})` : ' (no date/time set)';
+      if (!slot) {
+        conflicts.push({
+          speakerId: sp.id, icon: '🔗',
+          message: `${sp.name}'s "${sess.track}"${sess.title ? ' — ' + sess.title : ''} session isn't linked to any current breakout slot${when} — it won't show on the Breakout Grid until it's relinked from their record.`
+        });
+      } else if (slot.kind !== 'breakout') {
+        conflicts.push({
+          speakerId: sp.id, icon: '🔗',
+          message: `${sp.name}'s "${sess.track}"${sess.title ? ' — ' + sess.title : ''} session is linked to "${slot.label}", which is no longer a breakout slot (now ${slot.kind}) — it won't show on the Breakout Grid until it's relinked from their record.`
+        });
+      }
+    });
     // Flight timing, using the structured arrival/departure fields already on the Transportation tab.
     const lg = sp.data.logistics || {};
     sessions.forEach(sess => {
@@ -17607,7 +17859,7 @@ function renderScheduleConflicts() {
   if (!canEdit('schedule.all') && !window.isAdminUser) { body.innerHTML = ''; return; }
   const conflicts = computeScheduleConflicts();
   if (!conflicts.length) {
-    body.innerHTML = `<div class="db-section"><div class="db-section-title">Conflicts</div><div class="sch-conflicts-empty">None detected — nothing double-booked, and no flight-timing issues found.</div></div>`;
+    body.innerHTML = `<div class="db-section"><div class="db-section-title">Conflicts</div><div class="sch-conflicts-empty">None detected — nothing double-booked, no flight-timing issues, and every breakout session is linked to a real slot.</div></div>`;
     return;
   }
   body.innerHTML = `
