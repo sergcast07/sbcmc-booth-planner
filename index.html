@@ -2487,16 +2487,18 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="sch-toggle-btn" id="sch-toggle-grid" onclick="setScheduleSubview('grid')">Breakout Grid</button>
       <button class="sch-toggle-btn active" id="sch-toggle-timeline" onclick="setScheduleSubview('timeline')">Timeline</button>
       <button class="sch-toggle-btn" id="sch-toggle-itinerary" onclick="setScheduleSubview('itinerary')">Itinerary</button>
+      <button class="sch-toggle-btn" id="sch-toggle-rooms" onclick="setScheduleSubview('rooms')">By Room</button>
       <button class="sp-add-btn" id="sch-copy-link-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="copyScheduleViewLink()">🔗 Copy Schedule-Only Link</button>
       <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('schedule')">Export CSV</button>
     </div>
   </div>
-  <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, see the full Sunday–Wednesday agenda, or pull one group's own itinerary. This reads and writes the same session data as the Speakers & Artists tab — editing here updates their record, and editing their record updates here.</p>
+  <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, see the full Sunday–Wednesday agenda, pull one group's own itinerary, or see everything happening in one or more physical rooms across the whole conference (not just breakouts). This reads and writes the same session data as the Speakers & Artists tab — editing here updates their record, and editing their record updates here.</p>
 
   <div id="sch-conflicts-body"></div>
   <div id="sch-grid-body" style="display:none;"></div>
   <div id="sch-timeline-body"></div>
   <div id="sch-itinerary-body" style="display:none;"></div>
+  <div id="sch-rooms-body" style="display:none;"></div>
 </div>
 
 <!-- Populated by printBreakoutGridReport() just before printing -- a dedicated clean read-only
@@ -16022,8 +16024,13 @@ function defaultSpeakerData() {
       productionNotes: '' // stage plot / input list references, special stage requests, anything not covered by the counts above
     },
     materialsNeeded: {}, // keyed dynamically per material item -- see materialsForTypes()
-    materialsToShare: [], // [{id, label, fileName, filePath, fileSize, uploadedAt}] -- for attendees
-    internalDocuments: [], // same shape, but internal-only (rider, contract, W9) -- never shown to attendees
+    // [{id, label, fileName, filePath, fileSize, uploadedAt, isProduction}] -- for attendees.
+    // isProduction is a tag, not a separate home for the file: a file stays right here (still
+    // visible on the Files tab) whether or not it's also flagged production-related; the
+    // Production tab just shows a filtered view of whichever ones are tagged (see
+    // toggleSpeakerFileProduction), so marking/unmarking never moves or hides anything.
+    materialsToShare: [],
+    internalDocuments: [], // same shape (isProduction included), but internal-only (rider, contract, W9) -- never shown to attendees
     // Fixed upload slots, one per materialsForTypes()/MATERIAL_ITEM_LABELS checklist key (bio,
     // headshot, w9, stagePlot, etc.) -- separate from the free-label arrays above, so each
     // checklist row can carry one real uploaded file: {fileName, filePath, fileSize, url, uploadedAt}.
@@ -16736,9 +16743,12 @@ function updateSpeakerData(id, field, value) {
 // ---- File uploads (real Supabase Storage, not just links) ----
 async function uploadSpeakerFile(id, kind) {
   // kind is 'materialsToShare' (attendee-facing), 'internalDocuments' (team-only, e.g. a
-  // rider/contract/W9), or 'photoCandidates' (headshot options pulled from the SharePoint folder)
+  // rider/contract/W9), 'productionFiles' (the Production tab's own upload form -- its own DOM
+  // ids/storage subfolder, but the resulting file actually lands in materialsToShare, pre-tagged
+  // isProduction:true -- see the comment on materialsToShare in defaultSpeakerData), or
+  // 'photoCandidates' (headshot options pulled from the SharePoint folder)
   const sp = getSpeaker(id); if (!sp) return;
-  const suffix = kind === 'internalDocuments' ? 'internal' : kind === 'photoCandidates' ? 'photo' : 'file';
+  const suffix = kind === 'internalDocuments' ? 'internal' : kind === 'productionFiles' ? 'production' : kind === 'photoCandidates' ? 'photo' : 'file';
   const input = document.getElementById('sk-' + suffix + '-input-' + id);
   const labelInput = document.getElementById('sk-' + suffix + '-label-' + id);
   if (!input || !input.files || !input.files[0]) { toast('Choose a file first.'); return; }
@@ -16750,7 +16760,7 @@ async function uploadSpeakerFile(id, kind) {
   }
   const label = (labelInput && labelInput.value.trim()) || file.name;
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = id + '/' + (kind === 'internalDocuments' ? 'internal/' : kind === 'photoCandidates' ? 'photos/' : '') + Date.now() + '_' + safeName;
+  const path = id + '/' + (kind === 'internalDocuments' ? 'internal/' : kind === 'productionFiles' ? 'production/' : kind === 'photoCandidates' ? 'photos/' : '') + Date.now() + '_' + safeName;
 
   toast('Uploading ' + file.name + '...');
   const { error: uploadError } = await sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).upload(path, file);
@@ -16760,10 +16770,12 @@ async function uploadSpeakerFile(id, kind) {
     return;
   }
   const { data: urlData } = sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).getPublicUrl(path);
-  if (!sp.data[kind]) sp.data[kind] = [];
-  sp.data[kind].push({
+  const targetArray = kind === 'productionFiles' ? 'materialsToShare' : kind;
+  if (!sp.data[targetArray]) sp.data[targetArray] = [];
+  sp.data[targetArray].push({
     id: makeId(), label, fileName: file.name, filePath: path,
-    fileSize: file.size, url: urlData.publicUrl, uploadedAt: new Date().toISOString().slice(0, 10)
+    fileSize: file.size, url: urlData.publicUrl, uploadedAt: new Date().toISOString().slice(0, 10),
+    isProduction: kind === 'productionFiles'
   });
   pushSpeaker(sp);
   input.value = '';
@@ -16773,6 +16785,7 @@ async function uploadSpeakerFile(id, kind) {
 }
 function uploadSpeakerMaterial(id) { return uploadSpeakerFile(id, 'materialsToShare'); }
 function uploadSpeakerInternalDoc(id) { return uploadSpeakerFile(id, 'internalDocuments'); }
+function uploadSpeakerProductionFile(id) { return uploadSpeakerFile(id, 'productionFiles'); }
 function uploadSpeakerPhotoCandidate(id) { return uploadSpeakerFile(id, 'photoCandidates'); }
 
 async function removeSpeakerFile(id, kind, materialId) {
@@ -16790,6 +16803,18 @@ async function removeSpeakerFile(id, kind, materialId) {
 function removeSpeakerMaterial(id, materialId) { return removeSpeakerFile(id, 'materialsToShare', materialId); }
 function removeSpeakerInternalDoc(id, materialId) { return removeSpeakerFile(id, 'internalDocuments', materialId); }
 function removeSpeakerPhotoCandidate(id, materialId) { return removeSpeakerFile(id, 'photoCandidates', materialId); }
+// Flips whether a file (already living in materialsToShare or internalDocuments) is tagged
+// production-related -- a tag, not a move, so the file stays exactly where it was uploaded (still
+// visible on the Files tab either way) and the Production tab's list is just a filtered view of
+// whichever ones are currently tagged. Same function handles marking it on and un-marking it off.
+function toggleSpeakerFileProduction(id, kind, materialId) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const material = (sp.data[kind] || []).find(m => m.id === materialId);
+  if (!material) return;
+  material.isProduction = !material.isProduction;
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+}
 
 function fmtFileSize(bytes) {
   if (!bytes) return '';
@@ -17456,6 +17481,11 @@ function setBreakoutGridViewMode(v) { breakoutGridViewMode = v; renderBreakoutGr
 // when at least one of its tags is in this set; deselecting everything is allowed and just
 // shows an empty state, same as any other faceted filter.
 let scheduleAudienceFilter = new Set([MAIN_AUDIENCE_ID]);
+// Which room(s) the "By Room" subview is currently showing -- starts empty (nothing selected)
+// same as Itinerary starts with no group picked, so whoever opens this picks just the room(s)
+// they actually care about (e.g. a production person only toggling "Worship Center") instead of
+// being shown the whole conference at once.
+let scheduleRoomFilter = new Set();
 
 function setScheduleSubview(v) { scheduleSubview = v; renderScheduleView(); }
 function toggleScheduleAudienceFilter(audId) {
@@ -17480,30 +17510,25 @@ function toggleSlotAudience(slotId, audId) {
 }
 function renderScheduleView() {
   renderScheduleConflicts();
-  const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline'), itinBtn = document.getElementById('sch-toggle-itinerary');
+  const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline'), itinBtn = document.getElementById('sch-toggle-itinerary'), roomsBtn = document.getElementById('sch-toggle-rooms');
   if (gridBtn) gridBtn.classList.toggle('active', scheduleSubview === 'grid');
   if (timelineBtn) timelineBtn.classList.toggle('active', scheduleSubview === 'timeline');
   if (itinBtn) itinBtn.classList.toggle('active', scheduleSubview === 'itinerary');
-  const gridBody = document.getElementById('sch-grid-body'), timelineBody = document.getElementById('sch-timeline-body'), itinBody = document.getElementById('sch-itinerary-body');
+  if (roomsBtn) roomsBtn.classList.toggle('active', scheduleSubview === 'rooms');
+  const gridBody = document.getElementById('sch-grid-body'), timelineBody = document.getElementById('sch-timeline-body'), itinBody = document.getElementById('sch-itinerary-body'), roomsBody = document.getElementById('sch-rooms-body');
   if (gridBody) gridBody.style.display = scheduleSubview === 'grid' ? 'block' : 'none';
   if (timelineBody) timelineBody.style.display = scheduleSubview === 'timeline' ? 'block' : 'none';
   if (itinBody) itinBody.style.display = scheduleSubview === 'itinerary' ? 'block' : 'none';
-  // Timeline and Itinerary both render an audience filter bar, including a fixed-id "+ Add a
-  // group" input -- clearing whichever containers aren't active keeps a stale, hidden copy of
-  // that id from ever sitting in the DOM alongside the live one.
-  if (scheduleSubview === 'grid') {
-    renderBreakoutGrid();
-    if (timelineBody) timelineBody.innerHTML = '';
-    if (itinBody) itinBody.innerHTML = '';
-  } else if (scheduleSubview === 'itinerary') {
-    renderScheduleItinerary();
-    if (gridBody) gridBody.innerHTML = '';
-    if (timelineBody) timelineBody.innerHTML = '';
-  } else {
-    renderScheduleTimeline();
-    if (gridBody) gridBody.innerHTML = '';
-    if (itinBody) itinBody.innerHTML = '';
-  }
+  if (roomsBody) roomsBody.style.display = scheduleSubview === 'rooms' ? 'block' : 'none';
+  // Every one of these bodies can render a fixed-id filter bar -- clearing whichever containers
+  // aren't active keeps a stale, hidden copy of any of those ids from ever sitting in the DOM
+  // alongside the live one.
+  const bodies = { grid: gridBody, timeline: timelineBody, itinerary: itinBody, rooms: roomsBody };
+  Object.keys(bodies).forEach(k => { if (k !== scheduleSubview && bodies[k]) bodies[k].innerHTML = ''; });
+  if (scheduleSubview === 'grid') renderBreakoutGrid();
+  else if (scheduleSubview === 'itinerary') renderScheduleItinerary();
+  else if (scheduleSubview === 'rooms') renderScheduleByRoom();
+  else renderScheduleTimeline();
 }
 
 function computeScheduleConflicts() {
@@ -18675,6 +18700,97 @@ function renderScheduleItinerary() {
   `;
 }
 
+function toggleScheduleRoomFilter(room) {
+  if (scheduleRoomFilter.has(room)) scheduleRoomFilter.delete(room);
+  else scheduleRoomFilter.add(room);
+  renderScheduleView();
+}
+function roomFacetBarHtml() {
+  if (!sessionRooms.length) return '<div class="sp-sub">No rooms set up yet — add some from the Session Rooms list in the Speakers &amp; Artists sidebar.</div>';
+  const chips = sessionRooms.map(r => {
+    const on = scheduleRoomFilter.has(r.name);
+    return `<span class="sch-aud-facet ${on ? 'on' : ''}" onclick="toggleScheduleRoomFilter('${jsAttrString(r.name)}')" title="${on ? 'Hide' : 'Show'} ${escapeHtml(r.name)}">${escapeHtml(roomLabelWithCapacity(r.name))}</span>`;
+  }).join('');
+  return `<div class="sch-aud-bar"><span class="sch-aud-bar-label">Show:</span>${chips}</div>`;
+}
+// Everything scheduled in one or more physical rooms, across every kind of slot -- not just
+// breakouts. The Breakout Grid's own "By Room" view (see renderBreakoutGridByRoomHtml) only ever
+// covers breakout-kind slots, which is exactly right for planning breakouts but leaves out
+// keynotes/concerts/meals/business meetings that also happen in a room someone (e.g. the
+// production team) needs the full picture for. This is deliberately a separate function reading
+// the same underlying scheduleSlots/speakers data, not a change to that existing view.
+function renderScheduleByRoom() {
+  const body = document.getElementById('sch-rooms-body');
+  if (!body) return;
+  if (!scheduleRoomFilter.size) {
+    body.innerHTML = `${roomFacetBarHtml()}<div class="sch-conflicts-empty">No rooms selected above — toggle at least one to see its schedule.</div>`;
+    return;
+  }
+
+  // Breakout slots have no single slot.room (one slot spans many tracks/rooms in parallel) --
+  // room only lives on each speaker's own session, so it has to be indexed the same way the
+  // Breakout Grid indexes it, keyed by slot+room this time instead of slot+track.
+  const breakoutIndex = {};
+  speakers.forEach(sp => {
+    (sp.data.sessions || []).forEach(sess => {
+      if (!sess.track || !sess.room) return;
+      const slot = findSlotForSession(sess);
+      if (!slot || slot.kind !== 'breakout') return;
+      const key = slot.id + '|' + sess.room;
+      (breakoutIndex[key] = breakoutIndex[key] || []).push({ speakerId: sp.id, sess });
+    });
+  });
+
+  const rows = [];
+  scheduleSlots.forEach(slot => {
+    if (slot.kind === 'breakout') {
+      scheduleRoomFilter.forEach(room => {
+        const occs = breakoutIndex[slot.id + '|' + room];
+        if (!occs || !occs.length) return;
+        const detail = occs.map(o => {
+          const occSp = getSpeaker(o.speakerId);
+          return escapeHtml((occSp ? occSp.name : 'Unknown') + (o.sess.title ? ' — ' + o.sess.title : '') + (o.sess.track ? ' (' + o.sess.track + ')' : ''));
+        }).join('<br>');
+        rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room, detail });
+      });
+    } else if (slot.room && scheduleRoomFilter.has(slot.room)) {
+      rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: '' });
+    }
+  });
+  rows.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+  if (!rows.length) {
+    body.innerHTML = `${roomFacetBarHtml()}<div class="sch-conflicts-empty">Nothing scheduled yet in ${scheduleRoomFilter.size === 1 ? 'that room' : 'those rooms'}.</div>`;
+    return;
+  }
+
+  // Only labeled per-row once more than one room is selected -- with just one room toggled on,
+  // which room it is is already obvious from the header, so repeating it on every row would just
+  // be noise.
+  const showRoomPerRow = scheduleRoomFilter.size > 1;
+  const days = {};
+  rows.forEach(r => (days[r.date] = days[r.date] || []).push(r));
+  const dayBlocks = Object.keys(days).sort().map(date => {
+    const rowsHtml = days[date].map(r => `
+      <div class="sch-itin-row">
+        <div class="sch-itin-time">${friendlyTime(r.start)} – ${friendlyTime(r.end)}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">📍 ${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}</div>
+      </div>`).join('');
+    return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rowsHtml}`;
+  }).join('');
+
+  const headerTitle = Array.from(scheduleRoomFilter).map(roomLabelWithCapacity).join(' + ');
+  body.innerHTML = `
+    ${roomFacetBarHtml()}
+    <div class="sch-itin-card">
+      <div class="sch-itin-header">
+        <h4>${escapeHtml(headerTitle)} — Schedule</h4>
+      </div>
+      <div class="sch-itin-body">${dayBlocks}</div>
+    </div>
+  `;
+}
+
 function autofillTransportLocations(id, label) {
   // Fills in whatever we already know for this leg -- flight date/time for airport legs,
   // the real airport address, and their assigned hotel's address for the other end of the
@@ -19123,7 +19239,8 @@ function speakerDetailHTML(sp) {
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}</span>
+      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','materialsToShare','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerMaterial('${sp.id}','${m.id}')">&times;</button>
     </div>
   `).join('') || '<div class="sp-sub">No materials uploaded yet.</div>';
@@ -19131,10 +19248,26 @@ function speakerDetailHTML(sp) {
   const internalFilesHtml = (sp.data.internalDocuments || []).map(m => `
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F512} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}</span>
+      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','internalDocuments','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerInternalDoc('${sp.id}','${m.id}')">&times;</button>
     </div>
   `).join('') || '<div class="sp-sub">No documents uploaded yet.</div>';
+
+  // A filtered view, not a separate list -- every entry here still lives in (and stays visible
+  // on) the Files tab's materialsToShare/internalDocuments; _kind just remembers which one, so
+  // "Remove from Production" can un-tag it in the right place.
+  const productionFileEntries = [
+    ...(sp.data.materialsToShare || []).filter(m => m.isProduction).map(m => Object.assign({ _kind: 'materialsToShare' }, m)),
+    ...(sp.data.internalDocuments || []).filter(m => m.isProduction).map(m => Object.assign({ _kind: 'internalDocuments' }, m))
+  ];
+  const productionFilesHtml = productionFileEntries.map(m => `
+    <div class="sk-file-row">
+      <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F3A4} ${escapeHtml(m.label)}</a>
+      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}</span>
+      <button class="sp-mini-btn" title="Keeps the file on the Files tab, just un-tags it as production" onclick="toggleSpeakerFileProduction('${sp.id}','${m._kind}','${m.id}')">Remove from Production</button>
+    </div>
+  `).join('') || '<div class="sp-sub">No files marked as production-related yet.</div>';
 
   const photoCandidatesHtml = (sp.data.photoCandidates || []).map(m => `
     <div class="sk-file-row">
@@ -19457,6 +19590,17 @@ function speakerDetailHTML(sp) {
         <fieldset class="sp-fieldset">
           <legend>Materials We Need From Them</legend>
           ${materialsNeededHtml}
+        </fieldset>
+        <fieldset class="sp-fieldset" style="grid-column:1/-1;">
+          <legend>Production Files <span class="sp-sub" style="font-weight:400;">(stage plot, input list, RF sheet, etc.)</span></legend>
+          ${productionFilesHtml}
+          <div class="sp-subhead" style="margin-top:10px;">Upload a File</div>
+          <div class="sp-add-row" style="flex-wrap:wrap;">
+            <input type="text" id="sk-production-label-${sp.id}" placeholder="Label (e.g. 'Stage Plot')" style="flex:1 1 100%; margin-bottom:6px;">
+            <input type="file" id="sk-production-input-${sp.id}" style="flex:1;">
+            <button class="sp-mini-btn" onclick="uploadSpeakerProductionFile('${sp.id}')">Upload</button>
+          </div>
+          <div class="sp-sub" style="margin-top:6px;">A file already uploaded on the Files tab doesn't need to be re-uploaded — use the "→ Production" button next to it there to tag it instead. It stays visible on both tabs; "Remove from Production" here just un-tags it.</div>
         </fieldset>
       </div>
     </div>
