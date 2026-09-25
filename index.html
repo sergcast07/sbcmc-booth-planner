@@ -1822,8 +1822,11 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 .sch-timeline-day { margin-bottom: 22px; }
 .sch-timeline-day-title { font-family: var(--font-display); font-size: 15px; color: var(--teal-deep); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--gold); }
-.sch-timeline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
-.sch-timeline-row:last-child { border-bottom: none; }
+.sch-timeline-slot { border-bottom: 1px solid var(--line); }
+.sch-timeline-slot:last-child { border-bottom: none; }
+.sch-timeline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 7px 4px; font-size: 12.5px; }
+.sch-timeline-desc-row { padding: 0 4px 8px 4px; }
+.sch-timeline-desc-input { width: 100%; box-sizing: border-box; font-size: 12px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; resize: vertical; }
 .sch-timeline-time { width: 130px; flex-shrink: 0; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 .sch-timeline-time-edit { width: 175px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; color: var(--ink-soft); }
 .sch-timeline-time-input { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); border: 1px solid transparent; border-radius: 5px; padding: 2px 3px; background: transparent; width: 80px; }
@@ -4975,7 +4978,7 @@ function renderSvPublicGrid() {
       // A room belongs to the session, not to any one co-presenter -- show it once per cell,
       // same as the title collapse above.
       const cellRoom = occs.length ? occs[0].sess.room : '';
-      const roomHtml = cellRoom ? `<div class="sch-card-room">📍 ${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : '';
+      const roomHtml = cellRoom ? `<div class="sch-card-room">${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : '';
       return `<td><div class="sch-cell ${occs.length ? '' : 'sch-cell-empty'}">${cards || '<span class="sp-sub">\u2014</span>'}${roomHtml}</div></td>`;
     }).join('');
     return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}</td>${cells}</tr>`;
@@ -5042,11 +5045,12 @@ function renderSvPublicTimeline() {
       } else if (slot.kind === 'breakout') {
         peopleHtml = '<div class="sp-sub">See Breakout Grid tab above</div>';
       }
-      const roomHtml = (slot.kind !== 'breakout' && slot.room) ? `<div class="sp-sub">\ud83d\udccd ${escapeHtml(slot.room)}</div>` : '';
+      const roomHtml = (slot.kind !== 'breakout' && slot.room) ? `<div class="sp-sub">${escapeHtml(slot.room)}</div>` : '';
+      const notesHtml = slot.notes ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div>` : '';
       return `<div class="sch-timeline-row">
         <div class="sch-timeline-time">${friendlyTime(slot.start)}\u2013${friendlyTime(slot.end)}</div>
         <div class="sch-timeline-label" style="flex-direction:column; align-items:flex-start; gap:2px;">
-          <div>${escapeHtml(slot.label)}</div>${roomHtml}${peopleHtml}
+          <div>${escapeHtml(slot.label)}</div>${roomHtml}${peopleHtml}${notesHtml}
         </div>
         <span class="sch-timeline-kind sch-kind-${slot.kind}">${slot.kind.charAt(0).toUpperCase() + slot.kind.slice(1)}</span>
       </div>`;
@@ -5079,7 +5083,7 @@ function renderSvPublicItinerary() {
       const shared = slotAudiences(slot).includes(MAIN_AUDIENCE_ID);
       return `<div class="sch-itin-row ${shared ? 'shared' : ''}">
         <div class="sch-itin-time">${friendlyTime(slot.start)} \u2013 ${friendlyTime(slot.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">\ud83d\udccd ${escapeHtml(slot.room)}</span>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}</div>
       </div>`;
     }).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} \u2014 ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}`;
@@ -17486,6 +17490,15 @@ let scheduleAudienceFilter = new Set([MAIN_AUDIENCE_ID]);
 // they actually care about (e.g. a production person only toggling "Worship Center") instead of
 // being shown the whole conference at once.
 let scheduleRoomFilter = new Set();
+// A slot's description field (slot.notes -- already persisted, just never had UI) starts
+// collapsed on the Timeline unless it already has one, same "hidden until there's a reason to
+// see it" pattern as an expanded speaker session below.
+let expandedScheduleSlotDescriptions = new Set();
+function toggleScheduleSlotDescription(slotId) {
+  if (expandedScheduleSlotDescriptions.has(slotId)) expandedScheduleSlotDescriptions.delete(slotId);
+  else expandedScheduleSlotDescriptions.add(slotId);
+  renderScheduleTimeline();
+}
 
 function setScheduleSubview(v) { scheduleSubview = v; renderScheduleView(); }
 function toggleScheduleAudienceFilter(audId) {
@@ -17771,7 +17784,7 @@ function renderBreakoutGrid() {
       if (occs.length) {
         roomHtml = canEditSchedule
           ? `<select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); propagateBreakoutCellRoom('${track.id}', '${slot.id}', this.value)">${sessionRoomOptionsHtml(cellRoom)}</select>`
-          : (cellRoom ? `<div class="sch-card-room">📍 ${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : '');
+          : (cellRoom ? `<div class="sch-card-room">${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : '');
       } else {
         // A track can be tied to a room and/or a working session title ahead of anyone being
         // assigned to it -- see setBreakoutRoomBooking/setBreakoutSessionTitleBooking. Picking a
@@ -18246,7 +18259,7 @@ function secondaryBreakoutGridsHtml() {
       const roomHtml = occs.length
         ? (canEditSchedule
           ? `<select class="sch-card-room-select" onclick="event.stopPropagation();" onchange="event.stopPropagation(); propagateSubOptionRoom('${slot.id}', '${jsAttrString(optionName)}', this.value)">${sessionRoomOptionsHtml(cellRoom)}</select>`
-          : (cellRoom ? `<div class="sch-card-room">📍 ${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : ''))
+          : (cellRoom ? `<div class="sch-card-room">${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : ''))
         : '';
       const occupantIds = new Set(occs.map(o => o.speakerId));
       const addOptions = sortedSpeakers.filter(sp => !occupantIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
@@ -18516,6 +18529,13 @@ function updateScheduleSlotRoom(id, value) {
   pushScheduleSlot(slot);
   renderScheduleView();
 }
+function updateScheduleSlotNotes(id, value) {
+  if (!canEditOrWarn('schedule.all', 'schedule')) return;
+  const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
+  slot.notes = value;
+  pushScheduleSlot(slot);
+  renderScheduleTimeline();
+}
 function updateScheduleSlotTime(id, field, value) {
   if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
@@ -18588,17 +18608,32 @@ function renderScheduleTimeline() {
   };
   const roomControl = (slot) => canEditSchedule
     ? `<select class="sch-timeline-room-select" onchange="updateScheduleSlotRoom('${slot.id}', this.value)" title="Room">${sessionRoomOptionsHtml(slot.room)}</select>`
-    : (slot.room ? `<span class="sch-timeline-room-label">📍 ${escapeHtml(slot.room)}</span>` : '');
+    : (slot.room ? `<span class="sch-timeline-room-label">${escapeHtml(slot.room)}</span>` : '');
+  // A description is slot.notes, already saved/loaded, just never had UI before -- shown
+  // collapsed unless it already has something in it, with a toggle icon on the label to open a
+  // blank one. Read-only sessions (view-only teammates, the public link) never get the toggle,
+  // but still see the text if staff already wrote one.
+  const descToggleIcon = (slot) => (canEditSchedule && !slot.notes && !expandedScheduleSlotDescriptions.has(slot.id))
+    ? `<span class="sch-edit-icon" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Add a description">+desc</span>`
+    : '';
+  const descRow = (slot) => {
+    if (!slot.notes && !expandedScheduleSlotDescriptions.has(slot.id)) return '';
+    if (!canEditSchedule) return slot.notes ? `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div></div>` : '';
+    return `<div class="sch-timeline-desc-row"><textarea class="sch-timeline-desc-input" rows="2" placeholder="Description (shows on the printed agenda and public schedule)" onchange="updateScheduleSlotNotes('${slot.id}', this.value)">${escapeHtml(slot.notes)}</textarea></div>`;
+  };
 
   const dayBlocks = dateKeys.map(date => {
     const rows = days[date].map(slot => {
       if (slot.kind === 'breakout') {
-        return `<div class="sch-timeline-row">
+        return `<div class="sch-timeline-slot">
+        <div class="sch-timeline-row">
           ${timeInputs(slot)}
-          ${labelWithEdit(slot, ' <span class="sp-sub">— see Breakout Grid above</span>')}
+          ${labelWithEdit(slot, ' <span class="sp-sub">— see Breakout Grid above</span>' + descToggleIcon(slot))}
           ${kindSelect(slot)}
           ${audienceTags(slot)}
           ${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>` : ''}
+        </div>
+        ${descRow(slot)}
         </div>`;
       }
       const assignedSpeakers = [];
@@ -18609,14 +18644,17 @@ function renderScheduleTimeline() {
       const addOptions = `<option value="">+ add person…</option>` + speakerOptions.filter(sp => !assignedIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
       const chips = assignedSpeakers.map(sp => `<span class="sch-chip-sm" onclick="jumpToSpeaker('${sp.id}')" title="Click to open ${escapeHtml(sp.name)}'s full record">${escapeHtml(sp.name)}${canEditSchedule ? `<span class="sch-chip-x" onclick="event.stopPropagation(); schTimelineRemoveAssignment('${slot.id}','${sp.id}')" title="Remove">×</span>` : ''}</span>`).join('');
       const canAssign = (slot.kind === 'keynote' || slot.kind === 'panel') && canEditSchedule;
-      return `<div class="sch-timeline-row">
+      return `<div class="sch-timeline-slot">
+        <div class="sch-timeline-row">
         ${timeInputs(slot)}
-        ${labelWithEdit(slot)}
+        ${labelWithEdit(slot, descToggleIcon(slot))}
         ${kindSelect(slot)}
         ${roomControl(slot)}
         ${canAssign ? `<div class="sch-timeline-assign">${chips}<select onchange="if(this.value){schTimelineAddAssignment('${slot.id}', this.value); this.value='';}">${addOptions}</select></div>` : (chips ? `<div class="sch-timeline-assign">${chips}</div>` : '')}
         ${audienceTags(slot)}
         ${canEditSchedule ? `<span class="sch-card-x" style="position:static; margin-left:6px;" onclick="removeScheduleSlot('${slot.id}')" title="Remove this slot">×</span>` : ''}
+        </div>
+        ${descRow(slot)}
       </div>`;
     }).join('');
     return `<div class="sch-timeline-day"><div class="sch-timeline-day-title">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}</div>`;
@@ -18682,7 +18720,7 @@ function renderScheduleItinerary() {
       const shared = slotAudiences(slot).includes(MAIN_AUDIENCE_ID);
       return `<div class="sch-itin-row ${shared ? 'shared' : ''}">
         <div class="sch-itin-time">${friendlyTime(slot.start)} – ${friendlyTime(slot.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">📍 ${escapeHtml(slot.room)}</span>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}</div>
       </div>`;
     }).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}`;
@@ -18712,6 +18750,20 @@ function roomFacetBarHtml() {
     return `<span class="sch-aud-facet ${on ? 'on' : ''}" onclick="toggleScheduleRoomFilter('${jsAttrString(r.name)}')" title="${on ? 'Hide' : 'Show'} ${escapeHtml(r.name)}">${escapeHtml(roomLabelWithCapacity(r.name))}</span>`;
   }).join('');
   return `<div class="sch-aud-bar"><span class="sch-aud-bar-label">Show:</span>${chips}</div>`;
+}
+// Groups {name, title, track} entries sharing the same title+track into one line, names joined
+// by comma -- co-presenters on one session repeat the same title otherwise (one line per person,
+// each saying the same thing), which just clutters the room schedule. A genuinely different
+// title/track (a room legitimately double-booked with two different sessions) still gets its own
+// line, since collapsing those together would misrepresent it as one session.
+function namesGroupedByTitleHtml(entries) {
+  const groups = [];
+  entries.forEach(e => {
+    let g = groups.find(x => x.title === e.title && x.track === e.track);
+    if (!g) { g = { title: e.title, track: e.track, names: [] }; groups.push(g); }
+    g.names.push(e.name);
+  });
+  return groups.map(g => escapeHtml(g.names.join(', ') + (g.title ? ' — ' + g.title : '') + (g.track ? ' (' + g.track + ')' : ''))).join('<br>');
 }
 // Everything scheduled in one or more physical rooms, across every kind of slot -- not just
 // breakouts. The Breakout Grid's own "By Room" view (see renderBreakoutGridByRoomHtml) only ever
@@ -18747,14 +18799,19 @@ function renderScheduleByRoom() {
       scheduleRoomFilter.forEach(room => {
         const occs = breakoutIndex[slot.id + '|' + room];
         if (!occs || !occs.length) return;
-        const detail = occs.map(o => {
-          const occSp = getSpeaker(o.speakerId);
-          return escapeHtml((occSp ? occSp.name : 'Unknown') + (o.sess.title ? ' — ' + o.sess.title : '') + (o.sess.track ? ' (' + o.sess.track + ')' : ''));
-        }).join('<br>');
-        rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room, detail });
+        const entries = occs.map(o => ({ name: (getSpeaker(o.speakerId) || {}).name || 'Unknown', title: o.sess.title || '', track: o.sess.track || '' }));
+        rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room, detail: namesGroupedByTitleHtml(entries) });
       });
     } else if (slot.room && scheduleRoomFilter.has(slot.room)) {
-      rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: '' });
+      // Same match the Timeline view itself uses to find who's assigned to a non-breakout slot
+      // (keynote, panel, meal, business meeting, etc.) -- a real slotId link first, falling back
+      // to a same-date/same-time match for older sessions saved before that link existed.
+      const matchSess = sess => sess.slotId === slot.id || (!sess.slotId && !sess.track && sess.sessionDate === slot.date && sess.timeSlot === slot.start);
+      const entries = speakers.filter(sp => (sp.data.sessions || []).some(matchSess)).map(sp => {
+        const sess = (sp.data.sessions || []).find(matchSess);
+        return { name: sp.name, title: (sess && sess.title) || '', track: '' };
+      });
+      rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: namesGroupedByTitleHtml(entries) });
     }
   });
   rows.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
@@ -18774,7 +18831,7 @@ function renderScheduleByRoom() {
     const rowsHtml = days[date].map(r => `
       <div class="sch-itin-row">
         <div class="sch-itin-time">${friendlyTime(r.start)} – ${friendlyTime(r.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">📍 ${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}</div>
       </div>`).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rowsHtml}`;
   }).join('');
