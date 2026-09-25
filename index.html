@@ -18872,17 +18872,15 @@ function renderScheduleTimeline() {
   // Read-only sessions (view-only teammates, the public link) never get either icon, but still
   // see the text if staff already wrote one.
   const descToggleIcon = (slot) => {
-    if (!canEditSchedule || expandedScheduleSlotDescriptions.has(slot.id)) return '';
-    return slot.notes
-      ? `<span class="sch-edit-icon" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Edit description">✎</span>`
-      : `<span class="sch-edit-icon" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Add a description">+desc</span>`;
+    if (!canEditSchedule || slot.notes || expandedScheduleSlotDescriptions.has(slot.id)) return '';
+    return `<span class="sch-edit-icon" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Add a description">+desc</span>`;
   };
   const descRow = (slot) => {
     const isEditing = expandedScheduleSlotDescriptions.has(slot.id);
     if (!slot.notes && !isEditing) return '';
     if (!canEditSchedule) return slot.notes ? `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div></div>` : '';
     if (!isEditing) {
-      return `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap" style="cursor:pointer;" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Click to edit">${escapeHtml(slot.notes)}</div></div>`;
+      return `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap" style="cursor:pointer;" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Click to edit">${escapeHtml(slot.notes)}<span class="sch-edit-icon" style="margin-left:6px;" onclick="event.stopPropagation(); toggleScheduleSlotDescription('${slot.id}')" title="Edit description">✎</span></div></div>`;
     }
     return `<div class="sch-timeline-desc-row"><textarea class="sch-timeline-desc-input" rows="2" placeholder="Description (shows on the printed agenda and public schedule)" onchange="updateScheduleSlotNotes('${slot.id}', this.value)" autofocus>${escapeHtml(slot.notes)}</textarea></div>`;
   };
