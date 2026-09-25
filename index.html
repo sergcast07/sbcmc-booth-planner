@@ -5088,7 +5088,7 @@ function renderSvPublicItinerary() {
       const shared = slotAudiences(slot).includes(MAIN_AUDIENCE_ID);
       return `<div class="sch-itin-row ${shared ? 'shared' : ''}">
         <div class="sch-itin-time">${friendlyTime(slot.start)} \u2013 ${friendlyTime(slot.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}${slot.notes ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div>` : ''}</div>
       </div>`;
     }).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} \u2014 ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}`;
@@ -18785,6 +18785,10 @@ function updateScheduleSlotNotes(id, value) {
   if (!canEditOrWarn('schedule.all', 'schedule')) return;
   const slot = scheduleSlots.find(s => s.id === id); if (!slot) return;
   slot.notes = value;
+  // Collapses the textarea back down to a plain read-only line once saved -- without this, any
+  // slot that HAS a description would look permanently "open for editing" forever after, instead
+  // of just showing the text like every other saved field on this page.
+  expandedScheduleSlotDescriptions.delete(id);
   pushScheduleSlot(slot);
   renderScheduleTimeline();
 }
@@ -18861,17 +18865,26 @@ function renderScheduleTimeline() {
   const roomControl = (slot) => canEditSchedule
     ? `<select class="sch-timeline-room-select" onchange="updateScheduleSlotRoom('${slot.id}', this.value)" title="Room">${sessionRoomOptionsHtml(slot.room)}</select>`
     : (slot.room ? `<span class="sch-timeline-room-label">${escapeHtml(slot.room)}</span>` : '');
-  // A description is slot.notes, already saved/loaded, just never had UI before -- shown
-  // collapsed unless it already has something in it, with a toggle icon on the label to open a
-  // blank one. Read-only sessions (view-only teammates, the public link) never get the toggle,
-  // but still see the text if staff already wrote one.
-  const descToggleIcon = (slot) => (canEditSchedule && !slot.notes && !expandedScheduleSlotDescriptions.has(slot.id))
-    ? `<span class="sch-edit-icon" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Add a description">+desc</span>`
-    : '';
+  // A description is slot.notes, already saved/loaded, just never had UI before. The textarea
+  // itself only shows while actively being edited (expandedScheduleSlotDescriptions) -- once
+  // saved it collapses to a plain read-only line (click it, or the ✎ icon, to reopen), so a slot
+  // that already has a description doesn't sit there looking permanently "open to edit" forever.
+  // Read-only sessions (view-only teammates, the public link) never get either icon, but still
+  // see the text if staff already wrote one.
+  const descToggleIcon = (slot) => {
+    if (!canEditSchedule || expandedScheduleSlotDescriptions.has(slot.id)) return '';
+    return slot.notes
+      ? `<span class="sch-edit-icon" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Edit description">✎</span>`
+      : `<span class="sch-edit-icon" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Add a description">+desc</span>`;
+  };
   const descRow = (slot) => {
-    if (!slot.notes && !expandedScheduleSlotDescriptions.has(slot.id)) return '';
+    const isEditing = expandedScheduleSlotDescriptions.has(slot.id);
+    if (!slot.notes && !isEditing) return '';
     if (!canEditSchedule) return slot.notes ? `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div></div>` : '';
-    return `<div class="sch-timeline-desc-row"><textarea class="sch-timeline-desc-input" rows="2" placeholder="Description (shows on the printed agenda and public schedule)" onchange="updateScheduleSlotNotes('${slot.id}', this.value)">${escapeHtml(slot.notes)}</textarea></div>`;
+    if (!isEditing) {
+      return `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap" style="cursor:pointer;" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Click to edit">${escapeHtml(slot.notes)}</div></div>`;
+    }
+    return `<div class="sch-timeline-desc-row"><textarea class="sch-timeline-desc-input" rows="2" placeholder="Description (shows on the printed agenda and public schedule)" onchange="updateScheduleSlotNotes('${slot.id}', this.value)" autofocus>${escapeHtml(slot.notes)}</textarea></div>`;
   };
 
   const dayBlocks = dateKeys.map(date => {
@@ -18972,7 +18985,7 @@ function renderScheduleItinerary() {
       const shared = slotAudiences(slot).includes(MAIN_AUDIENCE_ID);
       return `<div class="sch-itin-row ${shared ? 'shared' : ''}">
         <div class="sch-itin-time">${friendlyTime(slot.start)} – ${friendlyTime(slot.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}${slot.notes ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div>` : ''}</div>
       </div>`;
     }).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}`;
@@ -19052,7 +19065,7 @@ function renderScheduleByRoom() {
         const occs = breakoutIndex[slot.id + '|' + room];
         if (!occs || !occs.length) return;
         const entries = occs.map(o => ({ name: (getSpeaker(o.speakerId) || {}).name || 'Unknown', title: o.sess.title || '', track: o.sess.track || '' }));
-        rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room, detail: namesGroupedByTitleHtml(entries) });
+        rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room, detail: namesGroupedByTitleHtml(entries), notes: slot.notes || '' });
       });
     } else if (slot.room && scheduleRoomFilter.has(slot.room)) {
       // Same match the Timeline view itself uses to find who's assigned to a non-breakout slot
@@ -19063,7 +19076,7 @@ function renderScheduleByRoom() {
         const sess = (sp.data.sessions || []).find(matchSess);
         return { name: sp.name, title: (sess && sess.title) || '', track: '' };
       });
-      rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: namesGroupedByTitleHtml(entries) });
+      rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: namesGroupedByTitleHtml(entries), notes: slot.notes || '' });
     }
   });
   rows.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
@@ -19083,7 +19096,7 @@ function renderScheduleByRoom() {
     const rowsHtml = days[date].map(r => `
       <div class="sch-itin-row">
         <div class="sch-itin-time">${friendlyTime(r.start)} – ${friendlyTime(r.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}${r.notes ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(r.notes)}</div>` : ''}</div>
       </div>`).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rowsHtml}`;
   }).join('');
