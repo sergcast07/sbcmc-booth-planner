@@ -2657,6 +2657,11 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <div class="db-cards" id="db-cards"></div>
 
       <div class="db-section">
+        <div class="db-section-title">Registrations Over Time</div>
+        <div id="db-registrations-chart"></div>
+      </div>
+
+      <div class="db-section">
         <div class="db-section-title">Cash Committed vs. Collected</div>
         <div class="db-bar-outer"><div class="db-bar-fill" id="db-progress-fill"></div></div>
         <div class="db-bar-caption" id="db-progress-caption"></div>
@@ -2674,11 +2679,6 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <div id="db-timeline-chart"></div>
           <canvas id="db-confetti-canvas" class="confetti-overlay"></canvas>
         </div>
-      </div>
-
-      <div class="db-section">
-        <div class="db-section-title">Registrations Over Time</div>
-        <div id="db-registrations-chart"></div>
       </div>
 
       <div class="db-section db-print-page2-start">
