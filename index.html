@@ -1826,6 +1826,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-timeline-slot:last-child { border-bottom: none; }
 .sch-timeline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 7px 4px; font-size: 12.5px; }
 .sch-timeline-desc-row { padding: 0 4px 8px 4px; }
+.sch-desc-text { font-style: italic; }
 .sch-timeline-desc-input { width: 100%; box-sizing: border-box; font-size: 12px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; resize: vertical; }
 .sch-timeline-time { width: 130px; flex-shrink: 0; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 .sch-timeline-time-edit { width: 175px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; color: var(--ink-soft); }
@@ -18878,9 +18879,9 @@ function renderScheduleTimeline() {
   const descRow = (slot) => {
     const isEditing = expandedScheduleSlotDescriptions.has(slot.id);
     if (!slot.notes && !isEditing) return '';
-    if (!canEditSchedule) return slot.notes ? `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div></div>` : '';
+    if (!canEditSchedule) return slot.notes ? `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap sch-desc-text">${escapeHtml(slot.notes)}</div></div>` : '';
     if (!isEditing) {
-      return `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap" style="cursor:pointer;" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Click to edit">${escapeHtml(slot.notes)}<span class="sch-edit-icon" style="margin-left:6px;" onclick="event.stopPropagation(); toggleScheduleSlotDescription('${slot.id}')" title="Edit description">✎</span></div></div>`;
+      return `<div class="sch-timeline-desc-row"><div class="sp-sub sp-sub-wrap" style="cursor:pointer;" onclick="toggleScheduleSlotDescription('${slot.id}')" title="Click to edit"><span class="sch-desc-text">${escapeHtml(slot.notes)}</span><span class="sch-edit-icon" style="margin-left:6px;" onclick="event.stopPropagation(); toggleScheduleSlotDescription('${slot.id}')" title="Edit description">✎</span></div></div>`;
     }
     return `<div class="sch-timeline-desc-row"><textarea class="sch-timeline-desc-input" rows="2" placeholder="Description (shows on the printed agenda and public schedule)" onchange="updateScheduleSlotNotes('${slot.id}', this.value)" autofocus>${escapeHtml(slot.notes)}</textarea></div>`;
   };
@@ -19094,7 +19095,7 @@ function renderScheduleByRoom() {
     const rowsHtml = days[date].map(r => `
       <div class="sch-itin-row">
         <div class="sch-itin-time">${friendlyTime(r.start)} – ${friendlyTime(r.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}${r.notes ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(r.notes)}</div>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}${r.notes ? `<div class="sp-sub sp-sub-wrap sch-desc-text">${escapeHtml(r.notes)}</div>` : ''}</div>
       </div>`).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rowsHtml}`;
   }).join('');
