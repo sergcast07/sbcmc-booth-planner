@@ -11085,6 +11085,10 @@ async function generateSponsorInvoicePDF(sponsorId) {
   ['SBCMC', 'ATTN: Steve Brown', '2481 Floral Valley Drive', 'Dacula, GA 30019'].forEach(line => { doc.text(line, M, y); y += 12; });
   y += 12;
 
+  doc.setFont(undefined, 'italic'); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+  doc.splitTextToSize('Questions or other payment options? Please contact Sergio Castillo, Conference Coordinator, at sergiolcastillo7@gmail.com or (956) 648-6464.', usableW).forEach(line => { doc.text(line, M, y); y += 11; });
+  y += 10;
+
   const pageH = doc.internal.pageSize.getHeight();
   doc.setDrawColor(...BORDER);
   doc.line(M, pageH - 60, pageW - M, pageH - 60);
