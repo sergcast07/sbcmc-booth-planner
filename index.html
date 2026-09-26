@@ -11079,6 +11079,12 @@ async function generateSponsorInvoicePDF(sponsorId) {
     y += 8;
   }
 
+  doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...INK);
+  doc.text('Or mail a check, payable to SBCMC, to:', M, y); y += 15;
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
+  ['SBCMC', 'ATTN: Steve Brown', '2481 Floral Valley Drive', 'Dacula, GA 30019'].forEach(line => { doc.text(line, M, y); y += 12; });
+  y += 12;
+
   const pageH = doc.internal.pageSize.getHeight();
   doc.setDrawColor(...BORDER);
   doc.line(M, pageH - 60, pageW - M, pageH - 60);
