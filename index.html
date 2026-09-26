@@ -11070,17 +11070,10 @@ async function generateSponsorInvoicePDF(sponsorId) {
     doc.text('Pay Online', M + btnW / 2, y + btnH / 2 + 3.5, { align: 'center' });
     doc.link(M, y, btnW, btnH, { url: payLink });
     y += btnH + 20;
-  } else if (items.length > 0) {
-    doc.setFont(undefined, 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
-    const reason = items.length > 1
-      ? 'This total includes an add-on beyond the base package, so there’s no ready-made online link for the full amount'
-      : 'There’s no payment link on file for this package';
-    doc.splitTextToSize(reason + ' -- reach out to Sergio directly to arrange payment.', usableW).forEach(line => { doc.text(line, M, y); y += 13; });
-    y += 8;
   }
 
   doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...INK);
-  doc.text('Or mail a check, payable to SBCMC, to:', M, y); y += 15;
+  doc.text('For check payments, mail a check, payable to SBCMC, to:', M, y); y += 15;
   doc.setFont(undefined, 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
   ['SBCMC', 'ATTN: Steve Brown', '2481 Floral Valley Drive', 'Dacula, GA 30019'].forEach(line => { doc.text(line, M, y); y += 12; });
   y += 12;
