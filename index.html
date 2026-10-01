@@ -1617,8 +1617,20 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   .db-section-title {
     font-size: 12.5px !important; margin-bottom: 10px !important; padding-left: 9px !important;
     letter-spacing: 0.04em !important;
+    /* Never leave a title stranded alone at the bottom of a page with its content pushed to
+       the next one -- whatever comes right after a title moves together with it. */
+    break-after: avoid !important; page-break-after: avoid !important;
   }
   .db-grid-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 26px !important; }
+
+  /* These sections are each one short, genuinely atomic visual (a single chart, or a bar +
+     caption) -- never worth letting a page break cut through the middle of a chart, so the
+     whole section stays together on one page rather than splitting like the longer
+     list-based sections below are allowed to. */
+  #db-cards, #db-section-cashflow, #db-section-sponsorship,
+  #db-section-registrations, #db-section-packagetier {
+    break-inside: avoid !important; page-break-inside: avoid !important;
+  }
 
   .db-goal-input { display: none !important; }
   .db-timeline-header { display: block !important; margin-bottom: 8px !important; }
@@ -1626,6 +1638,10 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   /* Individual rows stay atomic (never split mid-row across a page break), but the larger
      sections containing them are free to break between rows if a whole section doesn't fit. */
   .db-row { margin-bottom: 6px !important; padding: 2px 6px !important; break-inside: avoid; page-break-inside: avoid; }
+  /* Open Action Items is a real <table>, not a list of .db-row divs -- same "keep each row
+     whole" intent as above, best-effort since a <tr>'s own break-inside isn't as reliably
+     honored by every print engine as a real block element's is. */
+  #db-section-opentasks tr { break-inside: avoid; page-break-inside: avoid; }
   .db-row-label { font-size: 11px !important; }
   .db-row-bar-outer { height: 11px !important; }
   .db-row-value { font-size: 11px !important; }
