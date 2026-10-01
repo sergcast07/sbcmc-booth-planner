@@ -1592,11 +1592,7 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   .db-header h2 { color: var(--teal-deep) !important; font-size: 22px !important; margin-bottom: 4px !important; }
   .db-caveat { display: none !important; } /* explanatory prose reads as help text on screen; a printed report doesn't need it */
   .print-only { display: block !important; margin-bottom: 4px !important; font-size: 13px !important; color: var(--ink-soft) !important; }
-  /* flex + per-child `order` (set from the Print Wizard's chosen order, see
-     applyDashboardPrintPrefsToDom) reorders sections visually for print without ever touching
-     the live, on-screen DOM order -- `order` has no effect outside a flex container, so this
-     rule is scoped to print only and the normal dashboard view is untouched. */
-  .db-body { padding: 0 !important; display: flex !important; flex-direction: column !important; }
+  .db-body { padding: 0 !important; }
   .db-print-excluded { display: none !important; }
 
   /* ==== KPI cards: real breathing room, not crammed ==== */
@@ -7363,9 +7359,16 @@ const DEFAULT_SPONSORS = [{"id": "sp_0", "org": "Southeastern Baptist Theologica
 // Lets staff choose which report sections to include and the order they print in, instead of
 // a fixed "Print Report" button that always produces the same layout. `id` is each section's
 // real element id in the Dashboard's DOM (see the db-body markup) -- nothing is duplicated or
-// rebuilt for print, the wizard just sets a flex `order` and an exclude class on the live
-// elements (see applyDashboardPrintPrefsToDom), so the normal on-screen dashboard is never
-// touched, only how it lays out under @media print.
+// rebuilt for print. applyDashboardPrintPrefsToDom physically moves the real section elements
+// into the chosen order (and toggles an exclude class) right before printing, then
+// restoreDashboardPrintOrder puts them straight back once the print dialog closes -- the
+// screen never shows the reordered state. An earlier version of this used CSS flex + a
+// per-child `order` instead of actually moving the elements, specifically to avoid touching
+// the live DOM order at all -- but a flex container doesn't reliably honor break-inside/
+// break-after for its children in every print engine, which is exactly what caused section
+// titles to land on one page with their content pushed to the next. Physically reordering
+// plain block-level elements (then restoring them) keeps the normal, well-supported block
+// pagination behavior that the rest of this report's break-inside/break-after rules depend on.
 const DB_PRINT_SECTIONS = [
   { key: 'cards', label: 'Summary Cards', id: 'db-cards' },
   { key: 'registrations', label: 'Registrations Over Time', id: 'db-section-registrations' },
@@ -7480,14 +7483,31 @@ function renderDashboardPrintWizard() {
     </div>
   `;
 }
+// Remembers the real pre-reorder DOM order (read straight off .db-body's current children,
+// not assumed from DB_PRINT_SECTIONS) so restoreDashboardPrintOrder can put everything back
+// exactly where it actually was, regardless of order this function runs in.
+let dashboardPrintOriginalOrder = null;
 function applyDashboardPrintPrefsToDom(prefs) {
-  DB_PRINT_SECTIONS.forEach(s => {
-    const el = document.getElementById(s.id);
+  const body = document.querySelector('#dashboard-view .db-body');
+  if (!body) return;
+  dashboardPrintOriginalOrder = [...body.children].map(el => el.id).filter(Boolean);
+  prefs.order.forEach(key => {
+    const section = DB_PRINT_SECTIONS.find(s => s.key === key);
+    const el = section && document.getElementById(section.id);
     if (!el) return;
-    const idx = prefs.order.indexOf(s.key);
-    el.style.order = idx >= 0 ? idx : 999;
-    el.classList.toggle('db-print-excluded', prefs.excluded.has(s.key));
+    el.classList.toggle('db-print-excluded', prefs.excluded.has(key));
+    body.appendChild(el); // moves the existing node -- walking prefs.order in turn leaves them in that exact sequence
   });
+}
+function restoreDashboardPrintOrder() {
+  const body = document.querySelector('#dashboard-view .db-body');
+  if (body && dashboardPrintOriginalOrder) {
+    dashboardPrintOriginalOrder.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) body.appendChild(el);
+    });
+  }
+  dashboardPrintOriginalOrder = null;
 }
 function confirmDashboardPrintWizard() {
   saveDashboardPrintPrefs(dashboardPrintPrefs);
@@ -7497,6 +7517,7 @@ function confirmDashboardPrintWizard() {
   if (dateEl) {
     dateEl.textContent = 'Generated ' + new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   }
+  window.addEventListener('afterprint', restoreDashboardPrintOrder, { once: true });
   setTimeout(() => window.print(), 50); // small delay so any re-render above has painted
 }
 // ---- END Dashboard Print Wizard ----
