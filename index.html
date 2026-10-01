@@ -10205,17 +10205,26 @@ async function exportAttendeesCSV() {
     });
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
     const { rows } = await res.json();
-    // Test data is staff's own dry-run rows, never a real attendee -- same exclusion the
-    // Badges page's duplicate-checker already applies, kept consistent here.
-    const realRows = (rows || []).filter(r => !r.is_test_data);
+    // Test data is staff's own dry-run rows, never a real attendee. Unpaid/Processing entries
+    // are excluded too -- this list is meant to be "who's actually registered," and payment
+    // status is the one signal for that (see the gravity-forms-sync dedup fix from earlier).
+    const realRows = (rows || []).filter(r => !r.is_test_data && r.payment_status === 'Paid');
     if (!realRows.length) {
-      toast('No attendees found yet — run "Sync Attendee Database" on the Badges page first.');
+      toast('No paid attendees found yet — run "Sync Attendee Database" on the Badges page first.');
       return;
     }
-    const headers = ['Name', 'Email', 'Badge Label', 'Payment Status'];
+    const headers = ['Name', 'Email', 'Badge Label', 'Registered Date', 'Checkout Group ID'];
     const lines = [headers.map(csvEscape).join(',')];
     realRows.forEach(r => {
-      lines.push([r.name || '', r.email || '', r.badge_label || '', r.payment_status || ''].map(csvEscape).join(','));
+      const raw = r.raw || {};
+      // The date people actually registered, not today's export date -- stored site-local,
+      // date-only (the time of day isn't useful on a spreadsheet).
+      const registeredDate = (raw.registeredAt || '').slice(0, 10);
+      // Everyone who checked out in the same Form 9 submission shares this id -- a family or
+      // group registered together will share one value here, so sorting/filtering by this
+      // column shows who paid together without needing the purchaser's own name/email.
+      const checkoutGroupId = raw.gravityFormsEntryId || '';
+      lines.push([r.name || '', r.email || '', r.badge_label || '', registeredDate, checkoutGroupId].map(csvEscape).join(','));
     });
     const csvContent = lines.join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -10281,7 +10290,7 @@ function applicantActualCounts() {
 
 function registrationActualsHTML() {
   const btnLabel = '🔄 Sync Actual Registrants';
-  const exportBtn = `<button class="sp-mini-btn" onclick="event.stopPropagation(); exportAttendeesCSV()" title="Download a spreadsheet of every general-conference attendee (name, email, badge label, payment status)">📊 Export Attendee List</button>`;
+  const exportBtn = `<button class="sp-mini-btn" onclick="event.stopPropagation(); exportAttendeesCSV()" title="Download a spreadsheet of every Paid general-conference attendee (name, email, badge label, registered date, checkout group)">📊 Export Attendee List</button>`;
   if (!registrationActuals) {
     return `
       <div class="rev-actuals-box">
