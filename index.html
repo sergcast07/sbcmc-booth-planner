@@ -18405,23 +18405,25 @@ function renderScheduleTimelinePrintHtml() {
       // elsewhere in the app (the Timeline's audience dots) -- a callout on top of the baseline,
       // not a replacement for it. A session with NO Main Conference tag at all -- i.e. it
       // belongs exclusively to one or more other groups -- gets a solid "<Group(s)> Only" pill
-      // instead, signaling it's not a main-conference session at all. Executive Council is
-      // excluded from every callout/exclusive pill here -- staff attend as a baseline, assumed
-      // fact of running the conference, not something worth flagging on every session they're
-      // tagged into.
+      // instead, signaling it's not a main-conference session at all. Executive Council is only
+      // ever assumed/baseline ALONGSIDE Main Conference -- staff attending a regular main
+      // session isn't worth flagging. But a session with no Main tag at all still needs its own
+      // pill even when Executive Council is the ONLY thing it's tagged with -- that genuinely
+      // isn't a main-conference session, so it has to say so, same as any other exclusive group.
       const slotAuds = new Set(slotAudiences(slot));
       const hasMain = slotAuds.has(MAIN_AUDIENCE_ID);
-      const extraAudiences = orderedScheduleAudiences().filter(a =>
-        a.id !== MAIN_AUDIENCE_ID && (a.name || '').trim().toLowerCase() !== 'executive council' && slotAuds.has(a.id)
-      );
+      const nonMainAudiences = orderedScheduleAudiences().filter(a => a.id !== MAIN_AUDIENCE_ID && slotAuds.has(a.id));
       let audienceTag = '';
-      if (hasMain && extraAudiences.length) {
-        audienceTag = `<div class="sc-print-audience-wrap">${extraAudiences.map(a =>
-          `<span class="sc-print-audience sc-print-audience-also" style="--aud-color:${audienceColorForId(a.id)};">+ ${escapeHtml(a.name)}</span>`
-        ).join('')}</div>`;
-      } else if (!hasMain && extraAudiences.length) {
-        const label = extraAudiences.map(a => a.name).join(' + ') + ' Only';
-        const color = extraAudiences.length === 1 ? audienceColorForId(extraAudiences[0].id) : 'var(--ink)';
+      if (hasMain) {
+        const callouts = nonMainAudiences.filter(a => (a.name || '').trim().toLowerCase() !== 'executive council');
+        if (callouts.length) {
+          audienceTag = `<div class="sc-print-audience-wrap">${callouts.map(a =>
+            `<span class="sc-print-audience sc-print-audience-also" style="--aud-color:${audienceColorForId(a.id)};">+ ${escapeHtml(a.name)}</span>`
+          ).join('')}</div>`;
+        }
+      } else if (nonMainAudiences.length) {
+        const label = nonMainAudiences.map(a => a.name).join(' + ') + ' Only';
+        const color = nonMainAudiences.length === 1 ? audienceColorForId(nonMainAudiences[0].id) : 'var(--ink)';
         audienceTag = `<div class="sc-print-audience-wrap"><span class="sc-print-audience sc-print-audience-only" style="--aud-color:${color};">${escapeHtml(label)}</span></div>`;
       }
       if (slot.kind === 'breakout') {
