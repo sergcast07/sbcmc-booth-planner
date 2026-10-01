@@ -10178,10 +10178,64 @@ async function syncActualRegistrants() {
   }
 }
 
-// The Attendee Database sync (pushing into the mobile app's own attendee_profiles table) lives
-// in the sbcmc-admin Vercel app's Badges page instead of here -- it's the mobile app's own
-// data, not this app's, so triggering it belongs there. Still the exact same gravity-forms-sync
-// Edge Function underneath (?action=attendees); only the button moved.
+// The Attendee Database SYNC (pushing fresh rows into the mobile app's own attendee_profiles
+// table) still lives in the sbcmc-admin Vercel app's Badges page, not here -- it's the mobile
+// app's own data, writing to it belongs there. This export button is a separate, read-only
+// thing: a staff-requested spreadsheet of who's actually registered, pulled from that same
+// table. attendee_profiles has no public read policy (sbcmc-admin's own Badges page reads it
+// with its service-role key, never the anon key), so this can't query it directly the way the
+// rest of this file queries its own Supabase project -- it goes through a new gravity-forms-sync
+// action instead, which already holds the one secret (ATTENDEE_APP_SERVICE_ROLE_KEY) needed to
+// read it, and simply hands the rows back in the response rather than storing or syncing
+// anything.
+async function exportAttendeesCSV() {
+  if (!canView('revenue.all')) return;
+  if (!SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
+  const btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
+  const originalLabel = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="sync-spinning">🔄</span> Exporting…'; }
+  toast('Pulling the current attendee list…');
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=export-attendees&program=general', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+    const { rows } = await res.json();
+    // Test data is staff's own dry-run rows, never a real attendee -- same exclusion the
+    // Badges page's duplicate-checker already applies, kept consistent here.
+    const realRows = (rows || []).filter(r => !r.is_test_data);
+    if (!realRows.length) {
+      toast('No attendees found yet — run "Sync Attendee Database" on the Badges page first.');
+      return;
+    }
+    const headers = ['Name', 'Email', 'Badge Label', 'Payment Status'];
+    const lines = [headers.map(csvEscape).join(',')];
+    realRows.forEach(r => {
+      lines.push([r.name || '', r.email || '', r.badge_label || '', r.payment_status || ''].map(csvEscape).join(','));
+    });
+    const csvContent = lines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'SBCMC-Attendees-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Exported ' + realRows.length + ' attendee' + (realRows.length === 1 ? '' : 's') + ' to CSV.');
+  } catch (err) {
+    console.error('Attendee export failed:', err);
+    toast(err.name === 'AbortError' ? 'Export timed out — try again in a moment.' : 'Export failed — see console for details.');
+  } finally {
+    clearTimeout(abortTimer);
+    if (btn) { btn.disabled = false; btn.innerHTML = originalLabel; }
+  }
+}
 
 // Reads a scenario's own per-phase tier counts directly -- the registration portal now
 // classifies by the same three phases (Early Bird 1 = before Oct 1, 2026; Early Bird 2 = Oct 1 -
@@ -10227,6 +10281,7 @@ function applicantActualCounts() {
 
 function registrationActualsHTML() {
   const btnLabel = '🔄 Sync Actual Registrants';
+  const exportBtn = `<button class="sp-mini-btn" onclick="event.stopPropagation(); exportAttendeesCSV()" title="Download a spreadsheet of every general-conference attendee (name, email, badge label, payment status)">📊 Export Attendee List</button>`;
   if (!registrationActuals) {
     return `
       <div class="rev-actuals-box">
@@ -10235,7 +10290,10 @@ function registrationActualsHTML() {
             <div class="rev-actuals-label"><span class="sp-chevron">▸</span> Actual registrants</div>
             <div class="rev-actuals-sub">Not synced yet — pull real counts from the registration portal to compare against this scenario.</div>
           </div>
-          <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
+            ${exportBtn}
+          </div>
         </div>
       </div>`;
   }
@@ -10272,7 +10330,10 @@ function registrationActualsHTML() {
           <div class="rev-actuals-label"><span class="sp-chevron">▸</span> Actual registrants <span class="rev-actuals-asof">as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>
           <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} main conference registrants, from the registration portal. Collegiate Worship Collective and Student Leadership Summit are tracked separately below — never combined into this number. Each cell reads actual/${escapeHtml(scenarioLabel)}.</div>
         </div>
-        <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
+          ${exportBtn}
+        </div>
       </div>
       <div class="rev-actuals-body" data-section-key="rev-actuals">
       <div class="rev-actuals-table-scroll">
