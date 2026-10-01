@@ -10213,6 +10213,9 @@ async function exportAttendeesCSV() {
       toast('No paid attendees found yet — run "Sync Attendee Database" on the Badges page first.');
       return;
     }
+    // Sorted by when they actually registered (earliest first), not the name order the query
+    // comes back in -- that's the order this export is for.
+    realRows.sort((a, b) => ((a.raw || {}).registeredAt || '').localeCompare((b.raw || {}).registeredAt || ''));
     const headers = ['Name', 'Email', 'Badge Label', 'Registered Date', 'Checkout Group ID'];
     const lines = [headers.map(csvEscape).join(',')];
     realRows.forEach(r => {
