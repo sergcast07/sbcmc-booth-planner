@@ -367,6 +367,10 @@
   .admin-form input[type="text"], .admin-form input[type="number"], .admin-form input[type="file"] {
     width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #cfd6e0; border-radius: 6px; font-size: 12.5px;
   }
+  .admin-form textarea {
+    width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #cfd6e0; border-radius: 6px;
+    font-size: 12.5px; font-family: inherit; resize: vertical;
+  }
   .admin-form input[type="color"] { width: 44px; height: 30px; border: 1px solid #cfd6e0; border-radius: 6px; padding: 2px; cursor: pointer; }
   .admin-form .row2 { display: flex; gap: 10px; }
   .admin-form .row2 > div { flex: 1; }
@@ -11211,6 +11215,72 @@ function sponsorInvoiceLineItems(s) {
   return items;
 }
 
+// ---- Invoice Bill-To modal ----
+// Lets staff override who an invoice is addressed to -- a billing department or parent org that
+// differs from the sponsor's main point of contact -- and add a mailing address, without
+// touching the sponsor's own org/contactName/contactEmail fields (those stay the real contact
+// used everywhere else in the app). Overrides autosave onto the sponsor record the same way
+// every other field in this app does, so they're remembered the next time an invoice is
+// generated for this sponsor, rather than needing to be re-typed each time.
+function sponsorInvoiceBillTo(s) {
+  const b = s.data.invoiceBillTo || {};
+  return {
+    org: (b.org || '').trim() || s.org || '',
+    contactName: (b.contactName || '').trim() || s.contactName || '',
+    contactEmail: (b.contactEmail || '').trim() || s.contactEmail || '',
+    address: (b.address || '').trim(),
+  };
+}
+function updateSponsorInvoiceBillTo(id, field, value) {
+  const s = resolveSponsorForEdit(id); if (!s) return;
+  if (!s.data.invoiceBillTo) s.data.invoiceBillTo = { org: '', contactName: '', contactEmail: '', address: '' };
+  s.data.invoiceBillTo[field] = value;
+  pushSponsor(s);
+}
+function closeInvoiceBillToModal() {
+  const el = document.getElementById('invoice-billto-overlay');
+  if (el) el.remove();
+}
+function openInvoiceBillToModal(sponsorId) {
+  const s = sponsors.find(x => x.id === sponsorId);
+  if (!s) return;
+  const b = s.data.invoiceBillTo || {};
+  let overlay = document.getElementById('invoice-billto-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'admin-overlay';
+    overlay.id = 'invoice-billto-overlay';
+    overlay.onclick = (e) => { if (e.target === overlay) closeInvoiceBillToModal(); };
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `
+    <div class="admin-modal" style="max-width:480px;">
+      <div class="admin-modal-header">
+        Who Is This Invoice For?
+        <button class="admin-close" onclick="closeInvoiceBillToModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p class="hint" style="margin:0 0 12px;">Leave a field blank to use ${escapeHtml(s.org)}'s own record. Anything entered here is saved for next time and only changes what prints on the invoice.</p>
+        <div class="admin-form">
+          <label>Organization</label>
+          <input type="text" placeholder="${escapeHtml(s.org || '')}" value="${escapeHtml(b.org || '')}" onchange="updateSponsorInvoiceBillTo('${s.id}', 'org', this.value)">
+          <label>Contact Name</label>
+          <input type="text" placeholder="${escapeHtml(s.contactName || '')}" value="${escapeHtml(b.contactName || '')}" onchange="updateSponsorInvoiceBillTo('${s.id}', 'contactName', this.value)">
+          <label>Contact Email</label>
+          <input type="text" placeholder="${escapeHtml(s.contactEmail || '')}" value="${escapeHtml(b.contactEmail || '')}" onchange="updateSponsorInvoiceBillTo('${s.id}', 'contactEmail', this.value)">
+          <label>Mailing Address</label>
+          <textarea rows="3" placeholder="Street, City, State ZIP" onchange="updateSponsorInvoiceBillTo('${s.id}', 'address', this.value)">${escapeHtml(b.address || '')}</textarea>
+        </div>
+      </div>
+      <div class="admin-form-actions" style="padding:0 18px 16px;">
+        <button class="btn" onclick="closeInvoiceBillToModal()">Cancel</button>
+        <button class="btn primary" onclick="closeInvoiceBillToModal(); generateSponsorInvoicePDF('${s.id}')">🧾 Generate Invoice</button>
+      </div>
+    </div>
+  `;
+}
+// ---- END Invoice Bill-To modal ----
+
 async function generateSponsorInvoicePDF(sponsorId) {
   const s = sponsors.find(x => x.id === sponsorId);
   if (!s) return;
@@ -11263,11 +11333,16 @@ async function generateSponsorInvoicePDF(sponsorId) {
   doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
   doc.text('BILL TO', M, y); y += 16;
   doc.setTextColor(...INK);
+  const billTo = sponsorInvoiceBillTo(s);
   doc.setFont(undefined, 'bold'); doc.setFontSize(11);
-  doc.text(s.org || '', M, y); y += 15;
+  doc.text(billTo.org, M, y); y += 15;
   doc.setFont(undefined, 'normal'); doc.setFontSize(10);
-  doc.text(s.contactName || '', M, y); y += 13;
-  doc.text(s.contactEmail || '', M, y); y += 28;
+  doc.text(billTo.contactName, M, y); y += 13;
+  doc.text(billTo.contactEmail, M, y); y += 13;
+  if (billTo.address) {
+    doc.splitTextToSize(billTo.address, 240).forEach(line => { doc.text(line, M, y); y += 12; });
+  }
+  y += 15;
 
   // Line items table
   const items = sponsorInvoiceLineItems(s);
@@ -11360,7 +11435,7 @@ async function generateSponsorInvoicePDF(sponsorId) {
   doc.setFontSize(8); doc.setTextColor(...MUTED);
   doc.text('Questions about this invoice? Contact Sergio Castillo, Conference Coordinator — sergiolcastillo7@gmail.com · (956) 648-6464', pageW / 2, pageH - 44, { align: 'center' });
 
-  doc.save('SBCMC-Invoice-' + (s.org || 'Sponsor').replace(/[^a-z0-9]+/gi, '-') + '.pdf');
+  doc.save('SBCMC-Invoice-' + (billTo.org || 'Sponsor').replace(/[^a-z0-9]+/gi, '-') + '.pdf');
 }
 function cfpSpeakerList() { return speakers.filter(sp => !SPEAKER_INACTIVE_STATUSES.includes(sp.trackerStatus) && speakerOutstanding(sp) > 0); }
 function cfpSponsorList() { return sponsors.filter(s => isCashCommitted(s) && sponsorOutstanding(s) > 0); }
@@ -12826,6 +12901,12 @@ function rowToSponsor(row) {
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
       secondaryContact: { name: '', role: '', email: '', phone: '' },
+      // Invoice "Bill To" overrides -- blank means "use org/contactName/contactEmail as-is",
+      // same fallback the sponsor's own record already provides everywhere else. Kept separate
+      // from those fields rather than editing them directly, since an invoice might need to go
+      // to a billing department or parent org that's genuinely different from the sponsor's
+      // main point of contact used for everything else (emails, the tracker list, etc.).
+      invoiceBillTo: { org: '', contactName: '', contactEmail: '', address: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' },
       inKindContributions: []
@@ -12913,6 +12994,7 @@ function addSponsor() {
       materials: { boothAdFile: null, displayGraphicFile: null, welcomeBagHandoutReceived: false },
       publicToken: '', publicNotes: '', publicPortalCompletedAt: '', pendingChanges: {},
       secondaryContact: { name: '', role: '', email: '', phone: '' },
+      invoiceBillTo: { org: '', contactName: '', contactEmail: '', address: '' },
       money: { committed: '', paid: '', paymentStatus: '', invoiceSent: false, dueDate: '', adhocAmount: '', adhocDescription: '', adhocItems: null },
       comms: [], actionItems: [], questions: [], flagged: false, registeredDate: '', returningOverride: null, agreement: { status: '', signedDate: '' },
       inKindContributions: []
@@ -13671,7 +13753,7 @@ function sponsorDetailHTML(s) {
           <div class="sp-field"><label for="sp-amtpaid-${s.id}">Amount paid ($)</label><input id="sp-amtpaid-${s.id}" type="text" value="${escapeHtml(s.data.money.paid)}" onchange="updateSponsorNested('${s.id}','money','paid',this.value)"></div>
           <div class="sp-field"><label for="sp-paydue-${s.id}">Payment due date</label><input id="sp-paydue-${s.id}" type="date" value="${escapeHtml(s.data.money.dueDate)}" onchange="updateSponsorNested('${s.id}','money','dueDate',this.value)"></div>
           <div class="sp-check"><input id="sp-invoicesent-${s.id}" type="checkbox" ${s.data.money.invoiceSent ? 'checked' : ''} onchange="updateSponsorNested('${s.id}','money','invoiceSent',this.checked)"><label for="sp-invoicesent-${s.id}"> Invoice sent</label>
-            <button class="sp-mini-btn" style="margin-left:10px;" onclick="generateSponsorInvoicePDF('${s.id}')" title="Generate a PDF invoice from this sponsor's current package, add-ons, and amount paid">🧾 Generate Invoice</button>
+            <button class="sp-mini-btn" style="margin-left:10px;" onclick="openInvoiceBillToModal('${s.id}')" title="Generate a PDF invoice from this sponsor's current package, add-ons, and amount paid">🧾 Generate Invoice</button>
           </div>
           ${paymentScheduleEditorHTML(s.id, 'sponsor')}
           `}
