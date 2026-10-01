@@ -1739,10 +1739,13 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   .sc-print-names { font-size: 9.5px; color: var(--ink-soft); margin-top: 1px; }
   .sc-print-room { font-size: 8.5px; color: var(--ink-soft); margin-top: 1px; }
   .sc-print-note { font-size: 8.5px; font-style: italic; color: var(--ink-soft); margin-top: 1px; }
+  .sc-print-audience-wrap { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; max-width: 150px; }
   .sc-print-audience {
-    flex-shrink: 0; font-size: 8px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
-    color: var(--teal-deep); background: var(--teal-pale); border-radius: 3px; padding: 1px 6px;
+    font-size: 7.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    border-radius: 3px; padding: 1px 6px; white-space: nowrap;
   }
+  .sc-print-audience-also { background: #fff; border: 1px solid var(--aud-color); color: var(--aud-color); }
+  .sc-print-audience-only { background: var(--aud-color); color: #fff; border: 1px solid var(--aud-color); }
 }
 
 /* ==== Schedule tab ==== */
@@ -18391,29 +18394,31 @@ function renderScheduleTimelinePrintHtml() {
   return dateKeys.map(date => {
     const rows = days[date].map(slot => {
       const kindColor = SCHEDULE_KIND_COLORS[slot.kind] || SCHEDULE_KIND_COLORS.other;
-      // One plain-English phrase, never a pill per audience -- judged against the "Show:" filter
-      // currently active on the Schedule tab (scheduleAudienceFilter), not just the slot's own
-      // tags in isolation. With only ONE group selected, the report's own header already says
-      // which group this is (see scopeLabel in printScheduleTimelineReport) -- tagging every row
-      // "All Attendees" in that case reads as "literally everyone at the conference," which
-      // isn't true, it's only true relative to the one group currently selected. So no tag at
-      // all when there's a single group in scope; every row in the report is already understood
-      // to be that group. With multiple groups selected: Main Conference always means "everyone"
-      // outright, and a slot covering every group presently being shown is still "All Attendees"
-      // *of this report* -- e.g. viewing SLS + CWC together, a slot tagged for both reads as "All
-      // Attendees" rather than the redundant "Only SLS + CWC." Only when a session covers a real
-      // subset of what's currently selected does it read "Only <group(s)>" -- scoped to the
-      // overlap, not the slot's full tag list, since a group not even being shown right now isn't
-      // relevant to this printout.
+      // Judged against the slot's own real audience tags, never against the "Show:" filter
+      // currently active on the Schedule tab -- a tag that's relative to whichever groups happen
+      // to be checked right now is misleading the moment someone unchecks a group ("All
+      // Attendees" reading as literally everyone when a group just left the view). Main
+      // Conference is the baseline: a plain main-conference session (no other group tagged on
+      // it) gets no tag at all, since that's simply the default, nothing worth calling out. A
+      // main session ALSO tagged for Collegiate Collective/Student Leadership Summit/etc. gets
+      // one small "+ <Group>" pill per extra group, colored to match that group's own color
+      // elsewhere in the app (the Timeline's audience dots) -- a callout on top of the baseline,
+      // not a replacement for it. A session with NO Main Conference tag at all -- i.e. it
+      // belongs exclusively to one or more other groups -- gets a solid "<Group(s)> Only" pill
+      // instead, signaling it's not a main-conference session at all.
       const slotAuds = new Set(slotAudiences(slot));
-      const activeIds = [...scheduleAudienceFilter];
-      const coversActiveScope = slotAuds.has(MAIN_AUDIENCE_ID) || activeIds.every(id => slotAuds.has(id));
-      const audienceLabel = activeIds.length <= 1
-        ? ''
-        : coversActiveScope
-          ? 'All Attendees'
-          : 'Only ' + activeIds.filter(id => slotAuds.has(id)).map(id => (scheduleAudiences.find(a => a.id === id) || {}).name).filter(Boolean).join(' + ');
-      const audienceTag = audienceLabel ? `<span class="sc-print-audience">${escapeHtml(audienceLabel)}</span>` : '';
+      const hasMain = slotAuds.has(MAIN_AUDIENCE_ID);
+      const extraAudiences = orderedScheduleAudiences().filter(a => a.id !== MAIN_AUDIENCE_ID && slotAuds.has(a.id));
+      let audienceTag = '';
+      if (hasMain && extraAudiences.length) {
+        audienceTag = `<div class="sc-print-audience-wrap">${extraAudiences.map(a =>
+          `<span class="sc-print-audience sc-print-audience-also" style="--aud-color:${audienceColorForId(a.id)};">+ ${escapeHtml(a.name)}</span>`
+        ).join('')}</div>`;
+      } else if (!hasMain && extraAudiences.length) {
+        const label = extraAudiences.map(a => a.name).join(' + ') + ' Only';
+        const color = extraAudiences.length === 1 ? audienceColorForId(extraAudiences[0].id) : 'var(--ink)';
+        audienceTag = `<div class="sc-print-audience-wrap"><span class="sc-print-audience sc-print-audience-only" style="--aud-color:${color};">${escapeHtml(label)}</span></div>`;
+      }
       if (slot.kind === 'breakout') {
         return `<div class="sc-print-row" style="border-left-color:${kindColor};">
           <div class="sc-print-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
