@@ -10193,7 +10193,12 @@ function revenueScenarioActualComparison(scenarioName) {
   return {
     member_eb1: count('member_eb1'), member_eb2: count('member_eb2'), member_reg: count('member_reg'),
     nonmember_eb1: count('nonmember_eb1'), nonmember_eb2: count('nonmember_eb2'), nonmember_reg: count('nonmember_reg'),
-    spouse: count('spouse'), student: count('student'), collegiate: count('collegiate'), collegiate_local: count('collegiate_local'),
+    spouse: count('spouse'), retiree: count('retiree'), student: count('student'),
+    // The actual registrant pull only has ONE flat "group" bucket (the Edge Function's
+    // Group-rate detection is still provisional, with no phase breakdown) -- summing all
+    // three Group tiers here is the fairest comparison against that single actual number.
+    group: count('group_eb1') + count('group_eb2') + count('group_reg'),
+    collegiate: count('collegiate'), collegiate_local: count('collegiate_local'),
     sls: count('sls'), sls_local: count('sls_local'),
   };
 }
@@ -10277,9 +10282,9 @@ function registrationActualsHTML() {
             ${phasedRow('Member', 'member')}
             ${phasedRow('Non-Member', 'nonmember')}
             ${flatRow('Spouse', 'spouse', expected.spouse)}
-            ${flatRow('Retiree', 'retiree')}
+            ${flatRow('Retiree', 'retiree', expected.retiree)}
             ${flatRow('Student', 'student', expected.student)}
-            ${flatRow('Group', 'group')}
+            ${flatRow('Group', 'group', expected.group)}
           </tbody>
         </table>
       </div>
