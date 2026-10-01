@@ -18405,10 +18405,15 @@ function renderScheduleTimelinePrintHtml() {
       // elsewhere in the app (the Timeline's audience dots) -- a callout on top of the baseline,
       // not a replacement for it. A session with NO Main Conference tag at all -- i.e. it
       // belongs exclusively to one or more other groups -- gets a solid "<Group(s)> Only" pill
-      // instead, signaling it's not a main-conference session at all.
+      // instead, signaling it's not a main-conference session at all. Executive Council is
+      // excluded from every callout/exclusive pill here -- staff attend as a baseline, assumed
+      // fact of running the conference, not something worth flagging on every session they're
+      // tagged into.
       const slotAuds = new Set(slotAudiences(slot));
       const hasMain = slotAuds.has(MAIN_AUDIENCE_ID);
-      const extraAudiences = orderedScheduleAudiences().filter(a => a.id !== MAIN_AUDIENCE_ID && slotAuds.has(a.id));
+      const extraAudiences = orderedScheduleAudiences().filter(a =>
+        a.id !== MAIN_AUDIENCE_ID && (a.name || '').trim().toLowerCase() !== 'executive council' && slotAuds.has(a.id)
+      );
       let audienceTag = '';
       if (hasMain && extraAudiences.length) {
         audienceTag = `<div class="sc-print-audience-wrap">${extraAudiences.map(a =>
