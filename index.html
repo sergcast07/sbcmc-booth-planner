@@ -18393,21 +18393,27 @@ function renderScheduleTimelinePrintHtml() {
       const kindColor = SCHEDULE_KIND_COLORS[slot.kind] || SCHEDULE_KIND_COLORS.other;
       // One plain-English phrase, never a pill per audience -- judged against the "Show:" filter
       // currently active on the Schedule tab (scheduleAudienceFilter), not just the slot's own
-      // tags in isolation. Main Conference always means "everyone" outright. Otherwise, if the
-      // slot covers every group presently being shown, it's still "All Attendees" *of this
-      // report* -- e.g. viewing only Student Leadership Summit, every visible session already
-      // is SLS, so labeling each one "Only SLS" would be true but redundant; same idea if Main
-      // is deliberately unchecked and a session is tagged for every other group still in view.
-      // Only when a session covers a real subset of what's currently selected does it read
-      // "Only <group(s)>" -- and that phrase is scoped to the overlap, not the slot's full tag
-      // list, since a group that isn't even being shown right now isn't relevant to this printout.
+      // tags in isolation. With only ONE group selected, the report's own header already says
+      // which group this is (see scopeLabel in printScheduleTimelineReport) -- tagging every row
+      // "All Attendees" in that case reads as "literally everyone at the conference," which
+      // isn't true, it's only true relative to the one group currently selected. So no tag at
+      // all when there's a single group in scope; every row in the report is already understood
+      // to be that group. With multiple groups selected: Main Conference always means "everyone"
+      // outright, and a slot covering every group presently being shown is still "All Attendees"
+      // *of this report* -- e.g. viewing SLS + CWC together, a slot tagged for both reads as "All
+      // Attendees" rather than the redundant "Only SLS + CWC." Only when a session covers a real
+      // subset of what's currently selected does it read "Only <group(s)>" -- scoped to the
+      // overlap, not the slot's full tag list, since a group not even being shown right now isn't
+      // relevant to this printout.
       const slotAuds = new Set(slotAudiences(slot));
       const activeIds = [...scheduleAudienceFilter];
       const coversActiveScope = slotAuds.has(MAIN_AUDIENCE_ID) || activeIds.every(id => slotAuds.has(id));
-      const audienceLabel = coversActiveScope
-        ? 'All Attendees'
-        : 'Only ' + activeIds.filter(id => slotAuds.has(id)).map(id => (scheduleAudiences.find(a => a.id === id) || {}).name).filter(Boolean).join(' + ');
-      const audienceTag = `<span class="sc-print-audience">${escapeHtml(audienceLabel)}</span>`;
+      const audienceLabel = activeIds.length <= 1
+        ? ''
+        : coversActiveScope
+          ? 'All Attendees'
+          : 'Only ' + activeIds.filter(id => slotAuds.has(id)).map(id => (scheduleAudiences.find(a => a.id === id) || {}).name).filter(Boolean).join(' + ');
+      const audienceTag = audienceLabel ? `<span class="sc-print-audience">${escapeHtml(audienceLabel)}</span>` : '';
       if (slot.kind === 'breakout') {
         return `<div class="sc-print-row" style="border-left-color:${kindColor};">
           <div class="sc-print-time">${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div>
