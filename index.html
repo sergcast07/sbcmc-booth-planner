@@ -10004,6 +10004,7 @@ const REVENUE_TIER_DEFAULTS = [
   { id: 'group_reg', group: 'group', name: 'Regular', phase: 'Regular', rate: 325, count: 50 },
   { id: 'spouse', group: 'other', name: 'Spouse', phase: '', rate: 150, count: 30 },
   { id: 'retiree', group: 'other', name: 'Retiree', phase: '', rate: 0, count: 0 },
+  { id: 'student', group: 'other', name: 'Student', phase: '', rate: 100, count: 13 },
   { id: 'dues', group: 'other', name: 'Membership Dues', phase: '', rate: 0, count: 0 },
   { id: 'collegiate', group: 'student', name: 'Collegiate Worship Collective', phase: '', rate: 100, count: 100, hasHotel: true, nights: 3, occupancy: 4 },
   { id: 'collegiate_local', group: 'student', name: 'Collegiate Worship Collective', phase: 'Local', rate: 60, count: 20 },
@@ -10192,7 +10193,7 @@ function revenueScenarioActualComparison(scenarioName) {
   return {
     member_eb1: count('member_eb1'), member_eb2: count('member_eb2'), member_reg: count('member_reg'),
     nonmember_eb1: count('nonmember_eb1'), nonmember_eb2: count('nonmember_eb2'), nonmember_reg: count('nonmember_reg'),
-    spouse: count('spouse'), collegiate: count('collegiate'), collegiate_local: count('collegiate_local'),
+    spouse: count('spouse'), student: count('student'), collegiate: count('collegiate'), collegiate_local: count('collegiate_local'),
     sls: count('sls'), sls_local: count('sls_local'),
   };
 }
@@ -10276,8 +10277,8 @@ function registrationActualsHTML() {
             ${phasedRow('Member', 'member')}
             ${phasedRow('Non-Member', 'nonmember')}
             ${flatRow('Spouse', 'spouse', expected.spouse)}
-            ${flatRow('Student', 'student')}
             ${flatRow('Retiree', 'retiree')}
+            ${flatRow('Student', 'student', expected.student)}
             ${flatRow('Group', 'group')}
           </tbody>
         </table>
