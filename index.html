@@ -18055,6 +18055,60 @@ function breakoutNumberForSlot(slot) {
   return m ? m[1] : null;
 }
 
+// A breakout session's room: its own, else the room reserved for its track in that slot
+// (breakout_room_bookings). A session normally inherits the reservation when a speaker is
+// assigned, but one assigned before the reservation existed has no room of its own -- falling
+// back here keeps it from silently dropping its room off the printed handout.
+function effectiveBreakoutRoom(sess, slot) {
+  if (sess && sess.room) return sess.room;
+  if (!sess || !slot || !sess.track) return '';
+  const track = sessionTracks.find(t => t.name === sess.track);
+  const booking = track ? findRoomBookingByTrack(track.id, slot.id) : null;
+  return (booking && booking.room) || '';
+}
+
+// One entry per real room that two or more DIFFERENT tracks are using in the same breakout slot:
+// {room, slotId, tracks: [track names], speakerIds: [...]}. Counts a reservation (a room held for
+// a track ahead of any speaker) the same as a scheduled session -- but only while that track has
+// nobody scheduled in that slot, since once someone is assigned the session's own room is what
+// counts. Co-presenters of one session share a track and room, so they never count against each
+// other. Internal logistics only: shown on screen (Conflicts panel + grid), never on the printout.
+function computeBreakoutRoomConflicts() {
+  const byKey = {};
+  const add = (room, slotId, trackName, speakerId) => {
+    if (!room || !slotId || !trackName) return;
+    const k = room + '|' + slotId;
+    const e = byKey[k] = byKey[k] || { room, slotId, tracks: new Set(), speakerIds: new Set() };
+    e.tracks.add(trackName);
+    if (speakerId) e.speakerIds.add(speakerId);
+  };
+  const occupied = new Set(); // trackName|slotId with at least one scheduled session
+  speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
+    if (!sess.track) return;
+    const slot = findSlotForSession(sess);
+    if (!slot || slot.kind !== 'breakout') return;
+    occupied.add(sess.track + '|' + slot.id);
+    add(effectiveBreakoutRoom(sess, slot), slot.id, sess.track, sp.id);
+  }));
+  breakoutRoomBookings.forEach(b => {
+    const track = sessionTracks.find(t => t.id === b.trackId);
+    if (!track || occupied.has(track.name + '|' + b.slotId)) return;
+    add(b.room, b.slotId, track.name, null);
+  });
+  return Object.values(byKey)
+    .filter(e => e.tracks.size > 1)
+    .map(e => ({ room: e.room, slotId: e.slotId, tracks: [...e.tracks], speakerIds: [...e.speakerIds] }));
+}
+function breakoutRoomConflictKeys() {
+  return new Set(computeBreakoutRoomConflicts().map(rc => rc.room + '|' + rc.slotId));
+}
+// Speakers with a scheduling conflict of their own (double-booked, travel timing, orphaned
+// link) -- room conflicts are deliberately left out: those belong to a room-and-time, not to
+// any one person, so marking every card a speaker has red for one shared room would mislead.
+function scheduleConflictSpeakerIds() {
+  return new Set(computeScheduleConflicts().filter(c => c.kind !== 'room' && c.speakerId).map(c => c.speakerId));
+}
+
 // ==== Schedule tab: Conflicts panel + Breakout Grid + Timeline ====
 // Everything below reads/writes speakers[].data.sessions directly (via pushSpeaker), the same
 // objects the Speakers/Artists detail panel edits -- there's no separate sync step because
@@ -18195,6 +18249,16 @@ function computeScheduleConflicts() {
       }
     });
   });
+  // Room double-booking: two different tracks using the same room in the same breakout slot.
+  // Tagged kind:'room' so the grid and the printout can tell it apart from a per-speaker conflict.
+  computeBreakoutRoomConflicts().forEach(rc => {
+    const slot = scheduleSlots.find(s => s.id === rc.slotId);
+    const when = slot ? ` in ${slot.label} (${friendlyDate(slot.date)}, ${friendlyTime(slot.start)})` : '';
+    conflicts.push({
+      kind: 'room', speakerId: rc.speakerIds[0] || null, icon: '🚪',
+      message: `${rc.room} is double-booked${when} — ${rc.tracks.map(t => `"${t}"`).join(' and ')} are both set to use it at the same time.`
+    });
+  });
   return conflicts;
 }
 
@@ -18217,14 +18281,14 @@ function renderScheduleConflicts() {
   if (!canEdit('schedule.all') && !window.isAdminUser) { body.innerHTML = ''; return; }
   const conflicts = computeScheduleConflicts();
   if (!conflicts.length) {
-    body.innerHTML = `<div class="db-section"><div class="db-section-title">Conflicts</div><div class="sch-conflicts-empty">None detected — nothing double-booked, no flight-timing issues, and every breakout session is linked to a real slot.</div></div>`;
+    body.innerHTML = `<div class="db-section"><div class="db-section-title">Conflicts</div><div class="sch-conflicts-empty">None detected — no speaker or room is double-booked, no flight-timing issues, and every breakout session is linked to a real slot.</div></div>`;
     return;
   }
   body.innerHTML = `
     <div class="db-section">
       <div class="db-section-title">Conflicts (${conflicts.length})</div>
       <div class="sp-table-wrap"><table class="dv-table"><tbody>
-        ${conflicts.map(c => `<tr class="sch-conflict-row" onclick="jumpToSpeaker('${c.speakerId}')"><td style="width:26px;">${c.icon}</td><td>${escapeHtml(c.message)}</td></tr>`).join('')}
+        ${conflicts.map(c => `<tr class="sch-conflict-row"${c.speakerId ? ` onclick="jumpToSpeaker('${c.speakerId}')"` : ' style="cursor:default;"'}><td style="width:26px;">${c.icon}</td><td>${escapeHtml(c.message)}</td></tr>`).join('')}
       </tbody></table></div>
     </div>
   `;
@@ -18356,7 +18420,10 @@ function renderBreakoutGrid() {
       (index[key] = index[key] || []).push({ speakerId: sp.id, sessionIndex: i, sess });
     });
   });
-  const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
+  const conflictSpeakerIds = scheduleConflictSpeakerIds();
+  // Same visibility rule as the Conflicts panel itself: room clashes are for whoever builds the
+  // schedule, not for a view-only teammate or the public link.
+  const roomConflictKeys = (canEditSchedule || window.isAdminUser) ? breakoutRoomConflictKeys() : new Set();
 
   const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}${canEditSchedule ? `<span class="sch-edit-icon" style="margin-left:4px;" onclick="editScheduleSlotLabel('${slot.id}')" title="Rename this breakout slot">✎</span>` : ''}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
 
@@ -18412,9 +18479,14 @@ function renderBreakoutGrid() {
       const occupantIds = new Set(occs.map(o => o.speakerId));
       const addOptions = sortedSpeakers.filter(sp => !occupantIds.has(sp.id)).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
       const addSelect = canEditSchedule ? `<select class="sch-cell-add" onchange="assignSpeakerToBreakoutCell(this.value,'${track.id}','${slot.id}'); this.value='';" onclick="event.stopPropagation();"><option value="">${occs.length ? '+ add' : '+ assign'}</option>${addOptions}</select>` : '';
-      const cls = occs.length ? 'sch-cell' : 'sch-cell sch-cell-empty';
+      const clashRoom = occs.length
+        ? (occs.map(o => effectiveBreakoutRoom(o.sess, slot)).find(Boolean) || '')
+        : ((findRoomBookingByTrack(track.id, slot.id) || {}).room || '');
+      const roomClash = !!clashRoom && roomConflictKeys.has(clashRoom + '|' + slot.id);
+      const cls = (occs.length ? 'sch-cell' : 'sch-cell sch-cell-empty') + (roomClash ? ' sch-room-conflict' : '');
+      const clashBadge = roomClash ? `<div class="sch-room-conflict-flag" title="Another track is also set to use this room at this time — see Conflicts above.">🚪⚠️ Room double-booked</div>` : '';
       const dragHandlers = canEditSchedule ? `ondragover="schDragOver(event)" ondragleave="schDragLeave(event)" ondrop="schDrop(event,'${track.id}','${slot.id}')"` : '';
-      return `<td><div class="${cls}" ${dragHandlers}>${cards}${roomHtml}${addSelect}</div></td>`;
+      return `<td><div class="${cls}" ${dragHandlers}>${clashBadge}${cards}${roomHtml}${addSelect}</div></td>`;
     }).join('');
     const leader = trackLeaderForTrack(track.name);
     let leaderHtml;
@@ -18486,6 +18558,7 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
 
   const trackColorByName = {};
   sessionTracks.forEach((t, i) => { trackColorByName[t.name] = trackColorForIndex(i); });
+  const roomConflictKeys = breakoutRoomConflictKeys();
 
   const headerCells = breakoutSlots.map(slot => `<th>${escapeHtml(slot.label)}<div class="sp-sub" style="font-weight:400; text-transform:none;">${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</div></th>`).join('');
 
@@ -18497,7 +18570,7 @@ function renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEdit
       // A real room isn't allowed to host two different tracks at once -- flag that distinctly
       // from a speaker conflict, since it's a logistics problem even when neither speaker
       // individually double-booked.
-      const roomDoubleBooked = !isNone && new Set(occs.map(o => o.sess.track)).size > 1;
+      const roomDoubleBooked = !isNone && roomConflictKeys.has(roomKey + '|' + slot.id);
       const cards = occs.map(occ => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
@@ -18561,6 +18634,13 @@ function breakoutPrintLegendHtml(breakoutSlots) {
   return breakoutSlots.map(slot => `<span class="bo-print-legend-item"><strong>${escapeHtml(slot.label)}</strong> ${friendlyDate(slot.date)}, ${friendlyTime(slot.start)}–${friendlyTime(slot.end)}</span>`).join('');
 }
 
+// Every printed breakout session carries a room line. A session with no room assigned yet prints
+// "Room TBD" rather than leaving the line off, so a missing room is visible on the page instead
+// of looking like there was never meant to be one.
+function breakoutPrintRoomHtml(room) {
+  return `<div class="bo-print-room">${escapeHtml(room ? roomLabelWithCapacity(room) : 'Room TBD')}</div>`;
+}
+
 function breakoutPrintCardHtml(occSp, sess, isConflict, showTitle) {
   return `<div class="bo-print-card ${isConflict ? 'bo-print-card-conflict' : ''}">
     <div class="bo-print-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
@@ -18588,26 +18668,25 @@ function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
       sortCellOccupants(occs);
       const slotLabel = `<div class="bo-print-slot-label">${escapeHtml(slot.label)}</div>`;
       if (!occs.length) {
-        // A working session title reserved ahead of a speaker (see
-        // setBreakoutSessionTitleBooking) is worth printing -- otherwise a cell that's already
-        // got a planned topic looks identical on paper to one nobody's touched yet. A booking
-        // that only reserves a ROOM (no title) isn't shown here, though -- that's internal
-        // planning scaffolding, not something the printed handout needs to call out.
+        // A session that's only a reservation so far -- a room held for this track, a working
+        // title (see setBreakoutSessionTitleBooking), or both -- still prints, with its room,
+        // so a cell that's already planned never looks identical on paper to one nobody's
+        // touched. Only a cell with no booking at all prints as an empty dash.
         const booking = findRoomBookingByTrack(track.id, slot.id);
-        if (booking && booking.sessionTitle) {
-          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div><div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
+        if (booking && (booking.sessionTitle || booking.room)) {
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}${breakoutPrintRoomHtml(booking.room)}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
       const titlesMatch = occs.length > 1 && !!occs[0].sess.title && occs.every(o => o.sess.title === occs[0].sess.title);
-      const room = occs[0].sess.room;
+      const room = occs.map(o => effectiveBreakoutRoom(o.sess, slot)).find(Boolean) || '';
       const cards = occs.map((occ, occIdx) => {
         const occSp = getSpeaker(occ.speakerId);
         const isConflict = conflictSpeakerIds.has(occ.speakerId);
         const showTitle = (!titlesMatch || occIdx === 0) && !!occ.sess.title;
         return breakoutPrintCardHtml(occSp, occ.sess, isConflict, showTitle);
       }).join('');
-      return `<div class="bo-print-cell" style="border-top-color:${trackColor};">${slotLabel}${cards}${room ? `<div class="bo-print-room">${escapeHtml(roomLabelWithCapacity(room))}</div>` : ''}</div>`;
+      return `<div class="bo-print-cell" style="border-top-color:${trackColor};">${slotLabel}${cards}${breakoutPrintRoomHtml(room)}</div>`;
     }).join('');
     return `<div class="bo-print-track">
       <div class="bo-print-track-head">
@@ -18627,15 +18706,16 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
       if (!sess.track) return;
       const slot = findSlotForSession(sess);
       if (!slot || slot.kind !== 'breakout') return;
-      all.push({ speakerId: sp.id, sessionIndex: i, sess, slotId: slot.id });
+      all.push({ speakerId: sp.id, sessionIndex: i, sess, slotId: slot.id, room: effectiveBreakoutRoom(sess, slot) });
     });
   });
   const roomIndex = {};
   all.forEach(occ => {
-    const key = (occ.sess.room || '__none__') + '|' + occ.slotId;
+    const key = (occ.room || '__none__') + '|' + occ.slotId;
     (roomIndex[key] = roomIndex[key] || []).push(occ);
   });
-  const hasUnassigned = all.some(o => !o.sess.room);
+  const hasUnassigned = all.some(o => !o.room);
+  const occupiedTrackSlots = new Set(all.map(o => o.sess.track + '|' + o.slotId));
   const rowRooms = sessionRooms.map(r => r.name).concat(hasUnassigned ? ['__none__'] : []);
   if (!rowRooms.length) return '<p class="bo-print-empty">No rooms set up yet.</p>';
   const trackColorByName = {};
@@ -18648,13 +18728,16 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
       sortCellOccupants(occs);
       const slotLabel = `<div class="bo-print-slot-label">${escapeHtml(slot.label)}</div>`;
       if (!occs.length) {
-        // Same rule as the By Track view: only a reserved session TITLE is worth printing --
-        // a room booked for a track with no title yet is internal scaffolding, left off the page.
+        // Same rule as the By Track view: a room held for a track still prints even with no
+        // title yet -- the row it sits under is the room, so the page shows which track has it.
         const booking = isNone ? null : findRoomBookingByRoom(roomKey, slot.id);
-        if (booking && booking.sessionTitle) {
-          const bookedTrack = sessionTracks.find(t => t.id === booking.trackId);
+        const bookedTrackForCell = booking ? sessionTracks.find(t => t.id === booking.trackId) : null;
+        // A reservation is only "speaker TBD" while that track has nobody scheduled in this slot --
+        // a leftover booking for a track that's since been placed (maybe in another room) isn't.
+        if (booking && !(bookedTrackForCell && occupiedTrackSlots.has(bookedTrackForCell.name + '|' + slot.id))) {
+          const bookedTrack = bookedTrackForCell;
           const bookedTrackColor = trackColorByName[bookedTrack ? bookedTrack.name : ''] || 'var(--line)';
-          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title" style="color:${bookedTrackColor};">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div><div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div><div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title" style="color:${bookedTrackColor};">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div>${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
@@ -18683,7 +18766,7 @@ function printBreakoutGridReport() {
   if (!container) return;
   const breakoutSlots = scheduleSlots.filter(s => s.kind === 'breakout').sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   if (!breakoutSlots.length) { toast('No breakout slots to print yet.'); return; }
-  const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
+  const conflictSpeakerIds = scheduleConflictSpeakerIds();
   const modeLabel = breakoutGridViewMode === 'room' ? 'By Room' : 'By Track';
   const gridHtml = breakoutGridViewMode === 'room'
     ? renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds)
@@ -18854,7 +18937,7 @@ function secondaryBreakoutGridsHtml() {
   const slotsWithOptions = scheduleSlots.filter(s => s.subOptions && s.subOptions.length);
   if (!slotsWithOptions.length) return '';
   const sortedSpeakers = sortByLastName(scheduleEligibleSpeakers());
-  const conflictSpeakerIds = new Set(computeScheduleConflicts().map(c => c.speakerId));
+  const conflictSpeakerIds = scheduleConflictSpeakerIds();
   const canEditSchedule = canEdit('schedule.all');
 
   return slotsWithOptions.map(slot => {
