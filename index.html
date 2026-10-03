@@ -18067,40 +18067,73 @@ function effectiveBreakoutRoom(sess, slot) {
   return (booking && booking.room) || '';
 }
 
-// One entry per real room that two or more DIFFERENT tracks are using in the same breakout slot:
-// {room, slotId, tracks: [track names], speakerIds: [...]}. Counts a reservation (a room held for
-// a track ahead of any speaker) the same as a scheduled session -- but only while that track has
-// nobody scheduled in that slot, since once someone is assigned the session's own room is what
-// counts. Co-presenters of one session share a track and room, so they never count against each
-// other. Internal logistics only: shown on screen (Conflicts panel + grid), never on the printout.
-function computeBreakoutRoomConflicts() {
-  const byKey = {};
-  const add = (room, slotId, trackName, speakerId) => {
-    if (!room || !slotId || !trackName) return;
-    const k = room + '|' + slotId;
-    const e = byKey[k] = byKey[k] || { room, slotId, tracks: new Set(), speakerIds: new Set() };
-    e.tracks.add(trackName);
-    if (speakerId) e.speakerIds.add(speakerId);
-  };
+// Every use of a physical room on the schedule: each main-schedule slot that has a room (the
+// Timeline) and each breakout session (its own room, else its track's reservation). Co-presenters
+// of one breakout (same slot, track, room) are ONE use, not several. A room reserved for a track
+// ahead of any speaker counts too, but only while that track has nobody scheduled in that slot --
+// once someone is assigned, the session's own room is what counts.
+function roomUses() {
+  const uses = {};
+  const add = (key, u) => { if (u.room && !uses[key]) uses[key] = u; else if (uses[key]) u.speakerIds.forEach(id => uses[key].speakerIds.add(id)); };
+  scheduleSlots.forEach(slot => {
+    if (slot.kind === 'breakout' || !slot.room) return;
+    add('slot|' + slot.id, { room: slot.room, slotId: slot.id, date: slot.date, start: slot.start, end: slot.end || slot.start, label: slot.label, breakout: false, speakerIds: new Set() });
+  });
   const occupied = new Set(); // trackName|slotId with at least one scheduled session
+  const breakoutUse = (slot, track, room, speakerId) => add('bo|' + slot.id + '|' + track + '|' + room, {
+    room, slotId: slot.id, date: slot.date, start: slot.start, end: slot.end || slot.start,
+    label: slot.label + ' — ' + track, breakout: true, speakerIds: new Set(speakerId ? [speakerId] : [])
+  });
   speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
     if (!sess.track) return;
     const slot = findSlotForSession(sess);
     if (!slot || slot.kind !== 'breakout') return;
     occupied.add(sess.track + '|' + slot.id);
-    add(effectiveBreakoutRoom(sess, slot), slot.id, sess.track, sp.id);
+    const room = effectiveBreakoutRoom(sess, slot);
+    if (room) breakoutUse(slot, sess.track, room, sp.id);
   }));
   breakoutRoomBookings.forEach(b => {
     const track = sessionTracks.find(t => t.id === b.trackId);
-    if (!track || occupied.has(track.name + '|' + b.slotId)) return;
-    add(b.room, b.slotId, track.name, null);
+    const slot = scheduleSlots.find(sl => sl.id === b.slotId);
+    if (!track || !slot || !b.room || occupied.has(track.name + '|' + b.slotId)) return;
+    breakoutUse(slot, track.name, b.room, null);
   });
-  return Object.values(byKey)
-    .filter(e => e.tracks.size > 1)
-    .map(e => ({ room: e.room, slotId: e.slotId, tracks: [...e.tracks], speakerIds: [...e.speakerIds] }));
+  return Object.values(uses);
 }
+
+// Pairs of room uses that share a room on the same day with overlapping times -- a partial overlap
+// counts (a 12:00-1:30 panel and a 12:45 breakout in the same room), but back-to-back (one ends
+// when the next starts) does not. Internal logistics only: shown on screen (Conflicts panel,
+// Timeline, Breakout Grid), never on a printout.
+function computeRoomConflicts() {
+  const uses = roomUses();
+  const out = [];
+  for (let i = 0; i < uses.length; i++) {
+    for (let j = i + 1; j < uses.length; j++) {
+      const a = uses[i], b = uses[j];
+      if (a.room !== b.room || a.date !== b.date || !a.start || !b.start) continue;
+      if (a.start < b.end && b.start < a.end) out.push({ room: a.room, date: a.date, a, b });
+    }
+  }
+  return out;
+}
+// "room|slotId" for every breakout cell involved in a room conflict -- how the Breakout Grid
+// knows which cells to flag.
 function breakoutRoomConflictKeys() {
-  return new Set(computeBreakoutRoomConflicts().map(rc => rc.room + '|' + rc.slotId));
+  const keys = new Set();
+  computeRoomConflicts().forEach(c => [c.a, c.b].forEach(u => { if (u.breakout) keys.add(u.room + '|' + u.slotId); }));
+  return keys;
+}
+// slotId -> short note on what a Timeline slot overlaps, for the flag shown beside its room.
+function timelineRoomConflictNotes() {
+  const notes = new Map();
+  const note = (u, other) => {
+    if (u.breakout) return;
+    const text = `Overlaps "${other.label}" (${friendlyTime(other.start)}–${friendlyTime(other.end)}) in ${u.room}`;
+    notes.set(u.slotId, notes.has(u.slotId) ? notes.get(u.slotId) + '; ' + text : text);
+  };
+  computeRoomConflicts().forEach(c => { note(c.a, c.b); note(c.b, c.a); });
+  return notes;
 }
 // Speakers with a scheduling conflict of their own (double-booked, travel timing, orphaned
 // link) -- room conflicts are deliberately left out: those belong to a room-and-time, not to
@@ -18249,14 +18282,14 @@ function computeScheduleConflicts() {
       }
     });
   });
-  // Room double-booking: two different tracks using the same room in the same breakout slot.
-  // Tagged kind:'room' so the grid and the printout can tell it apart from a per-speaker conflict.
-  computeBreakoutRoomConflicts().forEach(rc => {
-    const slot = scheduleSlots.find(s => s.id === rc.slotId);
-    const when = slot ? ` in ${slot.label} (${friendlyDate(slot.date)}, ${friendlyTime(slot.start)})` : '';
+  // Room double-booking: two uses of the same room that overlap in time -- Timeline slots and
+  // breakout sessions alike. Tagged kind:'room' so the grids and the printout can tell it apart
+  // from a per-speaker conflict.
+  computeRoomConflicts().forEach(c => {
+    const span = u => `"${u.label}" (${friendlyTime(u.start)}–${friendlyTime(u.end)})`;
     conflicts.push({
-      kind: 'room', speakerId: rc.speakerIds[0] || null, icon: '🚪',
-      message: `${rc.room} is double-booked${when} — ${rc.tracks.map(t => `"${t}"`).join(' and ')} are both set to use it at the same time.`
+      kind: 'room', speakerId: [...c.a.speakerIds, ...c.b.speakerIds][0] || null, icon: '🚪',
+      message: `${c.room} is double-booked on ${friendlyDate(c.date)} — ${span(c.a)} overlaps ${span(c.b)}.`
     });
   });
   return conflicts;
@@ -19318,9 +19351,16 @@ function renderScheduleTimeline() {
     const current = new Set(slotAudiences(slot));
     return `<div class="sch-row-aud-dots">${orderedScheduleAudiences().map(a => `<span class="sch-aud-dot ${current.has(a.id) ? 'on' : 'off'} ${canEditSchedule ? '' : 'sch-aud-dot-readonly'}" style="--dot-color:${audienceColorForId(a.id)};" ${canEditSchedule ? `onclick="toggleSlotAudience('${slot.id}','${a.id}')"` : ''} title="${canEditSchedule ? (current.has(a.id) ? 'Remove' : 'Add') + ' ' + escapeHtml(a.name) : escapeHtml(a.name)}"></span>`).join('')}</div>`;
   };
-  const roomControl = (slot) => canEditSchedule
-    ? `<select class="sch-timeline-room-select" onchange="updateScheduleSlotRoom('${slot.id}', this.value)" title="Room">${sessionRoomOptionsHtml(slot.room)}</select>`
-    : (slot.room ? `<span class="sch-timeline-room-label">${escapeHtml(slot.room)}</span>` : '');
+  // Same visibility rule as the Conflicts panel: room clashes are for whoever builds the schedule,
+  // not a view-only teammate or the public link -- and never on the printed agenda.
+  const roomConflictNotes = (canEditSchedule || window.isAdminUser) ? timelineRoomConflictNotes() : new Map();
+  const roomControl = (slot) => {
+    const base = canEditSchedule
+      ? `<select class="sch-timeline-room-select" onchange="updateScheduleSlotRoom('${slot.id}', this.value)" title="Room">${sessionRoomOptionsHtml(slot.room)}</select>`
+      : (slot.room ? `<span class="sch-timeline-room-label">${escapeHtml(slot.room)}</span>` : '');
+    const note = roomConflictNotes.get(slot.id);
+    return base + (note ? `<span class="sch-room-conflict-flag" title="${escapeHtml(note)}">🚪⚠️ Room conflict</span>` : '');
+  };
   // A description is slot.notes, already saved/loaded, just never had UI before. The textarea
   // itself only shows while actively being edited (expandedScheduleSlotDescriptions) -- once
   // saved it collapses to a plain read-only line (click it, or the ✎ icon, to reopen), so a slot
