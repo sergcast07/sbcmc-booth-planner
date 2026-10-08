@@ -1754,6 +1754,26 @@ svg.cfp-balance-chart { width: 100%; height: 260px; overflow: visible; }
   }
   .bo-print-card-conflict .bo-print-name { color: #a52620; }
 
+  /* By Artist + Sound Checks reports. An artist's card and a day's table each stay whole on a page. */
+  .ar-print-list { display: block; }
+  .ar-print-list .ar-card { margin-bottom: 11px; break-inside: avoid; page-break-inside: avoid; }
+  .ar-print-list .ar-head { padding: 7px 14px; }
+  .ar-print-list .ar-name { font-size: 14.5px; }
+  .ar-print-list .ar-row { grid-template-columns: 70px 128px 1fr; padding: 4px 14px; font-size: 10.5px; }
+  .ar-print-list .ar-missing { font-size: 9.5px; padding-left: 14px; }
+  .ar-print-list .ar-missing-wrap { padding: 3px 14px 6px; }
+  .scp-day { margin-bottom: 15px; break-inside: avoid; page-break-inside: avoid; }
+  .scp-day-title { font-family: var(--font-display); font-style: italic; font-size: 14px; color: var(--teal); margin-bottom: 5px; }
+  .scp-table { width: 100%; border-collapse: collapse; font-size: 10.5px; table-layout: fixed; }
+  .scp-table th:nth-child(1) { width: 19%; } .scp-table th:nth-child(2) { width: 38%; } .scp-table th:nth-child(3) { width: 21%; }
+  .scp-table th { text-align: left; font-size: 8.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-soft); padding: 3px 8px; border-bottom: 1.5px solid var(--ink); }
+  .scp-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .scp-table tr { break-inside: avoid; }
+  .scp-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .scp-artist { font-weight: 700; }
+  .scp-note { font-weight: 400; font-style: italic; font-size: 9.5px; color: var(--ink-soft); }
+  .scp-needs { color: var(--ink-soft); }
+
   /* Conference Schedule report -- a simple chronological list. Unlike the Breakout Grid's
      per-track sections, a day is deliberately NOT break-inside:avoid -- a real day's worth of
      sessions usually runs longer than one page anyway, and forcing the whole day to hold
@@ -1937,6 +1957,44 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sch-itin-row.shared .sch-itin-time::before { content: '◆ '; color: var(--teal); font-size: 9px; }
 .sch-itin-foot { padding: 10px 22px 14px; font-size: 10.5px; color: var(--ink-soft); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
 .sch-itin-key-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); display: inline-block; }
+
+/* By Artist + Sound Checks views (Schedule tab). Also used, un-scoped, inside the print view. */
+.ar-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0 10px; font-size: 12.5px; }
+.ar-controls label { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.ar-controls select, .sc-table select, .sc-table input { font: inherit; font-size: 12px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--ink); }
+.ar-controls .ar-check { cursor: pointer; }
+.ar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; align-items: start; }
+.ar-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.ar-head { display: flex; align-items: baseline; gap: 10px; padding: 11px 16px; background: var(--teal-pale); border-bottom: 1px solid var(--line); }
+.ar-name { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--teal-deep); }
+.ar-name a { color: inherit; text-decoration: none; } .ar-name a:hover { text-decoration: underline; }
+.ar-types { font-size: 10.5px; color: var(--ink-soft); letter-spacing: 0.03em; }
+.ar-row { display: grid; grid-template-columns: 82px 150px 1fr; gap: 10px; padding: 7px 16px; border-bottom: 1px dotted var(--line); font-size: 12.5px; align-items: baseline; }
+.ar-kind { font-size: 9.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+.ar-arrival .ar-kind { color: var(--teal); }
+.ar-soundcheck .ar-kind { color: var(--gold); }
+.ar-session .ar-kind { color: #6a4a86; }
+.ar-when { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.ar-what b { font-weight: 700; }
+.ar-room { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--ink-soft); }
+.ar-what b + .ar-room::before { content: '— '; }
+.ar-room-missing { color: #a52620; font-style: italic; }
+.ar-detail { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
+.ar-missing-wrap { padding: 6px 16px 9px; }
+.ar-missing { font-size: 11px; font-style: italic; color: #8B6A1F; padding: 2px 16px; }
+.ar-missing-wrap .ar-missing { padding: 1px 0; }
+.sc-wrap { max-width: 980px; }
+.sc-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 6px; font-size: 12.5px; }
+.sc-table th { text-align: left; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); padding: 7px 10px; background: var(--teal-pale); }
+.sc-table td { padding: 7px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+.sc-artist a { font-weight: 700; color: var(--ink); text-decoration: none; } .sc-artist a:hover { text-decoration: underline; }
+.sc-table { table-layout: fixed; }
+.sc-table th:nth-child(1) { width: 25%; } .sc-table th:nth-child(2) { width: 15%; } .sc-table th:nth-child(3) { width: 24%; } .sc-table th:nth-child(4) { width: 19%; } .sc-table th:nth-child(6) { width: 62px; }
+.sc-table input[type=date] { width: 100%; max-width: 140px; }
+.sc-table select { max-width: 100%; }
+.sc-time { white-space: nowrap; } .sc-time input { width: 112px; }
+.sc-needs { font-size: 11.5px; color: var(--ink-soft); }
+.sc-actions { white-space: nowrap; text-align: right; }
 
 </style>
 
@@ -2533,6 +2591,8 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="sch-toggle-btn active" id="sch-toggle-timeline" onclick="setScheduleSubview('timeline')">Timeline</button>
       <button class="sch-toggle-btn" id="sch-toggle-itinerary" onclick="setScheduleSubview('itinerary')">Itinerary</button>
       <button class="sch-toggle-btn" id="sch-toggle-rooms" onclick="setScheduleSubview('rooms')">By Room</button>
+      <button class="sch-toggle-btn" id="sch-toggle-artists" onclick="setScheduleSubview('artists')">By Artist</button>
+      <button class="sch-toggle-btn" id="sch-toggle-soundchecks" onclick="setScheduleSubview('soundchecks')">Sound Checks</button>
       <button class="sp-add-btn" id="sch-copy-link-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="copyScheduleViewLink()">🔗 Copy Schedule-Only Link</button>
       <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('schedule')">Export CSV</button>
     </div>
@@ -2544,6 +2604,8 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   <div id="sch-timeline-body"></div>
   <div id="sch-itinerary-body" style="display:none;"></div>
   <div id="sch-rooms-body" style="display:none;"></div>
+  <div id="sch-artists-body" style="display:none;"></div>
+  <div id="sch-soundchecks-body" style="display:none;"></div>
 </div>
 
 <!-- Populated by printBreakoutGridReport() just before printing -- a dedicated clean read-only
@@ -16610,7 +16672,8 @@ function defaultSpeakerData() {
     },
     production: {
       soundCheckNeeded: false, // staff-set -- not every speaker/artist needs one, same "only if flagged" pattern as hostNeeded/lodgingNeeded below
-      soundCheckScheduled: false, soundCheckTime: '',
+      soundCheckScheduled: false, soundCheckTime: '', // soundCheckTime is the older free-text note ("Monday 2:00 PM") -- kept so nothing already typed is lost
+      soundCheckDate: '', soundCheckStart: '', soundCheckEnd: '', soundCheckRoom: '', // structured, so sound checks can be sorted, listed by room and checked for clashes
       wirelessMics: '', wiredMics: '', iemMixes: '', diLines: '', // matches the venue rider's real categories (RF, wired, IEM, DI)
       productionNotes: '' // stage plot / input list references, special stage requests, anything not covered by the counts above
     },
@@ -18198,23 +18261,31 @@ function toggleSlotAudience(slotId, audId) {
 function renderScheduleView() {
   renderScheduleConflicts();
   const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline'), itinBtn = document.getElementById('sch-toggle-itinerary'), roomsBtn = document.getElementById('sch-toggle-rooms');
+  const artistsBtn = document.getElementById('sch-toggle-artists'), scBtn = document.getElementById('sch-toggle-soundchecks');
   if (gridBtn) gridBtn.classList.toggle('active', scheduleSubview === 'grid');
   if (timelineBtn) timelineBtn.classList.toggle('active', scheduleSubview === 'timeline');
   if (itinBtn) itinBtn.classList.toggle('active', scheduleSubview === 'itinerary');
   if (roomsBtn) roomsBtn.classList.toggle('active', scheduleSubview === 'rooms');
+  if (artistsBtn) artistsBtn.classList.toggle('active', scheduleSubview === 'artists');
+  if (scBtn) scBtn.classList.toggle('active', scheduleSubview === 'soundchecks');
   const gridBody = document.getElementById('sch-grid-body'), timelineBody = document.getElementById('sch-timeline-body'), itinBody = document.getElementById('sch-itinerary-body'), roomsBody = document.getElementById('sch-rooms-body');
+  const artistsBody = document.getElementById('sch-artists-body'), scBody = document.getElementById('sch-soundchecks-body');
   if (gridBody) gridBody.style.display = scheduleSubview === 'grid' ? 'block' : 'none';
   if (timelineBody) timelineBody.style.display = scheduleSubview === 'timeline' ? 'block' : 'none';
   if (itinBody) itinBody.style.display = scheduleSubview === 'itinerary' ? 'block' : 'none';
   if (roomsBody) roomsBody.style.display = scheduleSubview === 'rooms' ? 'block' : 'none';
+  if (artistsBody) artistsBody.style.display = scheduleSubview === 'artists' ? 'block' : 'none';
+  if (scBody) scBody.style.display = scheduleSubview === 'soundchecks' ? 'block' : 'none';
   // Every one of these bodies can render a fixed-id filter bar -- clearing whichever containers
   // aren't active keeps a stale, hidden copy of any of those ids from ever sitting in the DOM
   // alongside the live one.
-  const bodies = { grid: gridBody, timeline: timelineBody, itinerary: itinBody, rooms: roomsBody };
+  const bodies = { grid: gridBody, timeline: timelineBody, itinerary: itinBody, rooms: roomsBody, artists: artistsBody, soundchecks: scBody };
   Object.keys(bodies).forEach(k => { if (k !== scheduleSubview && bodies[k]) bodies[k].innerHTML = ''; });
   if (scheduleSubview === 'grid') renderBreakoutGrid();
   else if (scheduleSubview === 'itinerary') renderScheduleItinerary();
   else if (scheduleSubview === 'rooms') renderScheduleByRoom();
+  else if (scheduleSubview === 'artists') renderScheduleByArtist();
+  else if (scheduleSubview === 'soundchecks') renderScheduleSoundChecks();
   else renderScheduleTimeline();
 }
 
@@ -19497,6 +19568,328 @@ function renderScheduleItinerary() {
   `;
 }
 
+// ---- By Artist schedule & Sound Checks ----------------------------------------------------------
+// Two read/print views built from data already on each speaker/artist record: arrival (Transportation
+// tab), sound check (Production tab -- now a structured date/start/end/room) and their sessions.
+// Sound checks can be set right here in the list as well as on the record -- same fields either way.
+let artistSchedPick = '';        // '' = everyone, otherwise one speaker id
+let artistSchedType = 'all';     // 'all' or one of SPEAKER_TYPES
+let artistSchedShowEmpty = false; // artists with nothing scheduled yet are hidden unless asked for
+
+function hhmmPlus(t, mins) {
+  const m = timeToMinutes(t);
+  if (m == null || !mins) return '';
+  const total = m + Number(mins);
+  return String(Math.floor(total / 60) % 24).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+}
+function whenLabel(date, start, end) {
+  const t = start ? friendlyTime(start) + (end ? ' – ' + friendlyTime(end) : '') : '';
+  return [date ? friendlyDate(date) : '', t].filter(Boolean).join(' · ');
+}
+function soundCheckEquipmentText(prod) {
+  const bits = [];
+  if (prod.wirelessMics) bits.push(prod.wirelessMics + ' RF mic' + (Number(prod.wirelessMics) === 1 ? '' : 's'));
+  if (prod.wiredMics) bits.push(prod.wiredMics + ' wired');
+  if (prod.iemMixes) bits.push(prod.iemMixes + ' IEM');
+  if (prod.diLines) bits.push(prod.diLines + ' DI');
+  return bits.join(' · ');
+}
+
+// Everything dated that belongs on one artist's own schedule, in time order, plus plain-language
+// notes for what's still missing (so a gap reads as "not set yet", never as silently nothing).
+function artistScheduleEvents(sp) {
+  const lg = (sp.data && sp.data.logistics) || {};
+  const prod = (sp.data && sp.data.production) || {};
+  const events = [], notes = [];
+
+  if (lg.arrivalDate) {
+    events.push({ kind: 'arrival', date: lg.arrivalDate, start: lg.arrivalTime || '', end: '', title: 'Arrives', room: '', detail: lg.flightInfo || '' });
+  } else {
+    notes.push('Arrival date/time not set (Transportation tab)');
+  }
+
+  if (prod.soundCheckDate) {
+    events.push({ kind: 'soundcheck', date: prod.soundCheckDate, start: prod.soundCheckStart || '', end: prod.soundCheckEnd || '', title: 'Sound check', room: prod.soundCheckRoom || '', detail: [soundCheckEquipmentText(prod), prod.soundCheckTime].filter(Boolean).join(' — ') });
+    if (!prod.soundCheckStart) notes.push('Sound check start time not set');
+    if (!prod.soundCheckRoom) notes.push('Sound check room not assigned');
+  } else if (prod.soundCheckNeeded || prod.soundCheckScheduled) {
+    notes.push(prod.soundCheckTime ? 'Sound check: ' + prod.soundCheckTime + ' (no date/room set)' : 'Sound check needed — not scheduled yet');
+  }
+
+  (sp.data.sessions || []).forEach(sess => {
+    const slot = findSlotForSession(sess);
+    const date = sess.sessionDate || (slot && slot.date) || '';
+    const start = sess.timeSlot || (slot && slot.start) || '';
+    let end = (slot && slot.end) || '';
+    if (!end && start && sess.lengthMin) end = hhmmPlus(start, sess.lengthMin);
+    const room = slot ? (slot.kind === 'breakout' ? effectiveBreakoutRoom(sess, slot) : (sess.room || slot.room || '')) : (sess.room || '');
+    const what = sess.title || sess.track || (slot && slot.label) || '';
+    if (!what && !date) return; // an empty placeholder row, nothing to show
+    const slotLine = slot && slot.label && slot.label !== what ? (slot.kind === 'breakout' && sess.track ? slot.label + ' — ' + sess.track : slot.label) : '';
+    if (!date) { if (!sess.isTrackLead) notes.push('Session not yet scheduled: ' + (what || 'untitled')); return; } // a Track Leader placeholder is just a label for who leads the track, not a session to schedule
+    events.push({ kind: 'session', date, start, end, title: what || 'Session', room, detail: slotLine });
+  });
+
+  const order = { arrival: 0, soundcheck: 1, session: 2 };
+  events.sort((a, b) => (a.date + (a.start || '00:00')).localeCompare(b.date + (b.start || '00:00')) || order[a.kind] - order[b.kind]);
+  const hasAny = events.length > 0 || !!prod.soundCheckNeeded || !!prod.soundCheckScheduled;
+  return { events, notes, hasAny };
+}
+
+function artistBlockHtml(sp, forPrint) {
+  const { events, notes } = artistScheduleEvents(sp);
+  const KIND = { arrival: 'Arrives', soundcheck: 'Sound check', session: 'Session' };
+  const rows = events.map(ev => `<div class="ar-row ar-${ev.kind}">
+      <div class="ar-kind">${KIND[ev.kind]}</div>
+      <div class="ar-when">${escapeHtml(whenLabel(ev.date, ev.start, ev.end)) || '—'}</div>
+      <div class="ar-what">${ev.kind === 'session' ? `<b>${escapeHtml(ev.title)}</b>` : ''}${ev.room ? `<span class="ar-room">${escapeHtml(ev.room)}</span>` : (ev.kind === 'soundcheck' ? '<span class="ar-room ar-room-missing">Room TBD</span>' : '')}${ev.detail ? `<div class="ar-detail">${escapeHtml(ev.detail)}</div>` : ''}</div>
+    </div>`).join('');
+  // "Still missing" notes are staff to-dos -- on screen only, never on a printed handout.
+  const missing = forPrint ? '' : notes.map(n => `<div class="ar-missing">${escapeHtml(n)}</div>`).join('');
+  const types = (sp.types || []).join(' · ');
+  const nameHtml = forPrint ? escapeHtml(sp.name) : `<a href="#" onclick="jumpToSpeaker('${sp.id}'); return false;" title="Open ${escapeHtml(sp.name)}'s record">${escapeHtml(sp.name)}</a>`;
+  return `<div class="ar-card">
+    <div class="ar-head"><span class="ar-name">${nameHtml}</span>${types ? `<span class="ar-types">${escapeHtml(types)}</span>` : ''}</div>
+    ${rows || '<div class="ar-missing">Nothing scheduled yet</div>'}
+    ${missing ? `<div class="ar-missing-wrap">${missing}</div>` : ''}
+  </div>`;
+}
+
+function artistSchedList() {
+  let list = sortByLastName(scheduleEligibleSpeakers());
+  if (artistSchedType !== 'all') list = list.filter(sp => (sp.types || []).includes(artistSchedType));
+  if (artistSchedPick) return list.filter(sp => sp.id === artistSchedPick).concat(speakers.filter(sp => sp.id === artistSchedPick && !list.some(x => x.id === sp.id)));
+  if (!artistSchedShowEmpty) list = list.filter(sp => artistScheduleEvents(sp).hasAny);
+  return list;
+}
+function setArtistSchedPick(v) { artistSchedPick = v; renderScheduleView(); }
+function setArtistSchedType(v) { artistSchedType = v; artistSchedPick = ''; renderScheduleView(); }
+function setArtistSchedShowEmpty(v) { artistSchedShowEmpty = !!v; renderScheduleView(); }
+
+function renderScheduleByArtist() {
+  const body = document.getElementById('sch-artists-body');
+  if (!body) return;
+  const everyone = sortByLastName(scheduleEligibleSpeakers());
+  const list = artistSchedList();
+  const pickOptions = '<option value="">All artists</option>' + everyone.map(sp => `<option value="${sp.id}" ${sp.id === artistSchedPick ? 'selected' : ''}>${escapeHtml(sp.name)}</option>`).join('');
+  const typeOptions = '<option value="all">All types</option>' + SPEAKER_TYPES.map(t => `<option value="${escapeHtml(t)}" ${t === artistSchedType ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+  body.innerHTML = `
+    <div class="ar-controls">
+      <label>Show <select onchange="setArtistSchedPick(this.value)">${pickOptions}</select></label>
+      <label>Type <select onchange="setArtistSchedType(this.value)">${typeOptions}</select></label>
+      <label class="ar-check"><input type="checkbox" ${artistSchedShowEmpty ? 'checked' : ''} onchange="setArtistSchedShowEmpty(this.checked)"> Include artists with nothing scheduled yet</label>
+      <button class="sp-add-btn" style="margin-left:auto;" onclick="printArtistScheduleReport()">🖨 Print${artistSchedPick ? ' this artist' : ' all'}</button>
+    </div>
+    <div class="sp-sub" style="margin:0 0 12px;">Arrival comes from each record's Transportation tab, the sound check from its Production tab (or set it on the Sound Checks view), and sessions from the schedule. ${list.length} artist${list.length === 1 ? '' : 's'} shown.</div>
+    ${list.length ? `<div class="ar-grid">${list.map(sp => artistBlockHtml(sp, false)).join('')}</div>` : '<div class="sch-conflicts-empty">No artists have anything scheduled yet. Tick "Include artists with nothing scheduled yet" to see everyone.</div>'}
+  `;
+}
+
+function printArtistScheduleReport() {
+  const container = document.getElementById('schedule-print-view');
+  if (!container) return;
+  const list = artistSchedList();
+  if (!list.length) { toast('No artists to print yet.'); return; }
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const scope = artistSchedPick ? (list[0] ? list[0].name : '') : (artistSchedType !== 'all' ? artistSchedType + 's' : 'All Artists');
+  container.innerHTML = `
+    <div class="bo-print-band">
+      <div class="bo-print-eyebrow">SBCMC 2027</div>
+      <h1>Artist Schedules</h1>
+      <div class="bo-print-tag">${escapeHtml(scope)} — Generated ${dateStr}</div>
+    </div>
+    <div class="bo-print-body"><div class="ar-print-list">${list.map(sp => artistBlockHtml(sp, true)).join('')}</div></div>`;
+  runScopedPrint('printing-schedule-report');
+}
+
+// ---- Sound checks ----
+function soundCheckRows() {
+  return speakers.map(sp => {
+    const prod = (sp.data && sp.data.production) || {};
+    const date = prod.soundCheckDate || '', start = prod.soundCheckStart || '';
+    const flagged = !!(prod.soundCheckNeeded || prod.soundCheckScheduled || date);
+    if (!flagged) return null;
+    return { sp, prod, date, start, end: prod.soundCheckEnd || '', room: prod.soundCheckRoom || '', note: prod.soundCheckTime || '', needs: soundCheckEquipmentText(prod), dated: !!(date && start) };
+  }).filter(Boolean);
+}
+function soundCheckSortedRows() {
+  return soundCheckRows().sort((a, b) =>
+    (a.dated === b.dated ? 0 : a.dated ? -1 : 1) ||
+    (a.date + (a.start || '99:99')).localeCompare(b.date + (b.start || '99:99')) ||
+    lastNameOf(a.sp.name).localeCompare(lastNameOf(b.sp.name)));
+}
+
+// Problems with a sound check's slot -- shown on screen only, never printed: the room is in use by
+// something else at that time (another sound check, or a main-schedule slot / breakout there), the
+// artist is double-booked against their own session, or it falls before they arrive.
+function soundCheckProblems(rows) {
+  const out = new Map();
+  const add = (id, msg) => { if (!out.has(id)) out.set(id, []); out.get(id).push(msg); };
+  const span = r => { const s = timeToMinutes(r.start); if (s == null) return null; const e = r.end ? timeToMinutes(r.end) : s + 30; return [s, e > s ? e : s + 30]; };
+  const overlap = (a, b) => a && b && a[0] < b[1] && b[0] < a[1];
+  const dated = rows.filter(r => r.dated);
+  const uses = roomUses();
+  dated.forEach(r => {
+    const mine = span(r);
+    if (r.room) {
+      dated.forEach(o => {
+        if (o === r || o.date !== r.date || o.room !== r.room) return;
+        if (overlap(mine, span(o))) add(r.sp.id, `Overlaps ${o.sp.name}'s sound check in ${r.room} (${whenLabel('', o.start, o.end)})`);
+      });
+      uses.forEach(u => {
+        if (u.room !== r.room || u.date !== r.date) return;
+        const us = timeToMinutes(u.start), ue = timeToMinutes(u.end);
+        if (us != null && overlap(mine, [us, ue > us ? ue : us + 30])) add(r.sp.id, `${r.room} is in use: ${u.label} (${friendlyTime(u.start)} – ${friendlyTime(u.end)})`);
+      });
+    }
+    artistScheduleEvents(r.sp).events.forEach(ev => {
+      if (ev.date !== r.date || !ev.start) return;
+      const es = timeToMinutes(ev.start), ee = ev.end ? timeToMinutes(ev.end) : es + 30;
+      if (ev.kind === 'session' && overlap(mine, [es, ee > es ? ee : es + 30])) add(r.sp.id, `Overlaps their own session "${ev.title}" (${friendlyTime(ev.start)})`);
+    });
+    const lg = (r.sp.data && r.sp.data.logistics) || {};
+    if (lg.arrivalDate) {
+      const sc = r.date + 'T' + r.start, arr = lg.arrivalDate + 'T' + (lg.arrivalTime || '23:59');
+      if (sc < arr) add(r.sp.id, `Scheduled before they arrive (${friendlyDate(lg.arrivalDate)}${lg.arrivalTime ? ', ' + friendlyTime(lg.arrivalTime) : ''})`);
+    }
+  });
+  return out;
+}
+
+// Turns an older typed sound check time ("Monday 7:30am", "Sunday 5:00pm") into a real date + start
+// time, using the conference's own days -- only when BOTH a weekday and a clock time can be read,
+// never a guess. Room is left for staff to assign.
+function parseLegacySoundCheck(text) {
+  const t = String(text || '').toLowerCase();
+  const day = (t.match(/\b(sun|mon|tue|wed|thu|fri|sat)[a-z]*/) || [])[1];
+  const tm = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)/);
+  if (!day || !tm) return null;
+  const dates = Array.from(new Set(scheduleSlots.map(sl => sl.date))).filter(d => fullWeekday(d).toLowerCase().startsWith(day));
+  if (dates.length !== 1) return null;
+  let h = parseInt(tm[1], 10) % 12;
+  if (tm[3][0] === 'p') h += 12;
+  return { date: dates[0], start: String(h).padStart(2, '0') + ':' + (tm[2] || '00') };
+}
+function legacySoundCheckConversions() {
+  return soundCheckRows().filter(r => !r.dated && r.note && !r.date).map(r => ({ r, parsed: parseLegacySoundCheck(r.note) })).filter(x => x.parsed);
+}
+function convertLegacySoundChecks() {
+  const list = legacySoundCheckConversions();
+  if (!list.length) { toast('Nothing to convert.'); return; }
+  const preview = list.map(x => `• ${x.r.sp.name}: "${x.r.note}" → ${friendlyDate(x.parsed.date)}, ${friendlyTime(x.parsed.start)}`).join('\n');
+  if (!confirm('Convert these typed sound check times into real dates and times? Rooms stay blank for you to assign.\n\n' + preview)) return;
+  list.forEach(x => {
+    const sp = x.r.sp;
+    const p = sp.data.production || (sp.data.production = {});
+    p.soundCheckDate = x.parsed.date; p.soundCheckStart = x.parsed.start; p.soundCheckScheduled = true; p.soundCheckNeeded = true;
+    // The typed text is now fully captured by the date/time -- drop it so it isn't shown twice, unless it said something more ("after load-in").
+    const leftover = String(p.soundCheckTime || '').toLowerCase().replace(/\b(sun|mon|tue|wed|thu|fri|sat)[a-z]*/g, '').replace(/\d{1,2}(:\d{2})?\s*(am|pm|a\.m\.|p\.m\.)/g, '').replace(/[^a-z0-9]/g, '');
+    if (!leftover) p.soundCheckTime = '';
+    pushSpeaker(sp);
+  });
+  renderScheduleView();
+  toast('Converted ' + list.length + ' sound check' + (list.length === 1 ? '' : 's') + '. Now assign their rooms.');
+}
+
+function setSoundCheckField(id, field, value) {
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!sp.data.production) sp.data.production = {};
+  const p = sp.data.production;
+  p[field] = value;
+  // A date and a start time ARE a scheduled sound check, and anything scheduled is plainly needed --
+  // so the two checkboxes on the record follow along instead of needing to be ticked by hand.
+  if (field === 'soundCheckDate' || field === 'soundCheckStart') p.soundCheckScheduled = !!((p.soundCheckDate && p.soundCheckStart) || p.soundCheckTime);
+  if (p.soundCheckScheduled) p.soundCheckNeeded = true;
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+  const sv = document.getElementById('schedule-view');
+  if (sv && sv.style.display !== 'none') renderScheduleView();
+}
+function clearSoundCheck(id) {
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!confirm('Clear ' + sp.name + "'s sound check date, time and room? They'll stay on the list as still needing one.")) return;
+  const p = sp.data.production || (sp.data.production = {});
+  p.soundCheckDate = ''; p.soundCheckStart = ''; p.soundCheckEnd = ''; p.soundCheckRoom = ''; p.soundCheckScheduled = false;
+  pushSpeaker(sp); renderSpeakerRows(id); renderScheduleView();
+}
+function removeSoundCheck(id) {
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!confirm('Take ' + sp.name + ' off the sound check list entirely?')) return;
+  const p = sp.data.production || (sp.data.production = {});
+  p.soundCheckNeeded = false; p.soundCheckScheduled = false; p.soundCheckDate = ''; p.soundCheckStart = ''; p.soundCheckEnd = ''; p.soundCheckRoom = '';
+  pushSpeaker(sp); renderSpeakerRows(id); renderScheduleView();
+}
+
+function renderScheduleSoundChecks() {
+  const body = document.getElementById('sch-soundchecks-body');
+  if (!body) return;
+  const editable = canEdit('schedule.all');
+  const showProblems = editable || window.isAdminUser;
+  const rows = soundCheckSortedRows();
+  const problems = showProblems ? soundCheckProblems(rows) : new Map();
+  const onList = new Set(rows.map(r => r.sp.id));
+  const addOptions = '<option value="">+ add an artist to the list…</option>' + sortByLastName(scheduleEligibleSpeakers().filter(sp => !onList.has(sp.id))).map(sp => `<option value="${sp.id}">${escapeHtml(sp.name)}</option>`).join('');
+
+  const rowHtml = r => {
+    const id = r.sp.id;
+    const probs = problems.get(id) || [];
+    const cells = editable ? `
+        <td><input type="date" value="${escapeHtml(r.date)}" onchange="setSoundCheckField('${id}','soundCheckDate',this.value)"></td>
+        <td class="sc-time"><input type="time" value="${escapeHtml(r.start)}" onchange="setSoundCheckField('${id}','soundCheckStart',this.value)"> – <input type="time" value="${escapeHtml(r.end)}" onchange="setSoundCheckField('${id}','soundCheckEnd',this.value)"></td>
+        <td><select onchange="setSoundCheckField('${id}','soundCheckRoom',this.value)">${sessionRoomOptionsHtml(r.room)}</select></td>`
+      : `
+        <td>${escapeHtml(friendlyDate(r.date)) || '—'}</td>
+        <td>${escapeHtml(whenLabel('', r.start, r.end)) || '—'}</td>
+        <td>${escapeHtml(r.room) || '—'}</td>`;
+    return `<tr>
+        <td class="sc-artist"><a href="#" onclick="jumpToSpeaker('${id}'); return false;">${escapeHtml(r.sp.name)}</a>${r.note ? `<div class="sp-sub">${escapeHtml(r.note)}</div>` : ''}${probs.map(m => `<div><span class="sch-room-conflict-flag" title="${escapeHtml(m)}">⚠️ ${escapeHtml(m)}</span></div>`).join('')}</td>
+        ${cells}
+        <td class="sc-needs">${escapeHtml(r.needs) || '<span class="sp-sub">—</span>'}</td>
+        ${editable ? `<td class="sc-actions"><span class="sch-edit-icon" onclick="clearSoundCheck('${id}')" title="Clear date, time and room">↺</span><span class="sch-card-x" style="position:static;" onclick="removeSoundCheck('${id}')" title="Take off the list">×</span></td>` : ''}
+      </tr>`;
+  };
+  const head = `<tr><th>Artist</th><th>Date</th><th>Time</th><th>Room</th><th>Needs</th>${editable ? '<th></th>' : ''}</tr>`;
+  const dated = rows.filter(r => r.dated), undated = rows.filter(r => !r.dated);
+  const days = {};
+  dated.forEach(r => (days[r.date] = days[r.date] || []).push(r));
+  const dayBlocks = Object.keys(days).sort().map(d => `<div class="sch-itin-day">${fullWeekday(d)} — ${friendlyDate(d).replace(/^[A-Za-z]+,\s*/, '')}</div><table class="sc-table">${head}${days[d].map(rowHtml).join('')}</table>`).join('');
+  const undatedBlock = undated.length ? `<div class="sch-itin-day" style="color:#8B6A1F;">Needs scheduling (${undated.length})</div><table class="sc-table">${head}${undated.map(rowHtml).join('')}</table>` : '';
+  const assigned = dated.filter(r => r.room).length;
+  body.innerHTML = `
+    <div class="ar-controls">
+      <strong>${rows.length} sound check${rows.length === 1 ? '' : 's'}</strong>
+      <span class="sp-sub">${dated.length} scheduled · ${assigned} with a room · ${undated.length} still to schedule</span>
+      ${editable ? `<select style="margin-left:auto;" onchange="if(this.value){setSoundCheckField(this.value,'soundCheckNeeded',true); this.value='';}">${addOptions}</select>` : '<span style="margin-left:auto;"></span>'}
+      ${editable && legacySoundCheckConversions().length ? `<button class="sp-add-btn" style="background:var(--gold-pale); color:var(--ink); border:1px solid var(--gold);" onclick="convertLegacySoundChecks()" title="Turns times you typed earlier (like &quot;Monday 7:30am&quot;) into real dates and start times">⚡ Convert ${legacySoundCheckConversions().length} typed time${legacySoundCheckConversions().length === 1 ? '' : 's'}</button>` : ''}
+      <button class="sp-add-btn" onclick="printSoundChecksReport()">🖨 Print list</button>
+    </div>
+    ${rows.length ? `<div class="sc-wrap">${dayBlocks}${undatedBlock}</div>` : '<div class="sch-conflicts-empty">No sound checks yet. Use "+ add an artist to the list…" above, or tick "A sound check is needed" on an artist\'s Production tab.</div>'}
+  `;
+}
+
+function printSoundChecksReport() {
+  const container = document.getElementById('schedule-print-view');
+  if (!container) return;
+  const rows = soundCheckSortedRows();
+  if (!rows.length) { toast('No sound checks to print yet.'); return; }
+  const dated = rows.filter(r => r.dated), undated = rows.filter(r => !r.dated);
+  const days = {};
+  dated.forEach(r => (days[r.date] = days[r.date] || []).push(r));
+  const line = r => `<tr><td class="scp-time">${escapeHtml(whenLabel('', r.start, r.end)) || '—'}</td><td class="scp-artist">${escapeHtml(r.sp.name)}${r.note ? `<div class="scp-note">${escapeHtml(r.note)}</div>` : ''}</td><td>${escapeHtml(r.room) || '<span class="ar-room-missing">Room TBD</span>'}</td><td class="scp-needs">${escapeHtml(r.needs)}</td></tr>`;
+  const head = '<tr><th>Time</th><th>Artist</th><th>Room</th><th>Needs</th></tr>';
+  const dayHtml = Object.keys(days).sort().map(d => `<div class="scp-day"><div class="scp-day-title">${fullWeekday(d)} — ${friendlyDate(d).replace(/^[A-Za-z]+,\s*/, '')}</div><table class="scp-table">${head}${days[d].map(line).join('')}</table></div>`).join('');
+  const undatedHtml = undated.length ? `<div class="scp-day"><div class="scp-day-title" style="color:#8B6A1F;">Still to be scheduled</div><table class="scp-table"><tr><th></th><th>Artist</th><th>Room</th><th>Needs</th></tr>${undated.map(r => `<tr><td class="scp-time">—</td><td class="scp-artist">${escapeHtml(r.sp.name)}${r.note ? `<div class="scp-note">${escapeHtml(r.note)}</div>` : ''}</td><td>${escapeHtml(r.room) || '—'}</td><td class="scp-needs">${escapeHtml(r.needs)}</td></tr>`).join('')}</table></div>` : '';
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  container.innerHTML = `
+    <div class="bo-print-band">
+      <div class="bo-print-eyebrow">SBCMC 2027</div>
+      <h1>Sound Check Schedule</h1>
+      <div class="bo-print-tag">${dated.length} scheduled${undated.length ? ' · ' + undated.length + ' still to schedule' : ''} — Generated ${dateStr}</div>
+    </div>
+    <div class="bo-print-body">${dayHtml}${undatedHtml}</div>`;
+  runScopedPrint('printing-schedule-report');
+}
+
 function toggleScheduleRoomFilter(room) {
   if (scheduleRoomFilter.has(room)) scheduleRoomFilter.delete(room);
   else scheduleRoomFilter.add(room);
@@ -20395,7 +20788,11 @@ function speakerDetailHTML(sp) {
           <div class="sp-field-grid">
           <div class="sp-check" style="grid-column:1/-1;"><input id="sk-soundcheckneeded-${sp.id}" type="checkbox" ${sp.data.production.soundCheckNeeded ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','production','soundCheckNeeded',this.checked)"><label for="sk-soundcheckneeded-${sp.id}"> A sound check is needed</label></div>
           <div class="sp-check" style="grid-column:1/-1;"><input id="sk-soundcheckscheduled-${sp.id}" type="checkbox" ${sp.data.production.soundCheckScheduled ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','production','soundCheckScheduled',this.checked)"><label for="sk-soundcheckscheduled-${sp.id}"> Sound check scheduled</label></div>
-          <div class="sp-field"><label for="sk-soundcheck-${sp.id}">Sound check time</label><input id="sk-soundcheck-${sp.id}" type="text" placeholder="e.g. Monday 2:00 PM" value="${escapeHtml(sp.data.production.soundCheckTime)}" onchange="updateSpeakerNested('${sp.id}','production','soundCheckTime',this.value)"></div>
+          <div class="sp-field"><label for="sk-scdate-${sp.id}">Sound check date</label><input id="sk-scdate-${sp.id}" type="date" value="${escapeHtml(sp.data.production.soundCheckDate || '')}" onchange="setSoundCheckField('${sp.id}','soundCheckDate',this.value)"></div>
+          <div class="sp-field"><label for="sk-scroom-${sp.id}">Sound check room</label><select id="sk-scroom-${sp.id}" onchange="setSoundCheckField('${sp.id}','soundCheckRoom',this.value)">${sessionRoomOptionsHtml(sp.data.production.soundCheckRoom || '')}</select></div>
+          <div class="sp-field"><label for="sk-scstart-${sp.id}">Sound check start</label><input id="sk-scstart-${sp.id}" type="time" value="${escapeHtml(sp.data.production.soundCheckStart || '')}" onchange="setSoundCheckField('${sp.id}','soundCheckStart',this.value)"></div>
+          <div class="sp-field"><label for="sk-scend-${sp.id}">Sound check end</label><input id="sk-scend-${sp.id}" type="time" value="${escapeHtml(sp.data.production.soundCheckEnd || '')}" onchange="setSoundCheckField('${sp.id}','soundCheckEnd',this.value)"></div>
+          <div class="sp-field" style="grid-column:1/-1;"><label for="sk-soundcheck-${sp.id}">Sound check note (optional)</label><input id="sk-soundcheck-${sp.id}" type="text" placeholder="e.g. after load-in, band only" value="${escapeHtml(sp.data.production.soundCheckTime)}" onchange="updateSpeakerNested('${sp.id}','production','soundCheckTime',this.value)"></div>
           <div class="sp-field"><label for="sk-wirelessmics-${sp.id}">Wireless (RF) mics needed</label><input id="sk-wirelessmics-${sp.id}" type="number" value="${escapeHtml(sp.data.production.wirelessMics)}" onchange="updateSpeakerNested('${sp.id}','production','wirelessMics',this.value)"></div>
           <div class="sp-field"><label for="sk-wiredmics-${sp.id}">Wired mics needed</label><input id="sk-wiredmics-${sp.id}" type="number" value="${escapeHtml(sp.data.production.wiredMics)}" onchange="updateSpeakerNested('${sp.id}','production','wiredMics',this.value)"></div>
           <div class="sp-field"><label for="sk-iemmixes-${sp.id}">IEM / monitor mixes needed</label><input id="sk-iemmixes-${sp.id}" type="number" value="${escapeHtml(sp.data.production.iemMixes)}" onchange="updateSpeakerNested('${sp.id}','production','iemMixes',this.value)"></div>
@@ -20966,7 +21363,9 @@ function emailSpeakerSummary(id) {
   const hasProdInfo = prod.soundCheckNeeded || prod.soundCheckScheduled || prod.wirelessMics || prod.wiredMics || prod.iemMixes || prod.diLines;
   if (hasProdInfo) {
     lines.push('SOUND CHECK & PRODUCTION');
-    lines.push('  Sound check: ' + (prod.soundCheckScheduled ? 'Scheduled' + (prod.soundCheckTime ? ' \u2014 ' + prod.soundCheckTime : '') : 'Not yet scheduled'));
+    const scWhen = prod.soundCheckDate ? (friendlyDate(prod.soundCheckDate) + (prod.soundCheckStart ? ', ' + friendlyTime(prod.soundCheckStart) + (prod.soundCheckEnd ? ' \u2013 ' + friendlyTime(prod.soundCheckEnd) : '') : '') + (prod.soundCheckRoom ? ' \u2014 ' + prod.soundCheckRoom : '')) : '';
+    const scDetail = [scWhen, prod.soundCheckTime].filter(Boolean).join(' \u2014 ');
+    lines.push('  Sound check: ' + (prod.soundCheckScheduled || scWhen ? 'Scheduled' + (scDetail ? ' \u2014 ' + scDetail : '') : 'Not yet scheduled'));
     if (prod.wirelessMics) lines.push('  Wireless mics: ' + prod.wirelessMics);
     if (prod.wiredMics) lines.push('  Wired mics: ' + prod.wiredMics);
     if (prod.iemMixes) lines.push('  IEM/monitor mixes: ' + prod.iemMixes);
