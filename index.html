@@ -1996,6 +1996,30 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sc-needs { font-size: 11.5px; color: var(--ink-soft); }
 .sc-actions { white-space: nowrap; text-align: right; }
 
+/* Schedule CSV export wizard */
+.xw-steps { display: flex; align-items: center; gap: 6px; margin: 4px 0 14px; }
+.xw-dot { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+.xw-dot.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.xw-dot.done { background: var(--gold); border-color: var(--gold); color: #fff; }
+.xw-line { width: 22px; height: 2px; background: var(--line); }
+.xw-steps-label { margin-left: 8px; font-size: 12px; font-weight: 700; color: var(--ink-soft); letter-spacing: 0.03em; text-transform: uppercase; }
+.xw-opt { display: flex; gap: 12px; align-items: flex-start; padding: 13px 14px; border: 1.5px solid var(--line); border-radius: 10px; margin-bottom: 10px; cursor: pointer; background: var(--panel); }
+.xw-opt.on { border-color: var(--teal-deep); background: var(--teal-pale); }
+.xw-opt.off { opacity: 0.5; cursor: not-allowed; }
+.xw-opt input { margin-top: 3px; }
+.xw-opt-name { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.xw-opt-desc { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.xw-opt-count { font-size: 11.5px; font-weight: 700; color: var(--gold); margin-top: 5px; }
+.xw-warn { background: var(--gold-pale); border: 1px solid var(--gold); border-radius: 8px; padding: 9px 12px; font-size: 12px; margin-top: 4px; }
+.xw-days { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.qa-modal-field .xw-days label.xw-day, .xw-day { font-size: 12.5px; display: flex; flex-direction: row; align-items: center; gap: 6px; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 600; margin: 0; white-space: nowrap; width: auto; }
+.xw-summary { margin: 14px 0 8px; font-size: 13px; }
+.xw-preview { border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 190px; background: var(--panel); }
+.xw-preview table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.xw-preview th { text-align: left; padding: 5px 8px; background: var(--teal-pale); font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+.xw-preview td { padding: 4px 8px; border-top: 1px solid var(--line); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.qa-modal-done[disabled] { opacity: 0.45; cursor: not-allowed; }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2594,7 +2618,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="sch-toggle-btn" id="sch-toggle-artists" onclick="setScheduleSubview('artists')">By Artist</button>
       <button class="sch-toggle-btn" id="sch-toggle-soundchecks" onclick="setScheduleSubview('soundchecks')">Sound Checks</button>
       <button class="sp-add-btn" id="sch-copy-link-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="copyScheduleViewLink()">🔗 Copy Schedule-Only Link</button>
-      <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('schedule')">Export CSV</button>
+      <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openScheduleExportWizard()">Export CSV…</button>
     </div>
   </div>
   <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, see the full Sunday–Wednesday agenda, pull one group's own itinerary, or see everything happening in one or more physical rooms across the whole conference (not just breakouts). This reads and writes the same session data as the Speakers & Artists tab — editing here updates their record, and editing their record updates here.</p>
@@ -21437,51 +21461,196 @@ function scheduleExportRowValue(row, key) {
   if (key === 'speaker') return (row.sp ? row.sp.name : '').toLowerCase();
   return '';
 }
-function exportScheduleCSV(sortValue) {
-  const headers = ['Date', 'Day', 'Start Time', 'End Time', 'Label', 'Kind', 'Track', 'Assigned Speaker/Artist', 'Contact Email', 'Session Title', 'Description'];
+// ---- Schedule CSV export (wizard) ----------------------------------------------------------------
+// "This view" exports exactly what the active Schedule view is showing (its group/room filters,
+// its own shape for By Artist and Sound Checks); "The whole schedule" is everything, every day.
+// Both can be limited to certain days and sorted before download.
+const SCHEDULE_EXPORT_HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Label', 'Kind', 'Track', 'Assigned Speaker/Artist', 'Contact Email', 'Session Title', 'Description', 'Room'];
+const SCHEDULE_VIEW_NAMES = { grid: 'Breakout Grid', timeline: 'Timeline', itinerary: 'Itinerary', rooms: 'By Room', artists: 'By Artist', soundchecks: 'Sound Checks' };
+let scheduleExportWizard = null; // { step, scope: 'view'|'all', days: Set<string>, sort }
 
-  // Same resolution logic the grid/timeline use (slotId first, date+time fallback for older
-  // entries) -- so the export always matches what's actually shown on screen. Built as a flat
-  // list of rows (one per slot, or per occupant of a slot) so any of the sort options below can
-  // reorder rows directly, not just the slots they came from.
+function scheduleExportSortOptions(scope) {
+  const v = scope === 'view' ? scheduleSubview : '';
+  if (v === 'artists') return { def: 'artist-asc', options: [{ value: 'artist-asc', label: 'Artist (A–Z), then time' }, { value: 'datetime-asc', label: 'Date/Time (earliest first)' }] };
+  if (v === 'soundchecks') return { def: 'datetime-asc', options: [{ value: 'datetime-asc', label: 'Date/Time (default)' }, { value: 'artist-asc', label: 'Artist (A–Z)' }, { value: 'room-asc', label: 'Room (A–Z)' }] };
+  return { def: 'datetime-asc', options: EXPORT_SORT_OPTIONS.schedule.options };
+}
+
+function scheduleViewExportInfo() {
+  const v = scheduleSubview;
+  const audNames = orderedScheduleAudiences().filter(a => scheduleAudienceFilter.has(a.id)).map(a => a.name).join(' + ');
+  const roomNames = Array.from(scheduleRoomFilter).join(', ');
+  const desc = {
+    grid: 'Every breakout session, all tracks',
+    timeline: 'Showing: ' + (audNames || 'no group selected'),
+    itinerary: 'Itinerary for: ' + (audNames || 'no group selected') + ' (slots only, no speaker rows)',
+    rooms: roomNames ? 'Rooms: ' + roomNames : 'No rooms selected in this view yet',
+    artists: (artistSchedPick ? 'One artist' : (artistSchedType !== 'all' ? artistSchedType + 's' : 'All artists')) + (artistSchedShowEmpty ? ' (including those with nothing scheduled)' : ' with something scheduled') + ' — one row per arrival, sound check and session',
+    soundchecks: 'Every sound check — date, time, room and equipment needs'
+  };
+  return { key: v, name: SCHEDULE_VIEW_NAMES[v] || 'Schedule', description: desc[v] || '' };
+}
+
+// Builds the rows for a scope/days/sort choice. Returns { headers, lines (arrays), filename }.
+function scheduleExportDataset(scope, days, sortValue) {
+  const view = scheduleSubview;
+  const dayOk = d => !days || days.has(d);
+  const allDays = !days || days.size === new Set(scheduleSlots.map(sl => sl.date)).size;
+  const [sortKey] = (sortValue || '').split('-');
+
+  if (scope === 'view' && view === 'artists') {
+    const headers = ['Artist', 'Type', 'Item', 'Date', 'Day', 'Start Time', 'End Time', 'Title', 'Room', 'Details'];
+    const KIND = { arrival: 'Arrives', soundcheck: 'Sound check', session: 'Session' };
+    let rows = [];
+    artistSchedList().forEach(sp => artistScheduleEvents(sp).events.forEach(ev => {
+      if (!dayOk(ev.date)) return;
+      rows.push({ sp, ev });
+    }));
+    if (sortKey === 'datetime') rows.sort((a, b) => (a.ev.date + (a.ev.start || '')).localeCompare(b.ev.date + (b.ev.start || '')) || lastNameOf(a.sp.name).localeCompare(lastNameOf(b.sp.name)));
+    return { filename: 'artist-schedules.csv', noun: 'artist schedule row', headers, lines: rows.map(({ sp, ev }) => [sp.name, (sp.types || []).join(' | '), KIND[ev.kind], ev.date, fullWeekday(ev.date), friendlyTime(ev.start), friendlyTime(ev.end), ev.kind === 'session' ? ev.title : '', ev.room, ev.detail]) };
+  }
+
+  if (scope === 'view' && view === 'soundchecks') {
+    const headers = ['Artist', 'Date', 'Day', 'Start Time', 'End Time', 'Room', 'Wireless (RF) Mics', 'Wired Mics', 'IEM Mixes', 'DI Lines', 'Note', 'Status'];
+    let rows = soundCheckSortedRows().filter(r => (r.dated ? dayOk(r.date) : allDays));
+    if (sortKey === 'artist') rows.sort((a, b) => lastNameOf(a.sp.name).localeCompare(lastNameOf(b.sp.name)));
+    else if (sortKey === 'room') rows.sort((a, b) => (a.room || '￿').localeCompare(b.room || '￿') || (a.date + a.start).localeCompare(b.date + b.start));
+    return { filename: 'sound-checks.csv', noun: 'sound check', headers, lines: rows.map(r => [r.sp.name, r.date, fullWeekday(r.date), friendlyTime(r.start), friendlyTime(r.end), r.room, r.prod.wirelessMics || '', r.prod.wiredMics || '', r.prod.iemMixes || '', r.prod.diLines || '', r.note, r.dated ? (r.room ? 'Scheduled' : 'Scheduled — room not assigned') : 'Needs scheduling']) };
+  }
+
+  // Slot-shaped (the standard schedule columns): one row per slot, or per person in that slot.
+  // What each view shows decides which slots and which people come along.
+  let slotOk = () => true, occupants = 'all', roomMode = false;
+  if (scope === 'view') {
+    if (view === 'grid') slotOk = sl => sl.kind === 'breakout';
+    else if (view === 'timeline') { slotOk = sl => slotAudiences(sl).some(a => scheduleAudienceFilter.has(a)); occupants = 'nonbreakout'; }
+    else if (view === 'itinerary') { slotOk = sl => slotAudiences(sl).some(a => scheduleAudienceFilter.has(a)); occupants = 'none'; }
+    else if (view === 'rooms') roomMode = true;
+  }
   const rows = [];
   scheduleSlots.forEach(slot => {
-    const occupants = [];
-    speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
-      if (findSlotForSession(sess) === slot) occupants.push({ sp, sess });
-    }));
-    if (occupants.length === 0) rows.push({ slot, sp: null, sess: null });
-    else occupants.forEach(({ sp, sess }) => rows.push({ slot, sp, sess }));
+    if (!slotOk(slot) || !dayOk(slot.date)) return;
+    const people = [];
+    if (occupants === 'all' || (occupants === 'nonbreakout' && slot.kind !== 'breakout') || roomMode) {
+      speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => { if (findSlotForSession(sess) === slot) people.push({ sp, sess }); }));
+    }
+    const roomOf = sess => (slot.kind === 'breakout' ? effectiveBreakoutRoom(sess, slot) : ((sess && sess.room) || slot.room || ''));
+    if (roomMode) {
+      // Same match the By Room view itself uses: a breakout session by its own room, anything else by the slot's room.
+      if (slot.kind === 'breakout') people.forEach(({ sp, sess }) => { if (sess.room && scheduleRoomFilter.has(sess.room)) rows.push({ slot, sp, sess, room: sess.room }); });
+      else if (slot.room && scheduleRoomFilter.has(slot.room)) { if (people.length) people.forEach(({ sp, sess }) => rows.push({ slot, sp, sess, room: slot.room })); else rows.push({ slot, sp: null, sess: null, room: slot.room }); }
+      return;
+    }
+    if (!people.length) rows.push({ slot, sp: null, sess: null, room: slot.room || '' });
+    else people.forEach(({ sp, sess }) => rows.push({ slot, sp, sess, room: roomOf(sess) }));
   });
-
-  const [sortKey, sortDir] = (sortValue || 'datetime-asc').split('-');
-  const dirMul = sortDir === 'desc' ? -1 : 1;
+  const key = sortKey || 'datetime';
+  const dirMul = (sortValue || '').endsWith('-desc') ? -1 : 1;
   rows.sort((a, b) => {
-    const va = scheduleExportRowValue(a, sortKey), vb = scheduleExportRowValue(b, sortKey);
+    const va = scheduleExportRowValue(a, key), vb = scheduleExportRowValue(b, key);
     if (va < vb) return -1 * dirMul;
     if (va > vb) return 1 * dirMul;
-    // Tie-break chronologically so rows sharing a sort value (e.g. same track) still read
-    // in a sensible order within that group.
     const ta = a.slot.date + a.slot.start, tb = b.slot.date + b.slot.start;
     return ta < tb ? -1 : ta > tb ? 1 : 0;
   });
+  const lines = rows.map(({ slot, sp, sess, room }) => [slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, slot.kind,
+    sess ? (sess.track || '') : '', sp ? sp.name : '', sp ? (sp.contactEmail || '') : '', sess ? (sess.title || '') : '', sess ? (sess.description || '') : (slot.notes || ''), room || '']);
+  return { filename: scope === 'view' ? 'schedule-' + view + '.csv' : 'conference-schedule.csv', noun: 'schedule row', headers: SCHEDULE_EXPORT_HEADERS, lines };
+}
 
-  const lines = [headers.map(csvEscape).join(',')];
-  rows.forEach(({ slot, sp, sess }) => {
-    if (!sp) {
-      lines.push([slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, slot.kind, '', '', '', '', ''].map(csvEscape).join(','));
-    } else {
-      lines.push([slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, slot.kind, sess.track || '', sp.name, sp.contactEmail || '', sess.title || '', sess.description || ''].map(csvEscape).join(','));
-    }
-  });
-  const csv = lines.join('\n');
+function downloadScheduleCsv(ds) {
+  const csv = [ds.headers].concat(ds.lines).map(r => r.map(csvEscape).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'conference-schedule.csv';
+  a.href = url; a.download = ds.filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('Exported ' + rows.length + ' schedule row' + (rows.length === 1 ? '' : 's') + ' to CSV.');
+}
+// Kept for anything still calling it directly: the whole schedule, every day.
+function exportScheduleCSV(sortValue) {
+  const ds = scheduleExportDataset('all', null, sortValue || 'datetime-asc');
+  downloadScheduleCsv(ds);
+  toast('Exported ' + ds.lines.length + ' schedule row' + (ds.lines.length === 1 ? '' : 's') + ' to CSV.');
+}
+
+function scheduleExportDates() { return Array.from(new Set(scheduleSlots.map(sl => sl.date))).sort(); }
+function openScheduleExportWizard() {
+  scheduleExportWizard = { step: 1, scope: 'view', days: new Set(scheduleExportDates()), sort: scheduleExportSortOptions('view').def };
+  renderScheduleExportWizard();
+}
+function closeScheduleExportWizard() {
+  scheduleExportWizard = null;
+  document.getElementById('exp-sort-modal-root').innerHTML = '';
+}
+function scheduleExportSetScope(scope) {
+  scheduleExportWizard.scope = scope;
+  scheduleExportWizard.sort = scheduleExportSortOptions(scope).def;
+  renderScheduleExportWizard();
+}
+function scheduleExportToggleDay(d, on) {
+  if (on) scheduleExportWizard.days.add(d); else scheduleExportWizard.days.delete(d);
+  renderScheduleExportWizard();
+}
+function scheduleExportSetSort(v) { scheduleExportWizard.sort = v; renderScheduleExportWizard(); }
+function scheduleExportGo(step) { scheduleExportWizard.step = step; renderScheduleExportWizard(); }
+function confirmScheduleExportWizard() {
+  const w = scheduleExportWizard; if (!w) return;
+  const ds = scheduleExportDataset(w.scope, w.days, w.sort);
+  if (!ds.lines.length) { toast('Nothing to export with those choices.'); return; }
+  downloadScheduleCsv(ds);
+  closeScheduleExportWizard();
+  toast('Exported ' + ds.lines.length + ' ' + ds.noun + (ds.lines.length === 1 ? '' : 's') + ' to ' + ds.filename + '.');
+}
+
+function renderScheduleExportWizard() {
+  const root = document.getElementById('exp-sort-modal-root');
+  const w = scheduleExportWizard;
+  if (!w) { root.innerHTML = ''; return; }
+  const info = scheduleViewExportInfo();
+  const allDates = scheduleExportDates();
+  const full = new Set(allDates);
+  const stepDots = [1, 2].map(n => `<span class="xw-dot ${w.step === n ? 'on' : (w.step > n ? 'done' : '')}">${n}</span>`).join('<span class="xw-line"></span>');
+  const title = `<div class="xw-steps">${stepDots}<span class="xw-steps-label">${w.step === 1 ? 'What to export' : 'Days, order & review'}</span></div>`;
+  let bodyHtml = '', actions = '';
+  if (w.step === 1) {
+    const viewDs = scheduleExportDataset('view', full, scheduleExportSortOptions('view').def);
+    const allDs = scheduleExportDataset('all', full, 'datetime-asc');
+    const viewEmpty = viewDs.lines.length === 0;
+    const opt = (scope, name, desc, count, noun, disabled) => `
+      <label class="xw-opt ${w.scope === scope ? 'on' : ''} ${disabled ? 'off' : ''}">
+        <input type="radio" name="xw-scope" ${w.scope === scope ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="scheduleExportSetScope('${scope}')">
+        <div class="xw-opt-body"><div class="xw-opt-name">${escapeHtml(name)}</div><div class="xw-opt-desc">${escapeHtml(desc)}</div><div class="xw-opt-count">${count} ${noun}${count === 1 ? '' : 's'}</div></div>
+      </label>`;
+    bodyHtml = `
+      <p class="qa-modal-sub">You're on the <b>${escapeHtml(info.name)}</b> view. Export just what it's showing, or the entire schedule?</p>
+      ${opt('view', 'This view — ' + info.name, info.description, viewDs.lines.length, viewDs.noun, false)}
+      ${opt('all', 'The whole schedule', 'Every slot and everyone assigned to it, all groups, all days', allDs.lines.length, allDs.noun, false)}
+      ${viewEmpty && w.scope === 'view' ? '<div class="xw-warn">This view has nothing to export right now — adjust its filters first, or choose the whole schedule.</div>' : ''}`;
+    actions = `<button class="sp-mini-btn" onclick="closeScheduleExportWizard()">Cancel</button><button class="qa-modal-done" onclick="scheduleExportGo(2)" ${viewEmpty && w.scope === 'view' ? 'disabled' : ''}>Next</button>`;
+  } else {
+    const sortCfg = scheduleExportSortOptions(w.scope);
+    const ds = scheduleExportDataset(w.scope, w.days, w.sort);
+    const dayChecks = allDates.map(d => `<label class="xw-day"><input type="checkbox" ${w.days.has(d) ? 'checked' : ''} onchange="scheduleExportToggleDay('${d}', this.checked)"> ${escapeHtml(fullWeekday(d))} <span style="color:var(--ink-soft); font-weight:400;">${escapeHtml(friendlyDate(d).replace(/^[A-Za-z]+,\s*/, ''))}</span></label>`).join('');
+    const prevCols = Math.min(6, ds.headers.length);
+    const preview = ds.lines.slice(0, 5).map(r => `<tr>${r.slice(0, prevCols).map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+    bodyHtml = `
+      <p class="qa-modal-sub">Exporting <b>${w.scope === 'view' ? escapeHtml('this view — ' + info.name) : 'the whole schedule'}</b>.</p>
+      <div class="qa-modal-field"><label>Days to include</label><div class="xw-days">${dayChecks}</div></div>
+      <div class="qa-modal-field"><label for="xw-sort">Sort by</label><select id="xw-sort" onchange="scheduleExportSetSort(this.value)">${sortCfg.options.map(o => `<option value="${escapeHtml(o.value)}" ${o.value === w.sort ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select></div>
+      <div class="xw-summary"><b>${ds.lines.length}</b> ${ds.noun}${ds.lines.length === 1 ? '' : 's'} → <span class="sp-sub">${escapeHtml(ds.filename)}</span></div>
+      ${ds.lines.length ? `<div class="xw-preview"><table><tr>${ds.headers.slice(0, prevCols).map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>${preview}</table>${ds.lines.length > 5 ? `<div class="sp-sub" style="padding:5px 8px;">…and ${ds.lines.length - 5} more. Preview shows the first ${prevCols} columns; the file has all ${ds.headers.length}.</div>` : ''}</div>` : '<div class="xw-warn">Nothing matches — pick at least one day.</div>'}`;
+    actions = `<button class="sp-mini-btn" onclick="scheduleExportGo(1)">Back</button><button class="qa-modal-done" onclick="confirmScheduleExportWizard()" ${ds.lines.length ? '' : 'disabled'}>Export CSV</button>`;
+  }
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeScheduleExportWizard();">
+      <div class="qa-modal-card" style="max-width:560px;">
+        <h3>Export Schedule CSV</h3>
+        ${title}
+        ${bodyHtml}
+        <div class="qa-modal-actions">${actions}</div>
+      </div>
+    </div>`;
 }
 
 function exportSpeakersCSV(sortValue) {
