@@ -21477,13 +21477,14 @@ const AW_FIELDS = [
   { key: 'sendNoPortal', group: 'Where to send it', label: 'Text (when there is no link)', rows: 2, value: 'Simply reply to this email with attachments.' },
   { key: 'sendRider', group: 'Where to send it', label: 'Rider sentence', rows: 3, value: 'The full production rider is linked there as well, or you can {riderLink}. It covers sound, staging, lighting, backline, and RF, and repeats the dates above.' },
   { key: 'riderLinkText', group: 'Where to send it', label: 'Link text for the rider', rows: 1, value: 'download it here' },
+  { key: 'sendPassAlong', group: 'Where to send it', label: 'Pass-it-along line (after the link and rider)', rows: 2, value: 'Please pass this along to the person on your team who handles production, and they\u2019re welcome to reply directly.' },
   { key: 'askHeading', group: 'What do you need from us?', label: 'Heading', rows: 1, value: 'What do you need from us?' },
   { key: 'askQuestions', group: 'What do you need from us?', label: 'Questions line', rows: 2, value: 'If you have any questions about backline or gear, travel, setup, etc., please reply and let us know.' },
   { key: 'askHotel', group: 'What do you need from us?', label: 'Hotel sentence (skipped when we arrange their lodging)', rows: 2, value: 'If you need a place to stay, we’re happy to recommend hotels with our {hotelLink}.' },
   { key: 'hotelLinkText', group: 'What do you need from us?', label: 'Link text for hotels', rows: 1, value: 'negotiated conference rates' },
   { key: 'askArrival', group: 'What do you need from us?', label: 'Arrival sentence (only when no arrival is on file)', rows: 2, value: 'And if you know when you expect to arrive in town, please share that too.' },
   { key: 'askClose', group: 'What do you need from us?', label: 'Closing sentence', rows: 1, value: 'The sooner we know, the better we can plan for it.' },
-  { key: 'thanks', group: 'Closing', label: 'Thank-you line', rows: 2, value: 'Thank you for being part of this. We look forward to worshipping alongside you.' },
+  { key: 'thanks', group: 'Closing', label: 'Thank-you line', rows: 2, value: 'Thank you for being part of this. We\u2019re grateful for the investment you\u2019re making in worship leaders and churches, and we look forward to worshipping alongside you.' },
   { key: 'closing', group: 'Closing', label: 'Sign-off', rows: 1, value: 'In Christ,' },
   { key: 'signerName', group: 'Closing', label: 'Name', rows: 1, value: 'Sergio Castillo' },
   { key: 'signerRole', group: 'Closing', label: 'Role line', rows: 1, value: 'SBCMC 2027 Team' },
@@ -21604,7 +21605,7 @@ function artistWelcomeEmail(sp, opts) {
       </td></tr>
     </table>${scheduleSection}${stageSection}
     <p style="margin:0 0 6px; ${H}">${esc(T.sendHeading)}</p>
-    <p style="${P}">${sendPortalHtml}${sendRiderHtml}</p>
+    <p style="${P}">${sendPortalHtml}${sendRiderHtml} ${esc(T.sendPassAlong)}</p>
     <p style="margin:0 0 6px; ${H}">${esc(T.askHeading)}</p>
     <p style="${P}">${askHtml}</p>
     <p style="margin:0 0 24px;">${esc(T.thanks)}</p>
@@ -21627,7 +21628,7 @@ function artistWelcomeEmail(sp, opts) {
     T.fromUsTitle.toUpperCase() + '\n' + fromUsText, '',
     schedEvents.length ? T.scheduleHeading.toUpperCase() + '\n' + T.scheduleIntro + '\n' + schedEvents.map(ev => '  \u2022 ' + schedLabel(ev) + ': ' + whenLabel(ev.date, ev.start, ev.end) + (schedWhat(ev) ? ' | ' + schedWhat(ev) : '')).join('\n') + '\n' : '',
     asks.need.has('stagePlot') ? T.stageHeading.toUpperCase() + '\n' + awFillText(T.stageText, { inputClause: inputClauseTpl }) + '\n' : '',
-    T.sendHeading.toUpperCase() + '\n' + (portal ? awFillText(T.sendPortal, { portalLink: T.portalLinkText + ' (' + portal + ')' }) : T.sendNoPortal) + (riderUrl ? ' ' + awFillText(T.sendRider, { riderLink: T.riderLinkText + ' (' + riderUrl + ')' }) : ''), '',
+    T.sendHeading.toUpperCase() + '\n' + (portal ? awFillText(T.sendPortal, { portalLink: T.portalLinkText + ' (' + portal + ')' }) : T.sendNoPortal) + (riderUrl ? ' ' + awFillText(T.sendRider, { riderLink: T.riderLinkText + ' (' + riderUrl + ')' }) : '') + ' ' + T.sendPassAlong, '',
     T.askHeading.toUpperCase() + '\n' + [T.askQuestions, lg.lodgingNeeded ? '' : awFillText(T.askHotel, { hotelLink: T.hotelLinkText + ' (' + hotelUrl + ')' }), asks.arrivalMissing ? T.askArrival : '', T.askClose].filter(Boolean).join(' '), '',
     T.thanks, '',
     T.closing, T.signerName, T.signerRole
