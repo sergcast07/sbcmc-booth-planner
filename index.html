@@ -2020,6 +2020,21 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .xw-preview td { padding: 4px 8px; border-top: 1px solid var(--line); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .qa-modal-done[disabled] { opacity: 0.45; cursor: not-allowed; }
 
+/* Artist Welcome email picker */
+.aw-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 4px 0 12px; font-size: 12.5px; }
+.aw-controls label { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.aw-controls input[type=text] { font: inherit; font-size: 12.5px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; }
+.aw-list { border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto; background: var(--panel); }
+.aw-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.aw-row:last-child { border-bottom: none; }
+.aw-row.on { background: var(--teal-pale); }
+.aw-name { font-weight: 700; font-size: 13px; }
+.aw-email { font-size: 11.5px; color: var(--ink-soft); }
+.aw-sum { font-size: 11px; color: #8B6A1F; margin-top: 2px; }
+.aw-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.aw-preview-label { margin: 14px 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.aw-preview { border: 1px solid var(--line); border-radius: 8px; max-height: 360px; overflow: auto; background: #FBF8F1; }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2167,6 +2182,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     window.isLegacySession = true;
     window.currentUserLabel = 'Shared login';
     window.isAdminUser = !viewOnly;
+    (function(){ var b = document.getElementById('aw-open-btn'); if (b) b.style.display = window.isAdminUser ? '' : 'none'; })();
     window.userPermissions = {};
     ALL_SECTION_KEYS.forEach(function(k) { window.userPermissions[k] = viewOnly ? 'view' : 'edit'; });
     // Applicant data includes minors (the high-school program) -- the legacy view-only password
@@ -2201,6 +2217,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     window.userPermissions = {};
     (perms || []).forEach(function(p) { window.userPermissions[p.section_key] = p.level; });
     window.isAdminUser = !!(profile.roles && profile.roles.is_admin);
+    (function(){ var b = document.getElementById('aw-open-btn'); if (b) b.style.display = window.isAdminUser ? '' : 'none'; })();
     window.isLegacySession = false;
     window.currentUserLabel = profile.display_name || profile.email;
     document.body.classList.remove('view-only-mode'); // that banner is a legacy-fallback-only concept, see applyLegacySession
@@ -2549,6 +2566,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         </select>
         <button class="sp-add-btn" onclick="addSpeaker()">+ Add speaker/artist</button>
         <button class="sp-add-btn" onclick="openExportSortModal('speakers')" style="background:var(--ink-soft);">Export CSV</button>
+        <button class="sp-add-btn" id="aw-open-btn" onclick="openArtistWelcomeModal()" style="background:var(--teal-deep); display:none;">&#9993; Artist Welcome emails</button>
       </div>
       <div class="sk-section-title clickable" data-section-toggle="sk-active" onclick="toggleSidebarSection('sk-active')">
         Active <span class="sk-section-count" id="sk-active-count"></span><span class="sp-chevron">▸</span>
@@ -21359,6 +21377,198 @@ function renderTransportationView() {
       ${reportHtml}
     </div>
   `;
+}
+
+// ---- Artist Welcome emails -----------------------------------------------------------------------
+// One email per artist, built from their own record so it only asks for what is still actually
+// needed: an item shows up only if it's flagged "needed" on the record AND nothing has been
+// uploaded or proposed for it yet (promo materials are never asked for). Sections with nothing in
+// them are dropped. The result is rich text to paste into Gmail -- the same look as the
+// hand-written Artist Welcome template.
+let artistWelcomeState = null; // { showAll, byDate, previewId }
+
+function artistWelcomeNeeds(sp) {
+  const mn = sp.data.materialsNeeded || {}, mats = sp.data.materials || {}, pending = sp.data.pendingChanges || {};
+  const have = k => !!mats[k] || !!(pending['materials.' + k] && pending['materials.' + k].new);
+  const set = new Set();
+  materialsForTypes(sp.types, sp.data.arrangement).forEach(k => { if (mn[k] && !have(k) && k !== 'promoMaterials') set.add(k); });
+  return set;
+}
+
+// What this artist's email will ask for, grouped by when -- also drives the one-line summary in the picker.
+function artistWelcomeAsks(sp) {
+  const need = artistWelcomeNeeds(sp);
+  const lg = sp.data.logistics || {};
+  const asap = [], feb = [], mar = [];
+  if (!lg.arrivalDate) asap.push('When you expect to arrive in town and when you plan to leave, if you know, and how you’re getting here');
+  const noParty = !lg.partySize && !(lg.badgeNames || []).some(Boolean);
+  if (noParty) asap.push('Who’s traveling with you, so we can make badges');
+  if (!lg.lodgingNeeded && !lg.mealsProvided) asap.push('Any hotel, ground transportation, or meal needs');
+  if (need.has('bio') && need.has('headshot')) asap.push('The latest bio and photo you’d like us to use in the conference mobile app');
+  else if (need.has('bio')) asap.push('The latest bio you’d like us to use in the conference mobile app');
+  else if (need.has('headshot')) asap.push('The latest photo you’d like us to use in the conference mobile app');
+  if (need.has('stagePlot')) asap.push('Your stage plot');
+  if (need.has('rider')) asap.push('Your own hospitality/technical rider, if you have one');
+  if (need.has('sessionDescription')) asap.push('A short description of your session');
+  if (need.has('slideDeck')) asap.push('Your slide deck');
+  if (need.has('handouts')) asap.push('Any handouts you’d like available for attendees');
+  if (need.has('inputList')) feb.push('Your input list');
+  if (need.has('rfRequest')) feb.push('Your RF (wireless) request');
+  if (need.has('lyricsProPresenter')) feb.push('Lyrics / ProPresenter files, background videos, and other media');
+  if (need.has('lightingNotes')) mar.push('Any lighting notes or special requests');
+  if (need.has('playbackDetails')) mar.push('Your playback details (tracks, click, stems)');
+  return { need, asap, feb, mar, arrivalMissing: !lg.arrivalDate };
+}
+
+function artistWelcomeEmail(sp, opts) {
+  opts = opts || {};
+  const esc = escapeHtml;
+  const asks = artistWelcomeAsks(sp);
+  const lg = sp.data.logistics || {};
+  const prod = sp.data.production || {};
+  const first = ((sp.contactName || sp.name || '').trim().split(/\s+/)[0]) || 'there';
+  const portal = opts.portalUrl || '';
+  const riderUrl = conferenceProductionRider ? conferenceProductionRider.url : '';
+  const hotelUrl = hotelInfoUrl || 'https://sbcmc.org/about/recommended-hotels/';
+  const nothingNeeded = !asks.asap.length && !asks.feb.length && !asks.mar.length;
+  const H = 'font-family:Georgia,\'Times New Roman\',serif; font-size:17px; color:#24404A;';
+  const P = 'margin:0 0 20px;';
+  const LINK = 'color:#24404A;';
+
+  const group = (title, items) => items.length ? `
+        <p style="margin:12px 0 4px;"><strong style="color:#24404A;">${title}</strong></p>
+        <ul style="margin:0; padding-left:20px;">${items.map(i => `<li style="margin:0 0 3px;">${esc(i)}</li>`).join('')}</ul>` : '';
+  const scWhen = prod.soundCheckDate ? (friendlyDate(prod.soundCheckDate) + (prod.soundCheckStart ? ', ' + friendlyTime(prod.soundCheckStart) : '')) : '';
+  const fromUs = scWhen
+    ? `Your load-in instructions and final schedule. We have your sound check penciled in for ${esc(scWhen)}; we're finalizing the detailed sound check schedule now, and as you can imagine, it's a bit of a game of Tetris with all of the conference activities. We'll confirm each piece as soon as it's set.`
+    : `Your sound check time, load-in instructions, and your final schedule. We're working on the detailed sound check schedule now, and as you can imagine, it's a bit of a game of Tetris with all of the conference activities. We'll send each piece to you as soon as it's set.`;
+  const asapTitle = opts.byDate ? 'As soon as you can — by ' + esc(opts.byDate) : 'As soon as you can';
+
+  const stageSection = asks.need.has('stagePlot') ? `
+    <p style="margin:0 0 6px; ${H}">Your stage plot</p>
+    <p style="${P}">Please send your stage plot as soon as you can, since it's what lets the team start planning staging${asks.need.has('inputList') ? '; your input list is due February 1' : ''}. Because of the number of artists and the quick changeovers across four days of concerts, the Hunter Street production team plans staging and placement for every ensemble from a shared set of templates (they're in the rider). We'll build around your setup wherever we can, but expect only minor adjustments.</p>` : '';
+
+  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FBF8F1; padding:24px 12px;"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background-color:#ffffff; border:1px solid #E2E1DA; border-radius:6px;">
+  <tr><td style="background-color:#24404A; padding:28px 32px 24px; border-radius:6px 6px 0 0;">
+    <div style="min-height:39px;"></div>
+    <div style="font-family:Georgia,'Times New Roman',serif; font-size:24px; line-height:1.25; color:#F2EFE4; margin-top:14px;">Artist Welcome</div>
+    <div style="font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#cfe0d3; margin-top:6px;">April 11–14, 2027 &middot; Hunter Street Baptist Church</div>
+  </td></tr>
+  <tr><td style="padding:30px 32px 8px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.6; color:#17262B;">
+    <p style="margin:0 0 16px;">Hi ${esc(first)},</p>
+    <p style="margin:0 0 16px;">My name is Sergio Castillo, and I'm reaching out on behalf of the SBCMC 2027 planning team. We're excited to work together with you to equip and encourage church leaders and those involved in worship ministry, in the academic world and across our convention.</p>
+    <p style="margin:0 0 20px;">${nothingNeeded ? "We have everything we need from you right now, so here's a look at what's ahead." : "Below is our plan and what we need from you. We'd like to get everything in place in a timely way, so we've laid it out by date."}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#E9F1F3; border-radius:6px; margin:0 0 22px;">
+      <tr><td style="padding:16px 20px 6px; font-family:Georgia,'Times New Roman',serif; font-size:17px; color:#24404A;">${nothingNeeded ? "What's ahead" : "What we're gathering, and when"}</td></tr>
+      <tr><td style="padding:2px 20px 16px; font-family:Arial,Helvetica,sans-serif; font-size:14.5px; line-height:1.55; color:#17262B;">${group(asapTitle, asks.asap)}${group('By February 1, 2027', asks.feb)}${group('By March 1, 2027', asks.mar)}
+        <p style="margin:12px 0 0;"><strong style="color:#24404A;">From us, closer to the conference</strong><br>${fromUs}</p>
+      </td></tr>
+    </table>${stageSection}
+    <p style="margin:0 0 6px; ${H}">Where to send it</p>
+    <p style="${P}">${portal ? `Upload everything to <a href="${esc(portal)}" style="${LINK}">your personal page</a>. You can add to it any time, or simply reply to this email with attachments.` : 'Simply reply to this email with attachments.'}${riderUrl ? ` The full production rider is linked there as well, or you can <a href="${esc(riderUrl)}" style="${LINK}">download it here</a>. It covers sound, staging, lighting, backline, and RF, and repeats the dates above.` : ''}</p>
+    <p style="margin:0 0 6px; ${H}">What do you need from us?</p>
+    <p style="${P}">Please reply with anything you need us to plan around — backline or gear, travel or hospitality, an A2 or stage assistant, a playback operator, or your own wireless system for approval.${lg.lodgingNeeded ? '' : ` If you need a place to stay, we're happy to recommend hotels with our <a href="${esc(hotelUrl)}" style="${LINK}">negotiated conference rates</a>.`}${asks.arrivalMissing ? ' And if you know when you expect to arrive in town, please let us know.' : ''} The sooner we know, the better we can plan for it.</p>
+    <p style="${P}">For technical production questions, you can reach Blake Sprayberry, Production Director at Hunter Street, at <a href="mailto:blakes@hsbc.org" style="${LINK}">blakes@hsbc.org</a>. For everything else, just reply to me.</p>
+    <p style="margin:0 0 24px;">Thank you for being part of this. We look forward to worshipping alongside you.</p>
+    <p style="margin:0 0 4px;">In Christ,</p>
+    <p style="margin:0 0 2px; font-weight:bold;">Sergio Castillo</p>
+    <p style="margin:0 0 26px; font-size:13px; color:#57676B;">SBCMC 2027 Team</p>
+  </td></tr>
+  <tr><td style="background-color:#FBF8F1; padding:16px 32px; text-align:center; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#57676B; border-top:1px solid #E2E1DA; border-radius:0 0 6px 6px;">Southern Baptist Church Music Collective &middot; 2027 Conference</td></tr>
+</table></td></tr></table>`;
+
+  const bullets = items => items.map(i => '  • ' + i).join('\n');
+  const text = [
+    'Hi ' + first + ',', '',
+    "My name is Sergio Castillo, and I'm reaching out on behalf of the SBCMC 2027 planning team. We're excited to work together with you to equip and encourage church leaders and those involved in worship ministry, in the academic world and across our convention.", '',
+    nothingNeeded ? "We have everything we need from you right now, so here's a look at what's ahead." : "Below is our plan and what we need from you. We'd like to get everything in place in a timely way, so we've laid it out by date.", '',
+    asks.asap.length ? (opts.byDate ? 'AS SOON AS YOU CAN — BY ' + opts.byDate.toUpperCase() : 'AS SOON AS YOU CAN') + '\n' + bullets(asks.asap) + '\n' : '',
+    asks.feb.length ? 'BY FEBRUARY 1, 2027\n' + bullets(asks.feb) + '\n' : '',
+    asks.mar.length ? 'BY MARCH 1, 2027\n' + bullets(asks.mar) + '\n' : '',
+    'FROM US, CLOSER TO THE CONFERENCE\n' + fromUs.replace(/&[a-z]+;/g, ''), '',
+    asks.need.has('stagePlot') ? 'YOUR STAGE PLOT\nPlease send your stage plot as soon as you can, since it\'s what lets the team start planning staging' + (asks.need.has('inputList') ? '; your input list is due February 1' : '') + ". Because of the number of artists and the quick changeovers across four days of concerts, the Hunter Street production team plans staging and placement for every ensemble from a shared set of templates (they're in the rider). We'll build around your setup wherever we can, but expect only minor adjustments.\n" : '',
+    'WHERE TO SEND IT\n' + (portal ? 'Upload everything to your personal page: ' + portal + '. You can add to it any time, or simply reply to this email with attachments.' : 'Simply reply to this email with attachments.') + (riderUrl ? ' The production rider: ' + riderUrl : ''), '',
+    'WHAT DO YOU NEED FROM US?\nPlease reply with anything you need us to plan around — backline or gear, travel or hospitality, an A2 or stage assistant, a playback operator, or your own wireless system for approval.' + (lg.lodgingNeeded ? '' : " If you need a place to stay, we're happy to recommend hotels with our negotiated conference rates: " + hotelUrl) + (asks.arrivalMissing ? ' And if you know when you expect to arrive in town, please let us know.' : '') + ' The sooner we know, the better we can plan for it.', '',
+    'For technical production questions, you can reach Blake Sprayberry, Production Director at Hunter Street, at blakes@hsbc.org. For everything else, just reply to me.', '',
+    'Thank you for being part of this. We look forward to worshipping alongside you.', '',
+    'In Christ,', 'Sergio Castillo', 'SBCMC 2027 Team'
+  ].filter(x => x !== undefined).join('\n');
+  return { subject: 'SBCMC 2027 Artist Welcome: here’s the plan and what we need from you', html, text, asks };
+}
+
+function artistWelcomeCandidates() {
+  const st = artistWelcomeState;
+  return sortByLastName(speakers.filter(sp => sp.trackerStatus !== 'Contact Only' && sp.trackerStatus !== 'Declined' && (st.showAll || (sp.types || []).includes('Musician'))));
+}
+function openArtistWelcomeModal() {
+  if (!window.isAdminUser) { toast('Artist Welcome emails are admin-only.'); return; }
+  artistWelcomeState = { showAll: false, byDate: '', previewId: null };
+  renderArtistWelcomeModal();
+}
+function closeArtistWelcomeModal() {
+  artistWelcomeState = null;
+  document.getElementById('exp-sort-modal-root').innerHTML = '';
+}
+function awSet(field, value) { artistWelcomeState[field] = value; renderArtistWelcomeModal(); }
+function awBuild(id) {
+  const sp = getSpeaker(id); if (!sp) return null;
+  return artistWelcomeEmail(sp, { portalUrl: speakerPortalUrl(sp), byDate: artistWelcomeState ? artistWelcomeState.byDate.trim() : '' });
+}
+async function awCopy(id) {
+  const sp = getSpeaker(id); const e = awBuild(id); if (!e) return;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([e.html], { type: 'text/html' }), 'text/plain': new Blob([e.text], { type: 'text/plain' }) })]);
+    toast('Copied the email for ' + sp.name + ' — paste it into a new Gmail message.');
+  } catch (err) {
+    awSet('previewId', id);
+    toast('Couldn’t copy automatically — select the preview below and copy it.');
+  }
+}
+function awCopySubject() {
+  navigator.clipboard.writeText('SBCMC 2027 Artist Welcome: here’s the plan and what we need from you').then(() => toast('Subject copied.'));
+}
+function awDownload(id) {
+  const sp = getSpeaker(id); const e = awBuild(id); if (!e) return;
+  const doc = '<!doctype html><html><head><meta charset="utf-8"><title>' + escapeHtml(e.subject) + '</title></head><body style="margin:0;background:#FBF8F1;">' + e.html + '</body></html>';
+  const blob = new Blob([doc], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'artist-welcome-' + sp.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function renderArtistWelcomeModal() {
+  const root = document.getElementById('exp-sort-modal-root');
+  const st = artistWelcomeState;
+  if (!st) { root.innerHTML = ''; return; }
+  const list = artistWelcomeCandidates();
+  const rows = list.map(sp => {
+    const a = artistWelcomeAsks(sp);
+    const asks = [...a.asap, ...a.feb, ...a.mar].map(x => x.replace(/^(The latest |Your |Any |A short |When you expect|Who’s )/, '').toLowerCase());
+    const summary = asks.length ? 'Asks for: ' + asks.slice(0, 6).join(' · ') + (asks.length > 6 ? ' · +' + (asks.length - 6) + ' more' : '') : 'Nothing needed right now';
+    const hasEmail = !!sp.contactEmail;
+    return `<div class="aw-row ${st.previewId === sp.id ? 'on' : ''}">
+      <div class="aw-main"><div class="aw-name">${escapeHtml(sp.name)}</div><div class="aw-email">${hasEmail ? escapeHtml(sp.contactEmail) : '<span style="color:#a52620;">No contact email on file</span>'}</div><div class="aw-sum">${escapeHtml(summary)}</div></div>
+      <div class="aw-btns"><button class="sp-mini-btn" onclick="awSet('previewId','${sp.id}')">Preview</button><button class="sp-mini-btn" onclick="awCopy('${sp.id}')">Copy email</button><button class="sp-mini-btn" onclick="awDownload('${sp.id}')" title="Download as an .html file">.html</button></div>
+    </div>`;
+  }).join('') || '<div class="sch-conflicts-empty">No artists to show.</div>';
+  const prev = st.previewId ? awBuild(st.previewId) : null;
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeArtistWelcomeModal();">
+      <div class="qa-modal-card" style="max-width:760px;">
+        <h3>Artist Welcome emails</h3>
+        <p class="qa-modal-sub">Each email is built from the artist's own record and only asks for what's still needed: items flagged "needed" with nothing uploaded yet. Click <b>Copy email</b>, paste into a new Gmail message, then drag the logo into the teal header.</p>
+        <div class="aw-controls">
+          <label>Reply-by date for the first group <input type="text" value="${escapeHtml(st.byDate)}" placeholder="e.g. November 15 (optional)" onchange="awSet('byDate', this.value)" style="width:210px;"></label>
+          <label class="ar-check"><input type="checkbox" ${st.showAll ? 'checked' : ''} onchange="awSet('showAll', this.checked)"> Show all speakers &amp; artists, not just musicians</label>
+          <button class="sp-mini-btn" onclick="awCopySubject()">Copy subject line</button>
+        </div>
+        <div class="aw-list">${rows}</div>
+        ${prev ? `<div class="aw-preview-label">Preview — ${escapeHtml(getSpeaker(st.previewId).name)}</div><div class="aw-preview">${prev.html}</div>` : ''}
+        <div class="qa-modal-actions"><button class="qa-modal-done" onclick="closeArtistWelcomeModal()">Done</button></div>
+      </div>
+    </div>`;
 }
 
 function emailSpeakerSummary(id) {
