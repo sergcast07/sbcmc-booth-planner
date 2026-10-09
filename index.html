@@ -14589,7 +14589,7 @@ function speakerCompleteness(sp) {
   const mn = sp.data.materialsNeeded || {};
   const mats = sp.data.materials || {};
   const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k]);
-  checks.push(neededKeys.length === 0 || neededKeys.every(k => !!mats[k]));
+  checks.push(neededKeys.length === 0 || neededKeys.every(k => materialProvided(mats, k)));
   if (!skipTravel) checks.push(!!lg.travelMethod);
   // "Invited" alone just means the ask went out -- nothing's actually confirmed yet, so it
   // shouldn't read as done. Declined/Cancelled also count as settled -- there's nothing left
@@ -14612,7 +14612,7 @@ function speakerTabAlert(sp, tab) {
     const mat = materialsForTypes(sp.types, sp.data.arrangement);
     const mn = sp.data.materialsNeeded || {};
     const mats = sp.data.materials || {};
-    if (mat.some(k => mn[k] && !mats[k])) return true;
+    if (mat.some(k => mn[k] && !materialProvided(mats, k))) return true;
     const prod = sp.data.production || {};
     return !!prod.soundCheckNeeded && !prod.soundCheckScheduled;
   }
@@ -16618,7 +16618,7 @@ const MATERIAL_ITEM_LABELS = {
   sessionDescription: 'Session description', slideDeck: 'Slide deck', handouts: 'Attendee handouts',
   rider: 'Rider', stagePlot: 'Stage plot', inputList: 'Input list', rfRequest: 'RF (wireless) request',
   lyricsProPresenter: 'Lyrics / ProPresenter files', playbackDetails: 'Playback details (tracks, click, stems)',
-  lightingNotes: 'Lighting notes / special requests'
+  lightingNotes: 'Lighting notes / special requests', lightingNotesText: 'Lighting notes (typed)'
 };
 // A short line of direction shown under each checklist item's label on the self-service
 // portal, so it's clear what's actually being asked for instead of just a bare field name.
@@ -16636,7 +16636,7 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
   rfRequest: 'Please upload your RF (wireless) frequency request.',
   lyricsProPresenter: 'Please upload your lyrics or ProPresenter files.',
   playbackDetails: 'Please upload details on your playback needs (tracks, click, stems).',
-  lightingNotes: 'Please upload or share any lighting notes or special requests.'
+  lightingNotes: 'Please upload any lighting notes or special requests, or simply type them in below.'
 };
 // Which checklist items are typed in as plain text vs. an uploaded file vs. either an uploaded
 // file or a pasted link, instead of the default "upload a file" -- drives how materialBlock()
@@ -16648,8 +16648,16 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
 // generic truthiness check elsewhere (completeness, tab alerts, materialsNeededCount) already
 // works unchanged across both shapes, since both a non-empty string and a non-null object are
 // truthy -- only the two rendering spots and the pending-value formatter need to know the type.
-const MATERIAL_ITEM_TYPES = { bio: 'text', sessionDescription: 'text', headshot: 'file-or-link', slideDeck: 'file-or-link', rider: 'file-or-link', promoMaterials: 'file-or-link' };
+const MATERIAL_ITEM_TYPES = { lightingNotesText: 'text', bio: 'text', sessionDescription: 'text', headshot: 'file-or-link', slideDeck: 'file-or-link', rider: 'file-or-link', promoMaterials: 'file-or-link' };
 function materialItemType(key) { return MATERIAL_ITEM_TYPES[key] || 'file'; }
+// Lighting notes take an uploaded file AND/OR typed notes. The typed half is stored under its own
+// key (materials.lightingNotesText) so the file side keeps working exactly as before; either one
+// counts as "provided".
+const MATERIAL_TEXT_COMPANION = { lightingNotes: 'lightingNotesText' };
+function materialProvided(materials, key) {
+  const c = MATERIAL_TEXT_COMPANION[key];
+  return !!(materials && (materials[key] || (c && materials[c])));
+}
 // Rider and promo materials are asked of every type, same as bio/headshot -- both are on the
 // standard artist information form regardless of what kind of speaker/artist someone is.
 const MATERIALS_BY_TYPE = {
@@ -16985,13 +16993,24 @@ function renderSpeakerPublicView() {
       </div>
     `;
   }
-  const materialBlocksHtml = relevantKeys.map(materialBlock).filter(Boolean).join('');
+  // Lighting notes: the upload block above, plus a free-form box right under it.
+  function lightingTypedBlock() {
+    const ck = MATERIAL_TEXT_COMPANION.lightingNotes;
+    const typed = materialCurrentValue(ck) || '';
+    if (!typed && !materialsNeeded.lightingNotes) return '';
+    return `
+      <div class="spv-file-block">
+        <b>Or type your lighting notes</b>${pendingTag('materials.' + ck)}
+        <textarea class="spv-textarea" rows="4" style="margin-top:6px;" placeholder="Type any lighting notes or special requests here…" onchange="portalUpdateSpeakerMaterialText('${sp.id}', '${ck}', this.value)">${escapeHtml(typed)}</textarea>
+      </div>`;
+  }
+  const materialBlocksHtml = relevantKeys.map(k => (materialBlock(k) || '') + (k === 'lightingNotes' ? lightingTypedBlock() : '')).filter(Boolean).join('');
   // "All set" covers two real states: staff hasn't flagged anything as needed yet, or they
   // have and every flagged item already has a value on file (a text field with real content,
   // or a file/link that isn't itself a pending removal). Either way, a plain grey sentence
   // reads as ambiguous -- a clear checkmark says outright there's nothing to do right now.
   const neededKeysList = relevantKeys.filter(k => materialsNeeded[k]);
-  const allNeededProvided = neededKeysList.length > 0 && neededKeysList.every(k => !!materialCurrentValue(k));
+  const allNeededProvided = neededKeysList.length > 0 && neededKeysList.every(k => !!materialCurrentValue(k) || (MATERIAL_TEXT_COMPANION[k] && !!materialCurrentValue(MATERIAL_TEXT_COMPANION[k])));
   const allSetBannerHtml = (neededKeysList.length === 0 || allNeededProvided)
     ? `<div class="spv-allset-banner">✓ ${neededKeysList.length === 0 ? 'We have everything we need from you right now — nothing to upload.' : 'You’re all set — we have everything listed below.'}</div>`
     : '';
@@ -17592,7 +17611,7 @@ function materialsNeededCount(sp) {
   const mn = sp.data.materialsNeeded || {};
   const mats = sp.data.materials || {};
   const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k]);
-  const done = neededKeys.filter(k => mats[k]).length;
+  const done = neededKeys.filter(k => materialProvided(mats, k)).length;
   return { done, total: neededKeys.length };
 }
 
@@ -20484,7 +20503,8 @@ function speakerDetailHTML(sp) {
       return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Not provided yet." onchange="updateSpeakerNested('${sp.id}','materials','${key}',this.value)">${escapeHtml(value || '')}</textarea></div></div>`;
     }
     const file = value;
-    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}</div>`;
+    const typedNotes = MATERIAL_TEXT_COMPANION[key] ? `<div style="margin:2px 0 6px 24px;"><textarea rows="2" style="width:100%;" placeholder="Typed notes (optional, free-form)" onchange="updateSpeakerNested('${sp.id}','materials','${MATERIAL_TEXT_COMPANION[key]}',this.value)">${escapeHtml(spMaterials[MATERIAL_TEXT_COMPANION[key]] || '')}</textarea></div>` : '';
+    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}</div>${typedNotes}`;
   }).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
 
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
@@ -21390,7 +21410,7 @@ let artistWelcomeState = null; // { showAll, byDate, previewId }
 
 function artistWelcomeNeeds(sp) {
   const mn = sp.data.materialsNeeded || {}, mats = sp.data.materials || {}, pending = sp.data.pendingChanges || {};
-  const have = k => !!mats[k] || !!(pending['materials.' + k] && pending['materials.' + k].new);
+  const have = k => materialProvided(mats, k) || !!(pending['materials.' + k] && pending['materials.' + k].new) || (MATERIAL_TEXT_COMPANION[k] && !!(pending['materials.' + MATERIAL_TEXT_COMPANION[k]] && pending['materials.' + MATERIAL_TEXT_COMPANION[k]].new));
   const set = new Set();
   materialsForTypes(sp.types, sp.data.arrangement).forEach(k => { if (mn[k] && !have(k) && k !== 'promoMaterials') set.add(k); });
   return set;
@@ -21624,8 +21644,8 @@ function emailSpeakerSummary(id) {
   const mn = sp.data.materialsNeeded || {};
   const mats = sp.data.materials || {};
   const neededMaterials = allMaterials.filter(k => mn[k]);
-  const stillNeeded = neededMaterials.filter(k => !mats[k]);
-  const received = neededMaterials.filter(k => mats[k]);
+  const stillNeeded = neededMaterials.filter(k => !materialProvided(mats, k));
+  const received = neededMaterials.filter(k => materialProvided(mats, k));
   if (stillNeeded.length) {
     lines.push("STILL NEEDED FROM YOU");
     stillNeeded.forEach(k => lines.push('  \u2022 ' + MATERIAL_ITEM_LABELS[k]));
