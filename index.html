@@ -17046,8 +17046,8 @@ function renderSpeakerPublicView() {
       ${speakerPortalJustCompleted ? `
         <div class="spv-done-banner">✓ Marked complete on ${escapeHtml(new Date(sp.data.publicPortalCompletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}. You can still come back and make changes anytime — just click below again when you’re done.</div>
       ` : ''}
-      <p class="sp-sub sp-sub-wrap">Every field above is saved as a suggested update — our team reviews and approves it before it's official. Click below when you're finished so they know it's ready to look at.</p>
-      <button class="qa-modal-done spv-done-btn" onclick="markSpeakerPortalComplete('${sp.id}')">✓ I'm Done — Ready for Review</button>
+      <p class="sp-sub sp-sub-wrap">When you're finished, click below to submit everything to us.</p>
+      <button class="qa-modal-done spv-done-btn" onclick="markSpeakerPortalComplete('${sp.id}')">✓ Submit to SBCMC</button>
     </div>
   `;
 }
