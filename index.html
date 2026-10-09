@@ -16636,7 +16636,7 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
   rfRequest: 'Please upload your RF (wireless) frequency request.',
   lyricsProPresenter: 'Please upload your lyrics or ProPresenter files.',
   playbackDetails: 'Please upload details on your playback needs (tracks, click, stems).',
-  lightingNotes: 'Please upload any lighting notes or special requests, or simply type them in below.'
+  lightingNotes: 'Please upload any lighting notes or special requests, or type them in below.'
 };
 // Which checklist items are typed in as plain text vs. an uploaded file vs. either an uploaded
 // file or a pasted link, instead of the default "upload a file" -- drives how materialBlock()
@@ -16969,7 +16969,9 @@ function renderSpeakerPublicView() {
     // of that type. Only show a row here if staff has checked it as needed, or if there's
     // already a file/pending upload against it (so they can still see/manage their own upload
     // even if staff unchecks it after the fact).
-    if (!file && !isPendingRemoval && !materialsNeeded[itemKey]) return null;
+    const companionKey = MATERIAL_TEXT_COMPANION[itemKey];
+    const typedValue = companionKey ? (materialCurrentValue(companionKey) || '') : '';
+    if (!file && !isPendingRemoval && !typedValue && !materialsNeeded[itemKey]) return null;
     const statusHtml = isPendingRemoval ? '<div class="sp-sub">Removal pending review.</div>'
       : file ? `<div class="sp-sub">${filePending ? 'Proposed' : (file.isExternalLink ? 'Linked' : 'Uploaded')}: <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? escapeHtml(file.url) : escapeHtml(file.fileName)}</a>${file.uploadedAt ? ' on ' + escapeHtml(file.uploadedAt) : ''}</div><button class="sp-mini-btn" onclick="portalRemoveSpeakerMaterial('${sp.id}', '${itemKey}')">Remove</button>`
       : '<div class="sp-sub">Not uploaded yet.</div>';
@@ -16990,21 +16992,11 @@ function renderSpeakerPublicView() {
         <input type="file" id="skv-material-input-${sp.id}-${itemKey}" style="margin-top:6px;">
         <button class="sp-add-btn" onclick="portalUploadSpeakerMaterial('${sp.id}', '${itemKey}')">Upload</button>
         ${linkRowHtml}
+        ${companionKey ? `<div class="spv-or-link"><span class="spv-or-link-label">— or type your notes here —${pendingTag('materials.' + companionKey)}</span><textarea class="spv-textarea" rows="4" style="margin-top:6px;" placeholder="Type any lighting notes or special requests here…" onchange="portalUpdateSpeakerMaterialText('${sp.id}', '${companionKey}', this.value)">${escapeHtml(typedValue)}</textarea></div>` : ''}
       </div>
     `;
   }
-  // Lighting notes: the upload block above, plus a free-form box right under it.
-  function lightingTypedBlock() {
-    const ck = MATERIAL_TEXT_COMPANION.lightingNotes;
-    const typed = materialCurrentValue(ck) || '';
-    if (!typed && !materialsNeeded.lightingNotes) return '';
-    return `
-      <div class="spv-file-block">
-        <b>Or type your lighting notes</b>${pendingTag('materials.' + ck)}
-        <textarea class="spv-textarea" rows="4" style="margin-top:6px;" placeholder="Type any lighting notes or special requests here…" onchange="portalUpdateSpeakerMaterialText('${sp.id}', '${ck}', this.value)">${escapeHtml(typed)}</textarea>
-      </div>`;
-  }
-  const materialBlocksHtml = relevantKeys.map(k => (materialBlock(k) || '') + (k === 'lightingNotes' ? lightingTypedBlock() : '')).filter(Boolean).join('');
+  const materialBlocksHtml = relevantKeys.map(materialBlock).filter(Boolean).join('');
   // "All set" covers two real states: staff hasn't flagged anything as needed yet, or they
   // have and every flagged item already has a value on file (a text field with real content,
   // or a file/link that isn't itself a pending removal). Either way, a plain grey sentence
@@ -20503,8 +20495,10 @@ function speakerDetailHTML(sp) {
       return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Not provided yet." onchange="updateSpeakerNested('${sp.id}','materials','${key}',this.value)">${escapeHtml(value || '')}</textarea></div></div>`;
     }
     const file = value;
-    const typedNotes = MATERIAL_TEXT_COMPANION[key] ? `<div style="margin:2px 0 6px 24px;"><textarea rows="2" style="width:100%;" placeholder="Typed notes (optional, free-form)" onchange="updateSpeakerNested('${sp.id}','materials','${MATERIAL_TEXT_COMPANION[key]}',this.value)">${escapeHtml(spMaterials[MATERIAL_TEXT_COMPANION[key]] || '')}</textarea></div>` : '';
-    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}</div>${typedNotes}`;
+    if (MATERIAL_TEXT_COMPANION[key]) {
+      return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Typed notes (optional)" onchange="updateSpeakerNested('${sp.id}','materials','${MATERIAL_TEXT_COMPANION[key]}',this.value)">${escapeHtml(spMaterials[MATERIAL_TEXT_COMPANION[key]] || '')}</textarea></div></div>`;
+    }
+    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}</div>`;
   }).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
 
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
