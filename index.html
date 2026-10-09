@@ -21415,10 +21415,11 @@ function artistWelcomeAsks(sp) {
   const asap = [], feb = [], mar = [];
   if (!lg.arrivalDate) asap.push('When you expect to arrive in town and when you plan to leave, if you know, and how you’re getting here');
   if (artistPartyStillNeeded(sp)) asap.push('Who’s traveling with you, so we can make badges');
-  if (!lg.lodgingNeeded && !lg.mealsProvided) asap.push('Any hotel, ground transportation, or meal needs');
-  if (need.has('bio') && need.has('headshot')) asap.push('The latest bio and photo you’d like us to use in the conference mobile app');
-  else if (need.has('bio')) asap.push('The latest bio you’d like us to use in the conference mobile app');
-  else if (need.has('headshot')) asap.push('The latest photo you’d like us to use in the conference mobile app');
+  // Bio and photo are a sentence after the list rather than a bullet.
+  let asapNote = '';
+  if (need.has('bio') && need.has('headshot')) asapNote = 'In addition, we’d like you to point us to your latest bio and photo to use in the conference mobile app.';
+  else if (need.has('bio')) asapNote = 'In addition, we’d like you to point us to your latest bio to use in the conference mobile app.';
+  else if (need.has('headshot')) asapNote = 'In addition, we’d like you to point us to your latest photo to use in the conference mobile app.';
   if (need.has('stagePlot')) asap.push('Your stage plot');
   if (need.has('rider')) asap.push('Your own hospitality/technical rider, if you have one');
   if (need.has('sessionDescription')) asap.push('A short description of your session');
@@ -21429,7 +21430,7 @@ function artistWelcomeAsks(sp) {
   if (need.has('lyricsProPresenter')) feb.push('Lyrics / ProPresenter files, background videos, and other media');
   if (need.has('lightingNotes')) mar.push('Any lighting notes or special requests');
   if (need.has('playbackDetails')) mar.push('Your playback details (tracks, click, stems)');
-  return { need, asap, feb, mar, arrivalMissing: !lg.arrivalDate };
+  return { need, asap, asapNote, feb, mar, arrivalMissing: !lg.arrivalDate };
 }
 
 function artistWelcomeEmail(sp, opts) {
@@ -21442,14 +21443,14 @@ function artistWelcomeEmail(sp, opts) {
   const portal = opts.portalUrl || '';
   const riderUrl = conferenceProductionRider ? conferenceProductionRider.url : '';
   const hotelUrl = hotelInfoUrl || 'https://sbcmc.org/about/recommended-hotels/';
-  const nothingNeeded = !asks.asap.length && !asks.feb.length && !asks.mar.length;
+  const nothingNeeded = !asks.asap.length && !asks.asapNote && !asks.feb.length && !asks.mar.length;
   const H = 'font-family:Georgia,\'Times New Roman\',serif; font-size:17px; color:#24404A;';
   const P = 'margin:0 0 20px;';
   const LINK = 'color:#24404A;';
 
-  const group = (title, items) => items.length ? `
+  const group = (title, items, note) => (items.length || note) ? `
         <p style="margin:12px 0 4px;"><strong style="color:#24404A;">${title}</strong></p>
-        <ul style="margin:0; padding-left:20px;">${items.map(i => `<li style="margin:0 0 3px;">${esc(i)}</li>`).join('')}</ul>` : '';
+        ${items.length ? `<ul style="margin:0; padding-left:20px;">${items.map(i => `<li style="margin:0 0 3px;">${esc(i)}</li>`).join('')}</ul>` : ''}${note ? `<p style="margin:${items.length ? '8px' : '0'} 0 0;">${esc(note)}</p>` : ''}` : '';
   const scWhen = prod.soundCheckDate ? (friendlyDate(prod.soundCheckDate) + (prod.soundCheckStart ? ', ' + friendlyTime(prod.soundCheckStart) : '')) : '';
   const fromUs = scWhen
     ? `Your load-in instructions and final schedule. We have your sound check penciled in for ${esc(scWhen)}; we're finalizing the detailed sound check schedule now, and as you can imagine, it's a bit of a game of Tetris with all of the conference activities. We'll confirm each piece as soon as it's set.`
@@ -21473,7 +21474,7 @@ function artistWelcomeEmail(sp, opts) {
     <p style="margin:0 0 20px;">${nothingNeeded ? "We have everything we need from you right now, so here's a look at what's ahead." : "Below is our plan and what we need from you. We'd like to get everything in place in a timely way, so we've laid it out by date."}</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#E9F1F3; border-radius:6px; margin:0 0 22px;">
       <tr><td style="padding:16px 20px 6px; font-family:Georgia,'Times New Roman',serif; font-size:17px; color:#24404A;">${nothingNeeded ? "What's ahead" : "What we're gathering, and when"}</td></tr>
-      <tr><td style="padding:2px 20px 16px; font-family:Arial,Helvetica,sans-serif; font-size:14.5px; line-height:1.55; color:#17262B;">${group(asapTitle, asks.asap)}${group('By February 1, 2027', asks.feb)}${group('By March 1, 2027', asks.mar)}
+      <tr><td style="padding:2px 20px 16px; font-family:Arial,Helvetica,sans-serif; font-size:14.5px; line-height:1.55; color:#17262B;">${group(asapTitle, asks.asap, asks.asapNote)}${group('By February 1, 2027', asks.feb)}${group('By March 1, 2027', asks.mar)}
         <p style="margin:12px 0 0;"><strong style="color:#24404A;">From us, closer to the conference</strong><br>${fromUs}</p>
       </td></tr>
     </table>${stageSection}
@@ -21494,7 +21495,7 @@ function artistWelcomeEmail(sp, opts) {
     'Hi ' + first + ',', '',
     "My name is Sergio Castillo, and I'm reaching out on behalf of the SBCMC 2027 planning team. We're excited to work together with you to equip and encourage church leaders and those involved in worship ministry, in the academic world and across our convention.", '',
     nothingNeeded ? "We have everything we need from you right now, so here's a look at what's ahead." : "Below is our plan and what we need from you. We'd like to get everything in place in a timely way, so we've laid it out by date.", '',
-    asks.asap.length ? (opts.byDate ? 'AS SOON AS YOU CAN — BY ' + opts.byDate.toUpperCase() : 'AS SOON AS YOU CAN') + '\n' + bullets(asks.asap) + '\n' : '',
+    (asks.asap.length || asks.asapNote) ? (opts.byDate ? 'AS SOON AS YOU CAN — BY ' + opts.byDate.toUpperCase() : 'AS SOON AS YOU CAN') + '\n' + (asks.asap.length ? bullets(asks.asap) + '\n' : '') + (asks.asapNote ? (asks.asap.length ? '\n' : '') + asks.asapNote + '\n' : '') : '',
     asks.feb.length ? 'BY FEBRUARY 1, 2027\n' + bullets(asks.feb) + '\n' : '',
     asks.mar.length ? 'BY MARCH 1, 2027\n' + bullets(asks.mar) + '\n' : '',
     'FROM US, CLOSER TO THE CONFERENCE\n' + fromUs.replace(/&[a-z]+;/g, ''), '',
@@ -21555,7 +21556,8 @@ function renderArtistWelcomeModal() {
   const list = artistWelcomeCandidates();
   const rows = list.map(sp => {
     const a = artistWelcomeAsks(sp);
-    const asks = [...a.asap, ...a.feb, ...a.mar].map(x => x.replace(/^(The latest |Your |Any |A short |When you expect|Who’s )/, '').toLowerCase());
+    const noteWhat = a.asapNote ? [a.asapNote.includes('bio') ? 'bio' : '', a.asapNote.includes('photo') ? 'photo' : ''].filter(Boolean) : [];
+    const asks = [...a.asap, ...noteWhat, ...a.feb, ...a.mar].map(x => x.replace(/^(The latest |Your |Any |A short |When you expect|Who’s )/, '').toLowerCase());
     const summary = asks.length ? 'Asks for: ' + asks.slice(0, 6).join(' · ') + (asks.length > 6 ? ' · +' + (asks.length - 6) + ' more' : '') : 'Nothing needed right now';
     const hasEmail = !!sp.contactEmail;
     return `<div class="aw-row ${st.previewId === sp.id ? 'on' : ''}">
