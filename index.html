@@ -21504,7 +21504,7 @@ function artistWelcomeEmail(sp, opts) {
     'Thank you for being part of this. We look forward to worshipping alongside you.', '',
     'In Christ,', 'Sergio Castillo', 'SBCMC 2027 Team'
   ].filter(x => x !== undefined).join('\n');
-  return { subject: 'SBCMC 2027 Artist Welcome: here’s the plan and what we need from you', html, text, asks };
+  return { subject: 'SBCMC: Artist Welcome', html, text, asks };
 }
 
 function artistWelcomeCandidates() {
@@ -21536,7 +21536,7 @@ async function awCopy(id) {
   }
 }
 function awCopySubject() {
-  navigator.clipboard.writeText('SBCMC 2027 Artist Welcome: here’s the plan and what we need from you').then(() => toast('Subject copied.'));
+  navigator.clipboard.writeText('SBCMC: Artist Welcome').then(() => toast('Subject copied.'));
 }
 function awDownload(id) {
   const sp = getSpeaker(id); const e = awBuild(id); if (!e) return;
