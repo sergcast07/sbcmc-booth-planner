@@ -2182,7 +2182,6 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     window.isLegacySession = true;
     window.currentUserLabel = 'Shared login';
     window.isAdminUser = !viewOnly;
-    (function(){ var b = document.getElementById('aw-open-btn'); if (b) b.style.display = window.isAdminUser ? '' : 'none'; })();
     window.userPermissions = {};
     ALL_SECTION_KEYS.forEach(function(k) { window.userPermissions[k] = viewOnly ? 'view' : 'edit'; });
     // Applicant data includes minors (the high-school program) -- the legacy view-only password
@@ -2217,7 +2216,6 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     window.userPermissions = {};
     (perms || []).forEach(function(p) { window.userPermissions[p.section_key] = p.level; });
     window.isAdminUser = !!(profile.roles && profile.roles.is_admin);
-    (function(){ var b = document.getElementById('aw-open-btn'); if (b) b.style.display = window.isAdminUser ? '' : 'none'; })();
     window.isLegacySession = false;
     window.currentUserLabel = profile.display_name || profile.email;
     document.body.classList.remove('view-only-mode'); // that banner is a legacy-fallback-only concept, see applyLegacySession
@@ -2566,7 +2564,6 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         </select>
         <button class="sp-add-btn" onclick="addSpeaker()">+ Add speaker/artist</button>
         <button class="sp-add-btn" onclick="openExportSortModal('speakers')" style="background:var(--ink-soft);">Export CSV</button>
-        <button class="sp-add-btn" id="aw-open-btn" onclick="openArtistWelcomeModal()" style="background:var(--teal-deep); display:none;">&#9993; Artist Welcome emails</button>
       </div>
       <div class="sk-section-title clickable" data-section-toggle="sk-active" onclick="toggleSidebarSection('sk-active')">
         Active <span class="sk-section-count" id="sk-active-count"></span><span class="sp-chevron">▸</span>
@@ -20980,7 +20977,7 @@ function speakerDetailHTML(sp) {
     </div>
 
     <div style="padding: 4px 22px 16px;">
-      ${window.isAdminUser ? `<button class="sp-add-btn" onclick="emailSpeakerSummary('${sp.id}')">\u2709\uFE0F Email Them Their Summary</button>` : ''}
+      ${window.isAdminUser ? `<button class="sp-add-btn" onclick="emailSpeakerSummary('${sp.id}')">\u2709\uFE0F Email Them Their Summary</button> <button class="sp-add-btn" style="background:var(--teal-deep);" onclick="openArtistWelcomeFor('${sp.id}')">\u2709\uFE0F Artist Welcome Email</button>` : ''}
       ${sp.trackerStatus === 'Contact Only'
         ? `<button class="sp-mini-btn" style="margin-left:8px; color:#a52620;" onclick="removeSpeaker('${sp.id}')">Delete permanently</button>`
         : `<button class="sp-mini-btn" style="margin-left:8px; color:#a52620;" onclick="moveSpeakerToContactOnly('${sp.id}')">\uD83D\uDCC7 Move to Contact Only</button>`}
@@ -21531,6 +21528,13 @@ function openArtistWelcomeModal() {
   artistWelcomeState = { showAll: false, byDate: '', previewId: null };
   renderArtistWelcomeModal();
 }
+// Opened from an artist's own record: just that artist, with the email already previewed.
+function openArtistWelcomeFor(id) {
+  if (!window.isAdminUser) { toast('Artist Welcome emails are admin-only.'); return; }
+  const sp = getSpeaker(id); if (!sp) return;
+  artistWelcomeState = { showAll: true, byDate: '', previewId: id, single: id };
+  renderArtistWelcomeModal();
+}
 function closeArtistWelcomeModal() {
   artistWelcomeState = null;
   document.getElementById('exp-sort-modal-root').innerHTML = '';
@@ -21567,7 +21571,7 @@ function renderArtistWelcomeModal() {
   const root = document.getElementById('exp-sort-modal-root');
   const st = artistWelcomeState;
   if (!st) { root.innerHTML = ''; return; }
-  const list = artistWelcomeCandidates();
+  const list = st.single ? [getSpeaker(st.single)].filter(Boolean) : artistWelcomeCandidates();
   const rows = list.map(sp => {
     const a = artistWelcomeAsks(sp);
     const noteWhat = a.asapNote ? [a.asapNote.includes('bio') ? 'bio' : '', a.asapNote.includes('photo') ? 'photo' : ''].filter(Boolean) : [];
@@ -21583,11 +21587,11 @@ function renderArtistWelcomeModal() {
   root.innerHTML = `
     <div class="qa-modal-overlay" onclick="if(event.target===this) closeArtistWelcomeModal();">
       <div class="qa-modal-card" style="max-width:760px;">
-        <h3>Artist Welcome emails</h3>
+        <h3>${st.single && list[0] ? 'Artist Welcome email: ' + escapeHtml(list[0].name) : 'Artist Welcome emails'}</h3>
         <p class="qa-modal-sub">Each email is built from the artist's own record and only asks for what's still needed: items flagged "needed" with nothing uploaded yet. Click <b>Copy email</b>, paste into a new Gmail message, then drag the logo into the teal header.</p>
         <div class="aw-controls">
           <label>Reply-by date for the first group <input type="text" value="${escapeHtml(st.byDate)}" placeholder="e.g. November 15 (optional)" onchange="awSet('byDate', this.value)" style="width:210px;"></label>
-          <label class="ar-check"><input type="checkbox" ${st.showAll ? 'checked' : ''} onchange="awSet('showAll', this.checked)"> Show all speakers &amp; artists, not just musicians</label>
+          ${st.single ? '' : `<label class="ar-check"><input type="checkbox" ${st.showAll ? 'checked' : ''} onchange="awSet('showAll', this.checked)"> Show all speakers &amp; artists, not just musicians</label>`}
           <button class="sp-mini-btn" onclick="awCopySubject()">Copy subject line</button>
         </div>
         <div class="aw-list">${rows}</div>
