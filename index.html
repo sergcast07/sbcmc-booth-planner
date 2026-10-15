@@ -19980,6 +19980,11 @@ function namesGroupedByTitleHtml(entries) {
 // keynotes/concerts/meals/business meetings that also happen in a room someone (e.g. the
 // production team) needs the full picture for. This is deliberately a separate function reading
 // the same underlying scheduleSlots/speakers data, not a change to that existing view.
+// Sound checks that are fully scheduled (date, start time AND a room) and sit in one of these rooms,
+// so By Room can show everything happening there, not just the sessions.
+function soundChecksInRooms(rooms) {
+  return soundCheckRows().filter(r => r.dated && r.room && rooms.has(r.room));
+}
 function renderScheduleByRoom() {
   const body = document.getElementById('sch-rooms-body');
   if (!body) return;
@@ -20023,6 +20028,7 @@ function renderScheduleByRoom() {
       rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: namesGroupedByTitleHtml(entries), notes: slot.notes || '' });
     }
   });
+  soundChecksInRooms(scheduleRoomFilter).forEach(r => rows.push({ date: r.date, start: r.start, end: r.end, label: 'Sound check', room: r.room, detail: escapeHtml(r.sp.name), notes: '' }));
   rows.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
   if (!rows.length) {
@@ -20039,7 +20045,7 @@ function renderScheduleByRoom() {
   const dayBlocks = Object.keys(days).sort().map(date => {
     const rowsHtml = days[date].map(r => `
       <div class="sch-itin-row">
-        <div class="sch-itin-time">${friendlyTime(r.start)} – ${friendlyTime(r.end)}</div>
+        <div class="sch-itin-time">${friendlyTime(r.start)}${r.end ? ' – ' + friendlyTime(r.end) : ''}</div>
         <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}${r.notes ? `<div class="sp-sub sp-sub-wrap sch-desc-text">${escapeHtml(r.notes)}</div>` : ''}</div>
       </div>`).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rowsHtml}`;
@@ -21898,7 +21904,7 @@ function scheduleViewExportInfo() {
     grid: 'Every breakout session, all tracks',
     timeline: 'Showing: ' + (audNames || 'no group selected'),
     itinerary: 'Itinerary for: ' + (audNames || 'no group selected') + ' (slots only, no speaker rows)',
-    rooms: roomNames ? 'Rooms: ' + roomNames : 'No rooms selected in this view yet',
+    rooms: roomNames ? 'Rooms: ' + roomNames + ' (sessions and sound checks)' : 'No rooms selected in this view yet',
     artists: (artistSchedPick ? 'One artist' : (artistSchedType !== 'all' ? artistSchedType + 's' : 'All artists')) + (artistSchedShowEmpty ? ' (including those with nothing scheduled)' : ' with something scheduled') + ' — one row per arrival, sound check and session',
     soundchecks: 'Every sound check — date, time, room and equipment needs'
   };
@@ -21958,6 +21964,12 @@ function scheduleExportDataset(scope, days, sortValue) {
     if (!people.length) rows.push({ slot, sp: null, sess: null, room: slot.room || '' });
     else people.forEach(({ sp, sess }) => rows.push({ slot, sp, sess, room: roomOf(sess) }));
   });
+  if (roomMode) {
+    soundChecksInRooms(scheduleRoomFilter).forEach(r => {
+      if (!dayOk(r.date)) return;
+      rows.push({ slot: { date: r.date, start: r.start, end: r.end, label: 'Sound check', kind: 'soundcheck', notes: '' }, sp: r.sp, sess: null, room: r.room });
+    });
+  }
   const key = sortKey || 'datetime';
   const dirMul = (sortValue || '').endsWith('-desc') ? -1 : 1;
   rows.sort((a, b) => {
