@@ -19947,6 +19947,47 @@ function printSoundChecksReport() {
   runScopedPrint('printing-schedule-report');
 }
 
+// Print the By Room view: a clean day-by-day list for the selected rooms, same look as the
+// Conference Schedule print. Sound checks are included only when the checkbox is ticked.
+function printScheduleByRoomReport() {
+  const container = document.getElementById('schedule-print-view');
+  if (!container) return;
+  if (!scheduleRoomFilter.size) { toast('Pick at least one room first.'); return; }
+  const rows = scheduleByRoomRows(byRoomIncludeSoundChecks);
+  if (!rows.length) { toast('Nothing scheduled in the selected rooms yet.'); return; }
+  const showRoom = scheduleRoomFilter.size > 1;
+  const days = {};
+  rows.forEach(r => (days[r.date] = days[r.date] || []).push(r));
+  const dayHtml = Object.keys(days).sort().map(date => {
+    const rowsHtml = days[date].map(r => {
+      const isSound = r.label === 'Sound check' && !r.notes;
+      const color = isSound ? SCHEDULE_KIND_COLORS.keynote : SCHEDULE_KIND_COLORS.other;
+      return `<div class="sc-print-row" style="border-left-color:${color};">
+        <div class="sc-print-time">${friendlyTime(r.start)}${r.end ? '\u2013' + friendlyTime(r.end) : ''}</div>
+        <div class="sc-print-what">
+          <div class="sc-print-label">${escapeHtml(r.label)}${showRoom ? ` <span class="sc-print-room" style="display:inline;margin-left:6px;">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}</div>
+          ${r.detail ? `<div class="sc-print-names">${r.detail}</div>` : ''}
+          ${r.notes ? `<div class="sc-print-note">${escapeHtml(r.notes)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="sc-print-day">
+      <div class="sc-print-day-title">${escapeHtml(fullWeekday(date))} <span class="sc-print-day-date">${escapeHtml(friendlyDate(date).replace(/^[A-Za-z]+,\s*/, ''))}</span></div>
+      ${rowsHtml}
+    </div>`;
+  }).join('');
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const roomsLabel = Array.from(scheduleRoomFilter).map(roomLabelWithCapacity).join(' + ');
+  container.innerHTML = `
+    <div class="bo-print-band">
+      <div class="bo-print-eyebrow">SBCMC 2027</div>
+      <h1>Room Schedule</h1>
+      <div class="bo-print-tag">${escapeHtml(roomsLabel)}${byRoomIncludeSoundChecks ? ' (with sound checks)' : ''} \u2014 Generated ${dateStr}</div>
+    </div>
+    <div class="bo-print-body"><div class="sc-print-days">${dayHtml}</div></div>`;
+  runScopedPrint('printing-schedule-report');
+}
+
 function toggleScheduleRoomFilter(room) {
   if (scheduleRoomFilter.has(room)) scheduleRoomFilter.delete(room);
   else scheduleRoomFilter.add(room);
@@ -19985,14 +20026,11 @@ function namesGroupedByTitleHtml(entries) {
 function soundChecksInRooms(rooms) {
   return soundCheckRows().filter(r => r.dated && r.room && rooms.has(r.room));
 }
-function renderScheduleByRoom() {
-  const body = document.getElementById('sch-rooms-body');
-  if (!body) return;
-  if (!scheduleRoomFilter.size) {
-    body.innerHTML = `${roomFacetBarHtml()}<div class="sch-conflicts-empty">No rooms selected above — toggle at least one to see its schedule.</div>`;
-    return;
-  }
-
+// Everything happening in the selected rooms, in time order: sessions in those rooms and, when
+// asked for, the scheduled sound checks there. Shared by the screen view, its print and its CSV.
+let byRoomIncludeSoundChecks = true;
+function setByRoomIncludeSoundChecks(on) { byRoomIncludeSoundChecks = !!on; renderScheduleView(); }
+function scheduleByRoomRows(includeSoundChecks) {
   // Breakout slots have no single slot.room (one slot spans many tracks/rooms in parallel) --
   // room only lives on each speaker's own session, so it has to be indexed the same way the
   // Breakout Grid indexes it, keyed by slot+room this time instead of slot+track.
@@ -20028,11 +20066,26 @@ function renderScheduleByRoom() {
       rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: namesGroupedByTitleHtml(entries), notes: slot.notes || '' });
     }
   });
-  soundChecksInRooms(scheduleRoomFilter).forEach(r => rows.push({ date: r.date, start: r.start, end: r.end, label: 'Sound check', room: r.room, detail: escapeHtml(r.sp.name), notes: '' }));
+  if (includeSoundChecks) soundChecksInRooms(scheduleRoomFilter).forEach(r => rows.push({ date: r.date, start: r.start, end: r.end, label: 'Sound check', room: r.room, detail: escapeHtml(r.sp.name), notes: '' }));
   rows.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
+  return rows;
+}
+function renderScheduleByRoom() {
+  const body = document.getElementById('sch-rooms-body');
+  if (!body) return;
+  if (!scheduleRoomFilter.size) {
+    body.innerHTML = `${roomFacetBarHtml()}<div class="sch-conflicts-empty">No rooms selected above — toggle at least one to see its schedule.</div>`;
+    return;
+  }
+
+  const rows = scheduleByRoomRows(byRoomIncludeSoundChecks);
+  const byRoomToolbar = `<div class="ar-controls" style="margin:8px 0 4px;">
+      <label class="ar-check"><input type="checkbox" ${byRoomIncludeSoundChecks ? 'checked' : ''} onchange="setByRoomIncludeSoundChecks(this.checked)"> Include sound checks (on screen, in print and in the CSV export)</label>
+      <button class="sp-add-btn" style="margin-left:auto; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="printScheduleByRoomReport()" title="Print the schedule for the selected rooms">\uD83D\uDDB6 Print</button>
+    </div>`;
   if (!rows.length) {
-    body.innerHTML = `${roomFacetBarHtml()}<div class="sch-conflicts-empty">Nothing scheduled yet in ${scheduleRoomFilter.size === 1 ? 'that room' : 'those rooms'}.</div>`;
+    body.innerHTML = `${roomFacetBarHtml()}${byRoomToolbar}<div class="sch-conflicts-empty">Nothing scheduled yet in ${scheduleRoomFilter.size === 1 ? 'that room' : 'those rooms'}.</div>`;
     return;
   }
 
@@ -20054,6 +20107,7 @@ function renderScheduleByRoom() {
   const headerTitle = Array.from(scheduleRoomFilter).map(roomLabelWithCapacity).join(' + ');
   body.innerHTML = `
     ${roomFacetBarHtml()}
+    ${byRoomToolbar}
     <div class="sch-itin-card">
       <div class="sch-itin-header">
         <h4>${escapeHtml(headerTitle)} — Schedule</h4>
@@ -21904,7 +21958,7 @@ function scheduleViewExportInfo() {
     grid: 'Every breakout session, all tracks',
     timeline: 'Showing: ' + (audNames || 'no group selected'),
     itinerary: 'Itinerary for: ' + (audNames || 'no group selected') + ' (slots only, no speaker rows)',
-    rooms: roomNames ? 'Rooms: ' + roomNames + ' (sessions and sound checks)' : 'No rooms selected in this view yet',
+    rooms: roomNames ? 'Rooms: ' + roomNames + (byRoomIncludeSoundChecks ? ' (sessions and sound checks)' : ' (sessions only)') : 'No rooms selected in this view yet',
     artists: (artistSchedPick ? 'One artist' : (artistSchedType !== 'all' ? artistSchedType + 's' : 'All artists')) + (artistSchedShowEmpty ? ' (including those with nothing scheduled)' : ' with something scheduled') + ' — one row per arrival, sound check and session',
     soundchecks: 'Every sound check — date, time, room and equipment needs'
   };
@@ -21964,7 +22018,7 @@ function scheduleExportDataset(scope, days, sortValue) {
     if (!people.length) rows.push({ slot, sp: null, sess: null, room: slot.room || '' });
     else people.forEach(({ sp, sess }) => rows.push({ slot, sp, sess, room: roomOf(sess) }));
   });
-  if (roomMode) {
+  if (roomMode && byRoomIncludeSoundChecks) {
     soundChecksInRooms(scheduleRoomFilter).forEach(r => {
       if (!dayOk(r.date)) return;
       rows.push({ slot: { date: r.date, start: r.start, end: r.end, label: 'Sound check', kind: 'soundcheck', notes: '' }, sp: r.sp, sess: null, room: r.room });
