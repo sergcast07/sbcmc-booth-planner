@@ -30,6 +30,8 @@
     --teal-pale: #E9F1F3;
     --gold: #A17A26;
     --gold-pale: #F4E9D3;
+    --soundcheck: #A63E0C;       /* sound checks: a color no performance/session uses, so they read as "not a performance" */
+    --soundcheck-tint: #FCEBDD;
     --font-display: 'EB Garamond', Georgia, serif;
     --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
@@ -1972,7 +1974,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .ar-row { display: grid; grid-template-columns: 82px 150px 1fr; gap: 10px; padding: 7px 16px; border-bottom: 1px dotted var(--line); font-size: 12.5px; align-items: baseline; }
 .ar-kind { font-size: 9.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
 .ar-arrival .ar-kind { color: var(--teal); }
-.ar-soundcheck .ar-kind { color: var(--gold); }
+.ar-soundcheck .ar-kind { color: var(--soundcheck); }
 .ar-session .ar-kind { color: #6a4a86; }
 .ar-when { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .ar-what b { font-weight: 700; }
@@ -1995,6 +1997,37 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sc-time { white-space: nowrap; } .sc-time input { width: 112px; }
 .sc-needs { font-size: 11.5px; color: var(--ink-soft); }
 .sc-actions { white-space: nowrap; text-align: right; }
+
+/* Sound checks stand apart from performances: their own color, a tinted row and a pill. */
+.sc-pill { display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; background: var(--soundcheck); border-radius: 999px; padding: 2px 8px; margin-right: 7px; vertical-align: 1px; }
+.sch-itin-row.sch-sc { background: var(--soundcheck-tint); border-left: 4px solid var(--soundcheck); padding-left: 8px; border-radius: 4px; }
+.sch-itin-row.sch-sc .sch-itin-time { color: var(--soundcheck); font-weight: 700; }
+.sc-print-row.sc-print-sound { background: var(--soundcheck-tint); border-left-color: var(--soundcheck); }
+.sc-print-sound .sc-print-time { color: var(--soundcheck); }
+
+/* Print legibility: light text washes out on paper much more than on a screen. Darken the muted
+   gray and the hairlines, drop the fades, and lift the smallest type a notch. */
+@media print {
+  :root { --ink-soft: #2A383C; --line: #B4B2A6; --teal: #2E5A6E; }
+  .bo-print-tag { opacity: 1; }
+  .bo-print-eyebrow { color: #E8CB86; }
+  .bo-print-cell-empty { opacity: 1; color: #3E4E52; }
+  .db-card-breakdown { opacity: 1 !important; }
+  .bo-print-legend { font-size: 10px; }
+  .bo-print-leader { font-size: 10.5px; }
+  .bo-print-slot-label { font-size: 9px; }
+  .bo-print-session-title { font-size: 10.5px; }
+  .bo-print-room { font-size: 9.5px; }
+  .bo-print-reserved-note { font-size: 9px; color: #6B4F12; }
+  .sc-print-time { font-size: 10.5px; }
+  .sc-print-names { font-size: 10.5px; }
+  .sc-print-room, .sc-print-note { font-size: 9.5px; }
+  .sc-print-day-date { font-size: 11.5px; }
+  .scp-table th { font-size: 9.5px; }
+  .scp-note { font-size: 10px; }
+  .scp-day-title, .sc-print-day-title { color: var(--teal-deep); }
+  .sc-pill { font-size: 8.5px; }
+}
 
 /* Schedule CSV export wizard */
 .xw-steps { display: flex; align-items: center; gap: 6px; margin: 4px 0 14px; }
@@ -11399,7 +11432,7 @@ async function generateSponsorInvoicePDF(sponsorId) {
   const CREAM = [251, 248, 241];
   const BORDER = [226, 225, 218];
   const INK = [23, 38, 43];
-  const MUTED = [87, 103, 107];
+  const MUTED = [48, 62, 66];
 
   const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
   const M = 56; // 0.78in margins, matches the app's other PDF export
@@ -19960,12 +19993,17 @@ function printScheduleByRoomReport() {
   rows.forEach(r => (days[r.date] = days[r.date] || []).push(r));
   const dayHtml = Object.keys(days).sort().map(date => {
     const rowsHtml = days[date].map(r => {
-      const isSound = r.label === 'Sound check' && !r.notes;
-      const color = isSound ? SCHEDULE_KIND_COLORS.keynote : SCHEDULE_KIND_COLORS.other;
-      return `<div class="sc-print-row" style="border-left-color:${color};">
+      const roomTag = showRoom ? ` <span class="sc-print-room" style="display:inline;margin-left:6px;">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : '';
+      if (r.soundCheck) {
+        return `<div class="sc-print-row sc-print-sound">
+        <div class="sc-print-time">${friendlyTime(r.start)}${r.end ? '\u2013' + friendlyTime(r.end) : ''}</div>
+        <div class="sc-print-what"><div class="sc-print-label"><span class="sc-pill">Sound check</span>${r.detail}${roomTag}</div></div>
+      </div>`;
+      }
+      return `<div class="sc-print-row" style="border-left-color:${SCHEDULE_KIND_COLORS.other};">
         <div class="sc-print-time">${friendlyTime(r.start)}${r.end ? '\u2013' + friendlyTime(r.end) : ''}</div>
         <div class="sc-print-what">
-          <div class="sc-print-label">${escapeHtml(r.label)}${showRoom ? ` <span class="sc-print-room" style="display:inline;margin-left:6px;">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}</div>
+          <div class="sc-print-label">${escapeHtml(r.label)}${roomTag}</div>
           ${r.detail ? `<div class="sc-print-names">${r.detail}</div>` : ''}
           ${r.notes ? `<div class="sc-print-note">${escapeHtml(r.notes)}</div>` : ''}
         </div>
@@ -20066,7 +20104,7 @@ function scheduleByRoomRows(includeSoundChecks) {
       rows.push({ date: slot.date, start: slot.start, end: slot.end, label: slot.label, room: slot.room, detail: namesGroupedByTitleHtml(entries), notes: slot.notes || '' });
     }
   });
-  if (includeSoundChecks) soundChecksInRooms(scheduleRoomFilter).forEach(r => rows.push({ date: r.date, start: r.start, end: r.end, label: 'Sound check', room: r.room, detail: escapeHtml(r.sp.name), notes: '' }));
+  if (includeSoundChecks) soundChecksInRooms(scheduleRoomFilter).forEach(r => rows.push({ date: r.date, start: r.start, end: r.end, label: 'Sound check', room: r.room, detail: escapeHtml(r.sp.name), notes: '', soundCheck: true }));
   rows.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
   return rows;
@@ -20097,9 +20135,11 @@ function renderScheduleByRoom() {
   rows.forEach(r => (days[r.date] = days[r.date] || []).push(r));
   const dayBlocks = Object.keys(days).sort().map(date => {
     const rowsHtml = days[date].map(r => `
-      <div class="sch-itin-row">
+      <div class="sch-itin-row ${r.soundCheck ? 'sch-sc' : ''}">
         <div class="sch-itin-time">${friendlyTime(r.start)}${r.end ? ' – ' + friendlyTime(r.end) : ''}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}${r.notes ? `<div class="sp-sub sp-sub-wrap sch-desc-text">${escapeHtml(r.notes)}</div>` : ''}</div>
+        ${r.soundCheck
+          ? `<div class="sch-itin-what"><span class="sc-pill">Sound check</span><b>${r.detail}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}</div>`
+          : `<div class="sch-itin-what"><b>${escapeHtml(r.label)}</b>${showRoomPerRow ? ` <span class="sp-sub">${escapeHtml(roomLabelWithCapacity(r.room))}</span>` : ''}${r.detail ? `<div class="sp-sub">${r.detail}</div>` : ''}${r.notes ? `<div class="sp-sub sp-sub-wrap sch-desc-text">${escapeHtml(r.notes)}</div>` : ''}</div>`}
       </div>`).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} — ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rowsHtml}`;
   }).join('');
