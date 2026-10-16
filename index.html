@@ -18063,6 +18063,18 @@ const TRACK_COLOR_PALETTE = [
   '#24404A', '#A17A26', '#8B5A6E', '#6B7F4F', '#A0623A', '#5C6E96',
   '#4A7A5C', '#9B6B9E', '#7A8B99', '#B08550', '#5C879C', '#8A6A4A'
 ];
+// Track colors are mid-tones meant for dots and borders; used as TEXT on paper they wash out. This
+// darkens one, keeping its hue, until it reads at about 7:1 against the cream page.
+function trackTextColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return hex;
+  const rgb = [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
+  const lum = c => { const a = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
+  const bg = lum([251, 248, 241]);
+  let t = 0, out = rgb;
+  while (t < 0.9 && (bg + 0.05) / (lum(out) + 0.05) < 7) { t += 0.04; out = rgb.map(v => Math.round(v * (1 - t))); }
+  return '#' + out.map(v => v.toString(16).padStart(2, '0')).join('');
+}
 function trackColorForIndex(i) { return TRACK_COLOR_PALETTE[i % TRACK_COLOR_PALETTE.length]; }
 
 // Who (if anyone) is named Track Leader for this track -- searches every speaker's sessions
@@ -18885,7 +18897,7 @@ function renderBreakoutGridPrintByTrack(breakoutSlots, conflictSpeakerIds) {
     return `<div class="bo-print-track">
       <div class="bo-print-track-head">
         <span class="bo-print-dot" style="background:${trackColor};"></span>
-        <span class="bo-print-track-name" style="color:${trackColor};">${escapeHtml(track.name)}</span>
+        <span class="bo-print-track-name" style="color:${trackTextColor(trackColor)};">${escapeHtml(track.name)}</span>
         ${leader ? `<span class="bo-print-leader">Leader: ${escapeHtml(leader.name)}</span>` : ''}
       </div>
       <div class="bo-print-cells">${cells}</div>
@@ -18931,7 +18943,7 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
         if (booking && !(bookedTrackForCell && occupiedTrackSlots.has(bookedTrackForCell.name + '|' + slot.id))) {
           const bookedTrack = bookedTrackForCell;
           const bookedTrackColor = trackColorByName[bookedTrack ? bookedTrack.name : ''] || 'var(--line)';
-          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title" style="color:${bookedTrackColor};">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div>${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
+          return `<div class="bo-print-cell bo-print-cell-reserved">${slotLabel}<div class="bo-print-session-title" style="color:${trackTextColor(bookedTrackColor)};">${escapeHtml(bookedTrack ? bookedTrack.name : 'a track')}</div>${booking.sessionTitle ? `<div class="bo-print-session-title">${escapeHtml(booking.sessionTitle)}</div>` : ''}<div class="bo-print-reserved-note">Reserved — speaker TBD</div></div>`;
         }
         return `<div class="bo-print-cell bo-print-cell-empty">${slotLabel}—</div>`;
       }
@@ -18941,7 +18953,7 @@ function renderBreakoutGridPrintByRoom(breakoutSlots, conflictSpeakerIds) {
         const trackColor = trackColorByName[occ.sess.track] || 'var(--line)';
         return `<div class="bo-print-card ${isConflict ? 'bo-print-card-conflict' : ''}">
           <div class="bo-print-name">${escapeHtml(occSp ? occSp.name : 'Unknown')}</div>
-          ${isConflict ? '<span class="bo-print-conflict-chip">Conflict</span>' : `<div class="bo-print-session-title" style="color:${trackColor};">${escapeHtml(occ.sess.track || '')}</div>`}
+          ${isConflict ? '<span class="bo-print-conflict-chip">Conflict</span>' : `<div class="bo-print-session-title" style="color:${trackTextColor(trackColor)};">${escapeHtml(occ.sess.track || '')}</div>`}
         </div>`;
       }).join('');
       return `<div class="bo-print-cell">${slotLabel}${cards}</div>`;
