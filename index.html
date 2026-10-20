@@ -22066,10 +22066,17 @@ async function cwcAcCopy(id) {
     toast('Copied the email for ' + a.name + '. Paste it into a new message to ' + (a.email || 'them') + '.');
   } catch (err) { cwcSet('previewId', id); toast('Couldn’t copy automatically. Select the preview and copy it.'); }
 }
-function cwcAcMailto(id) {
+// A mailto: link can only carry plain text, so it can't bring the formatted email in. Instead this opens a
+// Gmail compose window with the recipient and subject already filled in AND copies the formatted email,
+// so all that's left is pasting it into the body.
+async function cwcAcGmail(id) {
   const a = getApplicant(id); if (!a || !a.email) { toast('No email address on their application.'); return; }
   const e = cwcAcceptanceEmail(a);
-  window.open('mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent(e.subject) + '&body=' + encodeURIComponent(e.text), '_blank');
+  window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(a.email) + '&su=' + encodeURIComponent(e.subject), '_blank');
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([e.html], { type: 'text/html' }), 'text/plain': new Blob([e.text], { type: 'text/plain' }) })]);
+    toast('Gmail is open to ' + a.email + '. The email is copied: click in the body and paste.');
+  } catch (err) { cwcSet('previewId', id); toast('Gmail opened, but the copy didn\u2019t work. Use Copy email.'); }
 }
 function cwcAcCopyAddresses() {
   const emails = cwcAcList().map(a => a.email).filter(Boolean);
@@ -22345,7 +22352,7 @@ function renderCwcModal() {
         <div class="aw-main"><div class="aw-name">${esc(a.name)}${(a.data.status || 'Pending') === 'Pending' ? ' <span class="sp-sub">(pending)</span>' : ''}</div>
           <div class="aw-email">${a.email ? esc(a.email) : '<span style="color:#a52620;">No email on their application</span>'} &nbsp;·&nbsp; ${esc(applicantSchoolName(a) || '(no school)')}</div>
           <div class="aw-sum">${sent ? 'Sent ' + esc(new Date(sent).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : 'Not sent yet'}</div></div>
-        <div class="aw-btns"><button class="sp-mini-btn" onclick="cwcSet('previewId','${a.id}')">Preview</button><button class="sp-mini-btn" onclick="cwcAcCopy('${a.id}')">Copy email</button><button class="sp-mini-btn" onclick="cwcAcMailto('${a.id}')" title="Opens your mail app with the message filled in (plain text)">Mail app</button><button class="sp-mini-btn" onclick="cwcAcToggleSent('${a.id}')">${sent ? 'Unmark sent' : 'Mark sent'}</button></div>
+        <div class="aw-btns"><button class="sp-mini-btn" onclick="cwcSet('previewId','${a.id}')">Preview</button><button class="sp-mini-btn" onclick="cwcAcCopy('${a.id}')">Copy email</button><button class="sp-mini-btn" onclick="cwcAcGmail('${a.id}')" title="Opens Gmail with the recipient and subject filled in, and copies the formatted email so you can paste it in">Open in Gmail</button><button class="sp-mini-btn" onclick="cwcAcToggleSent('${a.id}')">${sent ? 'Unmark sent' : 'Mark sent'}</button></div>
       </div>`;
     }).join('') || '<div class="sch-conflicts-empty">No applicants match. Approve applicants first (or include pending).</div>';
     const prevApp = st.previewId ? getApplicant(st.previewId) : null;
