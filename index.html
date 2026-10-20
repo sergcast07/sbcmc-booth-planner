@@ -2080,6 +2080,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 <div id="view-only-banner">🔒 In Read Only Mode — nothing here will be saved.</div>
@@ -2785,6 +2786,8 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
         <button class="sp-add-btn" onclick="openApplicantImportModal('cwc')">📥 Import CSV</button>
         <button class="sp-add-btn" id="ap-cwc-sync-btn" style="display:none; background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="syncLatestApplications()" title="Pulls the latest entries from both Gravity Forms — can take up to a minute.">🔄 Sync Latest Applications</button>
         <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openRoomAssignmentModal()">🏨 Room Assignments</button>
+        <button class="sp-add-btn" style="background:var(--teal-deep);" onclick="openCwcAcceptanceModal()">✉ Acceptance Emails</button>
+        <button class="sp-add-btn" style="background:var(--teal-deep);" onclick="openCwcInvoiceModal()">🧾 School Invoices</button>
       </div>
       <div class="sp-table-wrap">
       <table class="sp-table" id="ap-cwc-table">
@@ -21885,6 +21888,505 @@ function renderArtistWelcomeModal() {
         <div class="aw-list">${rows}</div>
         ${prev ? `<div class="aw-preview-label">Preview — ${escapeHtml(getSpeaker(st.previewId).name)}</div><div class="aw-preview">${prev.html}</div>` : ''}
         <div class="qa-modal-actions"><button class="qa-modal-done" onclick="closeArtistWelcomeModal()">Done</button></div>
+      </div>
+    </div>`;
+}
+
+// ---- CWC acceptance emails and school invoices ------------------------------------------------------
+// Acceptance email: the team's own text, with the applicant's name and email filled in from their CWC
+// form answers; wording is editable (saved in conference_settings, no redeploy) and "sent" is tracked
+// there too. School invoice: one invoice per school covering all of its accepted students, payable by
+// check to the same address and attention line as the sponsor invoices, with SBCMC's W-9 merged on.
+// The W-9 is kept in THIS browser only (IndexedDB): it carries a tax ID, so it is never written to the
+// shared database or storage.
+const CWC_ACCEPT_DEFAULT = {
+  subject: 'Welcome to the Collegiate Worship Collective at SBCMC 2027',
+  body: `Hello {name},
+
+Thank you for submitting an application to join the Collegiate Worship Collective (CWC) at the Southern Baptist Church Music Conference in Birmingham, AL. After reviewing your application, I am pleased to notify you of your acceptance and look forward to welcoming you to Hunter Street Baptist Church from April 11-14, 2027. From leading worship with Travis Cottrell and Dwan Hill, to attending sessions led by some of the most respected worship leaders and scholars in the country, this is going to be an amazing experience!
+
+I have attached the schedule for the CWC Experience so that you can review it and plan out your 4 days in Birmingham. Most of the schedule is set for the CWC but there are a couple times I want to draw your attention to.
+
+1. Checking in to the hotel will take place on Sunday afternoon, April 11th so that you can attend the opening concert at 7:00PM Sunday night.
+2. Conference Breakout Session #2 takes place on Monday, April 12th at 3:00PM. You will need to register for a specific breakout session to secure your spot.
+3. The CWC schedule on Tuesday, April 13th begins at 11AM. Check out the conference schedule Tuesday morning to see what sessions, concerts, and other opportunities are available.
+4. Checking out of the hotel will occur Wednesday morning, April 14th. More details about hotel arrangements will be sent out as we get closer to the conference.
+
+The SBCMC Conference website can be found at [sbcmc.org](http://sbcmc.org/). There you will find lots of great information about sessions, concerts, and many other things happening while you’re in Birmingham.
+
+If you have any questions, please let me know and I will be happy to help!
+
+I look forward to seeing you in April!
+
+Dr. Will Griswold
+CWC Coordinator`
+};
+const CWC_INVOICE_DEFAULTS = { rate: '50', description: 'Collegiate Worship Collective registration', dueText: 'Due Upon Receipt' };
+let cwcAcceptOverride = null;   // { subject, body } when the team has reworded it
+let cwcAcceptSent = {};         // applicantId -> ISO time it was marked sent
+let cwcInvoiceSettings = null;  // { rate, description, dueText, billTo: { [schoolKey]: {org, contactName, contactEmail, address} } }
+let cwcUi = null;
+
+async function loadConfSettingJson(id) {
+  if (!sbClient) return null;
+  try {
+    const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', id).eq('conference_year', activeConferenceYear).maybeSingle();
+    if (!error && data && data.value) return JSON.parse(data.value);
+  } catch (e) { /* fall through to the default */ }
+  return null;
+}
+async function saveConfSettingJson(id, obj, errLabel) {
+  if (!sbClient) { toast('Not connected, so that can’t be saved right now.'); return false; }
+  const { error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).upsert({ id, value: JSON.stringify(obj), conference_year: activeConferenceYear }, { onConflict: 'id,conference_year' });
+  if (error) { reportWriteError(id, 'Couldn’t save ' + (errLabel || 'that') + '.', error); return false; }
+  reportWriteSuccess(id);
+  return true;
+}
+async function loadCwcSettings() {
+  cwcAcceptOverride = await loadConfSettingJson('cwc_acceptance_text');
+  cwcAcceptSent = (await loadConfSettingJson('cwc_acceptance_sent')) || {};
+  const inv = await loadConfSettingJson('cwc_invoice_settings');
+  cwcInvoiceSettings = Object.assign({ billTo: {} }, CWC_INVOICE_DEFAULTS, inv || {});
+  if (!cwcInvoiceSettings.billTo) cwcInvoiceSettings.billTo = {};
+}
+function cwcCanUse() { return !!(window.isAdminUser || canEdit('applicants.all')); }
+
+// ---- who counts, and school grouping ----
+function cwcAllApplicants() { return applicants.filter(a => a.groupId === PROGRAM_PAGES.cwc.groupId); }
+// Students type their school however they like ("NGU", "North Greenville", "North Greenville University"),
+// so the team can merge spellings: the mapping is saved (cwc_invoice_settings.schoolAliases) and applied here.
+function cwcSchoolKey(a) {
+  const base = applicantSchoolName(a).toLowerCase().replace(/\s+/g, ' ').trim();
+  const al = (cwcInvoiceSettings && cwcInvoiceSettings.schoolAliases) || {};
+  return al[base] || base;
+}
+// "Megan Hollifield: Megan.Hollifield@ngu.edu" or "Dr. Smith (smith@x.edu)" -> { name, email }
+function cwcParseContact(str) {
+  const s0 = String(str || '').trim();
+  const m = s0.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/);
+  const email = m ? m[0] : '';
+  const name = s0.replace(email, '').replace(/[()<>:;,\s]+$/g, '').replace(/^[()<>:;,\s]+/g, '').trim();
+  return { name, email };
+}
+function cwcAccepted(includePending) {
+  return cwcAllApplicants().filter(a => a.data.status === 'Approved' || (includePending && (a.data.status || 'Pending') === 'Pending'));
+}
+function cwcSchools(list) {
+  const map = {};
+  list.forEach(a => {
+    const key = cwcSchoolKey(a);
+    const g = map[key] || (map[key] = { key, names: {}, students: [] });
+    const nm = applicantSchoolName(a);
+    g.names[nm] = (g.names[nm] || 0) + 1;
+    g.students.push(a);
+  });
+  return Object.values(map).map(g => {
+    g.name = Object.keys(g.names).sort((a, b) => g.names[b] - g.names[a])[0] || '(No school listed)';
+    const prof = {}; let profEmail = '';
+    g.students.forEach(s => {
+      const c = cwcParseContact((s.data.raw || {})['Best Professor Contact from your school']);
+      if (c.name) prof[c.name] = (prof[c.name] || 0) + 1;
+      if (c.email && !profEmail) profEmail = c.email;
+    });
+    g.professor = Object.keys(prof).sort((a, b) => prof[b] - prof[a])[0] || '';
+    g.professorEmail = profEmail;
+    g.students.sort((a, b) => a.name.localeCompare(b.name));
+    return g;
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ---- acceptance email ----
+function cwcAcceptTemplate() {
+  return { subject: (cwcAcceptOverride && cwcAcceptOverride.subject) || CWC_ACCEPT_DEFAULT.subject, body: (cwcAcceptOverride && cwcAcceptOverride.body) || CWC_ACCEPT_DEFAULT.body };
+}
+function cwcFill(tpl, a) {
+  const full = (a.name || '').trim().replace(/\s+/g, ' ');
+  const parts = full.split(' ');
+  const vars = { name: full, first: parts[0] || '', last: parts.length > 1 ? parts.slice(1).join(' ') : '', school: applicantSchoolName(a), email: a.email || '' };
+  return tpl.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+}
+function cwcInline(escaped) {
+  return escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" style="color:#24404A;">$1</a>');
+}
+function cwcAcceptanceEmail(a, tpl) {
+  tpl = tpl || cwcAcceptTemplate();
+  const bodyText = cwcFill(tpl.body, a);
+  const subject = cwcFill(tpl.subject, a);
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:1.55; color:#222;">' + bodyText.split(/\n\s*\n/).map(p => {
+    const lines = p.split('\n');
+    if (lines.length && lines.every(l => /^\d+\.\s/.test(l.trim()))) {
+      return '<ol style="margin:0 0 14px; padding-left:22px;">' + lines.map(l => '<li style="margin:0 0 6px;">' + cwcInline(escapeHtml(l.trim().replace(/^\d+\.\s/, ''))) + '</li>').join('') + '</ol>';
+    }
+    return '<p style="margin:0 0 14px;">' + lines.map(l => cwcInline(escapeHtml(l))).join('<br>') + '</p>';
+  }).join('') + '</div>';
+  const text = bodyText.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1 ($2)');
+  return { subject, html, text };
+}
+
+async function openCwcAcceptanceModal() {
+  if (!cwcCanUse()) { toast('You don’t have access to generate acceptance emails.'); return; }
+  await loadCwcSettings();
+  cwcUi = { kind: 'accept', includePending: false, school: 'all', sentFilter: 'unsent', previewId: null, editing: false, draft: null };
+  renderCwcModal();
+}
+function closeCwcModal() { cwcUi = null; document.getElementById('exp-sort-modal-root').innerHTML = ''; }
+function cwcSet(field, value) { cwcUi[field] = value; renderCwcModal(); }
+function cwcAcList() {
+  const st = cwcUi;
+  return cwcAccepted(st.includePending)
+    .filter(a => st.school === 'all' || cwcSchoolKey(a) === st.school)
+    .filter(a => st.sentFilter === 'all' || (st.sentFilter === 'unsent' ? !cwcAcceptSent[a.id] : !!cwcAcceptSent[a.id]))
+    .sort((a, b) => applicantSchoolName(a).localeCompare(applicantSchoolName(b)) || a.name.localeCompare(b.name));
+}
+async function cwcAcCopy(id) {
+  const a = getApplicant(id); if (!a) return;
+  const e = cwcAcceptanceEmail(a);
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([e.html], { type: 'text/html' }), 'text/plain': new Blob([e.text], { type: 'text/plain' }) })]);
+    toast('Copied the email for ' + a.name + '. Paste it into a new message to ' + (a.email || 'them') + '.');
+  } catch (err) { cwcSet('previewId', id); toast('Couldn’t copy automatically. Select the preview and copy it.'); }
+}
+function cwcAcMailto(id) {
+  const a = getApplicant(id); if (!a || !a.email) { toast('No email address on their application.'); return; }
+  const e = cwcAcceptanceEmail(a);
+  window.open('mailto:' + encodeURIComponent(a.email) + '?subject=' + encodeURIComponent(e.subject) + '&body=' + encodeURIComponent(e.text), '_blank');
+}
+function cwcAcCopyAddresses() {
+  const emails = cwcAcList().map(a => a.email).filter(Boolean);
+  if (!emails.length) { toast('No addresses to copy.'); return; }
+  navigator.clipboard.writeText(emails.join(', ')).then(() => toast('Copied ' + emails.length + ' address' + (emails.length === 1 ? '' : 'es') + '.'));
+}
+async function cwcAcToggleSent(id) {
+  const next = Object.assign({}, cwcAcceptSent);
+  if (next[id]) delete next[id]; else next[id] = new Date().toISOString();
+  if (await saveConfSettingJson('cwc_acceptance_sent', next, 'the sent status')) { cwcAcceptSent = next; renderCwcModal(); }
+}
+function cwcAcStartEdit() { const t = cwcAcceptTemplate(); cwcUi.editing = true; cwcUi.draft = { subject: t.subject, body: t.body }; renderCwcModal(); }
+function cwcAcDraft(field, value) {
+  cwcUi.draft[field] = value;
+  const box = document.getElementById('cwc-edit-preview');
+  const sample = cwcAcList()[0] || cwcAccepted(true)[0] || { name: 'Jordan Smith', email: 'jordan@example.edu', data: { raw: { 'School Attended': 'Example University' } } };
+  if (box) box.innerHTML = cwcAcceptanceEmail(sample, cwcUi.draft).html;
+}
+async function cwcAcSaveEdit() {
+  const d = cwcUi.draft;
+  const isDefault = d.subject.trim() === CWC_ACCEPT_DEFAULT.subject && d.body.trim() === CWC_ACCEPT_DEFAULT.body.trim();
+  const next = isDefault ? {} : { subject: d.subject.trim(), body: d.body.trim() };
+  if (await saveConfSettingJson('cwc_acceptance_text', next, 'the acceptance email wording')) {
+    cwcAcceptOverride = isDefault ? null : next; cwcUi.editing = false; cwcUi.draft = null; toast('Acceptance email wording saved.'); renderCwcModal();
+  }
+}
+function cwcAcResetEdit() {
+  if (!confirm('Put the subject and body back to the original wording? (Nothing is saved until you click Save wording.)')) return;
+  cwcUi.draft = { subject: CWC_ACCEPT_DEFAULT.subject, body: CWC_ACCEPT_DEFAULT.body };
+  renderCwcModal();
+}
+
+// ---- W-9, kept in this browser only ----
+function w9Db() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('sbcmc-planner-local', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('files');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function w9Get() {
+  try {
+    const db = await w9Db();
+    return await new Promise((resolve, reject) => { const r = db.transaction('files').objectStore('files').get('cwc-w9'); r.onsuccess = () => resolve(r.result || null); r.onerror = () => reject(r.error); });
+  } catch (e) { return null; }
+}
+async function w9Put(file) {
+  const data = await file.arrayBuffer();
+  const db = await w9Db();
+  await new Promise((resolve, reject) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put({ name: file.name, size: file.size, savedAt: new Date().toISOString(), data }, 'cwc-w9'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+}
+async function w9Delete() {
+  const db = await w9Db();
+  await new Promise((resolve, reject) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').delete('cwc-w9'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+}
+async function cwcW9Upload(input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { toast('The W-9 needs to be a PDF.'); return; }
+  try { await w9Put(f); cwcUi.w9 = await w9Get(); toast('W-9 saved in this browser. It will be added to every school invoice.'); renderCwcModal(); }
+  catch (e) { toast('Couldn’t save the W-9 in this browser.'); }
+}
+async function cwcW9Remove() {
+  if (!confirm('Remove the saved W-9 from this browser? Invoices will go out without it until you upload it again.')) return;
+  await w9Delete(); cwcUi.w9 = null; renderCwcModal();
+}
+
+// ---- school invoices ----
+function cwcSchoolAbbrev(name) {
+  const words = name.replace(/[^A-Za-z ]/g, ' ').split(/\s+/).filter(w => w && !/^(of|the|at|and|&)$/i.test(w));
+  const ab = words.length > 1 ? words.map(w => w[0]).join('') : (words[0] || 'SCH').slice(0, 5);
+  return ab.toUpperCase().slice(0, 5);
+}
+async function cwcMergeSchools() {
+  const keys = Array.from(document.querySelectorAll('.cwc-merge-cb:checked')).map(c => c.value);
+  if (keys.length < 2) { toast('Tick at least two schools to merge.'); return; }
+  const pool = cwcSchools(cwcAccepted(cwcUi.includePending));
+  const chosen = pool.filter(sc => keys.includes(sc.key)).sort((a, b) => b.students.length - a.students.length);
+  const target = chosen[0].key;
+  const next = Object.assign({}, cwcInvoiceSettings);
+  next.schoolAliases = Object.assign({}, cwcInvoiceSettings.schoolAliases || {});
+  // alias the raw spellings (not just the keys on screen) so students whose spelling is already merged follow along
+  cwcAllApplicants().forEach(a => {
+    const base = applicantSchoolName(a).toLowerCase().replace(/\s+/g, ' ').trim();
+    const cur = (cwcInvoiceSettings.schoolAliases || {})[base] || base;
+    if (keys.includes(cur) && base !== target) next.schoolAliases[base] = target;
+  });
+  if (await saveConfSettingJson('cwc_invoice_settings', next, 'the merged schools')) {
+    cwcInvoiceSettings = next; toast('Merged ' + keys.length + ' schools into "' + chosen[0].name + '".'); renderCwcModal();
+  }
+}
+async function cwcUnmergeAll() {
+  if (!confirm('Split all merged schools back into their original spellings?')) return;
+  const next = Object.assign({}, cwcInvoiceSettings, { schoolAliases: {} });
+  if (await saveConfSettingJson('cwc_invoice_settings', next, 'the merged schools')) { cwcInvoiceSettings = next; renderCwcModal(); }
+}
+async function openCwcInvoiceModal() {
+  if (!cwcCanUse()) { toast('You don’t have access to generate invoices.'); return; }
+  await loadCwcSettings();
+  cwcUi = { kind: 'invoice', view: 'schools', includePending: false, schoolKey: null, form: null, w9: await w9Get() };
+  renderCwcModal();
+}
+function cwcInvOpenSchool(key) {
+  const school = cwcSchools(cwcAccepted(cwcUi.includePending)).find(s => s.key === key); if (!school) return;
+  const saved = cwcInvoiceSettings.billTo[key] || {};
+  cwcUi.schoolKey = key; cwcUi.view = 'invoice';
+  cwcUi.form = {
+    org: saved.org || school.name, contactName: saved.contactName || school.professor, contactEmail: saved.contactEmail || school.professorEmail || '', address: saved.address || '',
+    invoiceNo: 'CWC' + activeConferenceYear + '-' + cwcSchoolAbbrev(school.name),
+    rate: cwcInvoiceSettings.rate, description: cwcInvoiceSettings.description, dueText: cwcInvoiceSettings.dueText,
+    picked: new Set(school.students.map(s => s.id))
+  };
+  renderCwcModal();
+}
+function cwcInvField(field, value) { cwcUi.form[field] = value; cwcInvRefreshTotal(); }
+function cwcInvToggle(id, on) { if (on) cwcUi.form.picked.add(id); else cwcUi.form.picked.delete(id); cwcInvRefreshTotal(); }
+function cwcInvTotals() {
+  const n = cwcUi.form.picked.size, rate = parseFloat(cwcUi.form.rate) || 0;
+  return { n, rate, total: n * rate };
+}
+function cwcInvRefreshTotal() {
+  const t = cwcInvTotals(), el = document.getElementById('cwc-inv-total');
+  if (el) el.textContent = t.n + ' student' + (t.n === 1 ? '' : 's') + ' × $' + t.rate.toFixed(2) + ' = $' + t.total.toLocaleString(undefined, { minimumFractionDigits: 2 });
+}
+function cwcInvBack() { cwcUi.view = 'schools'; cwcUi.form = null; renderCwcModal(); }
+
+function cwcBuildInvoiceDoc(form, students, withW9Note) {
+  const { jsPDF } = window.jspdf;
+  const NAVY = [36, 64, 74], CREAM = [251, 248, 241], BORDER = [226, 225, 218], INK = [23, 38, 43], MUTED = [48, 62, 66];
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const M = 56, pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight(), usableW = pageW - M * 2;
+  const rate = parseFloat(form.rate) || 0, n = students.length, total = n * rate;
+  const money = v => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+  doc.setFillColor(...NAVY); doc.rect(0, 0, pageW, 116, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.addImage('data:image/png;base64,' + SBCMC_LOGO_BASE64, 'PNG', M, 18, 110, 40.5);
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
+  doc.text('Southern Baptist Church Music Collective', M, 72);
+  const venue = activeYearVenue();
+  doc.text('Held at ' + venue.name + (venue.location ? ', ' + venue.location : ''), M, 85);
+  doc.text('April ' + activeConferenceYear, M, 98);
+  doc.setFont(undefined, 'bold'); doc.setFontSize(22); doc.text('INVOICE', pageW - M, 40, { align: 'right' });
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
+  doc.text('Invoice #: ' + form.invoiceNo, pageW - M, 58, { align: 'right' });
+  doc.text('Date: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), pageW - M, 72, { align: 'right' });
+  doc.setFont(undefined, 'bold'); doc.text('Due: ' + (form.dueText || 'Due Upon Receipt'), pageW - M, 90, { align: 'right' });
+
+  let y = 142;
+  doc.setTextColor(...MUTED); doc.setFont(undefined, 'bold'); doc.setFontSize(8.5); doc.text('BILL TO', M, y); y += 16;
+  doc.setTextColor(...INK); doc.setFont(undefined, 'bold'); doc.setFontSize(11); doc.text(form.org || 'School', M, y); y += 15;
+  doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+  if (form.contactName) { doc.text(form.contactName, M, y); y += 13; }
+  if (form.contactEmail) { doc.text(form.contactEmail, M, y); y += 13; }
+  if (form.address) doc.splitTextToSize(form.address, 240).forEach(line => { doc.text(line, M, y); y += 12; });
+  y += 15;
+
+  doc.setFillColor(...NAVY); doc.rect(M, y, usableW, 24, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
+  doc.text('DESCRIPTION', M + 10, y + 16); doc.text('AMOUNT', M + usableW - 10, y + 16, { align: 'right' });
+  y += 24;
+  doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+  const label = (form.description || 'Collegiate Worship Collective registration') + ' (' + n + ' student' + (n === 1 ? '' : 's') + ' x ' + money(rate) + ')';
+  const wrapped = doc.splitTextToSize(label, usableW - 110);
+  const rowH = 12 * wrapped.length + 10;
+  doc.setFillColor(...CREAM); doc.rect(M, y, usableW, rowH, 'F');
+  doc.setTextColor(...INK);
+  wrapped.forEach((l, i) => doc.text(l, M + 10, y + 15 + i * 12));
+  doc.text(money(total), M + usableW - 10, y + 15, { align: 'right' });
+  y += rowH;
+  doc.setDrawColor(...BORDER); doc.line(M, y, M + usableW, y); y += 18;
+  doc.setDrawColor(...NAVY); doc.setLineWidth(1.2); doc.line(M, y, M + usableW, y); y += 20;
+  doc.setFont(undefined, 'bold'); doc.setFontSize(13); doc.setTextColor(...NAVY);
+  doc.text('TOTAL DUE', M, y); doc.text(money(total), M + usableW, y, { align: 'right' });
+  y += 34;
+
+  doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...INK);
+  doc.text('For check payments, mail a check, payable to SBCMC, to:', M, y); y += 15;
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
+  ['SBCMC', 'ATTN: Steve Brown', '2481 Floral Valley Drive', 'Dacula, GA 30019'].forEach(line => { doc.text(line, M, y); y += 12; });
+  y += 10;
+  doc.setFont(undefined, 'italic'); doc.setFontSize(8.5);
+  doc.splitTextToSize('Questions or other payment options? Please contact Sergio Castillo, Conference Coordinator, at sergiolcastillo7@gmail.com or (956) 648-6464.' + (withW9Note ? ' SBCMC’s Form W-9 is attached.' : ''), usableW).forEach(line => { doc.text(line, M, y); y += 11; });
+  y += 14;
+
+  // Students covered by this invoice, two columns, flowing onto another page if needed
+  doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...INK);
+  doc.text('STUDENTS INCLUDED (' + n + ')', M, y); y += 14;
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
+  const colW = usableW / 2;
+  const half = Math.ceil(n / 2);
+  const rowsNeeded = half;
+  let rowY = y;
+  for (let i = 0; i < rowsNeeded; i++) {
+    if (rowY > pageH - 80) { doc.addPage(); rowY = M; }
+    doc.text('• ' + students[i].name, M, rowY, { maxWidth: colW - 10 });
+    if (students[i + half]) doc.text('• ' + students[i + half].name, M + colW, rowY, { maxWidth: colW - 10 });
+    rowY += 13;
+  }
+
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(...BORDER); doc.setLineWidth(0.5); doc.line(M, pageH - 60, pageW - M, pageH - 60);
+    doc.setFont(undefined, 'normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text('Questions about this invoice? Contact Sergio Castillo, Conference Coordinator, sergiolcastillo7@gmail.com · (956) 648-6464', pageW / 2, pageH - 44, { align: 'center' });
+  }
+  return doc;
+}
+async function cwcInvGenerate(includeW9) {
+  if (typeof window.jspdf === 'undefined') { toast('PDF tools didn’t load. Check your connection and try again.'); return; }
+  const st = cwcUi, f = st.form;
+  const school = cwcSchools(cwcAccepted(st.includePending)).find(s => s.key === st.schoolKey);
+  const students = school.students.filter(s => f.picked.has(s.id));
+  if (!students.length) { toast('Pick at least one student.'); return; }
+  const w9 = includeW9 ? st.w9 : null;
+  if (includeW9 && !w9) { toast('Upload the W-9 first, or use "Invoice only".'); return; }
+  const doc = cwcBuildInvoiceDoc(f, students, !!w9);
+  let bytes = doc.output('arraybuffer');
+  let name = 'SBCMC-CWC-Invoice-' + (f.org || 'School').replace(/[^a-z0-9]+/gi, '-');
+  if (w9) {
+    if (typeof PDFLib === 'undefined') { toast('The PDF merge tool didn’t load. Check your connection, or use "Invoice only".'); return; }
+    try {
+      const out = await PDFLib.PDFDocument.load(bytes);
+      const w9Doc = await PDFLib.PDFDocument.load(w9.data);
+      (await out.copyPages(w9Doc, w9Doc.getPageIndices())).forEach(p => out.addPage(p));
+      bytes = await out.save();
+      name += '-with-W9';
+    } catch (e) { toast('Couldn’t add the W-9 (is the saved file a valid PDF?). Use "Invoice only" or re-upload it.'); return; }
+  }
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name + '.pdf';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  // Remember this school's bill-to and the rate/description/due wording for next time
+  const next = Object.assign({}, cwcInvoiceSettings, { rate: f.rate, description: f.description, dueText: f.dueText });
+  next.billTo = Object.assign({}, cwcInvoiceSettings.billTo);
+  next.billTo[st.schoolKey] = { org: f.org, contactName: f.contactName, contactEmail: f.contactEmail, address: f.address };
+  if (await saveConfSettingJson('cwc_invoice_settings', next, 'the invoice details')) cwcInvoiceSettings = next;
+  toast('Invoice for ' + f.org + ' downloaded' + (w9 ? ' with the W-9' : '') + '.');
+}
+
+function renderCwcModal() {
+  const root = document.getElementById('exp-sort-modal-root');
+  const st = cwcUi;
+  if (!st) { root.innerHTML = ''; return; }
+  const esc = escapeHtml;
+  if (st.kind === 'accept') {
+    if (st.editing) {
+      const sample = cwcAcList()[0] || cwcAccepted(true)[0] || { name: 'Jordan Smith', email: 'jordan@example.edu', data: { raw: { 'School Attended': 'Example University' } } };
+      root.innerHTML = `
+        <div class="qa-modal-overlay" onclick="if(event.target===this){cwcUi.editing=false;renderCwcModal();}">
+          <div class="qa-modal-card" style="max-width:780px;">
+            <h3>Edit the acceptance email</h3>
+            <p class="qa-modal-sub">Saved for the whole team. Words in {braces} are filled in from each applicant's form answers: <b>{name}</b> full name, <b>{first}</b>, <b>{last}</b>, <b>{school}</b>. A blank line starts a new paragraph, lines starting with 1. 2. 3. become a numbered list, and [text](https://link) makes a link.</p>
+            <div class="aw-edit-field"><label>Subject</label><textarea rows="1" oninput="cwcAcDraft('subject', this.value)">${esc(st.draft.subject)}</textarea></div>
+            <div class="aw-edit-field"><label>Message</label><textarea rows="22" oninput="cwcAcDraft('body', this.value)">${esc(st.draft.body)}</textarea></div>
+            <div class="aw-preview-label">Preview (using ${esc(sample.name)})</div>
+            <div class="aw-preview" id="cwc-edit-preview" style="padding:16px; background:#fff;">${cwcAcceptanceEmail(sample, st.draft).html}</div>
+            <div class="qa-modal-actions"><button class="sp-mini-btn" onclick="cwcAcResetEdit()" style="margin-right:auto;">Reset to original</button><button class="sp-mini-btn" onclick="cwcUi.editing=false;renderCwcModal();">Cancel</button><button class="qa-modal-done" onclick="cwcAcSaveEdit()">Save wording</button></div>
+          </div>
+        </div>`;
+      return;
+    }
+    const all = cwcAccepted(st.includePending);
+    const schools = cwcSchools(all);
+    const list = cwcAcList();
+    const rows = list.map(a => {
+      const sent = cwcAcceptSent[a.id];
+      return `<div class="aw-row ${st.previewId === a.id ? 'on' : ''}">
+        <div class="aw-main"><div class="aw-name">${esc(a.name)}${(a.data.status || 'Pending') === 'Pending' ? ' <span class="sp-sub">(pending)</span>' : ''}</div>
+          <div class="aw-email">${a.email ? esc(a.email) : '<span style="color:#a52620;">No email on their application</span>'} &nbsp;·&nbsp; ${esc(applicantSchoolName(a) || '(no school)')}</div>
+          <div class="aw-sum">${sent ? 'Sent ' + esc(new Date(sent).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : 'Not sent yet'}</div></div>
+        <div class="aw-btns"><button class="sp-mini-btn" onclick="cwcSet('previewId','${a.id}')">Preview</button><button class="sp-mini-btn" onclick="cwcAcCopy('${a.id}')">Copy email</button><button class="sp-mini-btn" onclick="cwcAcMailto('${a.id}')" title="Opens your mail app with the message filled in (plain text)">Mail app</button><button class="sp-mini-btn" onclick="cwcAcToggleSent('${a.id}')">${sent ? 'Unmark sent' : 'Mark sent'}</button></div>
+      </div>`;
+    }).join('') || '<div class="sch-conflicts-empty">No applicants match. Approve applicants first (or include pending).</div>';
+    const prevApp = st.previewId ? getApplicant(st.previewId) : null;
+    const prev = prevApp ? cwcAcceptanceEmail(prevApp) : null;
+    root.innerHTML = `
+      <div class="qa-modal-overlay" onclick="if(event.target===this) closeCwcModal();">
+        <div class="qa-modal-card" style="max-width:820px;">
+          <h3>CWC acceptance emails</h3>
+          <p class="qa-modal-sub">One email per approved applicant, with their name and email filled in from their CWC form answers. <b>Copy email</b>, paste into a new message, and attach the CWC schedule (the text says it's attached).</p>
+          <div class="aw-controls">
+            <label>School <select onchange="cwcSet('school', this.value)"><option value="all">All schools (${all.length})</option>${schools.map(s => `<option value="${esc(s.key)}" ${st.school === s.key ? 'selected' : ''}>${esc(s.name)} (${s.students.length})</option>`).join('')}</select></label>
+            <label>Show <select onchange="cwcSet('sentFilter', this.value)"><option value="unsent" ${st.sentFilter === 'unsent' ? 'selected' : ''}>Not sent yet</option><option value="sent" ${st.sentFilter === 'sent' ? 'selected' : ''}>Already sent</option><option value="all" ${st.sentFilter === 'all' ? 'selected' : ''}>Everyone</option></select></label>
+            <label class="ar-check"><input type="checkbox" ${st.includePending ? 'checked' : ''} onchange="cwcSet('includePending', this.checked)"> Include pending applicants</label>
+            <button class="sp-mini-btn" onclick="cwcAcCopyAddresses()">Copy these addresses</button>
+            <button class="sp-mini-btn" onclick="cwcAcStartEdit()">✎ Edit wording</button>
+          </div>
+          <div class="aw-list">${rows}</div>
+          ${prev ? `<div class="aw-preview-label">Preview for ${esc(prevApp.name)}: ${esc(prev.subject)}</div><div class="aw-preview" style="padding:16px; background:#fff;">${prev.html}</div>` : ''}
+          <div class="qa-modal-actions"><button class="qa-modal-done" onclick="closeCwcModal()">Done</button></div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // ---- invoices ----
+  const pool = cwcAccepted(st.includePending);
+  const schools = cwcSchools(pool);
+  if (st.view === 'schools') {
+    const w9Line = st.w9 ? `<div class="xw-warn" style="background:#DCEFE0;border-color:#9CC8A6;">W-9 on file in this browser: <b>${esc(st.w9.name)}</b> <a href="#" onclick="cwcW9Remove(); return false;" style="margin-left:8px;">remove</a></div>`
+      : `<div class="xw-warn">No W-9 saved yet. Upload SBCMC's W-9 once (it stays in this browser only) and it gets added to every school invoice. <label class="sp-mini-btn" style="margin-left:8px; cursor:pointer;">Upload W-9<input type="file" accept="application/pdf" style="display:none;" onchange="cwcW9Upload(this)"></label></div>`;
+    root.innerHTML = `
+      <div class="qa-modal-overlay" onclick="if(event.target===this) closeCwcModal();">
+        <div class="qa-modal-card" style="max-width:720px;">
+          <h3>CWC school invoices</h3>
+          <p class="qa-modal-sub">One invoice per school, covering every approved student from that school, payable by check to the same address and attention line as the sponsor invoices.</p>
+          ${w9Line}
+          <div class="aw-controls"><label class="ar-check"><input type="checkbox" ${st.includePending ? 'checked' : ''} onchange="cwcSet('includePending', this.checked)"> Include pending applicants</label></div>
+          <div class="aw-controls" style="margin-top:0;"><span class="sp-sub">Same school spelled different ways? Tick them and merge so they land on one invoice.</span><button class="sp-mini-btn" onclick="cwcMergeSchools()">Merge ticked schools</button>${Object.keys((cwcInvoiceSettings && cwcInvoiceSettings.schoolAliases) || {}).length ? '<button class="sp-mini-btn" onclick="cwcUnmergeAll()">Undo all merges</button>' : ''}</div>
+          <div class="aw-list">${schools.map(s => `<div class="aw-row"><label style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;"><input type="checkbox" class="cwc-merge-cb" value="${esc(s.key)}"><div class="aw-main"><div class="aw-name">${esc(s.name)}</div><div class="aw-email">${s.students.length} student${s.students.length === 1 ? '' : 's'}${s.professor ? ' · contact: ' + esc(s.professor) : ''}</div></div></label><div class="aw-btns"><button class="sp-mini-btn" onclick="cwcInvOpenSchool('${jsAttrString(s.key)}')">Create invoice</button></div></div>`).join('') || '<div class="sch-conflicts-empty">No approved applicants yet.</div>'}</div>
+          <div class="qa-modal-actions"><button class="qa-modal-done" onclick="closeCwcModal()">Done</button></div>
+        </div>
+      </div>`;
+    return;
+  }
+  const school = schools.find(s => s.key === st.schoolKey);
+  const f = st.form;
+  const t = cwcInvTotals();
+  const field = (label, key, extra) => `<div class="aw-edit-field"><label>${label}</label><input type="text" value="${esc(f[key])}" ${extra || ''} oninput="cwcInvField('${key}', this.value)" style="width:100%; font:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--line); border-radius:6px;"></div>`;
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeCwcModal();">
+      <div class="qa-modal-card" style="max-width:760px;">
+        <h3>Invoice for ${esc(school ? school.name : '')}</h3>
+        <div class="aw-edit-group">Bill to</div>
+        ${field('School', 'org')}${field('Contact name', 'contactName')}${field('Contact email', 'contactEmail', 'placeholder="optional"')}
+        <div class="aw-edit-field"><label>Mailing address</label><textarea rows="3" oninput="cwcInvField('address', this.value)" placeholder="Street, City, State ZIP (optional)">${esc(f.address)}</textarea></div>
+        <div class="aw-edit-group">Invoice</div>
+        ${field('Invoice number', 'invoiceNo')}${field('Description', 'description')}
+        <div style="display:flex; gap:12px;"><div style="flex:1;">${field('Amount per student ($)', 'rate', 'inputmode="decimal"')}</div><div style="flex:2;">${field('Due', 'dueText', 'placeholder="Due Upon Receipt or a date"')}</div></div>
+        <div class="aw-edit-group">Students on this invoice</div>
+        <div class="xw-days" style="max-height:170px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:8px 10px;">${(school ? school.students : []).map(s => `<label class="xw-day"><input type="checkbox" ${f.picked.has(s.id) ? 'checked' : ''} onchange="cwcInvToggle('${s.id}', this.checked)"> ${esc(s.name)}${(s.data.status || 'Pending') === 'Pending' ? ' <span class="sp-sub">(pending)</span>' : ''}</label>`).join('')}</div>
+        <div class="xw-summary"><b id="cwc-inv-total">${t.n} student${t.n === 1 ? '' : 's'} × $${t.rate.toFixed(2)} = $${t.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b> <span class="sp-sub">payable by check to SBCMC, ATTN: Steve Brown, 2481 Floral Valley Drive, Dacula, GA 30019</span></div>
+        ${st.w9 ? `<div class="sp-sub" style="margin-bottom:8px;">W-9 on file in this browser: ${esc(st.w9.name)}</div>` : '<div class="xw-warn">No W-9 saved yet. Go back to the school list to upload it, or download the invoice without it.</div>'}
+        <div class="qa-modal-actions"><button class="sp-mini-btn" onclick="cwcInvBack()" style="margin-right:auto;">Back</button><button class="sp-mini-btn" onclick="cwcInvGenerate(false)">Invoice only</button><button class="qa-modal-done" onclick="cwcInvGenerate(true)" ${st.w9 ? '' : 'disabled'}>Download invoice + W-9</button></div>
       </div>
     </div>`;
 }
