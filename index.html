@@ -21688,7 +21688,9 @@ function artistWelcomeEmail(sp, opts) {
   // Their tentative schedule: sound check and sessions in time order (arrival is theirs to tell us, so it's not listed).
   const schedEvents = artistScheduleEvents(sp).events.filter(e => e.kind !== 'arrival');
   const schedLabel = ev => (ev.kind === 'soundcheck' ? T.scheduleSoundcheck : T.scheduleSession);
-  const schedWhat = ev => (ev.kind === 'session' ? ev.title : '') + (ev.room ? (ev.kind === 'session' ? ' (' + ev.room + ')' : ev.room) : '');
+  // Em dashes inside session titles (e.g. "Worship Concert G — Hymn Sing") become a plain hyphen in the email.
+  const noDash = t => String(t == null ? '' : t).replace(/\s*\u2014\s*/g, ' - ');
+  const schedWhat = ev => noDash((ev.kind === 'session' ? ev.title : '') + (ev.room ? (ev.kind === 'session' ? ' (' + ev.room + ')' : ev.room) : ''));
   const scheduleSection = schedEvents.length ? `
     <p style="margin:0 0 6px; ${H}">${esc(T.scheduleHeading)}</p>
     <p style="margin:0 0 10px;">${esc(T.scheduleIntro)}</p>
