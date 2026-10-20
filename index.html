@@ -16658,7 +16658,7 @@ const MATERIAL_ITEM_LABELS = {
   sessionDescription: 'Session description', slideDeck: 'Slide deck', handouts: 'Attendee handouts',
   rider: 'Rider', stagePlot: 'Stage plot', inputList: 'Input list', rfRequest: 'RF (wireless) request',
   lyricsProPresenter: 'Lyrics / ProPresenter files', playbackDetails: 'Playback details (tracks, click, stems)',
-  lightingNotes: 'Lighting notes / special requests', lightingNotesText: 'Lighting notes (typed)'
+  lightingNotes: 'Lighting notes / special requests', lightingNotesText: 'Lighting notes (typed)', playbackDetailsText: 'Playback details (typed)'
 };
 // A short line of direction shown under each checklist item's label on the self-service
 // portal, so it's clear what's actually being asked for instead of just a bare field name.
@@ -16675,7 +16675,7 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
   inputList: 'Please upload your input list.',
   rfRequest: 'Please upload your RF (wireless) frequency request.',
   lyricsProPresenter: 'Please upload your lyrics or ProPresenter files.',
-  playbackDetails: 'Please upload details on your playback needs (tracks, click, stems).',
+  playbackDetails: 'Please upload details on your playback needs (tracks, click, stems), or simply type them in below.',
   lightingNotes: 'Please upload any lighting notes or special requests, or type them in below.'
 };
 // Which checklist items are typed in as plain text vs. an uploaded file vs. either an uploaded
@@ -16688,12 +16688,13 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
 // generic truthiness check elsewhere (completeness, tab alerts, materialsNeededCount) already
 // works unchanged across both shapes, since both a non-empty string and a non-null object are
 // truthy -- only the two rendering spots and the pending-value formatter need to know the type.
-const MATERIAL_ITEM_TYPES = { lightingNotesText: 'text', bio: 'text', sessionDescription: 'text', headshot: 'file-or-link', slideDeck: 'file-or-link', rider: 'file-or-link', promoMaterials: 'file-or-link' };
+const MATERIAL_ITEM_TYPES = { lightingNotesText: 'text', playbackDetailsText: 'text', bio: 'text', sessionDescription: 'text', headshot: 'file-or-link', slideDeck: 'file-or-link', rider: 'file-or-link', promoMaterials: 'file-or-link' };
 function materialItemType(key) { return MATERIAL_ITEM_TYPES[key] || 'file'; }
-// Lighting notes take an uploaded file AND/OR typed notes. The typed half is stored under its own
+// Lighting notes and playback details take an uploaded file AND/OR typed notes. The typed half is stored under its own
 // key (materials.lightingNotesText) so the file side keeps working exactly as before; either one
 // counts as "provided".
-const MATERIAL_TEXT_COMPANION = { lightingNotes: 'lightingNotesText' };
+const MATERIAL_TEXT_COMPANION = { lightingNotes: 'lightingNotesText', playbackDetails: 'playbackDetailsText' };
+const MATERIAL_TEXT_PLACEHOLDER = { lightingNotes: 'Type any lighting notes or special requests here…', playbackDetails: 'Type your playback details here (tracks, click, stems)…' };
 function materialProvided(materials, key) {
   const c = MATERIAL_TEXT_COMPANION[key];
   return !!(materials && (materials[key] || (c && materials[c])));
@@ -17032,7 +17033,7 @@ function renderSpeakerPublicView() {
         <input type="file" id="skv-material-input-${sp.id}-${itemKey}" style="margin-top:6px;">
         <button class="sp-add-btn" onclick="portalUploadSpeakerMaterial('${sp.id}', '${itemKey}')">Upload</button>
         ${linkRowHtml}
-        ${companionKey ? `<div class="spv-or-link"><span class="spv-or-link-label">— or type your notes here —${pendingTag('materials.' + companionKey)}</span><textarea class="spv-textarea" rows="4" style="margin-top:6px;" placeholder="Type any lighting notes or special requests here…" onchange="portalUpdateSpeakerMaterialText('${sp.id}', '${companionKey}', this.value)">${escapeHtml(typedValue)}</textarea></div>` : ''}
+        ${companionKey ? `<div class="spv-or-link"><span class="spv-or-link-label">— or type your notes here —${pendingTag('materials.' + companionKey)}</span><textarea class="spv-textarea" rows="4" style="margin-top:6px;" placeholder="${escapeHtml(MATERIAL_TEXT_PLACEHOLDER[itemKey] || 'Type your notes here…')}" onchange="portalUpdateSpeakerMaterialText('${sp.id}', '${companionKey}', this.value)">${escapeHtml(typedValue)}</textarea></div>` : ''}
       </div>
     `;
   }
