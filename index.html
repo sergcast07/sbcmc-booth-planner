@@ -21878,7 +21878,7 @@ function renderArtistWelcomeModal() {
     <div class="qa-modal-overlay" onclick="if(event.target===this) closeArtistWelcomeModal();">
       <div class="qa-modal-card" style="max-width:760px;">
         <h3>${st.single && list[0] ? 'Artist Welcome email: ' + escapeHtml(list[0].name) : 'Artist Welcome emails'}</h3>
-        <p class="qa-modal-sub">Built from the artist's own record, so it only asks for what's still needed. Click <b>Copy email</b>, paste into a new Gmail message, then drag the logo into the teal header.</p>
+        <p class="qa-modal-sub">Built from the artist's own record, so it only asks for what's still needed. Click <b>Copy email</b> and paste it into a new Gmail message.</p>
         <div class="aw-controls">
           <label>Reply-by date for the first group <input type="text" value="${escapeHtml(st.byDate)}" placeholder="e.g. November 15 (optional)" onchange="awSet('byDate', this.value)" style="width:210px;"></label>
           ${st.single ? '' : `<label class="ar-check"><input type="checkbox" ${st.showAll ? 'checked' : ''} onchange="awSet('showAll', this.checked)"> Show all speakers &amp; artists, not just musicians</label>`}
@@ -22367,7 +22367,7 @@ function renderCwcModal() {
       <div class="qa-modal-overlay" onclick="if(event.target===this) closeCwcModal();">
         <div class="qa-modal-card" style="max-width:820px;">
           <h3>CWC acceptance emails</h3>
-          <p class="qa-modal-sub">One email per approved applicant, with their name and email filled in from their CWC form answers. <b>Copy email</b>, paste into a new message, drag the SBCMC logo into the teal header, and attach the CWC schedule (the text says it's attached).</p>
+          <p class="qa-modal-sub">One email per approved applicant, with their name and email filled in from their CWC form answers. <b>Copy email</b>, paste into a new message, and attach the CWC schedule (the text says it's attached).</p>
           <div class="aw-controls">
             <label>School <select onchange="cwcSet('school', this.value)"><option value="all">All schools (${all.length})</option>${schools.map(s => `<option value="${esc(s.key)}" ${st.school === s.key ? 'selected' : ''}>${esc(s.name)} (${s.students.length})</option>`).join('')}</select></label>
             <label>Show <select onchange="cwcSet('sentFilter', this.value)"><option value="unsent" ${st.sentFilter === 'unsent' ? 'selected' : ''}>Not sent yet</option><option value="sent" ${st.sentFilter === 'sent' ? 'selected' : ''}>Already sent</option><option value="all" ${st.sentFilter === 'all' ? 'selected' : ''}>Everyone</option></select></label>
