@@ -22265,10 +22265,7 @@ function cwcBuildInvoiceDoc(form, students, withW9Note) {
   doc.text('For check payments, mail a check, payable to SBCMC, to:', M, y); y += 15;
   doc.setFont(undefined, 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
   ['SBCMC', 'ATTN: Steve Brown', '2481 Floral Valley Drive', 'Dacula, GA 30019'].forEach(line => { doc.text(line, M, y); y += 12; });
-  y += 10;
-  doc.setFont(undefined, 'italic'); doc.setFontSize(8.5);
-  doc.splitTextToSize('Questions or other payment options? Please contact Sergio Castillo, Conference Coordinator, at sergiolcastillo7@gmail.com or (956) 648-6464.' + (withW9Note ? ' SBCMC’s Form W-9 is attached.' : ''), usableW).forEach(line => { doc.text(line, M, y); y += 11; });
-  y += 14;
+  y += 22;
 
   // Students covered by this invoice, two columns, flowing onto another page if needed
   doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...INK);
@@ -22289,8 +22286,9 @@ function cwcBuildInvoiceDoc(form, students, withW9Note) {
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
     doc.setDrawColor(...BORDER); doc.setLineWidth(0.5); doc.line(M, pageH - 60, pageW - M, pageH - 60);
-    doc.setFont(undefined, 'normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
-    doc.text('Questions about this invoice? Contact Sergio Castillo, Conference Coordinator, sergiolcastillo7@gmail.com · (956) 648-6464', pageW / 2, pageH - 44, { align: 'center' });
+    doc.setFont(undefined, 'italic'); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+    const footer = 'Questions or other payment options? Please contact Sergio Castillo, Conference Coordinator, at sergiolcastillo7@gmail.com or (956)\u00a0648-6464.' + (withW9Note ? ' SBCMC’s Form W-9 is attached.' : '');
+    doc.splitTextToSize(footer, usableW).forEach((line, i) => doc.text(line, pageW / 2, pageH - 44 + i * 11, { align: 'center' }));
   }
   return doc;
 }
