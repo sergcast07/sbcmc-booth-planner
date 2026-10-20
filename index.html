@@ -22072,11 +22072,19 @@ async function cwcAcCopy(id) {
 async function cwcAcGmail(id) {
   const a = getApplicant(id); if (!a || !a.email) { toast('No email address on their application.'); return; }
   const e = cwcAcceptanceEmail(a);
-  window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(a.email) + '&su=' + encodeURIComponent(e.subject), '_blank');
+  // Copy FIRST: opening the Gmail tab takes focus away from this page, and browsers refuse clipboard
+  // writes from a page that isn't focused.
+  let copied = false;
   try {
     await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([e.html], { type: 'text/html' }), 'text/plain': new Blob([e.text], { type: 'text/plain' }) })]);
-    toast('Gmail is open to ' + a.email + '. The email is copied: click in the body and paste.');
-  } catch (err) { cwcSet('previewId', id); toast('Gmail opened, but the copy didn\u2019t work. Use Copy email.'); }
+    copied = true;
+  } catch (err) { /* handled below */ }
+  const win = window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(a.email) + '&su=' + encodeURIComponent(e.subject), '_blank');
+  if (!copied) cwcSet('previewId', id);
+  if (!win) toast('Your browser blocked the Gmail window. Allow pop-ups for this page and try again.');
+  else toast(copied
+    ? 'Email copied. In the Gmail window, click the message body and press Cmd+V (Ctrl+V on Windows) to paste it.'
+    : 'Gmail opened, but the copy didn\u2019t work. Use Copy email, then paste into Gmail.');
 }
 function cwcAcCopyAddresses() {
   const emails = cwcAcList().map(a => a.email).filter(Boolean);
