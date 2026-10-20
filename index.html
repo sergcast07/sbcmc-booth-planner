@@ -21707,8 +21707,7 @@ function artistWelcomeEmail(sp, opts) {
   const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FBF8F1; padding:24px 12px;"><tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background-color:#ffffff; border:1px solid #E2E1DA; border-radius:6px;">
   <tr><td style="background-color:#24404A; padding:28px 32px 24px; border-radius:6px 6px 0 0;">
-    <div style="min-height:39px;"></div>
-    <div style="font-family:Georgia,'Times New Roman',serif; font-size:24px; line-height:1.25; color:#F2EFE4; margin-top:14px;">${esc(T.headerTitle)}</div>
+    <div style="font-family:Georgia,'Times New Roman',serif; font-size:24px; line-height:1.25; color:#F2EFE4;">${esc(T.headerTitle)}</div>
     <div style="font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#cfe0d3; margin-top:6px;">${esc(T.headerSub)}</div>
   </td></tr>
   <tr><td style="padding:30px 32px 8px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.6; color:#17262B;">
@@ -22032,8 +22031,7 @@ function cwcAcceptanceEmail(a, tpl) {
   const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FBF8F1; padding:24px 12px;"><tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background-color:#ffffff; border:1px solid #E2E1DA; border-radius:6px;">
   <tr><td style="background-color:#24404A; padding:28px 32px 24px; border-radius:6px 6px 0 0;">
-    <div style="min-height:39px;"></div>
-    <div style="font-family:Georgia,'Times New Roman',serif; font-size:24px; line-height:1.25; color:#F2EFE4; margin-top:14px;">${escapeHtml(tpl.headerTitle || '')}</div>
+    <div style="font-family:Georgia,'Times New Roman',serif; font-size:24px; line-height:1.25; color:#F2EFE4;">${escapeHtml(tpl.headerTitle || '')}</div>
     <div style="font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#cfe0d3; margin-top:6px;">${escapeHtml(tpl.headerSub || '')}</div>
   </td></tr>
   <tr><td style="padding:30px 32px 22px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.6; color:#17262B;">${inner}</td></tr>
@@ -22041,6 +22039,83 @@ function cwcAcceptanceEmail(a, tpl) {
 </table></td></tr></table>`;
   const text = bodyText.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1 ($2)');
   return { subject, html, text };
+}
+
+// ---- CWC schedule PDF (the attachment the acceptance email mentions) ----
+// Built from the Planner's own schedule: every slot tagged for the Collegiate Collective audience, which
+// includes the conference-wide events they attend. CWC-only rows are shaded so they stand out. Slot
+// notes are left off on purpose: they hold production notes that students shouldn't see.
+function cwcScheduleSlots() {
+  const aud = scheduleAudiences.find(a => /collegiate/i.test(a.name || ''));
+  if (!aud) return { aud: null, slots: [] };
+  const slots = scheduleSlots.filter(sl => slotAudiences(sl).includes(aud.id)).slice().sort((a, b) => (a.date + a.start + a.end).localeCompare(b.date + b.start + b.end));
+  return { aud, slots };
+}
+function cwcBuildSchedulePdf() {
+  const { jsPDF } = window.jspdf;
+  const { slots } = cwcScheduleSlots();
+  const NAVY = [36, 64, 74], INK = [23, 38, 43], MUTED = [48, 62, 66], BORDER = [226, 225, 218], TINT = [244, 233, 211];
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const M = 56, pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight(), usableW = pageW - M * 2;
+  const venue = activeYearVenue();
+  doc.setFillColor(...NAVY); doc.rect(0, 0, pageW, 112, 'F');
+  doc.addImage('data:image/png;base64,' + SBCMC_LOGO_BASE64, 'PNG', M, 18, 110, 40.5);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('CWC Experience Schedule', pageW - M, 44, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.text('Collegiate Worship Collective', pageW - M, 62, { align: 'right' });
+  doc.text('April 11-14, ' + activeConferenceYear, pageW - M, 77, { align: 'right' });
+  doc.text(venue.name + (venue.location ? ', ' + venue.location : ''), pageW - M, 92, { align: 'right' });
+  let y = 136;
+  const legend = () => {
+    doc.setFillColor(...TINT); doc.rect(M, y - 9, 12, 12, 'F');
+    doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    doc.text('Shaded rows are CWC sessions. The other rows are conference events open to you as well.', M + 18, y);
+    y += 20;
+  };
+  legend();
+  const newPage = () => { doc.addPage(); y = M; };
+  const days = {};
+  slots.forEach(sl => (days[sl.date] = days[sl.date] || []).push(sl));
+  const cwcOnly = sl => !slotAudiences(sl).includes(MAIN_AUDIENCE_ID);
+  Object.keys(days).sort().forEach(date => {
+    if (y > pageH - 130) newPage();
+    doc.setTextColor(...NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text(fullWeekday(date) + ', ' + friendlyDate(date).replace(/^[A-Za-z]+,\s*/, ''), M, y);
+    y += 6; doc.setDrawColor(...NAVY); doc.setLineWidth(1); doc.line(M, y, M + usableW, y); y += 6;
+    days[date].forEach(sl => {
+      const labelLines = doc.splitTextToSize(sl.label, usableW - 140);
+      const rowH = 13 * labelLines.length + (sl.room ? 12 : 0) + 8;
+      if (y + rowH > pageH - 70) { newPage(); }
+      if (cwcOnly(sl)) { doc.setFillColor(...TINT); doc.rect(M, y, usableW, rowH, 'F'); }
+      doc.setDrawColor(...BORDER); doc.setLineWidth(0.5); doc.line(M, y + rowH, M + usableW, y + rowH);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...NAVY);
+      doc.text(friendlyTime(sl.start) + ' - ' + friendlyTime(sl.end), M + 8, y + 14);
+      doc.setFont('helvetica', cwcOnly(sl) ? 'bold' : 'normal'); doc.setFontSize(10.5); doc.setTextColor(...INK);
+      labelLines.forEach((l, i) => doc.text(l, M + 140, y + 14 + i * 13));
+      if (sl.room) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED); doc.text(sl.room, M + 140, y + 14 + labelLines.length * 13 - 1); }
+      y += rowH;
+    });
+    y += 14;
+  });
+  const pages = doc.getNumberOfPages();
+  const asOf = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(...BORDER); doc.setLineWidth(0.5); doc.line(M, pageH - 52, pageW - M, pageH - 52);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+    doc.text('Schedule as of ' + asOf + '. Details may change. Find the latest at sbcmc.org.', pageW / 2, pageH - 36, { align: 'center' });
+    if (pages > 1) doc.text('Page ' + p + ' of ' + pages, pageW - M, pageH - 36, { align: 'right' });
+  }
+  return doc;
+}
+function downloadCwcSchedule() {
+  if (typeof window.jspdf === 'undefined') { toast('PDF tools didn\u2019t load. Check your connection and try again.'); return; }
+  const { aud, slots } = cwcScheduleSlots();
+  if (!aud) { toast('No "Collegiate Collective" group found on the Schedule tab.'); return; }
+  if (!slots.length) { toast('Nothing is tagged for the Collegiate Collective on the Schedule tab yet.'); return; }
+  cwcBuildSchedulePdf().save('SBCMC-CWC-Schedule-' + activeConferenceYear + '.pdf');
+  toast('CWC schedule downloaded (' + slots.length + ' items). Attach it to each acceptance email.');
 }
 
 async function openCwcAcceptanceModal() {
@@ -22083,7 +22158,7 @@ async function cwcAcGmail(id) {
   if (!copied) cwcSet('previewId', id);
   if (!win) toast('Your browser blocked the Gmail window. Allow pop-ups for this page and try again.');
   else toast(copied
-    ? 'Email copied. In the Gmail window, click the message body and press Cmd+V (Ctrl+V on Windows) to paste it.'
+    ? 'Email copied. In Gmail, click the message body and paste (Cmd+V), then attach the CWC schedule PDF.'
     : 'Gmail opened, but the copy didn\u2019t work. Use Copy email, then paste into Gmail.');
 }
 function cwcAcCopyAddresses() {
@@ -22367,12 +22442,13 @@ function renderCwcModal() {
       <div class="qa-modal-overlay" onclick="if(event.target===this) closeCwcModal();">
         <div class="qa-modal-card" style="max-width:820px;">
           <h3>CWC acceptance emails</h3>
-          <p class="qa-modal-sub">One email per approved applicant, with their name and email filled in from their CWC form answers. <b>Copy email</b>, paste into a new message, and attach the CWC schedule (the text says it's attached).</p>
+          <p class="qa-modal-sub">One email per approved applicant, with their name and email filled in from their CWC form answers. <b>Copy email</b>, paste into a new message, and attach the CWC schedule: click <b>CWC schedule (PDF)</b> to download it, then attach that file (the email says it's attached).</p>
           <div class="aw-controls">
             <label>School <select onchange="cwcSet('school', this.value)"><option value="all">All schools (${all.length})</option>${schools.map(s => `<option value="${esc(s.key)}" ${st.school === s.key ? 'selected' : ''}>${esc(s.name)} (${s.students.length})</option>`).join('')}</select></label>
             <label>Show <select onchange="cwcSet('sentFilter', this.value)"><option value="unsent" ${st.sentFilter === 'unsent' ? 'selected' : ''}>Not sent yet</option><option value="sent" ${st.sentFilter === 'sent' ? 'selected' : ''}>Already sent</option><option value="all" ${st.sentFilter === 'all' ? 'selected' : ''}>Everyone</option></select></label>
             <label class="ar-check"><input type="checkbox" ${st.includePending ? 'checked' : ''} onchange="cwcSet('includePending', this.checked)"> Include pending applicants</label>
             <button class="sp-mini-btn" onclick="cwcAcCopyAddresses()">Copy these addresses</button>
+            <button class="sp-mini-btn" onclick="downloadCwcSchedule()" title="Builds the schedule from the Schedule tab's Collegiate Collective group">\u2B07 CWC schedule (PDF)</button>
             <button class="sp-mini-btn" onclick="cwcAcStartEdit()">✎ Edit wording</button>
           </div>
           <div class="aw-list">${rows}</div>
