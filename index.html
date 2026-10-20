@@ -22061,7 +22061,7 @@ function cwcBuildSchedulePdf() {
   doc.setFillColor(...NAVY); doc.rect(0, 0, pageW, 112, 'F');
   doc.addImage('data:image/png;base64,' + SBCMC_LOGO_BASE64, 'PNG', M, 18, 110, 40.5);
   doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('CWC Experience Schedule', pageW - M, 44, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('Tentative CWC Schedule', pageW - M, 44, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
   doc.text('Collegiate Worship Collective', pageW - M, 62, { align: 'right' });
   doc.text('April 11-14, ' + activeConferenceYear, pageW - M, 77, { align: 'right' });
