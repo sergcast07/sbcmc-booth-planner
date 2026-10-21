@@ -2153,6 +2153,13 @@ body.bov-lock { overflow: hidden; }
 .bov-sheet-back { position: absolute; top: 14px; left: 14px; height: 38px; padding: 0 14px; border: none; background: var(--paper); border-radius: 19px; font: inherit; font-size: 14px; font-weight: 600; color: var(--teal-deep); cursor: pointer; }
 .bov-sheet-back + .bov-sheet-x + .bov-track { margin-top: 34px; }
 .bov-sheet-pad { height: 24px; }
+.bov-av { position: relative; flex: 0 0 auto; width: var(--s); height: var(--s); border-radius: 50%; overflow: hidden; background: var(--teal-deep); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: calc(var(--s) * 0.36); letter-spacing: 0.02em; }
+.bov-av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; } /* transparent until it paints, so the initials show meanwhile */
+.bov-person-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.bov-person-head .bov-person-link { margin: 0; }
+.bov-hero { display: flex; align-items: center; gap: 16px; margin: 0 48px 12px 0; }
+.bov-hero .bov-sheet-title { margin: 2px 0 0; }
+.bov-spk-row .bov-spk-name { flex: 1; text-align: left; }
 .bov-person-link { font: inherit; font-size: 15.5px; font-weight: 700; color: var(--teal-deep); background: none; border: none; padding: 4px 0; margin-bottom: 2px; cursor: pointer; text-align: left; min-height: 36px; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
 .bov-person-link span { text-decoration: none; display: inline-block; }
 .bov-search { width: 100%; font: inherit; font-size: 16px; min-height: 46px; padding: 10px 14px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); margin-bottom: 12px; }
@@ -2220,6 +2227,7 @@ body.bov-lock { overflow: hidden; }
   .bov-mine .bov-btn { width: 100%; }
   .bov-nav .bov-btn { flex: 1; padding: 10px 8px; }
   .bov-other { flex-direction: column; align-items: stretch; }
+  .bov-hero { margin-right: 44px; gap: 12px; } .bov-hero .bov-av { --s: 84px !important; }
   .bov-other .bov-btn { width: 100%; }
 }
 .bsu-hit { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
@@ -20833,9 +20841,11 @@ function speakerDetailHTML(sp) {
         <img src="${escapeHtml(m.url)}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:6px; vertical-align:middle; margin-right:8px;">${escapeHtml(m.fileName)}
       </a>
       <span class="sp-sub">${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}</span>
+      ${m.url === breakoutSpeakerPhotoSource(sp) ? '<span class="sp-badge" style="background:#D8EEDD; color:#166534;" title="This is the photo attendees see on the breakout sign-up page">✓ On sign-up page</span>' : ((sp.data.photoCandidates || []).length > 1 ? `<button class="sp-mini-btn" onclick="setSignupPhoto('${sp.id}','${m.id}')" title="Show this photo on the attendee breakout sign-up page">Use on sign-up page</button>` : '')}
       <button class="sp-mini-btn" onclick="removeSpeakerPhotoCandidate('${sp.id}','${m.id}')">&times;</button>
     </div>
   `).join('') || '<div class="sp-sub">No photos uploaded yet.</div>';
+  const photoHint = (sp.data.photoCandidates || []).length > 1 && !breakoutSpeakerPhotoSource(sp) ? '<div class="sp-sub" style="color:#a52620; margin-bottom:6px;">Several photos: pick one with “Use on sign-up page” so attendees see the right one (until then they see initials).</div>' : '';
 
   const completeness = speakerCompleteness(sp);
   const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
@@ -21196,7 +21206,7 @@ function speakerDetailHTML(sp) {
 
         <fieldset class="sp-fieldset" style="grid-column:1/-1;">
           <legend>Photo Candidates <span class="sp-sub" style="font-weight:400;">(pull options from the SharePoint headshot folder \u2014 with more than one, staff picks which one publishes on the mobile app manager's Speakers page)</span></legend>
-          ${photoCandidatesHtml}
+          ${photoHint}${photoCandidatesHtml}
           <div class="sp-subhead" style="margin-top:10px;">Upload a Photo</div>
           <div class="sp-add-row" style="flex-wrap:wrap;">
             <input type="file" id="sk-photo-input-${sp.id}" accept="image/*" style="flex:1;">
@@ -22698,11 +22708,26 @@ function roomSeatsFor(roomName) {
   return isNaN(n) ? null : n;
 }
 // Every breakout "cell" (a track in a breakout slot): who is in it, which room(s), and any reservation.
+// The photo attendees see for a speaker: the one staff chose, else a headshot the artist sent through their page,
+// else their only photo. Several photos and no choice shows no photo (initials) rather than risk the wrong one.
+function breakoutSpeakerPhotoSource(sp) {
+  const d = (sp && sp.data) || {}, cands = (d.photoCandidates || []).filter(m => m && m.url);
+  const picked = d.signupPhotoId && cands.find(m => m.id === d.signupPhotoId);
+  if (picked) return picked.url;
+  const h = d.materials && d.materials.headshot;
+  if (h && typeof h === 'object' && h.url && (h.filePath || /\.(jpe?g|png|webp|gif)(\?|$)/i.test(h.url))) return h.url;
+  return cands.length === 1 ? cands[0].url : '';
+}
+function setSignupPhoto(id, photoId) {
+  const sp = getSpeaker(id); if (!sp) return;
+  sp.data.signupPhotoId = sp.data.signupPhotoId === photoId ? '' : photoId;
+  pushSpeaker(sp); renderSpeakerRows(id);
+}
 function breakoutSeatCells() {
   const map = {};
   const ensure = (slot, track) => {
     const key = slot.id + '|' + track;
-    return map[key] || (map[key] = { key, slot, track, rooms: new Set(), titles: new Set(), names: [], descs: new Set(), people: {} });
+    return map[key] || (map[key] = { key, slot, track, rooms: new Set(), titles: new Set(), names: [], descs: new Set(), people: {}, photos: {} });
   };
   speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
     if (!sess.track || sess.isTrackLead) return;
@@ -22718,6 +22743,7 @@ function breakoutSeatCells() {
     const desc = (sess.description || '').trim() || (typeof mat.sessionDescription === 'string' ? mat.sessionDescription.trim() : '');
     if (desc) c.descs.add(desc);
     c.people[sp.name] = (sp.data.bio || '').trim() || (typeof mat.bio === 'string' ? mat.bio.trim() : '');
+    const photo = breakoutSpeakerPhotoSource(sp); if (photo) c.photos[sp.name] = photo;
   }));
   breakoutRoomBookings.forEach(b => {
     const track = sessionTracks.find(t => t.id === b.trackId), slot = scheduleSlots.find(sl => sl.id === b.slotId);
@@ -22962,7 +22988,7 @@ function bovModel() {
   bov.data.sessions.forEach(s => {
     const listed = (s.speaker_bios || []).filter(x => x && x.name);
     s._people = listed.length ? listed : (s.speakers ? s.speakers.split(/,\s*/).filter(Boolean).map(n => ({ name: n, bio: '' })) : []);
-    s._people.forEach(pp => { const e = bySpeaker[pp.name] || (bySpeaker[pp.name] = { name: pp.name, bio: '', sessions: [] }); if (pp.bio && !e.bio) e.bio = pp.bio; e.sessions.push(s); });
+    s._people.forEach(pp => { const e = bySpeaker[pp.name] || (bySpeaker[pp.name] = { name: pp.name, bio: '', photo: '', sessions: [] }); if (pp.bio && !e.bio) e.bio = pp.bio; if (pp.photo && !e.photo) e.photo = pp.photo; e.sessions.push(s); });
   });
   const lastName = n => n.trim().split(/\s+/).slice(-1)[0].toLowerCase();
   const speakers = Object.values(bySpeaker).sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)) || a.name.localeCompare(b.name));
@@ -22978,6 +23004,11 @@ function bovAction(s, picks) {
     ? `<button class="bov-btn bov-btn-ghost" ${d.open ? '' : 'disabled'} onclick="bovRemove(${s._i})">Remove</button>`
     : full ? '<button class="bov-btn bov-btn-full" disabled>Session full</button>'
     : `<button class="bov-btn" ${(!d.open || soon || bov.busy) ? 'disabled' : ''} onclick="bovPick(${s._i})">${other ? 'Switch to this' : 'Choose'}</button>`;
+}
+// A round photo, or the person's initials when there is no photo (or it fails to load)
+function bovAvatar(name, photo, size) {
+  const parts = String(name || '').trim().split(/\s+/), ini = ((parts[0] || '')[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '');
+  return `<span class="bov-av" style="--s:${size}px"><span>${bovEsc(ini.toUpperCase())}</span>${/^https:\/\//.test(photo || '') ? `<img src="${bovEsc(photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 }
 function bovParas(text) { return String(text || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + bovEsc(x).replace(/\n/g, '<br>') + '</p>').join(''); }
 // Sheets stack: a session can open its speaker, a speaker can open one of their sessions, and Back retraces.
@@ -23011,14 +23042,13 @@ function bovSessionSheet(model, picks, s) {
     ${block ? `<div class="bov-facts"><div><span>When</span>${bovWhen(block)}</div></div>` : ''}
     <h4>About this session</h4>
     ${s.description ? `<div class="bov-prose">${bovParas(s.description)}</div>` : '<p class="bov-muted">The full description will be added soon.</p>'}
-    ${s._people.length ? `<h4>${s._people.length > 1 ? 'Speakers' : 'Speaker'}</h4>${s._people.map(n => `<div class="bov-person"><button class="bov-person-link" onclick="bovSpeaker(${model.spkIdx[n.name]})">${bovEsc(n.name)} <span>&rsaquo;</span></button>${n.bio ? `<div class="bov-prose">${bovParas(n.bio)}</div>` : ''}</div>`).join('')}` : ''}
+    ${s._people.length ? `<h4>${s._people.length > 1 ? 'Speakers' : 'Speaker'}</h4>${s._people.map(n => `<div class="bov-person"><div class="bov-person-head">${bovAvatar(n.name, n.photo, 52)}<button class="bov-person-link" onclick="bovSpeaker(${model.spkIdx[n.name]})">${bovEsc(n.name)} <span>&rsaquo;</span></button></div>${n.bio ? `<div class="bov-prose">${bovParas(n.bio)}</div>` : ''}</div>`).join('')}` : ''}
     <div class="bov-sheet-act">${pill}${bovAction(s, picks)}</div>`;
   return bovSheetShell(inner, bovColor(model.tracks, s.track), s.title || s.track);
 }
 // The speaker sheet: their bio and every breakout they are in, each one choosable right there.
 function bovSpeakerSheet(model, picks, e) {
-  const inner = `<div class="bov-track">Speaker</div>
-    <h2 class="bov-sheet-title">${bovEsc(e.name)}</h2>
+  const inner = `<div class="bov-hero">${bovAvatar(e.name, e.photo, 104)}<div><div class="bov-track">Speaker</div><h2 class="bov-sheet-title">${bovEsc(e.name)}</h2></div></div>
     ${e.bio ? `<div class="bov-prose">${bovParas(e.bio)}</div>` : '<p class="bov-muted">A bio will be added soon.</p>'}
     <h4>Breakouts with ${bovEsc(e.name.split(' ')[0])} (${e.sessions.length})</h4>
     ${e.sessions.map(x => bovCard(x, picks, model, true)).join('')}
@@ -23101,7 +23131,7 @@ function bovRender() {
     const q = (bov.spkQuery || '').trim().toLowerCase();
     const rows = model.speakers.map(e => {
       const n = e.sessions.filter(x => picks[x.slot_id] === x.track).length;
-      return `<button class="bov-spk-row" data-n="${bovEsc(e.name.toLowerCase())}" ${q && e.name.toLowerCase().indexOf(q) < 0 ? 'style="display:none"' : ''} onclick="bovSpeaker(${e.idx})"><span class="bov-spk-name">${bovEsc(e.name)}<small>${e.sessions.length} breakout${e.sessions.length === 1 ? '' : 's'}${n ? ' &middot; <b>' + n + ' chosen</b>' : ''}</small></span><span class="bov-spk-go">&rsaquo;</span></button>`;
+      return `<button class="bov-spk-row" data-n="${bovEsc(e.name.toLowerCase())}" ${q && e.name.toLowerCase().indexOf(q) < 0 ? 'style="display:none"' : ''} onclick="bovSpeaker(${e.idx})">${bovAvatar(e.name, e.photo, 46)}<span class="bov-spk-name">${bovEsc(e.name)}<small>${e.sessions.length} breakout${e.sessions.length === 1 ? '' : 's'}${n ? ' &middot; <b>' + n + ' chosen</b>' : ''}</small></span><span class="bov-spk-go">&rsaquo;</span></button>`;
     }).join('');
     content = `<input class="bov-search" type="search" placeholder="Search speakers" value="${bovEsc(bov.spkQuery || '')}" oninput="bovFilterSpeakers(this.value)" aria-label="Search speakers" autocomplete="off">`
       + (rows ? `<div>${rows}</div><div class="bov-empty" id="bov-spk-empty" hidden>No speakers match.</div>` : '<div class="bov-empty">Speakers will appear here soon.</div>');
@@ -23168,14 +23198,38 @@ async function bsuSaveSettings() {
 // which is all the attendee page can see. It runs when you click "Publish seats now", and automatically (below)
 // whenever something that feeds it changes, so the attendee page cannot drift out of date.
 var breakoutPublishSig = '', breakoutPublishTimer = null, breakoutSignupReady = null; // ready: null unknown, false = tables not set up
+// Speaker photos are large (often 1 to 2 MB), so attendees get a small square copy made here, stored once next to the original.
+var breakoutThumbCache = {};
+function breakoutHash(str) { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0; return h.toString(36); }
+async function breakoutMakeThumb(src) {
+  const res = await fetch(src); if (!res.ok) throw new Error('HTTP ' + res.status);
+  const bmp = await createImageBitmap(await res.blob());
+  const S = 320, side = Math.min(bmp.width, bmp.height), sx = (bmp.width - side) / 2, sy = (bmp.height - side) * 0.3; // faces sit high in a portrait
+  const cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, S, S); g.drawImage(bmp, sx, sy, side, side, 0, 0, S, S);
+  return new Promise((ok, no) => cv.toBlob(b => b ? ok(b) : no(new Error('could not encode the photo')), 'image/jpeg', 0.82));
+}
+async function breakoutPhotoThumb(src) {
+  if (breakoutThumbCache[src] !== undefined) return breakoutThumbCache[src];
+  const path = '_signup/' + breakoutHash(src) + '.jpg', store = sbClient.storage.from(SPEAKER_MATERIALS_BUCKET);
+  const pub = store.getPublicUrl(path).data.publicUrl; let out = '';
+  try {
+    const head = await fetch(pub, { method: 'HEAD' });
+    if (head.ok) out = pub;
+    else { const up = await store.upload(path, await breakoutMakeThumb(src), { contentType: 'image/jpeg', upsert: true }); if (!up.error) out = pub; else console.warn('Couldn’t store a speaker photo copy:', up.error); }
+  } catch (e) { console.warn('Couldn’t make a speaker photo copy for ' + src + ':', e); } // e.g. a format the browser can't read: that speaker shows initials
+  breakoutThumbCache[src] = out; return out;
+}
 async function publishBreakoutSeats(opts) {
   opts = opts || {};
   if (!breakoutSeatsLoaded || opts.reload) await loadBreakoutSeats();
   const y = activeConferenceYear, cells = breakoutSeatCells();
   const trackIdx = name => Math.max(0, sessionTracks.findIndex(t => t.name === name));
+  const srcs = Array.from(new Set([].concat(...cells.map(c => Object.keys(c.photos).map(n => c.photos[n]))))), thumbs = {};
+  for (let i = 0; i < srcs.length; i += 4) await Promise.all(srcs.slice(i, i + 4).map(async u => { thumbs[u] = await breakoutPhotoThumb(u); }));
   const base = cells.map(c => {
     const info = breakoutSeatInfo(c, breakoutSeatOverrides[c.key] != null ? String(breakoutSeatOverrides[c.key]) : '');
-    return { conference_year: y, slot_id: c.slot.id, track: c.track, seats: info.seats, title: Array.from(c.titles).join(' / '), speakers: Array.from(new Set(c.names)).join(', '), room: info.rooms.join(' + '), slot_label: c.slot.label, slot_date: c.slot.date, slot_start: c.slot.start, slot_end: c.slot.end, sort_order: trackIdx(c.track), description: Array.from(c.descs).join('\n\n'), speaker_bios: Object.keys(c.people).map(n => ({ name: n, bio: c.people[n] })) };
+    return { conference_year: y, slot_id: c.slot.id, track: c.track, seats: info.seats, title: Array.from(c.titles).join(' / '), speakers: Array.from(new Set(c.names)).join(', '), room: info.rooms.join(' + '), slot_label: c.slot.label, slot_date: c.slot.date, slot_start: c.slot.start, slot_end: c.slot.end, sort_order: trackIdx(c.track), description: Array.from(c.descs).join('\n\n'), speaker_bios: Object.keys(c.people).map(n => Object.assign({ name: n, bio: c.people[n] }, thumbs[c.photos[n]] ? { photo: thumbs[c.photos[n]] } : {})) };
   });
   const sig = y + JSON.stringify(base);
   if (opts.onlyIfChanged && sig === breakoutPublishSig) return { skipped: true };
@@ -23192,7 +23246,8 @@ async function publishBreakoutSeats(opts) {
     for (const c of (have.data || [])) { const k = c.slot_id + '|' + c.track; if (!live.has(k) && !taken.has(k)) await sbClient.from('breakout_capacity').delete().eq('conference_year', y).eq('slot_id', c.slot_id).eq('track', c.track); }
   }
   breakoutPublishSig = sig; breakoutSignupReady = true;
-  return { count: base.length, missing: base.filter(r => r.seats == null).length, noDesc: base.filter(r => !r.description).length };
+  const ppl = {}; base.forEach(r => r.speaker_bios.forEach(x => { ppl[x.name] = ppl[x.name] || !!x.photo; }));
+  return { count: base.length, missing: base.filter(r => r.seats == null).length, noDesc: base.filter(r => !r.description).length, noPhoto: Object.keys(ppl).filter(n => !ppl[n]).length };
 }
 // Quiet republish, only once seats have been published at least once (the first publish stays a deliberate step).
 // Returns 'updated' | 'skipped' | 'off' | 'error'.
@@ -23221,7 +23276,7 @@ async function bsuPublishSeats() {
   try {
     const res = await publishBreakoutSeats({ reload: true });
     await bsuLoad();
-    toast('Published ' + res.count + ' sessions' + (res.missing ? ' (' + res.missing + ' have no seats yet, so they show as "Opening soon")' : '') + (res.noDesc ? '. ' + res.noDesc + ' have no description yet.' : '.'));
+    toast('Published ' + res.count + ' sessions' + (res.missing ? ' (' + res.missing + ' have no seats yet, so they show as "Opening soon")' : '') + (res.noDesc ? '. ' + res.noDesc + ' have no description yet' : '') + (res.noPhoto ? '. ' + res.noPhoto + ' speakers have no photo yet' : '') + '.');
   } catch (e) { toast('Couldn’t publish the seats: ' + (e.message || e)); }
   bsu.busy = false; renderBreakoutSignupAdmin();
 }
