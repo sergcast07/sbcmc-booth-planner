@@ -505,6 +505,8 @@
   #schedule-public-view { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   body.sponsor-view-mode > *:not(#sponsor-public-view):not(#kb-toast) { display: none !important; }
   body.speaker-view-mode > *:not(#speaker-public-view):not(#kb-toast) { display: none !important; }
+  body.breakouts-view-mode > *:not(#breakout-public-view):not(#kb-toast) { display: none !important; }
+  #breakout-public-view { max-width: 720px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   #sponsor-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   #speaker-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   /* The person's own name is the thing that tells them "yes, this is my page" -- it leads as
@@ -2090,6 +2092,38 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .bs-block-row td { background: var(--gold-pale); font-weight: 700; font-size: 11.5px; color: var(--ink); border-top: 1px solid var(--gold); }
 .bs-notes { font-size: 11px; color: #a52620; }
 
+/* Breakout sign-up: public page + admin panel */
+.bov-banner { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 14px; line-height: 1.5; }
+.bov-banner-closed { background: var(--gold-pale); border-color: var(--gold); }
+.bov-who { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.bov-who-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.bov-chip { font: inherit; font-size: 13px; padding: 7px 13px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+.bov-chip.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.bov-chip-n { font-size: 11px; opacity: 0.8; }
+.bov-progress { font-size: 13.5px; color: var(--ink); margin-bottom: 14px; }
+.bov-msg { background: #fee2e2; border: 1px solid #fca5a5; color: #7f1d1d; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+.bov-block { margin-bottom: 22px; }
+.bov-block-head { font-size: 14px; color: var(--ink); border-bottom: 2px solid var(--gold); padding-bottom: 6px; margin-bottom: 10px; }
+.bov-block-head span { color: var(--ink-soft); font-size: 12.5px; margin-left: 6px; }
+.bov-done { float: right; font-style: normal; font-size: 12px; font-weight: 700; color: #166534; }
+.bov-card { display: flex; gap: 12px; justify-content: space-between; align-items: center; background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; }
+.bov-card.on { border-color: var(--teal-deep); background: var(--teal-pale); }
+.bov-card.full { opacity: 0.6; }
+.bov-track { font-weight: 700; font-size: 14px; color: var(--teal-deep); }
+.bov-title { font-size: 13.5px; color: var(--ink); margin-top: 1px; }
+.bov-meta { font-size: 12px; color: var(--ink-soft); margin: 2px 0 4px; }
+.bov-seats { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.bov-seats.bov-few { color: #92400e; } .bov-seats.bov-full { color: #a52620; }
+.bov-yours { font-size: 12px; font-weight: 700; color: #166534; margin-left: 6px; }
+.bov-btn { font: inherit; font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--teal-deep); background: var(--teal-deep); color: #fff; cursor: pointer; white-space: nowrap; }
+.bov-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.bov-btn-ghost { background: #fff; color: var(--teal-deep); }
+.bov-foot { font-size: 12px; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; }
+@media (max-width: 520px) { .bov-card { flex-direction: column; align-items: stretch; } .bov-btn { width: 100%; } }
+.bsu-hit { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.bsu-bar { height: 7px; border-radius: 4px; background: var(--line); overflow: hidden; margin-bottom: 3px; width: 140px; }
+.bsu-bar > div { height: 100%; background: var(--teal); } .bsu-bar > div.full { background: #a52620; }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2163,6 +2197,16 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   </div>
 </div>
 
+<div id="breakout-public-view" style="display:none;">
+  <div class="dv-header">
+    <p class="dv-eyebrow">SBCMC 2027 &middot; Breakout Sign-up</p>
+    <h1 id="bov-name" class="dv-person-name">Choose your breakouts</h1>
+  </div>
+  <div id="bov-body" class="dv-body">
+    <div class="dv-loading">Loading&hellip;</div>
+  </div>
+</div>
+
 <div id="speaker-public-view" style="display:none;">
   <div class="dv-header">
     <p class="dv-eyebrow">SBCMC 2027 &middot; Speaker/Artist Portal</p>
@@ -2204,7 +2248,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   // removed once every reviewer had a real logged-in account.
   try {
     const publicView = new URLSearchParams(window.location.search).get('view');
-    if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor' || publicView === 'speaker') return;
+    if (publicView === 'drivers' || publicView === 'schedule' || publicView === 'sponsor' || publicView === 'speaker' || publicView === 'breakouts') return;
   } catch (e) {}
 
   document.body.classList.add('gate-locked');
@@ -18732,6 +18776,7 @@ function renderBreakoutGrid() {
       <button class="sch-toggle-btn ${breakoutGridViewMode === 'room' ? 'active' : ''}" onclick="setBreakoutGridViewMode('room')">By Room</button>
       <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="printBreakoutGridReport()" title="Print a clean, read-only copy of this grid">🖶 Print</button>
       ${canEditSchedule ? `<button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openBreakoutSeatsEditor()" title="See and limit the seats in each breakout session">🪑 Seats</button>` : ''}
+      ${window.isAdminUser ? `<button class="sp-add-btn" style="background:var(--teal-deep);" onclick="openBreakoutSignupAdmin()" title="Open attendee sign-up, create links, see seats fill">📝 Sign-up</button>` : ''}
     </div>`;
 
   if (breakoutSlots.length === 0) {
@@ -22706,6 +22751,261 @@ function renderBreakoutSeatsEditor() {
     </div>`;
 }
 
+// ---- Breakout sign-up -----------------------------------------------------------------------------------
+// PUBLIC PAGE (?view=breakouts&t=<household token>): one private link per checkout group. Everyone on that
+// order picks one session per breakout block. Seat checks happen in the database (breakout_pick), not here,
+// so two people can never take the last seat. ADMIN PANEL ("Sign-up" on the Breakout Grid): open/close,
+// publish seats, create links, watch seats fill, see who has not chosen. Needs sbcmc-breakout-signup.sql.
+function isBreakoutViewMode() {
+  try { return new URLSearchParams(window.location.search).get('view') === 'breakouts'; } catch (e) { return false; }
+}
+let bov = null; // { token, data, attendeeId, busy, msg }
+async function initBreakoutPublicView() {
+  document.body.classList.add('breakouts-view-mode');
+  document.getElementById('breakout-public-view').style.display = 'block';
+  const body = document.getElementById('bov-body');
+  const token = new URLSearchParams(window.location.search).get('t');
+  if (!token || !isSupabaseConfigured()) { body.innerHTML = '<div class="dv-loading">This link is missing or invalid. Please contact the SBCMC team for a fresh link.</div>'; return; }
+  try { await loadConferenceYears(); } catch (e) { /* falls back to the default year */ }
+  bov = { token, data: null, attendeeId: null, busy: false, msg: '' };
+  await bovRefresh();
+  // Seat counts move while people sign up, so quietly refresh while the page is open and visible.
+  setInterval(() => { if (!document.hidden && !bov.busy) bovRefresh(true); }, 45000);
+}
+async function bovRefresh(quiet) {
+  const body = document.getElementById('bov-body');
+  const { data, error } = await sbClient.rpc('breakout_get', { p_token: bov.token, p_year: activeConferenceYear });
+  if (error) { if (!quiet) body.innerHTML = '<div class="dv-loading">Breakout sign-up is not available yet. Please check back soon.</div>'; return; }
+  if (!data) { body.innerHTML = '<div class="dv-loading">This link isn’t active. Please contact the SBCMC team for a fresh link.</div>'; return; }
+  bov.data = data;
+  if (!bov.attendeeId || !data.attendees.some(a => a.id === bov.attendeeId)) bov.attendeeId = data.attendees.length ? data.attendees[0].id : null;
+  bovRender();
+}
+function bovSelect(id) { bov.attendeeId = id; bov.msg = ''; bovRender(); }
+const BOV_ERRORS = {
+  full: 'That session just filled up. Please choose another one.',
+  closed: 'Sign-up is closed right now, so changes can’t be made.',
+  not_open: 'That session isn’t open for sign-up yet.',
+  invalid_link: 'This link isn’t active. Please contact the SBCMC team.',
+  not_in_group: 'That person isn’t on this link.',
+  no_such_session: 'That session is no longer available. The page has been refreshed.'
+};
+async function bovAct(kind, slotId, track) {
+  if (bov.busy) return;
+  bov.busy = true; bov.msg = '';
+  const args = kind === 'pick'
+    ? { p_token: bov.token, p_attendee_id: bov.attendeeId, p_slot_id: slotId, p_track: track, p_year: activeConferenceYear }
+    : { p_token: bov.token, p_attendee_id: bov.attendeeId, p_slot_id: slotId, p_year: activeConferenceYear };
+  const { data, error } = await sbClient.rpc(kind === 'pick' ? 'breakout_pick' : 'breakout_unpick', args);
+  bov.busy = false;
+  if (error || !data) bov.msg = 'Something went wrong. Please try again.';
+  else if (!data.ok) bov.msg = BOV_ERRORS[data.error] || 'That didn’t work. Please try again.';
+  await bovRefresh();
+}
+function bovRender() {
+  const d = bov.data, body = document.getElementById('bov-body'), esc = escapeHtml;
+  const att = d.attendees.find(a => a.id === bov.attendeeId);
+  document.getElementById('bov-name').textContent = att ? att.name : 'Breakout sign-up';
+  const picks = {}; (att ? att.picks : []).forEach(p => { picks[p.slot_id] = p.track; });
+  const blocks = []; d.sessions.forEach(s => { let b = blocks.find(x => x.slot_id === s.slot_id); if (!b) blocks.push(b = { slot_id: s.slot_id, label: s.slot_label, date: s.slot_date, start: s.slot_start, end: s.slot_end, sessions: [] }); b.sessions.push(s); });
+  const chosen = blocks.filter(b => picks[b.slot_id]).length;
+  const closesTxt = d.closes_at ? new Date(d.closes_at).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  const who = d.attendees.length > 1 ? `<div class="bov-who"><span class="bov-who-label">Choosing for</span>${d.attendees.map(a => `<button class="bov-chip ${a.id === bov.attendeeId ? 'on' : ''}" onclick="bovSelect('${esc(a.id)}')">${esc(a.name)}${a.picks.length ? ' <span class="bov-chip-n">' + a.picks.length + '/' + (blocks.length || '?') + '</span>' : ''}</button>`).join('')}</div>` : '';
+  const banner = !d.open
+    ? `<div class="bov-banner bov-banner-closed">${esc(d.message || (blocks.length ? 'Breakout sign-up isn’t open right now. Your current choices are shown below.' : 'Breakout sign-up opens soon. Check back here for your link.'))}</div>`
+    : (d.message ? `<div class="bov-banner">${esc(d.message)}</div>` : '');
+  const progress = blocks.length ? `<div class="bov-progress"><b>${chosen} of ${blocks.length}</b> breakout blocks chosen${closesTxt ? ` &middot; you can change your choices until ${esc(closesTxt)}` : ''}</div>` : '';
+  const msg = bov.msg ? `<div class="bov-msg">${esc(bov.msg)}</div>` : '';
+  const blockHtml = blocks.map(b => {
+    const mine = picks[b.slot_id];
+    const cards = b.sessions.map(s => {
+      const isMine = mine === s.track, left = s.seats == null ? null : s.seats - s.taken;
+      const full = left != null && left <= 0, notOpen = s.seats == null;
+      const status = notOpen ? '<span class="bov-seats">Not open yet</span>' : (full && !isMine ? '<span class="bov-seats bov-full">Full</span>' : `<span class="bov-seats ${left <= 5 ? 'bov-few' : ''}">${left} seat${left === 1 ? '' : 's'} left</span>`);
+      const action = isMine ? `<button class="bov-btn bov-btn-ghost" ${d.open ? '' : 'disabled'} onclick="bovAct('unpick','${esc(b.slot_id)}','')">Remove</button>`
+        : `<button class="bov-btn" ${(!d.open || full || notOpen || bov.busy) ? 'disabled' : ''} onclick="bovAct('pick','${esc(b.slot_id)}','${esc(s.track).replace(/'/g, '&#39;')}')">${mine ? 'Switch to this' : 'Choose'}</button>`;
+      return `<div class="bov-card ${isMine ? 'on' : ''} ${full && !isMine ? 'full' : ''}">
+        <div class="bov-card-main">
+          <div class="bov-track">${esc(s.track)}</div>
+          ${s.title ? `<div class="bov-title">${esc(s.title)}</div>` : ''}
+          <div class="bov-meta">${s.speakers ? esc(s.speakers) : ''}${s.speakers && s.room ? ' &middot; ' : ''}${s.room ? esc(s.room) : ''}</div>
+          <div>${status}${isMine ? ' <span class="bov-yours">&#10003; Your choice</span>' : ''}</div>
+        </div>
+        <div class="bov-card-act">${action}</div>
+      </div>`;
+    }).join('');
+    return `<section class="bov-block"><div class="bov-block-head"><b>${esc(b.label)}</b> <span>${esc(friendlyDate(b.date))} &middot; ${esc(friendlyTime(b.start))} to ${esc(friendlyTime(b.end))}</span>${mine ? '<em class="bov-done">&#10003; chosen</em>' : ''}</div>${cards}</section>`;
+  }).join('');
+  body.innerHTML = `${banner}${who}${progress}${msg}${blockHtml || ''}<p class="bov-foot">Choose one session in each breakout block you plan to attend. You don’t have to pick every block. Questions? Reply to the email this link came in.</p>`;
+}
+
+// ---- admin panel ----
+let bsu = null; // { settings, capacity, attendees, households, signups, setupNeeded, busy, openRoster, search }
+function bsuLink(token) { return window.location.origin + window.location.pathname + '?view=breakouts&t=' + token; }
+async function openBreakoutSignupAdmin() {
+  if (!window.isAdminUser) { toast('Only admins can manage breakout sign-up.'); return; }
+  bsu = { settings: { open: false, closes_at: '', message: '' }, capacity: [], attendees: [], households: [], signups: [], setupNeeded: false, busy: false, openRoster: null, search: '' };
+  await bsuLoad();
+  renderBreakoutSignupAdmin();
+}
+function closeBreakoutSignupAdmin() { bsu = null; document.getElementById('exp-sort-modal-root').innerHTML = ''; }
+async function bsuLoad() {
+  const y = activeConferenceYear, q = t => sbClient.from(t).select('*').eq('conference_year', y).limit(10000);
+  const s = await loadConfSettingJson('breakout_signup');
+  if (s) bsu.settings = Object.assign({ open: false, closes_at: '', message: '' }, s);
+  const [cap, att, hh, sig] = await Promise.all([q('breakout_capacity'), q('breakout_attendees'), q('breakout_households'), q('breakout_signups')]);
+  if (cap.error || att.error || hh.error || sig.error) { bsu.setupNeeded = true; return; }
+  bsu.capacity = (cap.data || []).sort((a, b) => (a.slot_date + a.slot_start).localeCompare(b.slot_date + b.slot_start) || (a.sort_order - b.sort_order));
+  bsu.attendees = att.data || []; bsu.households = hh.data || []; bsu.signups = sig.data || [];
+}
+async function bsuSaveSettings() {
+  const open = document.getElementById('bsu-open').checked, closes = document.getElementById('bsu-closes').value, message = document.getElementById('bsu-message').value.trim();
+  const next = { open, closes_at: closes ? new Date(closes).toISOString() : '', message };
+  if (await saveConfSettingJson('breakout_signup', next, 'the sign-up settings')) { bsu.settings = next; toast(open ? 'Sign-up is OPEN.' : 'Sign-up is closed.'); renderBreakoutSignupAdmin(); }
+}
+async function bsuPublishSeats() {
+  bsu.busy = true; renderBreakoutSignupAdmin();
+  try {
+    await loadBreakoutSeats();
+    const y = activeConferenceYear, cells = breakoutSeatCells();
+    const trackIdx = name => Math.max(0, sessionTracks.findIndex(t => t.name === name));
+    const rows = cells.map(c => {
+      const info = breakoutSeatInfo(c, breakoutSeatOverrides[c.key] != null ? String(breakoutSeatOverrides[c.key]) : '');
+      return { conference_year: y, slot_id: c.slot.id, track: c.track, seats: info.seats, title: Array.from(c.titles).join(' / '), speakers: Array.from(new Set(c.names)).join(', '), room: info.rooms.join(' + '), slot_label: c.slot.label, slot_date: c.slot.date, slot_start: c.slot.start, slot_end: c.slot.end, sort_order: trackIdx(c.track), updated_at: new Date().toISOString() };
+    });
+    const up = await sbClient.from('breakout_capacity').upsert(rows, { onConflict: 'conference_year,slot_id,track' });
+    if (up.error) throw up.error;
+    // Sessions no longer on the schedule are removed, unless someone already picked them.
+    const live = new Set(rows.map(r => r.slot_id + '|' + r.track)), taken = new Set(bsu.signups.map(s => s.slot_id + '|' + s.track));
+    for (const c of bsu.capacity) { const k = c.slot_id + '|' + c.track; if (!live.has(k) && !taken.has(k)) await sbClient.from('breakout_capacity').delete().eq('conference_year', y).eq('slot_id', c.slot_id).eq('track', c.track); }
+    const missing = rows.filter(r => r.seats == null).length;
+    await bsuLoad();
+    toast('Published ' + rows.length + ' sessions' + (missing ? ' (' + missing + ' still have no seats, so they show as "Not open yet")' : '') + '.');
+  } catch (e) { toast('Couldn’t publish the seats: ' + (e.message || e)); }
+  bsu.busy = false; renderBreakoutSignupAdmin();
+}
+async function bsuSyncRegistrants() {
+  bsu.busy = true; renderBreakoutSignupAdmin();
+  try {
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=export-attendees&program=general', { method: 'POST', headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const { rows } = await res.json();
+    const paid = (rows || []).filter(r => !r.is_test_data && r.payment_status === 'Paid' && r.raw && r.raw.gravityFormsEntryId != null && (r.name || '').trim());
+    if (!paid.length) { toast('No paid registrants found. Run "Sync Attendee Database" on the Badges page first.'); bsu.busy = false; renderBreakoutSignupAdmin(); return; }
+    const y = activeConferenceYear, seen = {};
+    const attRows = paid.map((r, i) => {
+      const g = String(r.raw.gravityFormsEntryId), idx = r.raw.registrantIndex != null ? r.raw.registrantIndex : (seen[g] = (seen[g] == null ? 0 : seen[g] + 1));
+      return { id: 'gf9-' + g + '-' + idx, group_id: g, conference_year: y, name: r.name.trim(), email: (r.email || '').trim().toLowerCase(), program: r.program || 'general' };
+    });
+    for (let i = 0; i < attRows.length; i += 200) { const u = await sbClient.from('breakout_attendees').upsert(attRows.slice(i, i + 200), { onConflict: 'id' }); if (u.error) throw u.error; }
+    const haveToken = new Set(bsu.households.map(h => h.group_id));
+    const newHH = Array.from(new Set(attRows.map(a => a.group_id))).filter(g => !haveToken.has(g)).map(g => ({ token: generateRandomToken(), group_id: g, conference_year: y }));
+    for (let i = 0; i < newHH.length; i += 200) { const u = await sbClient.from('breakout_households').insert(newHH.slice(i, i + 200)); if (u.error) throw u.error; }
+    await bsuLoad();
+    toast('Synced ' + attRows.length + ' registrants. ' + newHH.length + ' new link' + (newHH.length === 1 ? '' : 's') + ' created.');
+  } catch (e) { toast('Couldn’t sync registrants: ' + (e.message || e)); }
+  bsu.busy = false; renderBreakoutSignupAdmin();
+}
+function bsuDownload(name, rows) {
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function bsuGroups() {
+  const tokenByGroup = {}; bsu.households.forEach(h => { tokenByGroup[h.group_id] = h.token; });
+  const groups = {}; bsu.attendees.forEach(a => { (groups[a.group_id] = groups[a.group_id] || { id: a.group_id, people: [], token: tokenByGroup[a.group_id] || '' }).people.push(a); });
+  return Object.values(groups);
+}
+function bsuLinksCsv() {
+  const rows = [['Email', 'First name', 'Everyone on this order', 'Sign-up link', 'Checkout group']];
+  bsuGroups().forEach(g => {
+    const names = g.people.map(p => p.name).join(', '), byEmail = {};
+    g.people.forEach(p => { const e = (p.email || '').toLowerCase(); if (e && !byEmail[e]) byEmail[e] = p; });
+    Object.keys(byEmail).forEach(e => rows.push([e, byEmail[e].name.split(' ')[0], names, bsuLink(g.token), g.id]));
+  });
+  bsuDownload('breakout-signup-links.csv', rows);
+}
+function bsuBlocks() { const seen = {}, out = []; bsu.capacity.forEach(c => { if (!seen[c.slot_id]) { seen[c.slot_id] = 1; out.push({ id: c.slot_id, label: c.slot_label }); } }); return out; }
+function bsuMissingCsv() {
+  const blocks = bsuBlocks(), have = {}; bsu.signups.forEach(s => { (have[s.attendee_id] = have[s.attendee_id] || new Set()).add(s.slot_id); });
+  const tokenByGroup = {}; bsu.households.forEach(h => { tokenByGroup[h.group_id] = h.token; });
+  const rows = [['Name', 'Email', 'Blocks not chosen yet', 'Sign-up link']];
+  bsu.attendees.forEach(a => { const miss = blocks.filter(b => !(have[a.id] && have[a.id].has(b.id))); if (miss.length) rows.push([a.name, a.email || '', miss.map(b => b.label).join(' | '), tokenByGroup[a.group_id] ? bsuLink(tokenByGroup[a.group_id]) : '']); });
+  bsuDownload('breakout-not-chosen-yet.csv', rows);
+}
+function bsuRostersCsv() {
+  const att = {}; bsu.attendees.forEach(a => { att[a.id] = a; });
+  const rows = [['Block', 'Date', 'Start', 'Track', 'Session', 'Room', 'Name', 'Email']];
+  bsu.capacity.forEach(c => bsu.signups.filter(s => s.slot_id === c.slot_id && s.track === c.track).forEach(s => rows.push([c.slot_label, c.slot_date, friendlyTime(c.slot_start), c.track, c.title || '', c.room || '', (att[s.attendee_id] || {}).name || s.attendee_id, (att[s.attendee_id] || {}).email || ''])));
+  bsuDownload('breakout-rosters.csv', rows);
+}
+function bsuSetSearch(v) { bsu.search = v; const box = document.getElementById('bsu-search-results'); if (box) box.innerHTML = bsuSearchHtml(); }
+function bsuSearchHtml() {
+  const q = (bsu.search || '').trim().toLowerCase(); if (q.length < 2) return '<span class="sp-sub">Type at least 2 letters of a name or email.</span>';
+  const tokenByGroup = {}; bsu.households.forEach(h => { tokenByGroup[h.group_id] = h.token; });
+  const hits = bsu.attendees.filter(a => a.name.toLowerCase().includes(q) || (a.email || '').includes(q)).slice(0, 8);
+  if (!hits.length) return '<span class="sp-sub">No match.</span>';
+  return hits.map(a => `<div class="bsu-hit"><span><b>${escapeHtml(a.name)}</b> <span class="sp-sub">${escapeHtml(a.email || '')}</span></span><button class="sp-mini-btn" onclick="bsuCopyLink('${escapeHtml(a.group_id)}')">Copy link</button></div>`).join('');
+}
+function bsuCopyLink(groupId) {
+  const h = bsu.households.find(x => x.group_id === groupId); if (!h) { toast('No link for that order yet. Sync registrants first.'); return; }
+  navigator.clipboard.writeText(bsuLink(h.token)).then(() => toast('Link copied.'));
+}
+function bsuToggleRoster(key) { bsu.openRoster = bsu.openRoster === key ? null : key; renderBreakoutSignupAdmin(); }
+async function bsuRemovePick(attendeeId, slotId) {
+  const a = bsu.attendees.find(x => x.id === attendeeId);
+  if (!confirm('Remove ' + (a ? a.name : 'this person') + ' from this session?')) return;
+  const r = await sbClient.from('breakout_signups').delete().eq('conference_year', activeConferenceYear).eq('attendee_id', attendeeId).eq('slot_id', slotId);
+  if (r.error) { toast('Couldn’t remove: ' + r.error.message); return; }
+  await bsuLoad(); renderBreakoutSignupAdmin();
+}
+function renderBreakoutSignupAdmin() {
+  const root = document.getElementById('exp-sort-modal-root'), st = bsu, esc = escapeHtml;
+  if (!st) { root.innerHTML = ''; return; }
+  const shell = inner => `<div class="qa-modal-overlay" onclick="if(event.target===this) closeBreakoutSignupAdmin();"><div class="qa-modal-card" style="max-width:980px;">${inner}</div></div>`;
+  if (st.setupNeeded) {
+    root.innerHTML = shell(`<h3>Breakout sign-up</h3><div class="xw-warn">The sign-up database tables aren't set up yet. Run <b>sbcmc-breakout-signup.sql</b> once in the Supabase SQL editor for this project, then reopen this panel.</div><div class="qa-modal-actions"><button class="qa-modal-done" onclick="closeBreakoutSignupAdmin()">Close</button></div>`);
+    return;
+  }
+  const s = st.settings, closesLocal = s.closes_at ? (() => { const d = new Date(s.closes_at), p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); })() : '';
+  const groups = bsuGroups(), linked = groups.filter(g => g.token).length;
+  const blocks = bsuBlocks(), picksBy = {}; st.signups.forEach(x => { picksBy[x.slot_id + '|' + x.track] = (picksBy[x.slot_id + '|' + x.track] || []).concat(x); });
+  const attName = {}; st.attendees.forEach(a => { attName[a.id] = a; });
+  const peopleWithAny = new Set(st.signups.map(x => x.attendee_id)).size;
+  const rowsHtml = st.capacity.map((c, i) => {
+    const key = c.slot_id + '|' + c.track, taken = (picksBy[key] || []).length, seats = c.seats;
+    const pct = seats ? Math.min(100, Math.round(taken / seats * 100)) : 0;
+    const head = i === 0 || st.capacity[i - 1].slot_id !== c.slot_id ? `<tr class="bs-block-row"><td colspan="5">${esc(c.slot_label)} &middot; ${esc(fullWeekday(c.slot_date))}, ${esc(friendlyTime(c.slot_start))}</td></tr>` : '';
+    const roster = st.openRoster === key ? `<tr><td colspan="5" style="background:var(--cream, #FBF8F1);">${(picksBy[key] || []).map(p => `<div class="bsu-hit"><span>${esc((attName[p.attendee_id] || {}).name || p.attendee_id)} <span class="sp-sub">${esc((attName[p.attendee_id] || {}).email || '')}</span></span><button class="sp-mini-btn" onclick="bsuRemovePick('${esc(p.attendee_id)}','${esc(p.slot_id)}')">Remove</button></div>`).join('') || '<span class="sp-sub">Nobody yet.</span>'}</td></tr>` : '';
+    return head + `<tr><td><b>${esc(c.track)}</b><div class="sp-sub">${esc(c.title || '')}${c.speakers ? ' · ' + esc(c.speakers) : ''}</div></td><td>${esc(c.room || '')}</td><td style="text-align:right;">${seats == null ? '<span class="sp-sub">not set</span>' : seats}</td><td><div class="bsu-bar"><div style="width:${pct}%;" class="${seats != null && taken >= seats ? 'full' : ''}"></div></div><span class="sp-sub">${taken}${seats != null ? ' of ' + seats : ''}</span></td><td style="text-align:right;"><a href="#" onclick="bsuToggleRoster('${esc(key).replace(/'/g, '&#39;')}'); return false;">${taken ? 'Roster' : ''}</a></td></tr>` + roster;
+  }).join('') || '<tr><td colspan="5" class="sch-conflicts-empty">No sessions published yet. Click "Publish seats".</td></tr>';
+  root.innerHTML = shell(`
+    <h3>Breakout sign-up</h3>
+    <p class="qa-modal-sub">1. Publish the seats. 2. Create each household's link and email it. 3. Open sign-up. Seats come from the <b>🪑 Seats</b> editor (limit if set, otherwise room size).</p>
+
+    <div class="aw-edit-group">1. Seats</div>
+    <div class="aw-controls"><span>${st.capacity.length} session${st.capacity.length === 1 ? '' : 's'} published${st.capacity.filter(c => c.seats == null).length ? ', <span style="color:#a52620;">' + st.capacity.filter(c => c.seats == null).length + ' with no seats yet</span>' : ''}</span><button class="sp-mini-btn" ${st.busy ? 'disabled' : ''} onclick="bsuPublishSeats()">Publish seats now</button><span class="sp-sub">Save the Seats editor first. Republish any time seats change.</span></div>
+
+    <div class="aw-edit-group">2. Links</div>
+    <div class="aw-controls"><span>${st.attendees.length} registrant${st.attendees.length === 1 ? '' : 's'} in ${groups.length} checkout group${groups.length === 1 ? '' : 's'}, ${linked} link${linked === 1 ? '' : 's'}</span>
+      <button class="sp-mini-btn" ${st.busy ? 'disabled' : ''} onclick="bsuSyncRegistrants()">${st.busy ? 'Working...' : 'Sync registrants and create links'}</button>
+      <button class="sp-mini-btn" ${linked ? '' : 'disabled'} onclick="bsuLinksCsv()">Download links (CSV)</button></div>
+    <div class="aw-controls"><label>Find someone's link <input type="text" placeholder="name or email" oninput="bsuSetSearch(this.value)" style="width:230px;"></label></div>
+    <div id="bsu-search-results" style="margin-bottom:6px;">${bsuSearchHtml()}</div>
+
+    <div class="aw-edit-group">3. Open or close</div>
+    <div class="aw-controls"><label class="ar-check"><input type="checkbox" id="bsu-open" ${s.open ? 'checked' : ''}> Sign-up is open</label>
+      <label>Closes <input type="datetime-local" id="bsu-closes" value="${closesLocal}"></label>
+      <button class="sp-mini-btn" onclick="bsuSaveSettings()">Save</button></div>
+    <div class="aw-edit-field"><label>Message at the top of the page (optional)</label><textarea id="bsu-message" rows="2" placeholder="e.g. Choose one session in each block. You can change your choices until March 1.">${esc(s.message || '')}</textarea></div>
+
+    <div class="aw-edit-group">Seats filling up</div>
+    <div class="aw-controls"><span>${peopleWithAny} of ${st.attendees.length} people have chosen at least one session</span>
+      <button class="sp-mini-btn" onclick="bsuMissingCsv()" style="margin-left:auto;">Not chosen yet (CSV)</button><button class="sp-mini-btn" onclick="bsuRostersCsv()">All rosters (CSV)</button></div>
+    <div class="bs-table-wrap"><table class="bs-table" style="table-layout:auto;"><thead><tr><th>Session</th><th>Room</th><th style="text-align:right;">Seats</th><th>Taken</th><th></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    <div class="qa-modal-actions"><button class="qa-modal-done" onclick="closeBreakoutSignupAdmin()">Done</button></div>`);
+}
+
 function emailSpeakerSummary(id) {
   if (!window.isAdminUser) return; // button is hidden for non-admins; this guards a direct call too
   const sp = getSpeaker(id); if (!sp) return;
@@ -23073,6 +23373,10 @@ if (isDriverViewMode()) {
   // in the URL, with limited edit controls (contact info, badge names, shipping notes,
   // materials upload, notes). No financial data, no other sponsors' data, ever loaded here.
   initSponsorPublicView();
+} else if (isBreakoutViewMode()) {
+  // Breakout sign-up: one private link per checkout group; talks to the database only through the
+  // breakout_get/pick/unpick functions, never to the attendee tables directly.
+  initBreakoutPublicView();
 } else if (isSpeakerViewMode()) {
   // Speaker/artist self-service portal -- same pattern as the sponsor portal above, scoped to
   // exactly one speaker's own record via a token in the URL. No fee/financial data, no other
