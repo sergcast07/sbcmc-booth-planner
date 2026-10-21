@@ -2093,33 +2093,67 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .bs-notes { font-size: 11px; color: #a52620; }
 
 /* Breakout sign-up: public page + admin panel */
-.bov-banner { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 14px; line-height: 1.5; }
+#breakout-public-view .dv-header { padding-left: 0; padding-right: 0; }
+.bov-banner { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-bottom: 14px; line-height: 1.5; }
 .bov-banner-closed { background: var(--gold-pale); border-color: var(--gold); }
-.bov-who { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
-.bov-who-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
-.bov-chip { font: inherit; font-size: 13px; padding: 7px 13px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
-.bov-chip.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
-.bov-chip-n { font-size: 11px; opacity: 0.8; }
-.bov-progress { font-size: 13.5px; color: var(--ink); margin-bottom: 14px; }
-.bov-msg { background: #fee2e2; border: 1px solid #fca5a5; color: #7f1d1d; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
-.bov-block { margin-bottom: 22px; }
-.bov-block-head { font-size: 14px; color: var(--ink); border-bottom: 2px solid var(--gold); padding-bottom: 6px; margin-bottom: 10px; }
-.bov-block-head span { color: var(--ink-soft); font-size: 12.5px; margin-left: 6px; }
-.bov-done { float: right; font-style: normal; font-size: 12px; font-weight: 700; color: #166534; }
-.bov-card { display: flex; gap: 12px; justify-content: space-between; align-items: center; background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; }
-.bov-card.on { border-color: var(--teal-deep); background: var(--teal-pale); }
-.bov-card.full { opacity: 0.6; }
-.bov-track { font-weight: 700; font-size: 14px; color: var(--teal-deep); }
-.bov-title { font-size: 13.5px; color: var(--ink); margin-top: 1px; }
-.bov-meta { font-size: 12px; color: var(--ink-soft); margin: 2px 0 4px; }
-.bov-seats { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
-.bov-seats.bov-few { color: #92400e; } .bov-seats.bov-full { color: #a52620; }
-.bov-yours { font-size: 12px; font-weight: 700; color: #166534; margin-left: 6px; }
-.bov-btn { font: inherit; font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--teal-deep); background: var(--teal-deep); color: #fff; cursor: pointer; white-space: nowrap; }
+.bov-banner-ok { background: #E3F1E7; border-color: #9CC9A8; color: #14532d; }
+.bov-who { margin-bottom: 14px; }
+.bov-who-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); margin-bottom: 6px; }
+.bov-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.bov-chips::-webkit-scrollbar, .bov-steps::-webkit-scrollbar { display: none; }
+.bov-chip, .bov-fchip { flex: 0 0 auto; font: inherit; font-size: 14px; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.bov-chip.on, .bov-fchip.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.bov-fchip i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.bov-chip-n { font-size: 11px; opacity: 0.75; }
+.bov-progress { margin-bottom: 14px; }
+.bov-progress-text { font-size: 14px; color: var(--ink); margin-bottom: 6px; }
+.bov-progress-text span { color: var(--ink-soft); font-size: 13px; }
+.bov-progress-bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bov-progress-bar > div { height: 100%; background: var(--gold); transition: width 0.3s; }
+.bov-tabs { position: sticky; top: 0; z-index: 5; display: flex; background: var(--paper); border-bottom: 1px solid var(--line); margin: 0 -20px 14px; padding: 0 20px; }
+.bov-tabs button { flex: 1; font: inherit; font-size: 14px; font-weight: 600; min-height: 46px; padding: 0 6px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--ink-soft); cursor: pointer; }
+.bov-tabs button.on { color: var(--teal-deep); border-bottom-color: var(--gold); }
+.bov-steps { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.bov-step { flex: 0 0 auto; font: inherit; text-align: left; min-height: 46px; padding: 7px 13px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; }
+.bov-step b { font-size: 13.5px; } .bov-step small { font-size: 11.5px; color: var(--ink-soft); }
+.bov-step.done { border-color: #9CC9A8; } .bov-step.done b { color: #166534; }
+.bov-step.on { background: var(--teal-deep); border-color: var(--teal-deep); } .bov-step.on b, .bov-step.on small { color: #fff; }
+.bov-block-head { font-size: 15px; color: var(--ink); border-bottom: 2px solid var(--gold); padding-bottom: 6px; margin: 6px 0 12px; }
+.bov-block-head span { color: var(--ink-soft); font-size: 13px; margin-left: 6px; }
+.bov-group { margin-bottom: 22px; }
+.bov-group-head { font-family: var(--font-display); font-size: 21px; font-weight: 600; color: var(--tc); margin: 14px 0 10px; padding-left: 10px; border-left: 4px solid var(--tc); }
+.bov-group-head small { font-family: var(--font-body); font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-left: 6px; }
+.bov-card { display: flex; gap: 14px; justify-content: space-between; align-items: center; background: #fff; border: 1.5px solid var(--line); border-left: 5px solid var(--tc, var(--teal-deep)); border-radius: 10px; padding: 13px 14px; margin-bottom: 10px; }
+.bov-card.on { border-color: var(--tc, var(--teal-deep)); background: var(--teal-pale); }
+.bov-card.full { opacity: 0.62; }
+.bov-card-main { min-width: 0; flex: 1; }
+.bov-track { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tc, var(--teal-deep)); }
+.bov-when { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.bov-title { font-size: 16px; font-weight: 600; color: var(--ink); margin-top: 3px; line-height: 1.3; overflow-wrap: anywhere; }
+.bov-meta { font-size: 13px; color: var(--ink-soft); margin: 3px 0; overflow-wrap: anywhere; }
+.bov-replaces { font-size: 12px; color: #92400e; margin-top: 4px; }
+.bov-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--line); color: var(--ink-soft); margin-top: 4px; }
+.bov-pill-on { background: #D8EEDD; color: #166534; } .bov-pill-full { background: #FBE0DD; color: #a52620; }
+.bov-btn { font: inherit; font-size: 14px; font-weight: 700; min-height: 44px; padding: 10px 18px; border-radius: 10px; border: 1.5px solid var(--teal-deep); background: var(--teal-deep); color: #fff; cursor: pointer; white-space: nowrap; }
 .bov-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .bov-btn-ghost { background: #fff; color: var(--teal-deep); }
-.bov-foot { font-size: 12px; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; }
-@media (max-width: 520px) { .bov-card { flex-direction: column; align-items: stretch; } .bov-btn { width: 100%; } }
+.bov-nav { display: flex; justify-content: space-between; gap: 10px; margin: 16px 0 6px; }
+.bov-empty { text-align: center; color: var(--ink-soft); padding: 26px 10px; font-size: 14px; background: #fff; border: 1px dashed var(--line); border-radius: 10px; }
+.bov-mine { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.bov-mine.done { border-color: #9CC9A8; }
+.bov-mine-when { flex: 1 1 100%; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
+.bov-mine-pick { flex: 1; min-width: 0; border-left: 4px solid var(--tc); padding-left: 10px; }
+.bov-mine-none { flex: 1; color: #92400e; font-size: 14px; font-weight: 600; }
+.bov-foot { font-size: 12.5px; color: var(--ink-soft); margin-top: 18px; line-height: 1.5; }
+.bov-toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); width: calc(100% - 32px); max-width: 420px; background: #7f1d1d; color: #fff; border-radius: 10px; padding: 12px 16px; font-size: 14px; z-index: 50; box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+@media (max-width: 560px) {
+  #breakout-public-view { padding: 18px 16px 70px; }
+  .bov-tabs { margin: 0 -16px 14px; padding: 0 16px; }
+  .bov-card { flex-direction: column; align-items: stretch; gap: 10px; }
+  .bov-card-act .bov-btn { width: 100%; }
+  .bov-mine .bov-btn { width: 100%; }
+  .bov-nav .bov-btn { flex: 1; padding: 10px 8px; }
+}
 .bsu-hit { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
 .bsu-bar { height: 7px; border-radius: 4px; background: var(--line); overflow: hidden; margin-bottom: 3px; width: 140px; }
 .bsu-bar > div { height: 100%; background: var(--teal); } .bsu-bar > div.full { background: #a52620; }
@@ -22759,7 +22793,8 @@ function renderBreakoutSeatsEditor() {
 function isBreakoutViewMode() {
   try { return new URLSearchParams(window.location.search).get('view') === 'breakouts'; } catch (e) { return false; }
 }
-let bov = null; // { token, data, attendeeId, busy, msg }
+let bov = null; // { token, data, attendeeId, busy, msg, view: 'time'|'track'|'mine', block, track }
+const BOV_COLORS = ['#24404A', '#A17A26', '#6B4E8C', '#2F7D5B', '#A63E0C', '#2B6CB0', '#8C3B5A', '#5C6B2E'];
 async function initBreakoutPublicView() {
   document.body.classList.add('breakouts-view-mode');
   document.getElementById('breakout-public-view').style.display = 'block';
@@ -22767,9 +22802,9 @@ async function initBreakoutPublicView() {
   const token = new URLSearchParams(window.location.search).get('t');
   if (!token || !isSupabaseConfigured()) { body.innerHTML = '<div class="dv-loading">This link is missing or invalid. Please contact the SBCMC team for a fresh link.</div>'; return; }
   try { await loadConferenceYears(); } catch (e) { /* falls back to the default year */ }
-  bov = { token, data: null, attendeeId: null, busy: false, msg: '' };
+  bov = { token, data: null, attendeeId: null, busy: false, msg: '', view: 'time', block: null, track: '' };
   await bovRefresh();
-  // Seat counts move while people sign up, so quietly refresh while the page is open and visible.
+  // Availability moves while people sign up, so quietly refresh while the page is open and visible.
   setInterval(() => { if (!document.hidden && !bov.busy) bovRefresh(true); }, 45000);
 }
 async function bovRefresh(quiet) {
@@ -22781,7 +22816,6 @@ async function bovRefresh(quiet) {
   if (!bov.attendeeId || !data.attendees.some(a => a.id === bov.attendeeId)) bov.attendeeId = data.attendees.length ? data.attendees[0].id : null;
   bovRender();
 }
-function bovSelect(id) { bov.attendeeId = id; bov.msg = ''; bovRender(); }
 const BOV_ERRORS = {
   full: 'That session just filled up. Please choose another one.',
   closed: 'Sign-up is closed right now, so changes can’t be made.',
@@ -22790,6 +22824,13 @@ const BOV_ERRORS = {
   not_in_group: 'That person isn’t on this link.',
   no_such_session: 'That session is no longer available. The page has been refreshed.'
 };
+function bovPerson(i) { const a = bov.data.attendees[i]; if (a) { bov.attendeeId = a.id; bov.block = null; bov.msg = ''; bovRender(); } }
+function bovSetView(v) { bov.view = v; bov.msg = ''; bovRender(); window.scrollTo(0, 0); }
+function bovSetBlock(i) { bov.block = i; bov.msg = ''; bovRender(); window.scrollTo(0, 0); }
+function bovGoBlock(i) { bov.view = 'time'; bovSetBlock(i); }
+function bovSetTrack(i) { bov.track = i < 0 ? '' : (bov.trackNames[i] || ''); bovRender(); }
+function bovPick(i) { const s = bov.data.sessions[i]; if (s) return bovAct('pick', s.slot_id, s.track); }
+function bovRemove(i) { const s = bov.data.sessions[i]; if (s) return bovAct('unpick', s.slot_id, ''); }
 async function bovAct(kind, slotId, track) {
   if (bov.busy) return;
   bov.busy = true; bov.msg = '';
@@ -22802,41 +22843,89 @@ async function bovAct(kind, slotId, track) {
   else if (!data.ok) bov.msg = BOV_ERRORS[data.error] || 'That didn’t work. Please try again.';
   await bovRefresh();
 }
+// Blocks (one per time slot) and tracks (in the planner's track order), derived from the session list.
+function bovModel() {
+  const blocks = [], rank = {};
+  bov.data.sessions.forEach((s, i) => {
+    s._i = i;
+    let b = blocks.find(x => x.slot_id === s.slot_id);
+    if (!b) blocks.push(b = { slot_id: s.slot_id, label: s.slot_label, date: s.slot_date, start: s.slot_start, end: s.slot_end, sessions: [] });
+    b.sessions.push(s);
+    if (!(s.track in rank) || s.sort_order < rank[s.track]) rank[s.track] = s.sort_order;
+  });
+  const tracks = Object.keys(rank).sort((a, b) => rank[a] - rank[b] || a.localeCompare(b));
+  return { blocks, tracks };
+}
+function bovWhen(b) { return bovEsc(b.label) + ' &middot; ' + bovEsc(friendlyDate(b.date)) + ', ' + bovEsc(friendlyTime(b.start)) + ' to ' + bovEsc(friendlyTime(b.end)); }
+function bovEsc(s) { return escapeHtml(s == null ? '' : s); }
+function bovColor(tracks, track) { const i = tracks.indexOf(track); return BOV_COLORS[(i < 0 ? 0 : i) % BOV_COLORS.length]; }
+function bovCard(s, picks, model, showWhen) {
+  const d = bov.data, mine = picks[s.slot_id] === s.track, other = !!picks[s.slot_id] && !mine;
+  const full = s.status === 'full', soon = s.status === 'soon', block = model.blocks.find(b => b.slot_id === s.slot_id);
+  const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : full ? '<span class="bov-pill bov-pill-full">Full</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
+  const action = mine
+    ? `<button class="bov-btn bov-btn-ghost" ${d.open ? '' : 'disabled'} onclick="bovRemove(${s._i})">Remove</button>`
+    : `<button class="bov-btn" ${(!d.open || full || soon || bov.busy) ? 'disabled' : ''} onclick="bovPick(${s._i})">${other ? 'Switch to this' : 'Choose'}</button>`;
+  const cur = other ? d.sessions.find(x => x.slot_id === s.slot_id && x.track === picks[s.slot_id]) : null;
+  return `<div class="bov-card ${mine ? 'on' : ''} ${full && !mine ? 'full' : ''}" style="--tc:${bovColor(model.tracks, s.track)}">
+    <div class="bov-card-main">
+      <div class="bov-track">${bovEsc(s.track)}</div>
+      ${showWhen && block ? `<div class="bov-when">${bovWhen(block)}</div>` : ''}
+      ${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}
+      <div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div>
+      ${cur && !full && !soon ? `<div class="bov-replaces">Replaces your choice: ${bovEsc(cur.title || cur.track)}</div>` : ''}
+      ${pill ? `<div>${pill}</div>` : ''}
+    </div>
+    <div class="bov-card-act">${action}</div>
+  </div>`;
+}
+function bovTrackChips(model) {
+  bov.trackNames = model.tracks;
+  return `<div class="bov-chips" role="group" aria-label="Filter by track"><button class="bov-fchip ${bov.track ? '' : 'on'}" onclick="bovSetTrack(-1)">All tracks</button>${model.tracks.map((t, i) => `<button class="bov-fchip ${bov.track === t ? 'on' : ''}" onclick="bovSetTrack(${i})"><i style="background:${bovColor(model.tracks, t)}"></i>${bovEsc(t)}</button>`).join('')}</div>`;
+}
 function bovRender() {
-  const d = bov.data, body = document.getElementById('bov-body'), esc = escapeHtml;
-  const att = d.attendees.find(a => a.id === bov.attendeeId);
+  const d = bov.data, body = document.getElementById('bov-body');
+  const att = d.attendees.find(a => a.id === bov.attendeeId), model = bovModel(), blocks = model.blocks;
   document.getElementById('bov-name').textContent = att ? att.name : 'Breakout sign-up';
   const picks = {}; (att ? att.picks : []).forEach(p => { picks[p.slot_id] = p.track; });
-  const blocks = []; d.sessions.forEach(s => { let b = blocks.find(x => x.slot_id === s.slot_id); if (!b) blocks.push(b = { slot_id: s.slot_id, label: s.slot_label, date: s.slot_date, start: s.slot_start, end: s.slot_end, sessions: [] }); b.sessions.push(s); });
   const chosen = blocks.filter(b => picks[b.slot_id]).length;
+  if (bov.block == null || bov.block >= blocks.length) { const first = blocks.findIndex(b => !picks[b.slot_id]); bov.block = first < 0 ? 0 : first; }
   const closesTxt = d.closes_at ? new Date(d.closes_at).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-  const who = d.attendees.length > 1 ? `<div class="bov-who"><span class="bov-who-label">Choosing for</span>${d.attendees.map(a => `<button class="bov-chip ${a.id === bov.attendeeId ? 'on' : ''}" onclick="bovSelect('${esc(a.id)}')">${esc(a.name)}${a.picks.length ? ' <span class="bov-chip-n">' + a.picks.length + '/' + (blocks.length || '?') + '</span>' : ''}</button>`).join('')}</div>` : '';
+
   const banner = !d.open
-    ? `<div class="bov-banner bov-banner-closed">${esc(d.message || (blocks.length ? 'Breakout sign-up isn’t open right now. Your current choices are shown below.' : 'Breakout sign-up opens soon. Check back here for your link.'))}</div>`
-    : (d.message ? `<div class="bov-banner">${esc(d.message)}</div>` : '');
-  const progress = blocks.length ? `<div class="bov-progress"><b>${chosen} of ${blocks.length}</b> breakout blocks chosen${closesTxt ? ` &middot; you can change your choices until ${esc(closesTxt)}` : ''}</div>` : '';
-  const msg = bov.msg ? `<div class="bov-msg">${esc(bov.msg)}</div>` : '';
-  const blockHtml = blocks.map(b => {
-    const mine = picks[b.slot_id];
-    const cards = b.sessions.map(s => {
-      const isMine = mine === s.track, left = s.seats == null ? null : s.seats - s.taken;
-      const full = left != null && left <= 0, notOpen = s.seats == null;
-      const status = notOpen ? '<span class="bov-seats">Not open yet</span>' : (full && !isMine ? '<span class="bov-seats bov-full">Full</span>' : `<span class="bov-seats ${left <= 5 ? 'bov-few' : ''}">${left} seat${left === 1 ? '' : 's'} left</span>`);
-      const action = isMine ? `<button class="bov-btn bov-btn-ghost" ${d.open ? '' : 'disabled'} onclick="bovAct('unpick','${esc(b.slot_id)}','')">Remove</button>`
-        : `<button class="bov-btn" ${(!d.open || full || notOpen || bov.busy) ? 'disabled' : ''} onclick="bovAct('pick','${esc(b.slot_id)}','${esc(s.track).replace(/'/g, '&#39;')}')">${mine ? 'Switch to this' : 'Choose'}</button>`;
-      return `<div class="bov-card ${isMine ? 'on' : ''} ${full && !isMine ? 'full' : ''}">
-        <div class="bov-card-main">
-          <div class="bov-track">${esc(s.track)}</div>
-          ${s.title ? `<div class="bov-title">${esc(s.title)}</div>` : ''}
-          <div class="bov-meta">${s.speakers ? esc(s.speakers) : ''}${s.speakers && s.room ? ' &middot; ' : ''}${s.room ? esc(s.room) : ''}</div>
-          <div>${status}${isMine ? ' <span class="bov-yours">&#10003; Your choice</span>' : ''}</div>
-        </div>
-        <div class="bov-card-act">${action}</div>
-      </div>`;
+    ? `<div class="bov-banner bov-banner-closed">${bovEsc(d.message || (blocks.length ? 'Breakout sign-up isn’t open right now. Your current choices are shown below.' : 'Breakout sign-up opens soon. Check back here for your link.'))}</div>`
+    : (d.message ? `<div class="bov-banner">${bovEsc(d.message)}</div>` : '');
+  const who = d.attendees.length > 1 ? `<div class="bov-who"><span class="bov-who-label">Choosing for</span><div class="bov-chips">${d.attendees.map((a, i) => `<button class="bov-chip ${a.id === bov.attendeeId ? 'on' : ''}" onclick="bovPerson(${i})">${bovEsc(a.name)} <span class="bov-chip-n">${a.picks.length}/${blocks.length || '?'}</span></button>`).join('')}</div></div>` : '';
+  const pct = blocks.length ? Math.round(chosen / blocks.length * 100) : 0;
+  const progress = blocks.length ? `<div class="bov-progress"><div class="bov-progress-text"><b>${chosen} of ${blocks.length}</b> breakout blocks chosen${closesTxt ? ` <span>&middot; changes allowed until ${bovEsc(closesTxt)}</span>` : ''}</div><div class="bov-progress-bar"><div style="width:${pct}%"></div></div></div>` : '';
+  const tabs = blocks.length ? `<nav class="bov-tabs" role="tablist">${[['time', 'By time'], ['track', 'By track'], ['mine', 'My choices' + (chosen ? ' (' + chosen + ')' : '')]].map(t => `<button role="tab" aria-selected="${bov.view === t[0]}" class="${bov.view === t[0] ? 'on' : ''}" onclick="bovSetView('${t[0]}')">${t[1]}</button>`).join('')}</nav>` : '';
+
+  let content = '';
+  if (!blocks.length) content = '<div class="dv-loading">The breakout sessions will appear here soon.</div>';
+  else if (bov.view === 'time') {
+    const b = blocks[bov.block], list = b.sessions.filter(s => !bov.track || s.track === bov.track);
+    const steps = `<div class="bov-steps">${blocks.map((x, i) => `<button class="bov-step ${i === bov.block ? 'on' : ''} ${picks[x.slot_id] ? 'done' : ''}" onclick="bovSetBlock(${i})"><b>${picks[x.slot_id] ? '&#10003; ' : ''}${bovEsc(x.label)}</b><small>${bovEsc(friendlyDate(x.date))} &middot; ${bovEsc(friendlyTime(x.start))}</small></button>`).join('')}</div>`;
+    content = `${steps}${bovTrackChips(model)}<div class="bov-block-head"><b>${bovEsc(b.label)}</b> <span>${bovEsc(friendlyDate(b.date))} &middot; ${bovEsc(friendlyTime(b.start))} to ${bovEsc(friendlyTime(b.end))}</span></div>`
+      + (list.length ? list.map(s => bovCard(s, picks, model, false)).join('') : `<div class="bov-empty">No ${bovEsc(bov.track)} session in this block. Try another track or block.</div>`)
+      + `<div class="bov-nav">${bov.block > 0 ? `<button class="bov-btn bov-btn-ghost" onclick="bovSetBlock(${bov.block - 1})">&larr; Previous block</button>` : '<span></span>'}${bov.block < blocks.length - 1 ? `<button class="bov-btn" onclick="bovSetBlock(${bov.block + 1})">Next block &rarr;</button>` : `<button class="bov-btn" onclick="bovSetView('mine')">Review my choices</button>`}</div>`;
+  } else if (bov.view === 'track') {
+    const groups = model.tracks.filter(t => !bov.track || t === bov.track).map(t => {
+      const ss = d.sessions.filter(s => s.track === t);
+      return `<section class="bov-group"><h3 class="bov-group-head" style="--tc:${bovColor(model.tracks, t)}">${bovEsc(t)} <small>${ss.length} session${ss.length === 1 ? '' : 's'}</small></h3>${ss.map(s => bovCard(s, picks, model, true)).join('')}</section>`;
     }).join('');
-    return `<section class="bov-block"><div class="bov-block-head"><b>${esc(b.label)}</b> <span>${esc(friendlyDate(b.date))} &middot; ${esc(friendlyTime(b.start))} to ${esc(friendlyTime(b.end))}</span>${mine ? '<em class="bov-done">&#10003; chosen</em>' : ''}</div>${cards}</section>`;
-  }).join('');
-  body.innerHTML = `${banner}${who}${progress}${msg}${blockHtml || ''}<p class="bov-foot">Choose one session in each breakout block you plan to attend. You don’t have to pick every block. Questions? Reply to the email this link came in.</p>`;
+    content = bovTrackChips(model) + groups;
+  } else {
+    const rows = blocks.map((b, i) => {
+      const s = picks[b.slot_id] ? b.sessions.find(x => x.track === picks[b.slot_id]) : null;
+      return `<div class="bov-mine ${s ? 'done' : ''}"><div class="bov-mine-when">${bovWhen(b)}</div>`
+        + (s ? `<div class="bov-mine-pick" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div></div><button class="bov-btn bov-btn-ghost" onclick="bovGoBlock(${i})">Change</button>`
+          : `<div class="bov-mine-none">Not chosen yet</div><button class="bov-btn" onclick="bovGoBlock(${i})">Choose a session</button>`) + '</div>';
+    }).join('');
+    content = (chosen === blocks.length ? '<div class="bov-banner bov-banner-ok">You’re all set. You can come back to this same link to make changes' + (closesTxt ? ' until ' + bovEsc(closesTxt) : '') + '.</div>' : '') + rows;
+  }
+  const toast = bov.msg ? `<div class="bov-toast" role="alert">${bovEsc(bov.msg)}</div>` : '';
+  body.innerHTML = `${banner}${who}${progress}${tabs}<div class="bov-content">${content}</div><p class="bov-foot">Choose one session in each breakout block you plan to attend. You don’t have to pick every block. Questions? Reply to the email this link came in.</p>${toast}`;
+  if (bov.msg) { const m = bov.msg; setTimeout(() => { if (bov.msg === m) { bov.msg = ''; const t = document.querySelector('.bov-toast'); if (t) t.remove(); } }, 6000); }
 }
 
 // ---- admin panel ----
