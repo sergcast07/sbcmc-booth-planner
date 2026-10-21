@@ -2098,6 +2098,9 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 /* Breakout sign-up: public page + admin panel */
 #breakout-public-view .dv-header { padding-left: 0; padding-right: 0; }
+.sch-signup-strip { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; padding: 14px 16px; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; }
+.sch-signup-strip strong { font-size: 13.5px; color: var(--teal-deep); }
+.sch-signup-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .bov-banner { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-bottom: 14px; line-height: 1.5; }
 .bov-banner-closed { background: var(--gold-pale); border-color: var(--gold); }
 .bov-banner-ok { background: #E3F1E7; border-color: #9CC9A8; color: #14532d; }
@@ -18869,9 +18872,16 @@ function renderBreakoutGrid() {
       <button class="sch-toggle-btn ${breakoutGridViewMode === 'track' ? 'active' : ''}" onclick="setBreakoutGridViewMode('track')">By Track</button>
       <button class="sch-toggle-btn ${breakoutGridViewMode === 'room' ? 'active' : ''}" onclick="setBreakoutGridViewMode('room')">By Room</button>
       <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="printBreakoutGridReport()" title="Print a clean, read-only copy of this grid">🖶 Print</button>
-      ${canEditSchedule ? `<button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openBreakoutSeatsEditor()" title="See and limit the seats in each breakout session">🪑 Seats</button>` : ''}
-      ${window.isAdminUser ? `<button class="sp-add-btn" style="background:var(--teal-deep);" onclick="openBreakoutSignupAdmin()" title="Open attendee sign-up, create links, see seats fill">📝 Sign-up</button>` : ''}
     </div>`;
+  // Attendee sign-up tools live in their own strip under the grid, so they don't read like a view filter
+  const signupStripHtml = (canEditSchedule || window.isAdminUser) ? `
+    <div class="sch-signup-strip">
+      <div><strong>Attendee breakout sign-up</strong><div class="sp-sub">Set how many seats each session has, then share links and watch seats fill.</div></div>
+      <div class="sch-signup-actions">
+        ${canEditSchedule ? `<button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openBreakoutSeatsEditor()" title="See and limit the seats in each breakout session">Set seats</button>` : ''}
+        ${window.isAdminUser ? `<button class="sp-add-btn" style="background:var(--teal-deep);" onclick="openBreakoutSignupAdmin()" title="Open attendee sign-up, create links, see seats fill">Manage sign-up</button>` : ''}
+      </div>
+    </div>` : '';
 
   if (breakoutSlots.length === 0) {
     body.innerHTML = readyToggleHtml + viewToggleHtml + '<div class="sch-conflicts-empty">No breakout slots defined yet — add one from the Timeline view below.</div>';
@@ -18879,7 +18889,7 @@ function renderBreakoutGrid() {
   }
 
   if (breakoutGridViewMode === 'room') {
-    body.innerHTML = readyToggleHtml + viewToggleHtml + renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEditSchedule);
+    body.innerHTML = readyToggleHtml + viewToggleHtml + renderBreakoutGridByRoomHtml(breakoutSlots, conflictSpeakerIds, canEditSchedule) + signupStripHtml;
     return;
   }
 
@@ -18898,6 +18908,7 @@ function renderBreakoutGrid() {
       </table>
     </div>
     ${secondaryBreakoutGridsHtml()}
+    ${signupStripHtml}
   `;
 }
 
@@ -23254,7 +23265,7 @@ function renderBreakoutSignupAdmin() {
   }).join('') || '<tr><td colspan="5" class="sch-conflicts-empty">No sessions published yet. Click "Publish seats".</td></tr>';
   root.innerHTML = shell(`
     <h3>Breakout sign-up</h3>
-    <p class="qa-modal-sub">1. Publish the seats. 2. Create each household's link and email it. 3. Open sign-up. Seats come from the <b>🪑 Seats</b> editor (limit if set, otherwise room size).</p>
+    <p class="qa-modal-sub">1. Publish the seats. 2. Create each household's link and email it. 3. Open sign-up. Seats come from <b>Set seats</b> on the Breakout Grid (limit if set, otherwise room size).</p>
 
     <div class="aw-edit-group">1. Seats</div>
     <div class="aw-controls"><span>${st.capacity.length} session${st.capacity.length === 1 ? '' : 's'} published${st.capacity.filter(c => c.seats == null).length ? ', <span style="color:#a52620;">' + st.capacity.filter(c => c.seats == null).length + ' with no seats yet</span>' : ''}</span><button class="sp-mini-btn" ${st.busy ? 'disabled' : ''} onclick="bsuPublishSeats()">Publish seats now</button><span class="sp-sub">Save the Seats editor first. Republish any time seats change.</span></div>
