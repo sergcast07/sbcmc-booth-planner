@@ -2075,6 +2075,21 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .aw-edit-field label a { font-weight: 600; text-transform: none; letter-spacing: 0; margin-left: 6px; color: var(--gold); }
 .aw-edit-field textarea { width: 100%; font: inherit; font-size: 13px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; resize: vertical; background: var(--panel); color: var(--ink); }
 
+/* Breakout seats editor */
+.bs-summaries { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 12px; }
+.bs-sum { border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; background: var(--panel); font-size: 12.5px; }
+.bs-sum .sp-sub { white-space: normal; }
+.bs-big { font-family: var(--font-display); font-size: 22px; color: var(--teal-deep); margin: 3px 0 1px; }
+.bs-big.bs-short { color: #a52620; }
+.bs-table-wrap { max-height: 52vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.bs-table { width: 100%; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+.bs-table th:nth-child(1) { width: 34%; } .bs-table th:nth-child(2) { width: 17%; } .bs-table th:nth-child(3) { width: 12%; } .bs-table th:nth-child(4) { width: 11%; } .bs-table th:nth-child(5) { width: 8%; } .bs-table th:nth-child(6) { width: 18%; }
+.bs-table th { position: sticky; top: 0; background: var(--teal-pale); text-align: left; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); padding: 7px 10px; z-index: 1; }
+.bs-table td { padding: 7px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+.bs-table input { font: inherit; font-size: 12.5px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; }
+.bs-block-row td { background: var(--gold-pale); font-weight: 700; font-size: 11.5px; color: var(--ink); border-top: 1px solid var(--gold); }
+.bs-notes { font-size: 11px; color: #a52620; }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -18716,6 +18731,7 @@ function renderBreakoutGrid() {
       <button class="sch-toggle-btn ${breakoutGridViewMode === 'track' ? 'active' : ''}" onclick="setBreakoutGridViewMode('track')">By Track</button>
       <button class="sch-toggle-btn ${breakoutGridViewMode === 'room' ? 'active' : ''}" onclick="setBreakoutGridViewMode('room')">By Room</button>
       <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="printBreakoutGridReport()" title="Print a clean, read-only copy of this grid">🖶 Print</button>
+      ${canEditSchedule ? `<button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openBreakoutSeatsEditor()" title="See and limit the seats in each breakout session">🪑 Seats</button>` : ''}
     </div>`;
 
   if (breakoutSlots.length === 0) {
@@ -22499,6 +22515,193 @@ function renderCwcModal() {
         <div class="xw-summary"><b id="cwc-inv-total">${t.n} student${t.n === 1 ? '' : 's'} × $${t.rate.toFixed(2)} = $${t.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b> <span class="sp-sub">payable by check to SBCMC, ATTN: Steve Brown, 2481 Floral Valley Drive, Dacula, GA 30019</span></div>
         ${st.w9 ? `<div class="sp-sub" style="margin-bottom:8px;">W-9 on file in this browser: ${esc(st.w9.name)}</div>` : '<div class="xw-warn">No W-9 saved yet. Go back to the school list to upload it, or download the invoice without it.</div>'}
         <div class="qa-modal-actions"><button class="sp-mini-btn" onclick="cwcInvBack()" style="margin-right:auto;">Back</button><button class="sp-mini-btn" onclick="cwcInvGenerate(false)">Invoice only</button><button class="qa-modal-done" onclick="cwcInvGenerate(true)" ${st.w9 ? '' : 'disabled'}>Download invoice + W-9</button></div>
+      </div>
+    </div>`;
+}
+
+// ---- Breakout seats editor ----------------------------------------------------------------------------
+// A breakout session's seats are, by default, whatever size its ROOM is (set in the Session Rooms list, the
+// one place room sizes live). This editor never copies those: it only stores an optional per-session LIMIT
+// for when a session should hold fewer than the room fits (set-up, A/V, a smaller cap). Limits are stored in
+// conference_settings 'breakout_seats' keyed by "<slotId>|<track>", the same cell the Breakout Grid uses.
+// The sign-up page will read this same value (limit if set, else room size).
+let breakoutSeatOverrides = {};   // "slotId|track" -> number
+let breakoutSeatsUi = null;       // { draft: {key: string}, block: 'all', issuesOnly: false, regCount: number|null }
+
+async function loadBreakoutSeats() {
+  const o = await loadConfSettingJson('breakout_seats');
+  breakoutSeatOverrides = (o && o.overrides) || {};
+}
+function roomSeatsFor(roomName) {
+  const r = sessionRooms.find(x => x.name === roomName);
+  if (!r) return null;
+  const n = parseInt(String(r.capacity || '').replace(/[^0-9]/g, ''), 10);
+  return isNaN(n) ? null : n;
+}
+// Every breakout "cell" (a track in a breakout slot): who is in it, which room(s), and any reservation.
+function breakoutSeatCells() {
+  const map = {};
+  const ensure = (slot, track) => {
+    const key = slot.id + '|' + track;
+    return map[key] || (map[key] = { key, slot, track, rooms: new Set(), titles: new Set(), names: [] });
+  };
+  speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
+    if (!sess.track || sess.isTrackLead) return;
+    const slot = findSlotForSession(sess);
+    if (!slot || slot.kind !== 'breakout') return;
+    const c = ensure(slot, sess.track);
+    const room = effectiveBreakoutRoom(sess, slot);
+    if (room) c.rooms.add(room);
+    if (sess.title) c.titles.add(sess.title);
+    c.names.push(sp.name);
+  }));
+  breakoutRoomBookings.forEach(b => {
+    const track = sessionTracks.find(t => t.id === b.trackId), slot = scheduleSlots.find(sl => sl.id === b.slotId);
+    if (!track || !slot) return;
+    const c = ensure(slot, track.name);
+    if (b.room) c.rooms.add(b.room);
+    if (b.sessionTitle) c.titles.add(b.sessionTitle);
+  });
+  const trackIdx = name => sessionTracks.findIndex(t => t.name === name);
+  return Object.values(map).sort((a, b) => (a.slot.date + a.slot.start).localeCompare(b.slot.date + b.slot.start) || trackIdx(a.track) - trackIdx(b.track));
+}
+// Seats for one cell given a limit value (draft or saved): the limit when set, else the room size.
+function breakoutSeatInfo(cell, limitRaw) {
+  const rooms = Array.from(cell.rooms);
+  const sizes = rooms.map(roomSeatsFor);
+  const known = sizes.filter(n => n != null);
+  const roomSeats = known.length ? known.reduce((a, b) => a + b, 0) : null;
+  const lim = limitRaw === '' || limitRaw == null ? null : parseInt(limitRaw, 10);
+  const limit = lim != null && !isNaN(lim) && lim >= 0 ? lim : null;
+  const seats = limit != null ? limit : roomSeats;
+  const notes = [];
+  if (!rooms.length) notes.push('No room yet');
+  else if (known.length < rooms.length) notes.push('Room size not set');
+  if (limit != null && roomSeats != null && limit > roomSeats) notes.push('Limit is above the room size');
+  return { rooms, roomSeats, limit, seats, notes };
+}
+function bsVal(cell) { const d = breakoutSeatsUi.draft; return d[cell.key] != null ? d[cell.key] : (breakoutSeatOverrides[cell.key] != null ? String(breakoutSeatOverrides[cell.key]) : ''); }
+function bsBlockTotals(cells) {
+  const blocks = {};
+  cells.forEach(c => {
+    const b = blocks[c.slot.id] || (blocks[c.slot.id] = { slot: c.slot, sessions: 0, seats: 0, missing: 0 });
+    const info = breakoutSeatInfo(c, bsVal(c));
+    b.sessions++;
+    if (info.seats == null) b.missing++; else b.seats += info.seats;
+  });
+  return Object.values(blocks).sort((a, b) => (a.slot.date + a.slot.start).localeCompare(b.slot.date + b.slot.start));
+}
+async function openBreakoutSeatsEditor() {
+  if (!canEdit('schedule.all') && !window.isAdminUser) { toast('You need schedule edit access to change seats.'); return; }
+  await loadBreakoutSeats();
+  let regCount = null;
+  try {
+    if (!registrationActuals && typeof loadRegistrationActuals === 'function') await loadRegistrationActuals();
+    const n = registrationActualsTotalHeadcount(); regCount = n > 0 ? n : null;
+  } catch (e) { regCount = null; }
+  breakoutSeatsUi = { draft: {}, block: 'all', issuesOnly: false, regCount };
+  renderBreakoutSeatsEditor();
+}
+function closeBreakoutSeatsEditor() {
+  const dirty = breakoutSeatsUi && Object.keys(breakoutSeatsUi.draft).length;
+  if (dirty && !confirm('Close without saving your seat changes?')) return;
+  breakoutSeatsUi = null; document.getElementById('exp-sort-modal-root').innerHTML = '';
+}
+// Room sizes live in the Session Rooms list; this just calls the same save the list uses.
+function bsSetRoomSize(roomId, value) {
+  updateSessionRoomCapacity(roomId, value);
+  const wrap = document.querySelector('.bs-table-wrap'), top = wrap ? wrap.scrollTop : 0;
+  renderBreakoutSeatsEditor();
+  const w2 = document.querySelector('.bs-table-wrap'); if (w2) w2.scrollTop = top;
+  if (typeof renderSpeakerView === 'function') renderSpeakerView();
+}
+function bsSetFilter(field, value) { breakoutSeatsUi[field] = value; renderBreakoutSeatsEditor(); }
+function bsSet(key, value) {
+  breakoutSeatsUi.draft[key] = value.trim();
+  const cells = breakoutSeatCells(), c = cells.find(x => x.key === key);
+  const info = breakoutSeatInfo(c, bsVal(c));
+  const el = document.getElementById('bs-seats-' + key.replace(/[^A-Za-z0-9_-]/g, '_'));
+  if (el) el.innerHTML = info.seats == null ? '<span class="sp-sub">?</span>' : String(info.seats);
+  bsRefreshSummary(cells);
+}
+function bsRefreshSummary(cells) {
+  const reg = breakoutSeatsUi.regCount;
+  bsBlockTotals(cells).forEach(b => {
+    const el = document.getElementById('bs-sum-' + b.slot.id.replace(/[^A-Za-z0-9_-]/g, '_'));
+    if (el) el.innerHTML = bsSummaryHtml(b, reg);
+  });
+}
+function bsSummaryHtml(b, reg) {
+  const short = reg != null && b.seats < reg;
+  return `<b>${escapeHtml(b.slot.label)}</b><div class="sp-sub">${escapeHtml(fullWeekday(b.slot.date))} ${escapeHtml(friendlyTime(b.slot.start))}</div>
+    <div class="bs-big ${short ? 'bs-short' : ''}">${b.seats.toLocaleString()} seats</div>
+    <div class="sp-sub">${b.sessions} session${b.sessions === 1 ? '' : 's'}${b.missing ? ' · <span style="color:#a52620;">' + b.missing + ' missing seats</span>' : ''}</div>
+    ${reg != null ? `<div class="sp-sub" style="${short ? 'color:#a52620; font-weight:700;' : ''}">${short ? 'Short by ' + (reg - b.seats).toLocaleString() + ' for ' + reg.toLocaleString() + ' registrants' : 'Covers ' + reg.toLocaleString() + ' registrants'}</div>` : ''}`;
+}
+async function bsSave() {
+  const next = Object.assign({}, breakoutSeatOverrides);
+  const cells = breakoutSeatCells();
+  cells.forEach(c => {
+    if (!(c.key in breakoutSeatsUi.draft)) return;
+    const v = breakoutSeatsUi.draft[c.key];
+    const n = parseInt(v, 10);
+    if (v === '' || isNaN(n) || n < 0) delete next[c.key]; else next[c.key] = n;
+  });
+  if (await saveConfSettingJson('breakout_seats', { overrides: next }, 'the breakout seats')) {
+    breakoutSeatOverrides = next; breakoutSeatsUi.draft = {};
+    toast('Breakout seats saved.'); renderBreakoutSeatsEditor();
+  }
+}
+function bsExportCsv() {
+  const cells = breakoutSeatCells();
+  const rows = [['Block', 'Date', 'Start', 'Track', 'Session', 'Speakers', 'Room', 'Room seats', 'Seat limit', 'Seats']];
+  cells.forEach(c => {
+    const info = breakoutSeatInfo(c, bsVal(c));
+    rows.push([c.slot.label, c.slot.date, friendlyTime(c.slot.start), c.track, Array.from(c.titles).join(' | '), Array.from(new Set(c.names)).join(' | '), info.rooms.join(' | '), info.roomSeats == null ? '' : info.roomSeats, info.limit == null ? '' : info.limit, info.seats == null ? '' : info.seats]);
+  });
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'breakout-seats.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function renderBreakoutSeatsEditor() {
+  const st = breakoutSeatsUi, root = document.getElementById('exp-sort-modal-root');
+  if (!st) { root.innerHTML = ''; return; }
+  const esc = escapeHtml;
+  const cells = breakoutSeatCells();
+  const totals = bsBlockTotals(cells);
+  const blockOpts = '<option value="all">All blocks</option>' + totals.map(b => `<option value="${esc(b.slot.id)}" ${st.block === b.slot.id ? 'selected' : ''}>${esc(b.slot.label)}</option>`).join('');
+  const shown = cells.filter(c => (st.block === 'all' || c.slot.id === st.block) && (!st.issuesOnly || breakoutSeatInfo(c, bsVal(c)).seats == null || breakoutSeatInfo(c, bsVal(c)).notes.length));
+  const summary = totals.map(b => `<div class="bs-sum" id="bs-sum-${esc(b.slot.id.replace(/[^A-Za-z0-9_-]/g, '_'))}">${bsSummaryHtml(b, st.regCount)}</div>`).join('');
+  let lastSlot = null;
+  const rows = shown.map(c => {
+    const info = breakoutSeatInfo(c, bsVal(c));
+    const head = c.slot.id !== lastSlot ? `<tr class="bs-block-row"><td colspan="6">${esc(c.slot.label)} &middot; ${esc(fullWeekday(c.slot.date))}, ${esc(friendlyTime(c.slot.start))} to ${esc(friendlyTime(c.slot.end))}</td></tr>` : '';
+    lastSlot = c.slot.id;
+    const title = Array.from(c.titles).join(' / ') || '<span class="sp-sub">(no title yet)</span>';
+    const who = Array.from(new Set(c.names)).join(', ');
+    const idSafe = c.key.replace(/[^A-Za-z0-9_-]/g, '_');
+    return head + `<tr>
+      <td><b>${esc(c.track)}</b><div class="sp-sub">${Array.from(c.titles).length ? esc(title.replace(/<[^>]+>/g, '')) : 'no title yet'}${who ? ' · ' + esc(who) : ''}</div></td>
+      <td>${info.rooms.length ? esc(info.rooms.join(' + ')) : '<span class="sp-sub">none</span>'}</td>
+      <td style="text-align:right;">${info.rooms.length === 1 && sessionRooms.find(r => r.name === info.rooms[0]) ? `<input type="number" min="0" inputmode="numeric" placeholder="set size" value="${info.roomSeats == null ? '' : info.roomSeats}" title="Writes to the Session Rooms list, the one place room sizes live" onchange="bsSetRoomSize('${esc(sessionRooms.find(r => r.name === info.rooms[0]).id).replace(/'/g, '&#39;')}', this.value)" style="width:78px;">` : (info.roomSeats == null ? '<span class="sp-sub">not set</span>' : info.roomSeats)}</td>
+      <td><input type="number" min="0" inputmode="numeric" placeholder="${info.roomSeats == null ? '' : info.roomSeats}" value="${esc(bsVal(c))}" onchange="bsSet('${esc(c.key).replace(/'/g, '&#39;')}', this.value)" style="width:78px;"></td>
+      <td style="text-align:right; font-weight:700;" id="bs-seats-${esc(idSafe)}">${info.seats == null ? '<span class="sp-sub">?</span>' : info.seats}</td>
+      <td class="bs-notes">${info.notes.map(n => esc(n)).join('<br>')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="sch-conflicts-empty">No breakout sessions to show.</td></tr>';
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeBreakoutSeatsEditor();">
+      <div class="qa-modal-card" style="max-width:980px;">
+        <h3>Breakout seats</h3>
+        <p class="qa-modal-sub">Seats default to each session's <b>room size</b>, which you set in the Session Rooms list (Speakers &amp; Artists sidebar), so nothing is typed twice. Use <b>Seat limit</b> only when a session should hold fewer than the room fits. This is also what the sign-up page will use.</p>
+        <div class="bs-summaries">${summary}</div>
+        <div class="aw-controls">
+          <label>Show <select onchange="bsSetFilter('block', this.value)">${blockOpts}</select></label>
+          <label class="ar-check"><input type="checkbox" ${st.issuesOnly ? 'checked' : ''} onchange="bsSetFilter('issuesOnly', this.checked)"> Only sessions needing attention</label>
+          <button class="sp-mini-btn" onclick="bsExportCsv()" style="margin-left:auto;">Export CSV</button>
+        </div>
+        <div class="bs-table-wrap"><table class="bs-table"><thead><tr><th>Track and session</th><th>Room</th><th style="text-align:right;" title="From the Session Rooms list; editing here updates that list">Room seats</th><th>Seat limit</th><th style="text-align:right;">Seats</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+        <div class="qa-modal-actions"><button class="sp-mini-btn" onclick="closeBreakoutSeatsEditor()">Close</button><button class="qa-modal-done" onclick="bsSave()">Save seats</button></div>
       </div>
     </div>`;
 }
