@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SBCMC 2027 — Sponsor & Conference Tool</title>
+<script>
+// Attendee breakout sign-up links should never say "Conference Tool", even for a moment, and are kept out of search results.
+if (/[?&]view=breakouts(&|$)/.test(location.search)) { document.title = 'SBCMC Breakout Signups'; document.write('<meta name="robots" content="noindex">'); }
+</script>
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2250,7 +2254,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 <div id="breakout-public-view" style="display:none;">
   <div class="dv-header">
-    <p class="dv-eyebrow">SBCMC 2027 &middot; Breakout Sign-up</p>
+    <p class="dv-eyebrow">SBCMC Breakout Signups</p>
     <h1 id="bov-name" class="dv-person-name">Choose your breakouts</h1>
   </div>
   <div id="bov-body" class="dv-body">
@@ -22814,6 +22818,7 @@ let bov = null; // { token, data, attendeeId, busy, msg, view: 'time'|'track'|'m
 const BOV_COLORS = ['#24404A', '#A17A26', '#6B4E8C', '#2F7D5B', '#A63E0C', '#2B6CB0', '#8C3B5A', '#5C6B2E'];
 async function initBreakoutPublicView() {
   document.body.classList.add('breakouts-view-mode');
+  document.title = 'SBCMC Breakout Signups';
   document.getElementById('breakout-public-view').style.display = 'block';
   const body = document.getElementById('bov-body');
   const token = new URLSearchParams(window.location.search).get('t');
@@ -22984,7 +22989,7 @@ function bovRender() {
 
 // ---- admin panel ----
 let bsu = null; // { settings, capacity, attendees, households, signups, setupNeeded, busy, openRoster, search }
-function bsuLink(token) { return window.location.origin + window.location.pathname + '?view=breakouts&t=' + token; }
+function bsuLink(token) { return window.location.origin + '/breakouts/?t=' + token; } // /breakouts/ is a tiny page with the right title for link previews; it forwards to the sign-up
 async function openBreakoutSignupAdmin() {
   if (!window.isAdminUser) { toast('Only admins can manage breakout sign-up.'); return; }
   bsu = { settings: { open: false, closes_at: '', message: '' }, capacity: [], attendees: [], households: [], signups: [], setupNeeded: false, busy: false, openRoster: null, search: '' };
