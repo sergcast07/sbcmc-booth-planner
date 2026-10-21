@@ -2115,7 +2115,7 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .bov-progress-bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .bov-progress-bar > div { height: 100%; background: var(--gold); transition: width 0.3s; }
 .bov-tabs { position: sticky; top: 0; z-index: 5; display: flex; background: var(--paper); border-bottom: 1px solid var(--line); margin: 0 -20px 14px; padding: 0 20px; }
-.bov-tabs button { flex: 1; font: inherit; font-size: 14px; font-weight: 600; min-height: 46px; padding: 0 6px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--ink-soft); cursor: pointer; }
+.bov-tabs button { flex: 1; font: inherit; font-size: 13.5px; font-weight: 600; min-height: 46px; padding: 0 6px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--ink-soft); cursor: pointer; }
 .bov-tabs button.on { color: var(--teal-deep); border-bottom-color: var(--gold); }
 .bov-steps { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .bov-step { flex: 0 0 auto; font: inherit; text-align: left; min-height: 46px; padding: 7px 13px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; }
@@ -2142,6 +2142,18 @@ body.bov-lock { overflow: hidden; }
 .bov-sheet { position: relative; background: #fff; width: 100%; max-width: 580px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 18px 18px 0 0; padding: 24px 20px 0; border-top: 5px solid var(--tc, var(--teal-deep)); animation: bovUp 0.22s ease-out; }
 @keyframes bovUp { from { transform: translateY(40px); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .bov-sheet { animation: none; } }
+.bov-sheet-back { position: absolute; top: 14px; left: 14px; height: 38px; padding: 0 14px; border: none; background: var(--paper); border-radius: 19px; font: inherit; font-size: 14px; font-weight: 600; color: var(--teal-deep); cursor: pointer; }
+.bov-sheet-back + .bov-sheet-x + .bov-track { margin-top: 34px; }
+.bov-sheet-pad { height: 24px; }
+.bov-person-link { font: inherit; font-size: 15.5px; font-weight: 700; color: var(--teal-deep); background: none; border: none; padding: 4px 0; margin-bottom: 2px; cursor: pointer; text-align: left; min-height: 36px; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
+.bov-person-link span { text-decoration: none; display: inline-block; }
+.bov-search { width: 100%; font: inherit; font-size: 16px; min-height: 46px; padding: 10px 14px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); margin-bottom: 12px; }
+.bov-search:focus { outline: none; border-color: var(--teal-deep); box-shadow: 0 0 0 3px var(--teal-pale); }
+.bov-spk-row { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 12px; font: inherit; text-align: left; background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; min-height: 56px; cursor: pointer; color: var(--ink); }
+.bov-spk-name { font-size: 16px; font-weight: 600; }
+.bov-spk-name small { display: block; font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
+.bov-spk-name small b { color: #166534; }
+.bov-spk-go { font-size: 24px; color: var(--ink-soft); }
 .bov-sheet-x { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border: none; background: var(--paper); border-radius: 50%; font-size: 26px; line-height: 1; color: var(--ink); cursor: pointer; }
 .bov-sheet-title { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; margin: 4px 48px 12px 0; color: var(--ink); overflow-wrap: anywhere; }
 .bov-facts { background: var(--teal-pale); border-radius: 10px; padding: 10px 14px; font-size: 14px; line-height: 1.5; }
@@ -2193,7 +2205,8 @@ body.bov-lock { overflow: hidden; }
 .bov-toast { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); width: calc(100% - 32px); max-width: 420px; background: #7f1d1d; color: #fff; border-radius: 10px; padding: 12px 16px; font-size: 14px; z-index: 50; box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
 @media (max-width: 560px) {
   #breakout-public-view { padding: 18px 16px 70px; }
-  .bov-tabs { margin: 0 -16px 14px; padding: 0 16px; }
+  .bov-tabs { margin: 0 -16px 14px; padding: 0 10px; }
+  .bov-tabs button { font-size: 12.5px; padding: 0 2px; }
   .bov-card { flex-direction: column; align-items: stretch; gap: 10px; }
   .bov-card-act .bov-btn { width: 100%; }
   .bov-mine .bov-btn { width: 100%; }
@@ -22855,7 +22868,7 @@ async function initBreakoutPublicView() {
   const token = new URLSearchParams(window.location.search).get('t');
   if (!token || !isSupabaseConfigured()) { body.innerHTML = '<div class="dv-loading">This link is missing or invalid. Please contact the SBCMC team for a fresh link.</div>'; return; }
   try { await loadConferenceYears(); } catch (e) { /* falls back to the default year */ }
-  bov = { token, data: null, attendeeId: null, busy: false, msg: '', view: 'time', block: null, track: '', editing: false, detail: null };
+  bov = { token, data: null, attendeeId: null, busy: false, msg: '', view: 'time', block: null, track: '', editing: false, stack: [], spkQuery: '' };
   await bovRefresh();
   document.addEventListener('keydown', e => { if (e.key === 'Escape') bovCloseDetail(); });
   // Availability moves while people sign up, so quietly refresh while the page is open and visible.
@@ -22867,7 +22880,7 @@ async function bovRefresh(quiet) {
   if (error) { if (!quiet) body.innerHTML = '<div class="dv-loading">Breakout sign-up is not available yet. Please check back soon.</div>'; return; }
   if (!data) { body.innerHTML = '<div class="dv-loading">This link isn’t active. Please contact the SBCMC team for a fresh link.</div>'; return; }
   bov.data = data;
-  if (quiet && bov.detail != null) return; // don't redraw (and reset the scroll) while someone is reading a session
+  if (quiet && bov.stack.length) return; // don't redraw (and reset the scroll) while someone is reading a session
   if (!bov.attendeeId || !data.attendees.some(a => a.id === bov.attendeeId)) bov.attendeeId = data.attendees.length ? data.attendees[0].id : null;
   bovRender();
 }
@@ -22879,7 +22892,7 @@ const BOV_ERRORS = {
   not_in_group: 'That person isn’t on this link.',
   no_such_session: 'That session is no longer available. The page has been refreshed.'
 };
-function bovPerson(i) { const a = bov.data.attendees[i]; if (a) { bov.attendeeId = a.id; bov.block = null; bov.view = 'time'; bov.editing = false; bov.msg = ''; bovRender(); window.scrollTo(0, 0); } }
+function bovPerson(i) { const a = bov.data.attendees[i]; if (a) { bov.stack = []; bov.attendeeId = a.id; bov.block = null; bov.view = 'time'; bov.editing = false; bov.msg = ''; bovRender(); window.scrollTo(0, 0); } }
 function bovEdit() { bov.editing = true; bov.view = 'time'; bov.block = null; bov.msg = ''; bovRender(); window.scrollTo(0, 0); }
 async function bovFinish() {
   if (bov.busy) return;
@@ -22894,10 +22907,12 @@ async function bovFinish() {
 }
 function bovSetView(v) { bov.view = v; bov.msg = ''; bovRender(); window.scrollTo(0, 0); }
 function bovSetBlock(i) { bov.block = i; bov.msg = ''; bovRender(); window.scrollTo(0, 0); }
-function bovGoBlock(i) { bov.view = 'time'; bovSetBlock(i); }
+function bovGoBlock(i) { bov.stack = []; bov.view = 'time'; bovSetBlock(i); }
 function bovSetTrack(i) { bov.track = i < 0 ? '' : (bov.trackNames[i] || ''); bovRender(); }
-function bovPick(i) { const s = bov.data.sessions[i]; bov.detail = null; if (s) return bovAct('pick', s.slot_id, s.track); }
-function bovRemove(i) { const s = bov.data.sessions[i]; bov.detail = null; if (s) return bovAct('unpick', s.slot_id, ''); }
+// Choosing from a session sheet closes it; choosing from a speaker's list keeps the list open so several can be picked in a row.
+function bovLeaveSession() { const t = bovTop(); if (t && t.s != null) bov.stack = []; }
+function bovPick(i) { const s = bov.data.sessions[i]; bovLeaveSession(); if (s) return bovAct('pick', s.slot_id, s.track); }
+function bovRemove(i) { const s = bov.data.sessions[i]; bovLeaveSession(); if (s) return bovAct('unpick', s.slot_id, ''); }
 async function bovAct(kind, slotId, track) {
   if (bov.busy) return;
   bov.busy = true; bov.msg = '';
@@ -22921,7 +22936,17 @@ function bovModel() {
     if (!(s.track in rank) || s.sort_order < rank[s.track]) rank[s.track] = s.sort_order;
   });
   const tracks = Object.keys(rank).sort((a, b) => rank[a] - rank[b] || a.localeCompare(b));
-  return { blocks, tracks };
+  // Everyone who speaks, with their bio and every breakout they are in
+  const bySpeaker = {};
+  bov.data.sessions.forEach(s => {
+    const listed = (s.speaker_bios || []).filter(x => x && x.name);
+    s._people = listed.length ? listed : (s.speakers ? s.speakers.split(/,\s*/).filter(Boolean).map(n => ({ name: n, bio: '' })) : []);
+    s._people.forEach(pp => { const e = bySpeaker[pp.name] || (bySpeaker[pp.name] = { name: pp.name, bio: '', sessions: [] }); if (pp.bio && !e.bio) e.bio = pp.bio; e.sessions.push(s); });
+  });
+  const lastName = n => n.trim().split(/\s+/).slice(-1)[0].toLowerCase();
+  const speakers = Object.values(bySpeaker).sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)) || a.name.localeCompare(b.name));
+  const spkIdx = {}; speakers.forEach((e, i) => { e.idx = i; spkIdx[e.name] = i; });
+  return { blocks, tracks, speakers, spkIdx };
 }
 function bovWhen(b) { return bovEsc(b.label) + ' &middot; ' + bovEsc(friendlyDate(b.date)) + ', ' + bovEsc(friendlyTime(b.start)) + ' to ' + bovEsc(friendlyTime(b.end)); }
 function bovEsc(s) { return escapeHtml(s == null ? '' : s); }
@@ -22933,28 +22958,52 @@ function bovAction(s, picks) {
     : `<button class="bov-btn" ${(!d.open || full || soon || bov.busy) ? 'disabled' : ''} onclick="bovPick(${s._i})">${other ? 'Switch to this' : 'Choose'}</button>`;
 }
 function bovParas(text) { return String(text || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + bovEsc(x).replace(/\n/g, '<br>') + '</p>').join(''); }
-function bovDetail(i) { bov.detail = i; bovRender(); }
-function bovCloseDetail() { if (bov.detail != null) { bov.detail = null; bovRender(); } }
+// Sheets stack: a session can open its speaker, a speaker can open one of their sessions, and Back retraces.
+function bovTop() { return bov.stack[bov.stack.length - 1] || null; }
+function bovDetail(i) { bov.stack.push({ s: i }); bovRender(); }
+function bovSpeaker(i) { bov.stack.push({ p: i }); bovRender(); }
+function bovBack() { if (bov.stack.length) { bov.stack.pop(); bovRender(); } }
+function bovCloseDetail() { if (bov.stack.length) { bov.stack = []; bovRender(); } }
+function bovFilterSpeakers(v) {
+  bov.spkQuery = v;
+  const q = v.trim().toLowerCase(); let n = 0;
+  document.querySelectorAll('.bov-spk-row').forEach(r => { const hit = !q || r.getAttribute('data-n').indexOf(q) >= 0; r.style.display = hit ? '' : 'none'; if (hit) n++; });
+  const em = document.getElementById('bov-spk-empty'); if (em) em.hidden = n > 0;
+}
+function bovSheetShell(inner, color, label) {
+  return `<div class="bov-sheet-bg" onclick="bovCloseDetail()"><div class="bov-sheet" role="dialog" aria-modal="true" aria-label="${bovEsc(label)}" style="--tc:${color}" onclick="event.stopPropagation()">
+    ${bov.stack.length > 1 ? '<button class="bov-sheet-back" onclick="bovBack()">&lsaquo; Back</button>' : ''}
+    <button class="bov-sheet-x" aria-label="Close" onclick="bovCloseDetail()">&times;</button>
+    ${inner}
+  </div></div>`;
+}
 // The session sheet: everything we know about one session, with the same Choose / Remove button as the card.
-function bovSheetHtml(model, picks) {
-  const s = bov.data.sessions[bov.detail]; if (!s) return '';
+function bovSessionSheet(model, picks, s) {
   const block = model.blocks.find(b => b.slot_id === s.slot_id), mine = picks[s.slot_id] === s.track, full = s.status === 'full', soon = s.status === 'soon';
   const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : full ? '<span class="bov-pill bov-pill-full">Full</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
-  const people = (s.speaker_bios || []).filter(x => x && x.name);
-  const names = people.length ? people : (s.speakers ? s.speakers.split(/,\s*/).map(n => ({ name: n, bio: '' })) : []);
-  return `<div class="bov-sheet-bg" onclick="bovCloseDetail()"><div class="bov-sheet" role="dialog" aria-modal="true" aria-label="${bovEsc(s.title || s.track)}" style="--tc:${bovColor(model.tracks, s.track)}" onclick="event.stopPropagation()">
-    <button class="bov-sheet-x" aria-label="Close" onclick="bovCloseDetail()">&times;</button>
-    <div class="bov-track">${bovEsc(s.track)}</div>
+  const inner = `<div class="bov-track">${bovEsc(s.track)}</div>
     <h2 class="bov-sheet-title">${bovEsc(s.title || s.track)}</h2>
-    <div class="bov-facts">
-      ${block ? `<div><span>When</span>${bovWhen(block)}</div>` : ''}
-      ${s.room ? `<div><span>Where</span>${bovEsc(s.room)}</div>` : ''}
-    </div>
+    ${block ? `<div class="bov-facts"><div><span>When</span>${bovWhen(block)}</div></div>` : ''}
     <h4>About this session</h4>
     ${s.description ? `<div class="bov-prose">${bovParas(s.description)}</div>` : '<p class="bov-muted">The full description will be added soon.</p>'}
-    ${names.length ? `<h4>${names.length > 1 ? 'Speakers' : 'Speaker'}</h4>${names.map(n => `<div class="bov-person"><b>${bovEsc(n.name)}</b>${n.bio ? `<div class="bov-prose">${bovParas(n.bio)}</div>` : ''}</div>`).join('')}` : ''}
-    <div class="bov-sheet-act">${pill}${bovAction(s, picks)}</div>
-  </div></div>`;
+    ${s._people.length ? `<h4>${s._people.length > 1 ? 'Speakers' : 'Speaker'}</h4>${s._people.map(n => `<div class="bov-person"><button class="bov-person-link" onclick="bovSpeaker(${model.spkIdx[n.name]})">${bovEsc(n.name)} <span>&rsaquo;</span></button>${n.bio ? `<div class="bov-prose">${bovParas(n.bio)}</div>` : ''}</div>`).join('')}` : ''}
+    <div class="bov-sheet-act">${pill}${bovAction(s, picks)}</div>`;
+  return bovSheetShell(inner, bovColor(model.tracks, s.track), s.title || s.track);
+}
+// The speaker sheet: their bio and every breakout they are in, each one choosable right there.
+function bovSpeakerSheet(model, picks, e) {
+  const inner = `<div class="bov-track">Speaker</div>
+    <h2 class="bov-sheet-title">${bovEsc(e.name)}</h2>
+    ${e.bio ? `<div class="bov-prose">${bovParas(e.bio)}</div>` : '<p class="bov-muted">A bio will be added soon.</p>'}
+    <h4>Breakouts with ${bovEsc(e.name.split(' ')[0])} (${e.sessions.length})</h4>
+    ${e.sessions.map(x => bovCard(x, picks, model, true)).join('')}
+    <div class="bov-sheet-pad"></div>`;
+  return bovSheetShell(inner, 'var(--gold)', e.name);
+}
+function bovSheetHtml(model, picks) {
+  const top = bovTop(); if (!top) return '';
+  if (top.s != null) { const s = bov.data.sessions[top.s]; return s ? bovSessionSheet(model, picks, s) : ''; }
+  const e = model.speakers[top.p]; return e ? bovSpeakerSheet(model, picks, e) : '';
 }
 function bovCard(s, picks, model, showWhen) {
   const d = bov.data, mine = picks[s.slot_id] === s.track, other = !!picks[s.slot_id] && !mine;
@@ -22967,7 +23016,7 @@ function bovCard(s, picks, model, showWhen) {
       <div class="bov-track">${bovEsc(s.track)}</div>
       ${showWhen && block ? `<div class="bov-when">${bovWhen(block)}</div>` : ''}
       ${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}
-      <div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div>
+      <div class="bov-meta">${bovEsc(s.speakers || '')}</div>
       ${cur && !full && !soon ? `<div class="bov-replaces">Replaces your choice: ${bovEsc(cur.title || cur.track)}</div>` : ''}
       <div class="bov-more">${pill}<span>Details &rsaquo;</span></div>
     </div>
@@ -22982,7 +23031,7 @@ function bovSessionRows(model, picks) {
   return model.blocks.map(b => {
     const s = picks[b.slot_id] ? b.sessions.find(x => x.track === picks[b.slot_id]) : null;
     return `<div class="bov-sum"><div class="bov-mine-when">${bovWhen(b)}</div>` + (s
-      ? `<div class="bov-mine-pick" role="button" tabindex="0" onclick="bovDetail(${s._i})" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div></div>`
+      ? `<div class="bov-mine-pick" role="button" tabindex="0" onclick="bovDetail(${s._i})" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}</div></div>`
       : '<div class="bov-muted">No session chosen</div>') + '</div>';
   }).join('');
 }
@@ -23013,7 +23062,7 @@ function bovRender() {
   const who = d.attendees.length > 1 ? `<div class="bov-who"><span class="bov-who-label">Choosing for</span><div class="bov-chips">${d.attendees.map((a, i) => `<button class="bov-chip ${a.id === bov.attendeeId ? 'on' : ''}" onclick="bovPerson(${i})">${bovEsc(a.name)} <span class="bov-chip-n">${a.done ? '&#10003; done' : a.picks.length + '/' + (blocks.length || '?')}</span></button>`).join('')}</div></div>` : '';
   const pct = blocks.length ? Math.round(chosen / blocks.length * 100) : 0;
   const progress = blocks.length ? `<div class="bov-progress"><div class="bov-progress-text"><b>${chosen} of ${blocks.length}</b> breakout blocks chosen${closesTxt ? ` <span>&middot; changes allowed until ${bovEsc(closesTxt)}</span>` : ''}</div><div class="bov-progress-bar"><div style="width:${pct}%"></div></div></div>` : '';
-  const tabs = blocks.length ? `<nav class="bov-tabs" role="tablist">${[['time', 'By time'], ['track', 'By track'], ['mine', 'My choices' + (chosen ? ' (' + chosen + ')' : '')]].map(t => `<button role="tab" aria-selected="${bov.view === t[0]}" class="${bov.view === t[0] ? 'on' : ''}" onclick="bovSetView('${t[0]}')">${t[1]}</button>`).join('')}</nav>` : '';
+  const tabs = blocks.length ? `<nav class="bov-tabs" role="tablist">${[['time', 'By time'], ['track', 'By track'], ['speaker', 'By speaker'], ['mine', 'My choices' + (chosen ? ' (' + chosen + ')' : '')]].map(t => `<button role="tab" aria-selected="${bov.view === t[0]}" class="${bov.view === t[0] ? 'on' : ''}" onclick="bovSetView('${t[0]}')">${t[1]}</button>`).join('')}</nav>` : '';
 
   let content = '';
   if (!blocks.length) content = '<div class="dv-loading">The breakout sessions will appear here soon.</div>';
@@ -23023,6 +23072,14 @@ function bovRender() {
     content = `${steps}${bovTrackChips(model)}<div class="bov-block-head"><b>${bovEsc(b.label)}</b> <span>${bovEsc(friendlyDate(b.date))} &middot; ${bovEsc(friendlyTime(b.start))} to ${bovEsc(friendlyTime(b.end))}</span></div>`
       + (list.length ? list.map(s => bovCard(s, picks, model, false)).join('') : `<div class="bov-empty">No ${bovEsc(bov.track)} session in this block. Try another track or block.</div>`)
       + `<div class="bov-nav">${bov.block > 0 ? `<button class="bov-btn bov-btn-ghost" onclick="bovSetBlock(${bov.block - 1})">&larr; Previous block</button>` : '<span></span>'}${bov.block < blocks.length - 1 ? `<button class="bov-btn" onclick="bovSetBlock(${bov.block + 1})">Next block &rarr;</button>` : `<button class="bov-btn" onclick="bovSetView('mine')">Review &amp; finish</button>`}</div>`;
+  } else if (bov.view === 'speaker') {
+    const q = (bov.spkQuery || '').trim().toLowerCase();
+    const rows = model.speakers.map(e => {
+      const n = e.sessions.filter(x => picks[x.slot_id] === x.track).length;
+      return `<button class="bov-spk-row" data-n="${bovEsc(e.name.toLowerCase())}" ${q && e.name.toLowerCase().indexOf(q) < 0 ? 'style="display:none"' : ''} onclick="bovSpeaker(${e.idx})"><span class="bov-spk-name">${bovEsc(e.name)}<small>${e.sessions.length} breakout${e.sessions.length === 1 ? '' : 's'}${n ? ' &middot; <b>' + n + ' chosen</b>' : ''}</small></span><span class="bov-spk-go">&rsaquo;</span></button>`;
+    }).join('');
+    content = `<input class="bov-search" type="search" placeholder="Search speakers" value="${bovEsc(bov.spkQuery || '')}" oninput="bovFilterSpeakers(this.value)" aria-label="Search speakers" autocomplete="off">`
+      + (rows ? `<div>${rows}</div><div class="bov-empty" id="bov-spk-empty" hidden>No speakers match.</div>` : '<div class="bov-empty">Speakers will appear here soon.</div>');
   } else if (bov.view === 'track') {
     const groups = model.tracks.filter(t => !bov.track || t === bov.track).map(t => {
       const ss = d.sessions.filter(s => s.track === t);
@@ -23033,7 +23090,7 @@ function bovRender() {
     const rows = blocks.map((b, i) => {
       const s = picks[b.slot_id] ? b.sessions.find(x => x.track === picks[b.slot_id]) : null;
       return `<div class="bov-mine ${s ? 'done' : ''}"><div class="bov-mine-when">${bovWhen(b)}</div>`
-        + (s ? `<div class="bov-mine-pick" role="button" tabindex="0" onclick="bovDetail(${s._i})" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div></div><button class="bov-btn bov-btn-ghost" onclick="bovGoBlock(${i})">Change</button>`
+        + (s ? `<div class="bov-mine-pick" role="button" tabindex="0" onclick="bovDetail(${s._i})" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}</div></div><button class="bov-btn bov-btn-ghost" onclick="bovGoBlock(${i})">Change</button>`
           : `<div class="bov-mine-none">Not chosen yet</div><button class="bov-btn" onclick="bovGoBlock(${i})">Choose a session</button>`) + '</div>';
     }).join('');
     const missing = blocks.filter(b => !picks[b.slot_id]);
@@ -23042,11 +23099,16 @@ function bovRender() {
   const toast = bov.msg ? `<div class="bov-toast" role="alert">${bovEsc(bov.msg)}</div>` : '';
   const bar = blocks.length && bov.view !== 'mine' ? `<div class="bov-bar"><div class="bov-bar-in"><span><b>${chosen} of ${blocks.length}</b> chosen</span><button class="bov-btn" onclick="bovSetView('mine')">Review &amp; finish</button></div></div>` : '';
   const foot = '<p class="bov-foot">Choose one session in each breakout block you plan to attend. You don’t have to pick every block. Questions? Reply to the email this link came in.</p>';
-  const sheet = bov.detail != null ? bovSheetHtml(model, picks) : '';
+  const sheet = bov.stack.length ? bovSheetHtml(model, picks) : '';
   document.body.classList.toggle('bov-lock', !!sheet);
+  // Redrawing after a pick should not scroll the open sheet back to the top or replay its slide-in
+  const oldSheet = document.querySelector('.bov-sheet'), sheetKey = JSON.stringify(bovTop()), keep = !!(oldSheet && bov.sheetKey === sheetKey);
+  const keepScroll = keep ? oldSheet.scrollTop : 0;
+  bov.sheetKey = sheet ? sheetKey : null;
   body.innerHTML = showDone
     ? `${banner}${who}${bovDoneHtml(att, model, picks, closesTxt)}${foot}${toast}${sheet}`
     : `${banner}${who}${progress}${tabs}<div class="bov-content">${content}</div>${foot}${bar}${toast}${sheet}`;
+  if (sheet) { const ns = document.querySelector('.bov-sheet'); if (ns && keep) { ns.style.animation = 'none'; ns.scrollTop = keepScroll; } }
   if (bov.msg) { const m = bov.msg; setTimeout(() => { if (bov.msg === m) { bov.msg = ''; const t = document.querySelector('.bov-toast'); if (t) t.remove(); } }, 6000); }
 }
 
