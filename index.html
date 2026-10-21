@@ -2130,6 +2130,32 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .bov-card { display: flex; gap: 14px; justify-content: space-between; align-items: center; background: #fff; border: 1.5px solid var(--line); border-left: 5px solid var(--tc, var(--teal-deep)); border-radius: 10px; padding: 13px 14px; margin-bottom: 10px; }
 .bov-card.on { border-color: var(--tc, var(--teal-deep)); background: var(--teal-pale); }
 .bov-card.full { opacity: 0.62; }
+.bov-card-main { cursor: pointer; }
+.bov-card-main:focus-visible, .bov-mine-pick:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+.bov-mine-pick { cursor: pointer; }
+.bov-more { display: flex; align-items: center; gap: 10px; margin-top: 4px; min-height: 24px; }
+.bov-more .bov-pill { margin-top: 0; }
+.bov-more > span { font-size: 13px; font-weight: 600; color: var(--teal-deep); }
+.bov-card:hover .bov-more > span { text-decoration: underline; }
+body.bov-lock { overflow: hidden; }
+.bov-sheet-bg { position: fixed; inset: 0; background: rgba(23, 38, 43, 0.5); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+.bov-sheet { position: relative; background: #fff; width: 100%; max-width: 580px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 18px 18px 0 0; padding: 24px 20px 0; border-top: 5px solid var(--tc, var(--teal-deep)); animation: bovUp 0.22s ease-out; }
+@keyframes bovUp { from { transform: translateY(40px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bov-sheet { animation: none; } }
+.bov-sheet-x { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border: none; background: var(--paper); border-radius: 50%; font-size: 26px; line-height: 1; color: var(--ink); cursor: pointer; }
+.bov-sheet-title { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; margin: 4px 48px 12px 0; color: var(--ink); overflow-wrap: anywhere; }
+.bov-facts { background: var(--teal-pale); border-radius: 10px; padding: 10px 14px; font-size: 14px; line-height: 1.5; }
+.bov-facts > div { display: flex; gap: 12px; padding: 3px 0; }
+.bov-facts span { flex: 0 0 52px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); padding-top: 3px; }
+.bov-sheet h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); margin: 20px 0 8px; }
+.bov-prose p { margin: 0 0 10px; font-size: 15px; line-height: 1.6; color: var(--ink); }
+.bov-person { margin-bottom: 14px; }
+.bov-person > b { font-size: 15.5px; display: block; margin-bottom: 4px; }
+.bov-person .bov-prose p { font-size: 14px; color: var(--ink-soft); }
+.bov-sheet-act { position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--line); margin: 18px -20px 0; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+.bov-sheet-act .bov-pill { margin: 0 auto 0 0; }
+@media (min-width: 561px) { .bov-sheet-bg { align-items: center; } .bov-sheet { border-radius: 16px; max-height: 84vh; } }
+@media (max-width: 560px) { .bov-sheet-act .bov-btn { flex: 1; } }
 .bov-card-main { min-width: 0; flex: 1; }
 .bov-track { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tc, var(--teal-deep)); }
 .bov-when { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
@@ -22643,7 +22669,7 @@ function breakoutSeatCells() {
   const map = {};
   const ensure = (slot, track) => {
     const key = slot.id + '|' + track;
-    return map[key] || (map[key] = { key, slot, track, rooms: new Set(), titles: new Set(), names: [] });
+    return map[key] || (map[key] = { key, slot, track, rooms: new Set(), titles: new Set(), names: [], descs: new Set(), people: {} });
   };
   speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
     if (!sess.track || sess.isTrackLead) return;
@@ -22654,6 +22680,11 @@ function breakoutSeatCells() {
     if (room) c.rooms.add(room);
     if (sess.title) c.titles.add(sess.title);
     c.names.push(sp.name);
+    // what attendees can read about the session: its description, and each speaker's bio
+    const mat = sp.data.materials || {};
+    const desc = (sess.description || '').trim() || (typeof mat.sessionDescription === 'string' ? mat.sessionDescription.trim() : '');
+    if (desc) c.descs.add(desc);
+    c.people[sp.name] = (sp.data.bio || '').trim() || (typeof mat.bio === 'string' ? mat.bio.trim() : '');
   }));
   breakoutRoomBookings.forEach(b => {
     const track = sessionTracks.find(t => t.id === b.trackId), slot = scheduleSlots.find(sl => sl.id === b.slotId);
@@ -22824,8 +22855,9 @@ async function initBreakoutPublicView() {
   const token = new URLSearchParams(window.location.search).get('t');
   if (!token || !isSupabaseConfigured()) { body.innerHTML = '<div class="dv-loading">This link is missing or invalid. Please contact the SBCMC team for a fresh link.</div>'; return; }
   try { await loadConferenceYears(); } catch (e) { /* falls back to the default year */ }
-  bov = { token, data: null, attendeeId: null, busy: false, msg: '', view: 'time', block: null, track: '', editing: false };
+  bov = { token, data: null, attendeeId: null, busy: false, msg: '', view: 'time', block: null, track: '', editing: false, detail: null };
   await bovRefresh();
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') bovCloseDetail(); });
   // Availability moves while people sign up, so quietly refresh while the page is open and visible.
   setInterval(() => { if (!document.hidden && !bov.busy) bovRefresh(true); }, 45000);
 }
@@ -22835,6 +22867,7 @@ async function bovRefresh(quiet) {
   if (error) { if (!quiet) body.innerHTML = '<div class="dv-loading">Breakout sign-up is not available yet. Please check back soon.</div>'; return; }
   if (!data) { body.innerHTML = '<div class="dv-loading">This link isn’t active. Please contact the SBCMC team for a fresh link.</div>'; return; }
   bov.data = data;
+  if (quiet && bov.detail != null) return; // don't redraw (and reset the scroll) while someone is reading a session
   if (!bov.attendeeId || !data.attendees.some(a => a.id === bov.attendeeId)) bov.attendeeId = data.attendees.length ? data.attendees[0].id : null;
   bovRender();
 }
@@ -22863,8 +22896,8 @@ function bovSetView(v) { bov.view = v; bov.msg = ''; bovRender(); window.scrollT
 function bovSetBlock(i) { bov.block = i; bov.msg = ''; bovRender(); window.scrollTo(0, 0); }
 function bovGoBlock(i) { bov.view = 'time'; bovSetBlock(i); }
 function bovSetTrack(i) { bov.track = i < 0 ? '' : (bov.trackNames[i] || ''); bovRender(); }
-function bovPick(i) { const s = bov.data.sessions[i]; if (s) return bovAct('pick', s.slot_id, s.track); }
-function bovRemove(i) { const s = bov.data.sessions[i]; if (s) return bovAct('unpick', s.slot_id, ''); }
+function bovPick(i) { const s = bov.data.sessions[i]; bov.detail = null; if (s) return bovAct('pick', s.slot_id, s.track); }
+function bovRemove(i) { const s = bov.data.sessions[i]; bov.detail = null; if (s) return bovAct('unpick', s.slot_id, ''); }
 async function bovAct(kind, slotId, track) {
   if (bov.busy) return;
   bov.busy = true; bov.msg = '';
@@ -22893,22 +22926,50 @@ function bovModel() {
 function bovWhen(b) { return bovEsc(b.label) + ' &middot; ' + bovEsc(friendlyDate(b.date)) + ', ' + bovEsc(friendlyTime(b.start)) + ' to ' + bovEsc(friendlyTime(b.end)); }
 function bovEsc(s) { return escapeHtml(s == null ? '' : s); }
 function bovColor(tracks, track) { const i = tracks.indexOf(track); return BOV_COLORS[(i < 0 ? 0 : i) % BOV_COLORS.length]; }
+function bovAction(s, picks) {
+  const d = bov.data, mine = picks[s.slot_id] === s.track, other = !!picks[s.slot_id] && !mine, full = s.status === 'full', soon = s.status === 'soon';
+  return mine
+    ? `<button class="bov-btn bov-btn-ghost" ${d.open ? '' : 'disabled'} onclick="bovRemove(${s._i})">Remove</button>`
+    : `<button class="bov-btn" ${(!d.open || full || soon || bov.busy) ? 'disabled' : ''} onclick="bovPick(${s._i})">${other ? 'Switch to this' : 'Choose'}</button>`;
+}
+function bovParas(text) { return String(text || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + bovEsc(x).replace(/\n/g, '<br>') + '</p>').join(''); }
+function bovDetail(i) { bov.detail = i; bovRender(); }
+function bovCloseDetail() { if (bov.detail != null) { bov.detail = null; bovRender(); } }
+// The session sheet: everything we know about one session, with the same Choose / Remove button as the card.
+function bovSheetHtml(model, picks) {
+  const s = bov.data.sessions[bov.detail]; if (!s) return '';
+  const block = model.blocks.find(b => b.slot_id === s.slot_id), mine = picks[s.slot_id] === s.track, full = s.status === 'full', soon = s.status === 'soon';
+  const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : full ? '<span class="bov-pill bov-pill-full">Full</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
+  const people = (s.speaker_bios || []).filter(x => x && x.name);
+  const names = people.length ? people : (s.speakers ? s.speakers.split(/,\s*/).map(n => ({ name: n, bio: '' })) : []);
+  return `<div class="bov-sheet-bg" onclick="bovCloseDetail()"><div class="bov-sheet" role="dialog" aria-modal="true" aria-label="${bovEsc(s.title || s.track)}" style="--tc:${bovColor(model.tracks, s.track)}" onclick="event.stopPropagation()">
+    <button class="bov-sheet-x" aria-label="Close" onclick="bovCloseDetail()">&times;</button>
+    <div class="bov-track">${bovEsc(s.track)}</div>
+    <h2 class="bov-sheet-title">${bovEsc(s.title || s.track)}</h2>
+    <div class="bov-facts">
+      ${block ? `<div><span>When</span>${bovWhen(block)}</div>` : ''}
+      ${s.room ? `<div><span>Where</span>${bovEsc(s.room)}</div>` : ''}
+    </div>
+    <h4>About this session</h4>
+    ${s.description ? `<div class="bov-prose">${bovParas(s.description)}</div>` : '<p class="bov-muted">The full description will be added soon.</p>'}
+    ${names.length ? `<h4>${names.length > 1 ? 'Speakers' : 'Speaker'}</h4>${names.map(n => `<div class="bov-person"><b>${bovEsc(n.name)}</b>${n.bio ? `<div class="bov-prose">${bovParas(n.bio)}</div>` : ''}</div>`).join('')}` : ''}
+    <div class="bov-sheet-act">${pill}${bovAction(s, picks)}</div>
+  </div></div>`;
+}
 function bovCard(s, picks, model, showWhen) {
   const d = bov.data, mine = picks[s.slot_id] === s.track, other = !!picks[s.slot_id] && !mine;
   const full = s.status === 'full', soon = s.status === 'soon', block = model.blocks.find(b => b.slot_id === s.slot_id);
   const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : full ? '<span class="bov-pill bov-pill-full">Full</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
-  const action = mine
-    ? `<button class="bov-btn bov-btn-ghost" ${d.open ? '' : 'disabled'} onclick="bovRemove(${s._i})">Remove</button>`
-    : `<button class="bov-btn" ${(!d.open || full || soon || bov.busy) ? 'disabled' : ''} onclick="bovPick(${s._i})">${other ? 'Switch to this' : 'Choose'}</button>`;
+  const action = bovAction(s, picks);
   const cur = other ? d.sessions.find(x => x.slot_id === s.slot_id && x.track === picks[s.slot_id]) : null;
   return `<div class="bov-card ${mine ? 'on' : ''} ${full && !mine ? 'full' : ''}" style="--tc:${bovColor(model.tracks, s.track)}">
-    <div class="bov-card-main">
+    <div class="bov-card-main" role="button" tabindex="0" aria-label="Details: ${bovEsc(s.title || s.track)}" onclick="bovDetail(${s._i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bovDetail(${s._i});}">
       <div class="bov-track">${bovEsc(s.track)}</div>
       ${showWhen && block ? `<div class="bov-when">${bovWhen(block)}</div>` : ''}
       ${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}
       <div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div>
       ${cur && !full && !soon ? `<div class="bov-replaces">Replaces your choice: ${bovEsc(cur.title || cur.track)}</div>` : ''}
-      ${pill ? `<div>${pill}</div>` : ''}
+      <div class="bov-more">${pill}<span>Details &rsaquo;</span></div>
     </div>
     <div class="bov-card-act">${action}</div>
   </div>`;
@@ -22921,7 +22982,7 @@ function bovSessionRows(model, picks) {
   return model.blocks.map(b => {
     const s = picks[b.slot_id] ? b.sessions.find(x => x.track === picks[b.slot_id]) : null;
     return `<div class="bov-sum"><div class="bov-mine-when">${bovWhen(b)}</div>` + (s
-      ? `<div class="bov-mine-pick" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div></div>`
+      ? `<div class="bov-mine-pick" role="button" tabindex="0" onclick="bovDetail(${s._i})" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div></div>`
       : '<div class="bov-muted">No session chosen</div>') + '</div>';
   }).join('');
 }
@@ -22972,7 +23033,7 @@ function bovRender() {
     const rows = blocks.map((b, i) => {
       const s = picks[b.slot_id] ? b.sessions.find(x => x.track === picks[b.slot_id]) : null;
       return `<div class="bov-mine ${s ? 'done' : ''}"><div class="bov-mine-when">${bovWhen(b)}</div>`
-        + (s ? `<div class="bov-mine-pick" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div></div><button class="bov-btn bov-btn-ghost" onclick="bovGoBlock(${i})">Change</button>`
+        + (s ? `<div class="bov-mine-pick" role="button" tabindex="0" onclick="bovDetail(${s._i})" style="--tc:${bovColor(model.tracks, s.track)}"><div class="bov-track">${bovEsc(s.track)}</div>${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}<div class="bov-meta">${bovEsc(s.speakers || '')}${s.speakers && s.room ? ' &middot; ' : ''}${bovEsc(s.room || '')}</div></div><button class="bov-btn bov-btn-ghost" onclick="bovGoBlock(${i})">Change</button>`
           : `<div class="bov-mine-none">Not chosen yet</div><button class="bov-btn" onclick="bovGoBlock(${i})">Choose a session</button>`) + '</div>';
     }).join('');
     const missing = blocks.filter(b => !picks[b.slot_id]);
@@ -22981,9 +23042,11 @@ function bovRender() {
   const toast = bov.msg ? `<div class="bov-toast" role="alert">${bovEsc(bov.msg)}</div>` : '';
   const bar = blocks.length && bov.view !== 'mine' ? `<div class="bov-bar"><div class="bov-bar-in"><span><b>${chosen} of ${blocks.length}</b> chosen</span><button class="bov-btn" onclick="bovSetView('mine')">Review &amp; finish</button></div></div>` : '';
   const foot = '<p class="bov-foot">Choose one session in each breakout block you plan to attend. You don’t have to pick every block. Questions? Reply to the email this link came in.</p>';
+  const sheet = bov.detail != null ? bovSheetHtml(model, picks) : '';
+  document.body.classList.toggle('bov-lock', !!sheet);
   body.innerHTML = showDone
-    ? `${banner}${who}${bovDoneHtml(att, model, picks, closesTxt)}${foot}${toast}`
-    : `${banner}${who}${progress}${tabs}<div class="bov-content">${content}</div>${foot}${bar}${toast}`;
+    ? `${banner}${who}${bovDoneHtml(att, model, picks, closesTxt)}${foot}${toast}${sheet}`
+    : `${banner}${who}${progress}${tabs}<div class="bov-content">${content}</div>${foot}${bar}${toast}${sheet}`;
   if (bov.msg) { const m = bov.msg; setTimeout(() => { if (bov.msg === m) { bov.msg = ''; const t = document.querySelector('.bov-toast'); if (t) t.remove(); } }, 6000); }
 }
 
@@ -23019,16 +23082,16 @@ async function bsuPublishSeats() {
     const trackIdx = name => Math.max(0, sessionTracks.findIndex(t => t.name === name));
     const rows = cells.map(c => {
       const info = breakoutSeatInfo(c, breakoutSeatOverrides[c.key] != null ? String(breakoutSeatOverrides[c.key]) : '');
-      return { conference_year: y, slot_id: c.slot.id, track: c.track, seats: info.seats, title: Array.from(c.titles).join(' / '), speakers: Array.from(new Set(c.names)).join(', '), room: info.rooms.join(' + '), slot_label: c.slot.label, slot_date: c.slot.date, slot_start: c.slot.start, slot_end: c.slot.end, sort_order: trackIdx(c.track), updated_at: new Date().toISOString() };
+      return { conference_year: y, slot_id: c.slot.id, track: c.track, seats: info.seats, title: Array.from(c.titles).join(' / '), speakers: Array.from(new Set(c.names)).join(', '), room: info.rooms.join(' + '), slot_label: c.slot.label, slot_date: c.slot.date, slot_start: c.slot.start, slot_end: c.slot.end, sort_order: trackIdx(c.track), description: Array.from(c.descs).join('\n\n'), speaker_bios: Object.keys(c.people).map(n => ({ name: n, bio: c.people[n] })), updated_at: new Date().toISOString() };
     });
     const up = await sbClient.from('breakout_capacity').upsert(rows, { onConflict: 'conference_year,slot_id,track' });
     if (up.error) throw up.error;
     // Sessions no longer on the schedule are removed, unless someone already picked them.
     const live = new Set(rows.map(r => r.slot_id + '|' + r.track)), taken = new Set(bsu.signups.map(s => s.slot_id + '|' + s.track));
     for (const c of bsu.capacity) { const k = c.slot_id + '|' + c.track; if (!live.has(k) && !taken.has(k)) await sbClient.from('breakout_capacity').delete().eq('conference_year', y).eq('slot_id', c.slot_id).eq('track', c.track); }
-    const missing = rows.filter(r => r.seats == null).length;
+    const missing = rows.filter(r => r.seats == null).length, noDesc = rows.filter(r => !r.description).length;
     await bsuLoad();
-    toast('Published ' + rows.length + ' sessions' + (missing ? ' (' + missing + ' still have no seats, so they show as "Not open yet")' : '') + '.');
+    toast('Published ' + rows.length + ' sessions' + (missing ? ' (' + missing + ' have no seats yet, so they show as "Opening soon")' : '') + (noDesc ? '. ' + noDesc + ' have no description yet.' : '.'));
   } catch (e) { toast('Couldn’t publish the seats: ' + (e.message || e)); }
   bsu.busy = false; renderBreakoutSignupAdmin();
 }
