@@ -7648,6 +7648,8 @@ function reportWriteError(key, label, error) {
 }
 function reportWriteSuccess(key) {
   clearWriteFailure(key);
+  // Anything that can change what attendees see in the breakout sign-up queues a quiet republish
+  if (typeof breakoutAutoPublish === 'function' && /^(speaker:|session-room:|room-booking:|schedule-slot:|breakout_seats$)/.test(key)) breakoutAutoPublish();
 }
 let sponsors = [];
 let sponsorFilter = 'all';
@@ -22676,11 +22678,13 @@ function renderCwcModal() {
 // conference_settings 'breakout_seats' keyed by "<slotId>|<track>", the same cell the Breakout Grid uses.
 // The sign-up page will read this same value (limit if set, else room size).
 let breakoutSeatOverrides = {};   // "slotId|track" -> number
+let breakoutSeatsLoaded = false; // set once the saved per-session limits have been read
 let breakoutSeatsUi = null;       // { draft: {key: string}, block: 'all', issuesOnly: false, regCount: number|null }
 
 async function loadBreakoutSeats() {
   const o = await loadConfSettingJson('breakout_seats');
   breakoutSeatOverrides = (o && o.overrides) || {};
+  breakoutSeatsLoaded = true;
 }
 function roomSeatsFor(roomName) {
   const r = sessionRooms.find(x => x.name === roomName);
@@ -22804,7 +22808,8 @@ async function bsSave() {
   });
   if (await saveConfSettingJson('breakout_seats', { overrides: next }, 'the breakout seats')) {
     breakoutSeatOverrides = next; breakoutSeatsUi.draft = {};
-    toast('Breakout seats saved.'); renderBreakoutSeatsEditor();
+    const synced = await breakoutSyncSeats();
+    toast('Breakout seats saved' + (synced === 'updated' ? ' and the sign-up page is updated.' : '.')); renderBreakoutSeatsEditor();
   }
 }
 function bsExportCsv() {
@@ -22903,7 +22908,7 @@ const BOV_ERRORS = {
   not_in_group: 'That person isn’t on this link.',
   no_such_session: 'That session is no longer available. The page has been refreshed.'
 };
-function bovPerson(i) { const a = bov.data.attendees[i]; if (a) { bov.stack = []; bov.attendeeId = a.id; bov.block = null; bov.view = 'time'; bov.editing = false; bov.msg = ''; bovRender(); window.scrollTo(0, 0); } }
+function bovPerson(i) { const a = bov.data.attendees[i]; if (a) { bov.stack = []; bov.attendeeId = a.id; bov.block = null; bov.view = 'time'; bov.editing = false; bov.msg = ''; bovRender(); window.scrollTo(0, 0); bovRefresh(true); } }
 function bovEdit() { bov.editing = true; bov.view = 'time'; bov.block = null; bov.msg = ''; bovRender(); window.scrollTo(0, 0); }
 async function bovFinish() {
   if (bov.busy) return;
@@ -23130,6 +23135,8 @@ async function openBreakoutSignupAdmin() {
   if (!window.isAdminUser) { toast('Only admins can manage breakout sign-up.'); return; }
   bsu = { settings: { open: false, closes_at: '', message: '' }, capacity: [], attendees: [], households: [], signups: [], setupNeeded: false, busy: false, openRoster: null, search: '' };
   await bsuLoad();
+  // Opening the panel brings the published sessions up to date first, so what you see here is what attendees see
+  if (!bsu.setupNeeded && bsu.capacity.length && (await breakoutSyncSeats()) === 'updated') await bsuLoad();
   renderBreakoutSignupAdmin();
 }
 function closeBreakoutSignupAdmin() { bsu = null; document.getElementById('exp-sort-modal-root').innerHTML = ''; }
@@ -23147,24 +23154,65 @@ async function bsuSaveSettings() {
   const next = { open, closes_at: closes ? new Date(closes).toISOString() : '', message };
   if (await saveConfSettingJson('breakout_signup', next, 'the sign-up settings')) { bsu.settings = next; toast(open ? 'Sign-up is OPEN.' : 'Sign-up is closed.'); renderBreakoutSignupAdmin(); }
 }
+// ---- publishing seats to the sign-up ----
+// publishBreakoutSeats() copies each session's seats, title, description and speaker bios into breakout_capacity,
+// which is all the attendee page can see. It runs when you click "Publish seats now", and automatically (below)
+// whenever something that feeds it changes, so the attendee page cannot drift out of date.
+var breakoutPublishSig = '', breakoutPublishTimer = null, breakoutSignupReady = null; // ready: null unknown, false = tables not set up
+async function publishBreakoutSeats(opts) {
+  opts = opts || {};
+  if (!breakoutSeatsLoaded || opts.reload) await loadBreakoutSeats();
+  const y = activeConferenceYear, cells = breakoutSeatCells();
+  const trackIdx = name => Math.max(0, sessionTracks.findIndex(t => t.name === name));
+  const base = cells.map(c => {
+    const info = breakoutSeatInfo(c, breakoutSeatOverrides[c.key] != null ? String(breakoutSeatOverrides[c.key]) : '');
+    return { conference_year: y, slot_id: c.slot.id, track: c.track, seats: info.seats, title: Array.from(c.titles).join(' / '), speakers: Array.from(new Set(c.names)).join(', '), room: info.rooms.join(' + '), slot_label: c.slot.label, slot_date: c.slot.date, slot_start: c.slot.start, slot_end: c.slot.end, sort_order: trackIdx(c.track), description: Array.from(c.descs).join('\n\n'), speaker_bios: Object.keys(c.people).map(n => ({ name: n, bio: c.people[n] })) };
+  });
+  const sig = y + JSON.stringify(base);
+  if (opts.onlyIfChanged && sig === breakoutPublishSig) return { skipped: true };
+  const now = new Date().toISOString();
+  const up = await sbClient.from('breakout_capacity').upsert(base.map(r => Object.assign({ updated_at: now }, r)), { onConflict: 'conference_year,slot_id,track' });
+  if (up.error) throw up.error;
+  // Sessions no longer on the schedule are removed, unless someone already picked them.
+  const [have, picked] = await Promise.all([
+    sbClient.from('breakout_capacity').select('slot_id,track').eq('conference_year', y).limit(10000),
+    sbClient.from('breakout_signups').select('slot_id,track').eq('conference_year', y).limit(10000)
+  ]);
+  if (!have.error && !picked.error) {
+    const live = new Set(base.map(r => r.slot_id + '|' + r.track)), taken = new Set((picked.data || []).map(x => x.slot_id + '|' + x.track));
+    for (const c of (have.data || [])) { const k = c.slot_id + '|' + c.track; if (!live.has(k) && !taken.has(k)) await sbClient.from('breakout_capacity').delete().eq('conference_year', y).eq('slot_id', c.slot_id).eq('track', c.track); }
+  }
+  breakoutPublishSig = sig; breakoutSignupReady = true;
+  return { count: base.length, missing: base.filter(r => r.seats == null).length, noDesc: base.filter(r => !r.description).length };
+}
+// Quiet republish, only once seats have been published at least once (the first publish stays a deliberate step).
+// Returns 'updated' | 'skipped' | 'off' | 'error'.
+async function breakoutSyncSeats() {
+  if (!sbClient || breakoutSignupReady === false) return 'off';
+  try {
+    if (!breakoutSignupReady) {
+      const head = await sbClient.from('breakout_capacity').select('slot_id', { count: 'exact', head: true }).eq('conference_year', activeConferenceYear);
+      if (head.error) { breakoutSignupReady = false; return 'off'; } // the sign-up tables were never set up
+      if (!head.count) return 'off';
+    }
+    const res = await publishBreakoutSeats({ onlyIfChanged: true });
+    return res.skipped ? 'skipped' : 'updated';
+  } catch (e) { console.warn('Couldn’t update the sign-up seats automatically:', e); return 'error'; }
+}
+function breakoutAutoPublish() {
+  if (!sbClient || breakoutSignupReady === false) return;
+  clearTimeout(breakoutPublishTimer);
+  breakoutPublishTimer = setTimeout(async () => {
+    const hadBaseline = !!breakoutPublishSig;
+    if ((await breakoutSyncSeats()) === 'updated' && hadBaseline) toast('Sign-up seats updated.');
+  }, 2500);
+}
 async function bsuPublishSeats() {
   bsu.busy = true; renderBreakoutSignupAdmin();
   try {
-    await loadBreakoutSeats();
-    const y = activeConferenceYear, cells = breakoutSeatCells();
-    const trackIdx = name => Math.max(0, sessionTracks.findIndex(t => t.name === name));
-    const rows = cells.map(c => {
-      const info = breakoutSeatInfo(c, breakoutSeatOverrides[c.key] != null ? String(breakoutSeatOverrides[c.key]) : '');
-      return { conference_year: y, slot_id: c.slot.id, track: c.track, seats: info.seats, title: Array.from(c.titles).join(' / '), speakers: Array.from(new Set(c.names)).join(', '), room: info.rooms.join(' + '), slot_label: c.slot.label, slot_date: c.slot.date, slot_start: c.slot.start, slot_end: c.slot.end, sort_order: trackIdx(c.track), description: Array.from(c.descs).join('\n\n'), speaker_bios: Object.keys(c.people).map(n => ({ name: n, bio: c.people[n] })), updated_at: new Date().toISOString() };
-    });
-    const up = await sbClient.from('breakout_capacity').upsert(rows, { onConflict: 'conference_year,slot_id,track' });
-    if (up.error) throw up.error;
-    // Sessions no longer on the schedule are removed, unless someone already picked them.
-    const live = new Set(rows.map(r => r.slot_id + '|' + r.track)), taken = new Set(bsu.signups.map(s => s.slot_id + '|' + s.track));
-    for (const c of bsu.capacity) { const k = c.slot_id + '|' + c.track; if (!live.has(k) && !taken.has(k)) await sbClient.from('breakout_capacity').delete().eq('conference_year', y).eq('slot_id', c.slot_id).eq('track', c.track); }
-    const missing = rows.filter(r => r.seats == null).length, noDesc = rows.filter(r => !r.description).length;
+    const res = await publishBreakoutSeats({ reload: true });
     await bsuLoad();
-    toast('Published ' + rows.length + ' sessions' + (missing ? ' (' + missing + ' have no seats yet, so they show as "Opening soon")' : '') + (noDesc ? '. ' + noDesc + ' have no description yet.' : '.'));
+    toast('Published ' + res.count + ' sessions' + (res.missing ? ' (' + res.missing + ' have no seats yet, so they show as "Opening soon")' : '') + (res.noDesc ? '. ' + res.noDesc + ' have no description yet.' : '.'));
   } catch (e) { toast('Couldn’t publish the seats: ' + (e.message || e)); }
   bsu.busy = false; renderBreakoutSignupAdmin();
 }
@@ -23268,7 +23316,7 @@ function renderBreakoutSignupAdmin() {
     <p class="qa-modal-sub">1. Publish the seats. 2. Create each household's link and email it. 3. Open sign-up. Seats come from <b>Set seats</b> on the Breakout Grid (limit if set, otherwise room size).</p>
 
     <div class="aw-edit-group">1. Seats</div>
-    <div class="aw-controls"><span>${st.capacity.length} session${st.capacity.length === 1 ? '' : 's'} published${st.capacity.filter(c => c.seats == null).length ? ', <span style="color:#a52620;">' + st.capacity.filter(c => c.seats == null).length + ' with no seats yet</span>' : ''}</span><button class="sp-mini-btn" ${st.busy ? 'disabled' : ''} onclick="bsuPublishSeats()">Publish seats now</button><span class="sp-sub">Save the Seats editor first. Republish any time seats change.</span></div>
+    <div class="aw-controls"><span>${st.capacity.length} session${st.capacity.length === 1 ? '' : 's'} published${st.capacity.filter(c => c.seats == null).length ? ', <span style="color:#a52620;">' + st.capacity.filter(c => c.seats == null).length + ' with no seats yet</span>' : ''}</span><button class="sp-mini-btn" ${st.busy ? 'disabled' : ''} onclick="bsuPublishSeats()">Publish seats now</button><span class="sp-sub">Updates by itself after you change seats, rooms or sessions. This button forces a full refresh.</span></div>
 
     <div class="aw-edit-group">2. Links</div>
     <div class="aw-controls"><span>${st.attendees.length} registrant${st.attendees.length === 1 ? '' : 's'} in ${groups.length} checkout group${groups.length === 1 ? '' : 's'}, ${linked} link${linked === 1 ? '' : 's'}</span>
