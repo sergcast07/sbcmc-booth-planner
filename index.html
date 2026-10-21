@@ -2132,7 +2132,12 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .bov-group-head small { font-family: var(--font-body); font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-left: 6px; }
 .bov-card { display: flex; gap: 14px; justify-content: space-between; align-items: center; background: #fff; border: 1.5px solid var(--line); border-left: 5px solid var(--tc, var(--teal-deep)); border-radius: 10px; padding: 13px 14px; margin-bottom: 10px; }
 .bov-card.on { border-color: var(--tc, var(--teal-deep)); background: var(--teal-pale); }
-.bov-card.full { opacity: 0.62; }
+.bov-card.full { background: #F6F3EE; border-color: #E7D2CD; border-left-color: #B7A9A5; }
+.bov-card.full .bov-track, .bov-card.full .bov-title { color: var(--ink-soft); }
+.bov-fulltag { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: #fff; background: #a52620; border-radius: 4px; padding: 2px 7px; vertical-align: 1px; }
+.bov-btn.bov-btn-full:disabled { background: #EEE9E3; border-color: #D9D2C9; color: #6B5F58; font-weight: 700; opacity: 1; cursor: not-allowed; }
+.bov-fullbanner { background: #FBE0DD; border: 1px solid #E9A9A2; color: #7f1d1d; border-radius: 10px; padding: 12px 14px; margin: 0 0 14px; font-size: 14px; line-height: 1.5; }
+.bov-linkbtn { display: block; margin-top: 6px; font: inherit; font-weight: 700; color: #7f1d1d; background: none; border: none; padding: 6px 0; text-decoration: underline; cursor: pointer; min-height: 36px; text-align: left; }
 .bov-card-main { cursor: pointer; }
 .bov-card-main:focus-visible, .bov-mine-pick:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
 .bov-mine-pick { cursor: pointer; }
@@ -22971,7 +22976,8 @@ function bovAction(s, picks) {
   const d = bov.data, mine = picks[s.slot_id] === s.track, other = !!picks[s.slot_id] && !mine, full = s.status === 'full', soon = s.status === 'soon';
   return mine
     ? `<button class="bov-btn bov-btn-ghost" ${d.open ? '' : 'disabled'} onclick="bovRemove(${s._i})">Remove</button>`
-    : `<button class="bov-btn" ${(!d.open || full || soon || bov.busy) ? 'disabled' : ''} onclick="bovPick(${s._i})">${other ? 'Switch to this' : 'Choose'}</button>`;
+    : full ? '<button class="bov-btn bov-btn-full" disabled>Session full</button>'
+    : `<button class="bov-btn" ${(!d.open || soon || bov.busy) ? 'disabled' : ''} onclick="bovPick(${s._i})">${other ? 'Switch to this' : 'Choose'}</button>`;
 }
 function bovParas(text) { return String(text || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + bovEsc(x).replace(/\n/g, '<br>') + '</p>').join(''); }
 // Sheets stack: a session can open its speaker, a speaker can open one of their sessions, and Back retraces.
@@ -22996,9 +23002,12 @@ function bovSheetShell(inner, color, label) {
 // The session sheet: everything we know about one session, with the same Choose / Remove button as the card.
 function bovSessionSheet(model, picks, s) {
   const block = model.blocks.find(b => b.slot_id === s.slot_id), mine = picks[s.slot_id] === s.track, full = s.status === 'full', soon = s.status === 'soon';
-  const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : full ? '<span class="bov-pill bov-pill-full">Full</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
+  const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
+  const blockIdx = model.blocks.indexOf(block);
+  const fullBanner = full && !mine ? `<div class="bov-fullbanner"><b>This session is full.</b> No seats are left, so it can\u2019t be chosen. Please pick another session in this block.${blockIdx >= 0 ? `<button class="bov-linkbtn" onclick="bovGoBlock(${blockIdx})">See other sessions in ${bovEsc(block.label)} &rsaquo;</button>` : ''}</div>` : '';
   const inner = `<div class="bov-track">${bovEsc(s.track)}</div>
     <h2 class="bov-sheet-title">${bovEsc(s.title || s.track)}</h2>
+    ${fullBanner}
     ${block ? `<div class="bov-facts"><div><span>When</span>${bovWhen(block)}</div></div>` : ''}
     <h4>About this session</h4>
     ${s.description ? `<div class="bov-prose">${bovParas(s.description)}</div>` : '<p class="bov-muted">The full description will be added soon.</p>'}
@@ -23024,12 +23033,12 @@ function bovSheetHtml(model, picks) {
 function bovCard(s, picks, model, showWhen) {
   const d = bov.data, mine = picks[s.slot_id] === s.track, other = !!picks[s.slot_id] && !mine;
   const full = s.status === 'full', soon = s.status === 'soon', block = model.blocks.find(b => b.slot_id === s.slot_id);
-  const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : full ? '<span class="bov-pill bov-pill-full">Full</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
+  const pill = mine ? '<span class="bov-pill bov-pill-on">&#10003; Your choice</span>' : soon ? '<span class="bov-pill">Opening soon</span>' : '';
   const action = bovAction(s, picks);
   const cur = other ? d.sessions.find(x => x.slot_id === s.slot_id && x.track === picks[s.slot_id]) : null;
   return `<div class="bov-card ${mine ? 'on' : ''} ${full && !mine ? 'full' : ''}" style="--tc:${bovColor(model.tracks, s.track)}">
     <div class="bov-card-main" role="button" tabindex="0" aria-label="Details: ${bovEsc(s.title || s.track)}" onclick="bovDetail(${s._i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bovDetail(${s._i});}">
-      <div class="bov-track">${bovEsc(s.track)}</div>
+      <div class="bov-track">${bovEsc(s.track)}${full && !mine ? '<span class="bov-fulltag">FULL</span>' : ''}</div>
       ${showWhen && block ? `<div class="bov-when">${bovWhen(block)}</div>` : ''}
       ${s.title ? `<div class="bov-title">${bovEsc(s.title)}</div>` : ''}
       <div class="bov-meta">${bovEsc(s.speakers || '')}</div>
