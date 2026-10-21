@@ -2204,6 +2204,10 @@ body.bov-lock { overflow: hidden; }
 .bov-foot { font-size: 12.5px; color: var(--ink-soft); margin-top: 18px; line-height: 1.5; }
 .bov-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 10px 16px; z-index: 6; box-shadow: 0 -4px 14px rgba(0,0,0,0.06); }
 .bov-bar-in { max-width: 720px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
+.bov-bar-btns { display: flex; gap: 8px; }
+/* navigation buttons are gold so they never read as the green Choose buttons */
+.bov-btn.bov-btn-nav { background: #8A6420; border-color: #8A6420; color: #fff; }
+.bov-btn.bov-btn-nav-ghost { background: #fff; border-color: #8A6420; color: #8A6420; }
 .bov-btn-big { width: 100%; min-height: 52px; font-size: 16px; }
 .bov-finish { margin-top: 18px; text-align: center; }
 .bov-finish p { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 12px; line-height: 1.5; }
@@ -2227,6 +2231,9 @@ body.bov-lock { overflow: hidden; }
   .bov-mine .bov-btn { width: 100%; }
   .bov-nav .bov-btn { flex: 1; padding: 10px 8px; }
   .bov-other { flex-direction: column; align-items: stretch; }
+  .bov-bar-count { display: none; }
+  .bov-bar-btns { flex: 1; }
+  .bov-bar-btns .bov-btn { flex: 1; padding: 10px 8px; }
   .bov-hero { margin-right: 44px; gap: 12px; } .bov-hero .bov-av { --s: 84px !important; }
   .bov-other .bov-btn { width: 100%; }
 }
@@ -23117,7 +23124,7 @@ function bovRender() {
   const who = d.attendees.length > 1 ? `<div class="bov-who"><span class="bov-who-label">Choosing for</span><div class="bov-chips">${d.attendees.map((a, i) => `<button class="bov-chip ${a.id === bov.attendeeId ? 'on' : ''}" onclick="bovPerson(${i})">${bovEsc(a.name)} <span class="bov-chip-n">${a.done ? '&#10003; done' : a.picks.length + '/' + (blocks.length || '?')}</span></button>`).join('')}</div></div>` : '';
   const pct = blocks.length ? Math.round(chosen / blocks.length * 100) : 0;
   const progress = blocks.length ? `<div class="bov-progress"><div class="bov-progress-text"><b>${chosen} of ${blocks.length}</b> breakout blocks chosen${closesTxt ? ` <span>&middot; changes allowed until ${bovEsc(closesTxt)}</span>` : ''}</div><div class="bov-progress-bar"><div style="width:${pct}%"></div></div></div>` : '';
-  const tabs = blocks.length ? `<nav class="bov-tabs" role="tablist">${[['time', 'By time'], ['track', 'By track'], ['speaker', 'By speaker'], ['mine', 'My choices' + (chosen ? ' (' + chosen + ')' : '')]].map(t => `<button role="tab" aria-selected="${bov.view === t[0]}" class="${bov.view === t[0] ? 'on' : ''}" onclick="bovSetView('${t[0]}')">${t[1]}</button>`).join('')}</nav>` : '';
+  const tabs = blocks.length ? `<nav class="bov-tabs" role="tablist">${[['time', 'By time'], ['track', 'By track'], ['speaker', 'By speaker'], ['mine', 'My choices']].map(t => `<button role="tab" aria-selected="${bov.view === t[0]}" class="${bov.view === t[0] ? 'on' : ''}" onclick="bovSetView('${t[0]}')">${t[1]}</button>`).join('')}</nav>` : '';
 
   let content = '';
   if (!blocks.length) content = '<div class="dv-loading">The breakout sessions will appear here soon.</div>';
@@ -23126,7 +23133,7 @@ function bovRender() {
     const steps = `<div class="bov-steps">${blocks.map((x, i) => `<button class="bov-step ${i === bov.block ? 'on' : ''} ${picks[x.slot_id] ? 'done' : ''}" onclick="bovSetBlock(${i})"><b>${picks[x.slot_id] ? '&#10003; ' : ''}${bovEsc(x.label)}</b><small>${bovEsc(friendlyDate(x.date))} &middot; ${bovEsc(friendlyTime(x.start))}</small></button>`).join('')}</div>`;
     content = `${steps}${bovTrackChips(model)}<div class="bov-block-head"><b>${bovEsc(b.label)}</b> <span>${bovEsc(friendlyDate(b.date))} &middot; ${bovEsc(friendlyTime(b.start))} to ${bovEsc(friendlyTime(b.end))}</span></div>`
       + (list.length ? list.map(s => bovCard(s, picks, model, false)).join('') : `<div class="bov-empty">No ${bovEsc(bov.track)} session in this block. Try another track or block.</div>`)
-      + `<div class="bov-nav">${bov.block > 0 ? `<button class="bov-btn bov-btn-ghost" onclick="bovSetBlock(${bov.block - 1})">&larr; Previous block</button>` : '<span></span>'}${bov.block < blocks.length - 1 ? `<button class="bov-btn" onclick="bovSetBlock(${bov.block + 1})">Next block &rarr;</button>` : `<button class="bov-btn" onclick="bovSetView('mine')">Review &amp; finish</button>`}</div>`;
+      + `<div class="bov-nav">${bov.block > 0 ? `<button class="bov-btn bov-btn-nav-ghost" onclick="bovSetBlock(${bov.block - 1})">&larr; Previous block</button>` : '<span></span>'}${bov.block < blocks.length - 1 ? `<button class="bov-btn bov-btn-nav" onclick="bovSetBlock(${bov.block + 1})">Next block &rarr;</button>` : `<button class="bov-btn bov-btn-nav" onclick="bovSetView('mine')">Review &amp; finish</button>`}</div>`;
   } else if (bov.view === 'speaker') {
     const q = (bov.spkQuery || '').trim().toLowerCase();
     const rows = model.speakers.map(e => {
@@ -23152,7 +23159,10 @@ function bovRender() {
     content = rows + `<div class="bov-finish">${missing.length ? `<p>Not chosen: ${missing.map(b => bovEsc(b.label)).join(', ')}. That’s fine, you don’t have to attend every block.</p>` : ''}<button class="bov-btn bov-btn-big" ${d.open && !bov.busy ? '' : 'disabled'} onclick="bovFinish()">${chosen ? 'I’m done with my choices' : 'I’m not choosing any breakouts'}</button>${d.attendees.length > 1 ? '<p class="bov-muted">Next you can choose for the others on this order.</p>' : ''}</div>`;
   }
   const toast = bov.msg ? `<div class="bov-toast" role="alert">${bovEsc(bov.msg)}</div>` : '';
-  const bar = blocks.length && bov.view !== 'mine' ? `<div class="bov-bar"><div class="bov-bar-in"><span><b>${chosen} of ${blocks.length}</b> chosen</span><button class="bov-btn" onclick="bovSetView('mine')">Review &amp; finish</button></div></div>` : '';
+  // The pinned bar: move on to the next block (time view only) or review & finish, without scrolling to the end of the list
+  const nextBtn = bov.view === 'time' && bov.block < blocks.length - 1 ? `<button class="bov-btn bov-btn-nav" onclick="bovSetBlock(${bov.block + 1})">Next block &rarr;</button>` : '';
+  const reviewBtn = `<button class="bov-btn ${nextBtn ? 'bov-btn-nav-ghost' : 'bov-btn-nav'}" onclick="bovSetView('mine')">Review &amp; finish</button>`;
+  const bar = blocks.length && bov.view !== 'mine' ? `<div class="bov-bar"><div class="bov-bar-in"><span class="bov-bar-count"><b>${chosen} of ${blocks.length}</b> chosen</span><div class="bov-bar-btns">${reviewBtn}${nextBtn}</div></div></div>` : '';
   const foot = '<p class="bov-foot">Choose one session in each breakout block you plan to attend. You don’t have to pick every block. Questions? Reply to the email this link came in.</p>';
   const sheet = bov.stack.length ? bovSheetHtml(model, picks) : '';
   document.body.classList.toggle('bov-lock', !!sheet);
