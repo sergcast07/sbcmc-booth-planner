@@ -2098,6 +2098,8 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 /* Breakout sign-up: public page + admin panel */
 #breakout-public-view .dv-header { padding-left: 0; padding-right: 0; }
+.sk-matlink { display: inline-flex; gap: 6px; align-items: center; margin-left: 8px; }
+.sk-matlink input { width: 190px; padding: 3px 7px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; }
 .sch-signup-strip { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; padding: 14px 16px; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; }
 .sch-signup-strip strong { font-size: 13.5px; color: var(--teal-deep); }
 .sch-signup-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -16847,14 +16849,14 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
   promoMaterials: 'Please upload or link to any promotional photos, videos, or press materials we can use to help promote your appearance.',
   sessionDescription: 'Please give us a short description of your session for the program and schedule.',
   slideDeck: 'Please upload or point us to the slide deck you’ll use during your session.',
-  handouts: 'Please upload any handouts you’d like available for attendees.',
+  handouts: 'Please upload or link to any handouts you’d like available for attendees.',
   rider: 'Please upload or link to your hospitality/technical rider, if you have one.',
-  stagePlot: 'Please upload your stage plot.',
-  inputList: 'Please upload your input list.',
-  rfRequest: 'Please upload your RF (wireless) frequency request.',
-  lyricsProPresenter: 'Please upload your lyrics or ProPresenter files.',
-  playbackDetails: 'Please upload details on your playback needs (tracks, click, stems), or simply type them in below.',
-  lightingNotes: 'Please upload any lighting notes or special requests, or type them in below.'
+  stagePlot: 'Please upload or link to your stage plot.',
+  inputList: 'Please upload or link to your input list.',
+  rfRequest: 'Please upload or link to your RF (wireless) frequency request.',
+  lyricsProPresenter: 'Please upload or link to your lyrics or ProPresenter files. A shared folder link (Dropbox, Google Drive, etc.) works well for several files.',
+  playbackDetails: 'Please upload or link to details on your playback needs (tracks, click, stems), or simply type them in below.',
+  lightingNotes: 'Please upload or link to any lighting notes or special requests, or type them in below.'
 };
 // Which checklist items are typed in as plain text vs. an uploaded file vs. either an uploaded
 // file or a pasted link, instead of the default "upload a file" -- drives how materialBlock()
@@ -16866,7 +16868,7 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
 // generic truthiness check elsewhere (completeness, tab alerts, materialsNeededCount) already
 // works unchanged across both shapes, since both a non-empty string and a non-null object are
 // truthy -- only the two rendering spots and the pending-value formatter need to know the type.
-const MATERIAL_ITEM_TYPES = { lightingNotesText: 'text', playbackDetailsText: 'text', bio: 'text', sessionDescription: 'text', headshot: 'file-or-link', slideDeck: 'file-or-link', rider: 'file-or-link', promoMaterials: 'file-or-link' };
+const MATERIAL_ITEM_TYPES = { lightingNotesText: 'text', playbackDetailsText: 'text', bio: 'text', sessionDescription: 'text', headshot: 'file-or-link', slideDeck: 'file-or-link', rider: 'file-or-link', promoMaterials: 'file-or-link', handouts: 'file-or-link', stagePlot: 'file-or-link', inputList: 'file-or-link', rfRequest: 'file-or-link', lyricsProPresenter: 'file-or-link', playbackDetails: 'file-or-link', lightingNotes: 'file-or-link' };
 function materialItemType(key) { return MATERIAL_ITEM_TYPES[key] || 'file'; }
 // Lighting notes and playback details take an uploaded file AND/OR typed notes. The typed half is stored under its own
 // key (materials.lightingNotesText) so the file side keeps working exactly as before; either one
@@ -17201,6 +17203,7 @@ function renderSpeakerPublicView() {
         <span class="spv-or-link-label">— or paste a link instead —</span>
         <input type="url" id="skv-material-link-${sp.id}-${itemKey}" placeholder="https://…">
         <button class="sp-mini-btn" onclick="portalSetSpeakerMaterialLink('${sp.id}', '${itemKey}')">Save Link</button>
+        <div class="sp-sub" style="margin-top:4px;">Use a Dropbox, Google Drive or similar share link, and make sure anyone with the link can open it.</div>
       </div>
     ` : '';
     return `
@@ -17384,7 +17387,7 @@ function formatSpeakerPendingValue(key, value) {
     if (materialItemType(key.slice('materials.'.length)) === 'text') {
       return value ? (value.length > 60 ? value.slice(0, 60) + '…' : value) : '(none)';
     }
-    return value ? value.fileName : '(none)';
+    return value ? (value.isExternalLink ? value.url : value.fileName) : '(none)';
   }
   return value ? value : '(blank)';
 }
@@ -17578,6 +17581,29 @@ function updateSpeakerSimple(id, field, value) {
   sp[field] = value;
   pushSpeaker(sp);
   renderSpeakerRows(id);
+}
+// Staff side of "upload or link": show what's on file, or let staff paste a link the artist emailed over
+function materialLinkAdminHtml(sp, key, file) {
+  const shown = file ? ` — <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : '';
+  if (file && file.isExternalLink) return shown + ` <button class="sp-mini-btn" title="Remove this link" onclick="adminRemoveMaterialLink('${sp.id}','${key}')">&times;</button>`;
+  if (file) return shown;
+  return ` <span class="sk-matlink"><input type="url" id="sk-matlink-${sp.id}-${key}" placeholder="Paste a link…"> <button class="sp-mini-btn" onclick="adminSetMaterialLink('${sp.id}','${key}')">Add link</button></span>`;
+}
+function adminSetMaterialLink(id, itemKey) {
+  const input = document.getElementById('sk-matlink-' + id + '-' + itemKey); if (!input) return;
+  const url = input.value.trim();
+  if (!url) { toast('Paste a link first.'); return; }
+  if (!/^https?:\/\//i.test(url)) { toast('That doesn’t look like a valid link — make sure it starts with http:// or https://'); return; }
+  const sp = getSpeaker(id); if (!sp) return;
+  if (!sp.data.materials) sp.data.materials = {};
+  sp.data.materials[itemKey] = { fileName: 'Linked file', filePath: '', fileSize: 0, url, uploadedAt: new Date().toISOString().slice(0, 10), isExternalLink: true };
+  pushSpeaker(sp); renderSpeakerRows(id); toast('Link saved.');
+}
+function adminRemoveMaterialLink(id, itemKey) {
+  const sp = getSpeaker(id); if (!sp || !sp.data.materials) return;
+  if (!confirm('Remove this link?')) return;
+  delete sp.data.materials[itemKey];
+  pushSpeaker(sp); renderSpeakerRows(id);
 }
 function updateSpeakerNested(id, group, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
@@ -20804,9 +20830,9 @@ function speakerDetailHTML(sp) {
     }
     const file = value;
     if (MATERIAL_TEXT_COMPANION[key]) {
-      return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Typed notes (optional)" onchange="updateSpeakerNested('${sp.id}','materials','${MATERIAL_TEXT_COMPANION[key]}',this.value)">${escapeHtml(spMaterials[MATERIAL_TEXT_COMPANION[key]] || '')}</textarea></div></div>`;
+      return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}${materialLinkAdminHtml(sp, key, file)}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Typed notes (optional)" onchange="updateSpeakerNested('${sp.id}','materials','${MATERIAL_TEXT_COMPANION[key]}',this.value)">${escapeHtml(spMaterials[MATERIAL_TEXT_COMPANION[key]] || '')}</textarea></div></div>`;
     }
-    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${file ? ` \u2014 <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : ''}</div>`;
+    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${materialLinkAdminHtml(sp, key, file)}</div>`;
   }).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
 
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
