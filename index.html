@@ -17451,6 +17451,21 @@ function ensureMaterialFiles(sp) {
   });
   if (changed) pushSpeaker(sp);
 }
+// Moves a file between the attendee-facing list and Internal Documents. The entry moves whole (same file, label, Production
+// tag, and its link back to the artist-page item), so nothing is re-uploaded.
+function moveSpeakerFile(id, fromKind, materialId) {
+  if (!canEditOrWarn('speakers.roster', 'speakers')) return;
+  const sp = getSpeaker(id); if (!sp) return;
+  const toKind = fromKind === 'materialsToShare' ? 'internalDocuments' : 'materialsToShare';
+  const idx = (sp.data[fromKind] || []).findIndex(m => m.id === materialId); if (idx < 0) return;
+  const m = sp.data[fromKind][idx], name = m.label || m.fileName || 'this file';
+  if (toKind === 'materialsToShare' && !confirm('Move "' + name + '" to the list shared with attendees? Internal documents are team-only; this list is not.')) return;
+  sp.data[fromKind].splice(idx, 1);
+  if (!sp.data[toKind]) sp.data[toKind] = [];
+  sp.data[toKind].push(m);
+  pushSpeaker(sp); renderSpeakerRows(id);
+  toast('Moved "' + name + '" to ' + (toKind === 'internalDocuments' ? 'Internal Documents.' : 'the list shared with attendees.'));
+}
 function renameSpeakerFile(id, kind, materialId) {
   const sp = getSpeaker(id); if (!sp) return;
   const m = (sp.data[kind] || []).find(x => x.id === materialId); if (!m) return;
@@ -20907,6 +20922,7 @@ function speakerDetailHTML(sp) {
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(m.label)}</a>
       <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <button class="sp-mini-btn" title="Move to Internal Documents (team-only, not shown to attendees)" onclick="moveSpeakerFile('${sp.id}','materialsToShare','${m.id}')">\u2192 Internal</button>
       <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','materialsToShare','${m.id}')">\u270e</button>
       <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','materialsToShare','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerMaterial('${sp.id}','${m.id}')">&times;</button>
@@ -20917,6 +20933,7 @@ function speakerDetailHTML(sp) {
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F512} ${escapeHtml(m.label)}</a>
       <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <button class="sp-mini-btn" title="Move to the list shared with attendees" onclick="moveSpeakerFile('${sp.id}','internalDocuments','${m.id}')">\u2192 Shared</button>
       <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','internalDocuments','${m.id}')">\u270e</button>
       <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','internalDocuments','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerInternalDoc('${sp.id}','${m.id}')">&times;</button>
