@@ -17815,6 +17815,29 @@ async function uploadSpeakerFile(id, kind) {
   renderSpeakerRows(id);
   toast('Uploaded ' + file.name);
 }
+// Adds a pasted link as a file entry, the same shape an upload makes (no stored file behind it), so tagging Production,
+// moving, renaming and removing all work on it the same way. kind is 'materialsToShare', 'internalDocuments' or
+// 'productionFiles' (which, like an upload from the Production tab, files into materialsToShare pre-tagged Production).
+function addSpeakerFileLink(id, kind) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const suffix = kind === 'internalDocuments' ? 'internal' : kind === 'productionFiles' ? 'production' : 'file';
+  const urlInput = document.getElementById('sk-' + suffix + '-link-' + id), labelInput = document.getElementById('sk-' + suffix + '-label-' + id);
+  const url = urlInput ? urlInput.value.trim() : '';
+  if (!url) { toast('Paste a link first.'); return; }
+  if (!/^https?:\/\//i.test(url)) { toast('That doesn’t look like a valid link — make sure it starts with http:// or https://'); return; }
+  let host = ''; try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { toast('That link doesn’t look right. Please check it.'); return; }
+  const targetArray = kind === 'productionFiles' ? 'materialsToShare' : kind;
+  if (!sp.data[targetArray]) sp.data[targetArray] = [];
+  sp.data[targetArray].push({
+    id: makeId(), label: (labelInput && labelInput.value.trim()) || host, fileName: 'Link (' + host + ')', filePath: '',
+    fileSize: 0, url, uploadedAt: new Date().toISOString().slice(0, 10), isProduction: kind === 'productionFiles', isExternalLink: true
+  });
+  pushSpeaker(sp);
+  if (urlInput) urlInput.value = '';
+  if (labelInput) labelInput.value = '';
+  renderSpeakerRows(id);
+  toast('Link added.');
+}
 function uploadSpeakerMaterial(id) { return uploadSpeakerFile(id, 'materialsToShare'); }
 function uploadSpeakerInternalDoc(id) { return uploadSpeakerFile(id, 'internalDocuments'); }
 function uploadSpeakerProductionFile(id) { return uploadSpeakerFile(id, 'productionFiles'); }
@@ -21294,6 +21317,11 @@ function speakerDetailHTML(sp) {
             <input type="file" id="sk-production-input-${sp.id}" style="flex:1;">
             <button class="sp-mini-btn" onclick="uploadSpeakerProductionFile('${sp.id}')">Upload</button>
           </div>
+          <div class="sp-sub" style="margin:8px 0 4px;">— or paste a link instead (Dropbox, Google Drive, etc.) —</div>
+          <div class="sp-add-row">
+            <input type="url" id="sk-production-link-${sp.id}" placeholder="https://…" style="flex:1;">
+            <button class="sp-mini-btn" onclick="addSpeakerFileLink('${sp.id}','productionFiles')">Add link</button>
+          </div>
           <div class="sp-sub" style="margin-top:6px;">A file already uploaded on the Files tab doesn't need to be re-uploaded — use the "→ Production" button next to it there to tag it instead. It stays visible on both tabs; "Remove from Production" here just un-tags it.</div>
         </fieldset>
       </div>
@@ -21312,6 +21340,11 @@ function speakerDetailHTML(sp) {
             <input type="file" id="sk-file-input-${sp.id}" style="flex:1;">
             <button class="sp-mini-btn" onclick="uploadSpeakerMaterial('${sp.id}')">Upload</button>
           </div>
+          <div class="sp-sub" style="margin:8px 0 4px;">— or paste a link instead (Dropbox, Google Drive, etc.) —</div>
+          <div class="sp-add-row">
+            <input type="url" id="sk-file-link-${sp.id}" placeholder="https://…" style="flex:1;">
+            <button class="sp-mini-btn" onclick="addSpeakerFileLink('${sp.id}','materialsToShare')">Add link</button>
+          </div>
         </fieldset>
 
         <fieldset class="sp-fieldset" data-section="speakers.internal_docs">
@@ -21322,6 +21355,11 @@ function speakerDetailHTML(sp) {
             <input type="text" id="sk-internal-label-${sp.id}" placeholder="Label (e.g. 'Hospitality Rider')" style="flex:1 1 100%; margin-bottom:6px;">
             <input type="file" id="sk-internal-input-${sp.id}" style="flex:1;">
             <button class="sp-mini-btn" onclick="uploadSpeakerInternalDoc('${sp.id}')">Upload</button>
+          </div>
+          <div class="sp-sub" style="margin:8px 0 4px;">— or paste a link instead (Dropbox, Google Drive, etc.) —</div>
+          <div class="sp-add-row">
+            <input type="url" id="sk-internal-link-${sp.id}" placeholder="https://…" style="flex:1;">
+            <button class="sp-mini-btn" onclick="addSpeakerFileLink('${sp.id}','internalDocuments')">Add link</button>
           </div>
         </fieldset>
 
