@@ -17426,7 +17426,7 @@ function syncMaterialToFiles(sp, itemKey) {
   let host = ''; try { host = new URL(value.url).hostname.replace(/^www\./, ''); } catch (e) { /* not a parseable link */ }
   const base = found ? sp.data[found.list][found.idx] : {};
   const entry = Object.assign({}, base, {
-    id: 'mat_' + itemKey, label: MATERIAL_ITEM_LABELS[itemKey] || itemKey,
+    id: 'mat_' + itemKey, label: (base && base.label) || MATERIAL_ITEM_LABELS[itemKey] || itemKey,
     fileName: value.isExternalLink ? 'Link' + (host ? ' (' + host + ')' : '') : value.fileName,
     filePath: value.filePath || '', fileSize: value.fileSize || 0, url: value.url,
     uploadedAt: value.uploadedAt || new Date().toISOString().slice(0, 10), isExternalLink: !!value.isExternalLink, materialKey: itemKey
@@ -17434,6 +17434,30 @@ function syncMaterialToFiles(sp, itemKey) {
   if (home.list !== 'photoCandidates' && entry.isProduction == null) entry.isProduction = !!home.production;
   if (found) sp.data[found.list][found.idx] = entry;
   else { if (!sp.data[home.list]) sp.data[home.list] = []; sp.data[home.list].push(entry); }
+}
+// Files an artist-page upload or link that was approved before it was mirrored (or added any other way) into the Files /
+// Production lists. Safe to run any time: it only adds what is missing. Staff accounts only, since it saves the record.
+function ensureMaterialFiles(sp) {
+  if (!canEdit('speakers.roster') || !sp.data.materials) return;
+  let changed = false;
+  Object.keys(MATERIAL_FILE_HOME).forEach(k => {
+    const v = sp.data.materials[k];
+    if (!v || typeof v !== 'object' || !v.url) return;
+    const have = ['materialsToShare', 'internalDocuments', 'photoCandidates'].some(l => (sp.data[l] || []).some(m => m.materialKey === k));
+    if (have) return;
+    const before = JSON.stringify([sp.data.materialsToShare, sp.data.internalDocuments, sp.data.photoCandidates]);
+    syncMaterialToFiles(sp, k);
+    if (JSON.stringify([sp.data.materialsToShare, sp.data.internalDocuments, sp.data.photoCandidates]) !== before) changed = true;
+  });
+  if (changed) pushSpeaker(sp);
+}
+function renameSpeakerFile(id, kind, materialId) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const m = (sp.data[kind] || []).find(x => x.id === materialId); if (!m) return;
+  const next = prompt('Rename this file. This is the name shown on the Files and Production tabs.', m.label || m.fileName || '');
+  if (next == null || !next.trim()) return;
+  m.label = next.trim();
+  pushSpeaker(sp); renderSpeakerRows(id);
 }
 function approveSpeakerPendingChange(id, key) {
   const sp = getSpeaker(id); if (!sp) return;
@@ -20878,10 +20902,12 @@ function speakerDetailHTML(sp) {
     return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${materialLinkAdminHtml(sp, key, file)}</div>`;
   }).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
 
+  ensureMaterialFiles(sp);
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(m.label)}</a>
       <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','materialsToShare','${m.id}')">\u270e</button>
       <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','materialsToShare','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerMaterial('${sp.id}','${m.id}')">&times;</button>
     </div>
@@ -20891,6 +20917,7 @@ function speakerDetailHTML(sp) {
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F512} ${escapeHtml(m.label)}</a>
       <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','internalDocuments','${m.id}')">\u270e</button>
       <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','internalDocuments','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerInternalDoc('${sp.id}','${m.id}')">&times;</button>
     </div>
@@ -20907,6 +20934,7 @@ function speakerDetailHTML(sp) {
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F3A4} ${escapeHtml(m.label)}</a>
       <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}</span>
+      <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','${m._kind}','${m.id}')">\u270e</button>
       <button class="sp-mini-btn" title="Keeps the file on the Files tab, just un-tags it as production" onclick="toggleSpeakerFileProduction('${sp.id}','${m._kind}','${m.id}')">Remove from Production</button>
     </div>
   `).join('') || '<div class="sp-sub">No files marked as production-related yet.</div>';
