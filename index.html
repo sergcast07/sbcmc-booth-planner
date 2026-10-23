@@ -17397,6 +17397,44 @@ function speakerPendingCount(sp) { return Object.keys(sp.data.pendingChanges || 
 // now-orphaned uploaded file in storage so rejected/overwritten uploads don't pile up unseen.
 // Approving a materials.<itemKey> change also checks that item off materialsNeeded, since the
 // checklist item is now genuinely satisfied with a real file, not just manually ticked.
+// Where each artist-page item lands on the Files and Production tabs. An approved upload or link is mirrored there as an
+// ordinary file entry (tagged with materialKey), so staff handle it exactly like one they uploaded themselves: tag or
+// untag Production, remove it, and it appears on the Production tab. The checklist value under sp.data.materials stays
+// the source for the artist page and completeness; the entry follows it.
+const MATERIAL_FILE_HOME = {
+  slideDeck: { list: 'materialsToShare', production: false },
+  handouts: { list: 'materialsToShare', production: false },
+  stagePlot: { list: 'materialsToShare', production: true },
+  inputList: { list: 'materialsToShare', production: true },
+  rfRequest: { list: 'materialsToShare', production: true },
+  lyricsProPresenter: { list: 'materialsToShare', production: true },
+  playbackDetails: { list: 'materialsToShare', production: true },
+  lightingNotes: { list: 'materialsToShare', production: true },
+  rider: { list: 'internalDocuments', production: false },
+  promoMaterials: { list: 'internalDocuments', production: false },
+  headshot: { list: 'photoCandidates' }
+};
+function syncMaterialToFiles(sp, itemKey) {
+  const home = MATERIAL_FILE_HOME[itemKey]; if (!home) return;
+  const lists = ['materialsToShare', 'internalDocuments', 'photoCandidates'];
+  let found = null;
+  lists.forEach(l => { if (found) return; const idx = (sp.data[l] || []).findIndex(m => m.materialKey === itemKey); if (idx >= 0) found = { list: l, idx }; });
+  const value = sp.data.materials && sp.data.materials[itemKey];
+  // A headshot is only a photo candidate when it is a real image (an upload, or a link that points at one)
+  const usable = value && typeof value === 'object' && value.url && (home.list !== 'photoCandidates' || value.filePath || /\.(jpe?g|png|webp|gif)(\?|$)/i.test(value.url));
+  if (!usable) { if (found) sp.data[found.list].splice(found.idx, 1); return; }
+  let host = ''; try { host = new URL(value.url).hostname.replace(/^www\./, ''); } catch (e) { /* not a parseable link */ }
+  const base = found ? sp.data[found.list][found.idx] : {};
+  const entry = Object.assign({}, base, {
+    id: 'mat_' + itemKey, label: MATERIAL_ITEM_LABELS[itemKey] || itemKey,
+    fileName: value.isExternalLink ? 'Link' + (host ? ' (' + host + ')' : '') : value.fileName,
+    filePath: value.filePath || '', fileSize: value.fileSize || 0, url: value.url,
+    uploadedAt: value.uploadedAt || new Date().toISOString().slice(0, 10), isExternalLink: !!value.isExternalLink, materialKey: itemKey
+  });
+  if (home.list !== 'photoCandidates' && entry.isProduction == null) entry.isProduction = !!home.production;
+  if (found) sp.data[found.list][found.idx] = entry;
+  else { if (!sp.data[home.list]) sp.data[home.list] = []; sp.data[home.list].push(entry); }
+}
 function approveSpeakerPendingChange(id, key) {
   const sp = getSpeaker(id); if (!sp) return;
   const pending = sp.data.pendingChanges && sp.data.pendingChanges[key];
@@ -17413,6 +17451,7 @@ function approveSpeakerPendingChange(id, key) {
     const itemKey = key.slice('materials.'.length);
     if (!sp.data.materials) sp.data.materials = {};
     sp.data.materials[itemKey] = pending.new;
+    syncMaterialToFiles(sp, itemKey);
   } else {
     const map = SPEAKER_PENDING_FIELD_MAP[key];
     if (!map) return;
@@ -17597,12 +17636,14 @@ function adminSetMaterialLink(id, itemKey) {
   const sp = getSpeaker(id); if (!sp) return;
   if (!sp.data.materials) sp.data.materials = {};
   sp.data.materials[itemKey] = { fileName: 'Linked file', filePath: '', fileSize: 0, url, uploadedAt: new Date().toISOString().slice(0, 10), isExternalLink: true };
+  syncMaterialToFiles(sp, itemKey);
   pushSpeaker(sp); renderSpeakerRows(id); toast('Link saved.');
 }
 function adminRemoveMaterialLink(id, itemKey) {
   const sp = getSpeaker(id); if (!sp || !sp.data.materials) return;
   if (!confirm('Remove this link?')) return;
   delete sp.data.materials[itemKey];
+  syncMaterialToFiles(sp, itemKey);
   pushSpeaker(sp); renderSpeakerRows(id);
 }
 function updateSpeakerNested(id, group, field, value) {
@@ -17749,6 +17790,8 @@ async function removeSpeakerFile(id, kind, materialId) {
     if (error) reportWriteError('speaker-file:' + materialId, 'Couldn’t remove that file from storage — it may be orphaned.', error);
   }
   sp.data[kind] = sp.data[kind].filter(m => m.id !== materialId);
+  // An entry that came from the artist page also clears that checklist item, so it shows as not provided again
+  if (material.materialKey && sp.data.materials) delete sp.data.materials[material.materialKey];
   pushSpeaker(sp);
   renderSpeakerRows(id);
 }
@@ -20838,7 +20881,7 @@ function speakerDetailHTML(sp) {
   const filesHtml = (sp.data.materialsToShare || []).map(m => `
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
       <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','materialsToShare','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerMaterial('${sp.id}','${m.id}')">&times;</button>
     </div>
@@ -20847,7 +20890,7 @@ function speakerDetailHTML(sp) {
   const internalFilesHtml = (sp.data.internalDocuments || []).map(m => `
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F512} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
+      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
       <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','internalDocuments','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
       <button class="sp-mini-btn" onclick="removeSpeakerInternalDoc('${sp.id}','${m.id}')">&times;</button>
     </div>
@@ -20863,7 +20906,7 @@ function speakerDetailHTML(sp) {
   const productionFilesHtml = productionFileEntries.map(m => `
     <div class="sk-file-row">
       <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F3A4} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}</span>
+      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}</span>
       <button class="sp-mini-btn" title="Keeps the file on the Files tab, just un-tags it as production" onclick="toggleSpeakerFileProduction('${sp.id}','${m._kind}','${m.id}')">Remove from Production</button>
     </div>
   `).join('') || '<div class="sp-sub">No files marked as production-related yet.</div>';
