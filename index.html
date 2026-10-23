@@ -21521,7 +21521,8 @@ function speakerDetailHTML(sp) {
           ${materialsNeededHtml}
         </fieldset>
         <fieldset class="sp-fieldset" style="grid-column:1/-1;">
-          <legend>Production Files <span class="sp-sub" style="font-weight:400;">(stage plot, input list, RF sheet, etc. Anything tagged Production on the Files tab shows here too.)</span></legend>
+          <legend>Production Files</legend>
+          <p class="sp-sub sp-sub-wrap" style="margin:0 0 10px;">Stage plot, input list, RF sheet, etc. Anything tagged Production on the Files tab shows here too.</p>
           <div class="sk-flist">${productionRowsHtml}</div>
           ${speakerFileAddFormHtml(sp, 'prod')}
         </fieldset>
@@ -21532,8 +21533,9 @@ function speakerDetailHTML(sp) {
     ${activeTab !== 'files' ? '' : `
     <div class="sk-tab-panel">
       <div class="sp-detail-grid">
-        <fieldset class="sp-fieldset">
-          <legend>Files &amp; links <span class="sp-sub" style="font-weight:400;">(everything for this speaker in one place, whether you added it or they did)</span></legend>
+        <fieldset class="sp-fieldset" style="grid-column:1/-1;">
+          <legend>Files &amp; links</legend>
+          <p class="sp-sub sp-sub-wrap" style="margin:0 0 10px;">Everything for this speaker in one place, whether you added it or they did.</p>
           ${speakerFileAddFormHtml(sp, 'files')}
           ${photoHint}
           <div class="sk-fchips">${fileChipsHtml}</div>
