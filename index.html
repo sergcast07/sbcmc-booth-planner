@@ -2098,8 +2098,32 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 
 /* Breakout sign-up: public page + admin panel */
 #breakout-public-view .dv-header { padding-left: 0; padding-right: 0; }
-.sk-matlink { display: inline-flex; gap: 6px; align-items: center; margin-left: 8px; }
-.sk-matlink input { width: 190px; padding: 3px 7px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; }
+/* Speaker files: one list */
+.sk-addbox { background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.sk-addbox-title { font-size: 13px; font-weight: 700; color: var(--teal-deep); margin-bottom: 8px; }
+.sk-addrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.sk-addrow input[type=text], .sk-addrow input[type=url] { flex: 1; min-width: 160px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 13px; background: #fff; }
+.sk-addopts label { font-size: 12px; color: var(--ink-soft); display: flex; flex-direction: column; gap: 3px; }
+.sk-addopts select { font: inherit; font-size: 13px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+.sk-addopts .sk-addprod { flex-direction: row; align-items: center; gap: 6px; color: var(--ink); font-size: 13px; }
+.sk-addopts .sp-add-btn { margin-left: auto; align-self: flex-end; }
+.sk-fchips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.sk-fchip { font: inherit; font-size: 12.5px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+.sk-fchip span { opacity: 0.6; margin-left: 3px; }
+.sk-fchip.on { background: var(--teal-deep); border-color: var(--teal-deep); color: #fff; }
+.sk-frow { display: flex; gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.sk-fthumb { position: relative; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 8px; overflow: hidden; background: var(--teal-pale); display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 20px; }
+.sk-fthumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sk-fmain { flex: 1 1 220px; min-width: 0; }
+.sk-fname { width: 100%; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; margin-left: -6px; background: transparent; }
+.sk-fname:hover { border-color: var(--line); background: #fff; }
+.sk-fname:focus { outline: none; border-color: var(--teal); background: #fff; box-shadow: 0 0 0 3px var(--teal-pale); }
+.sk-ftag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--gold-pale); color: #6f5314; margin-left: 4px; }
+.sk-fctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sk-fvis { width: 128px; font: inherit; font-size: 12.5px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+.sk-fprod { font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; }
+.sk-ok { color: #166534; font-weight: 600; font-size: 12px; }
+.sk-preview { margin-top: 3px; white-space: pre-wrap; }
 .sch-signup-strip { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; padding: 14px 16px; background: var(--teal-pale); border: 1px solid var(--line); border-radius: 10px; }
 .sch-signup-strip strong { font-size: 13.5px; color: var(--teal-deep); }
 .sch-signup-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -17454,6 +17478,9 @@ function ensureMaterialFiles(sp) {
     });
   }
   if (!sp.data.materials) { if (changed) pushSpeaker(sp); return; }
+  // One bio: the Overview bio and the artist-page bio are kept equal, so fill whichever is empty from the other
+  const bioA = (sp.data.bio || '').trim(), bioB = typeof sp.data.materials.bio === 'string' ? sp.data.materials.bio.trim() : '';
+  if (!bioA && bioB) { sp.data.bio = bioB; changed = true; } else if (bioA && !bioB) { sp.data.materials.bio = bioA; changed = true; }
   Object.keys(MATERIAL_FILE_HOME).forEach(k => {
     const v = sp.data.materials[k];
     if (!v || typeof v !== 'object' || !v.url) return;
@@ -17465,28 +17492,187 @@ function ensureMaterialFiles(sp) {
   });
   if (changed) pushSpeaker(sp);
 }
-// Moves a file between the attendee-facing list and Internal Documents. The entry moves whole (same file, label, Production
-// tag, and its link back to the artist-page item), so nothing is re-uploaded.
-function moveSpeakerFile(id, fromKind, materialId) {
+// ---- Speaker files: one list, one add form ---------------------------------------------------------------------
+// Everything a speaker has (staff uploads, artist uploads, links, photos) is one list on the Files tab. Underneath it is still
+// three arrays (internalDocuments = team only, materialsToShare = attendees, photoCandidates = speaker photos); "Who can see it"
+// on each row moves an entry between them. Production is a tag, not a place.
+const SPEAKER_FILE_LISTS = { team: 'internalDocuments', attendees: 'materialsToShare', photo: 'photoCandidates' };
+const SPEAKER_FILE_VIS = { internalDocuments: 'team', materialsToShare: 'attendees', photoCandidates: 'photo' };
+const SPEAKER_FILE_VIS_LABEL = { team: 'Team only', attendees: 'Attendees', photo: 'Speaker photo' };
+// What a name usually means: used to pre-fill "who can see it", Production, and which checklist item it satisfies
+const SPEAKER_FILE_GUESS = [
+  { re: /stage ?plot/i, key: 'stagePlot' }, { re: /input ?list|patch ?list/i, key: 'inputList' }, { re: /\brf\b|wireless/i, key: 'rfRequest' },
+  { re: /lyrics|propresenter|\.pro[67]?\b/i, key: 'lyricsProPresenter' }, { re: /playback|\btracks?\b|\bclick\b|\bstems?\b/i, key: 'playbackDetails' },
+  { re: /lighting/i, key: 'lightingNotes' }, { re: /rider/i, key: 'rider' }, { re: /slide|deck|keynote|powerpoint|\.pptx?\b|\.key\b/i, key: 'slideDeck' },
+  { re: /handout|worksheet|outline/i, key: 'handouts' }, { re: /promo|press ?kit/i, key: 'promoMaterials' }, { re: /head ?shot|portrait|group ?photo|\bphoto\b/i, key: 'headshot' }
+];
+function speakerFileGuess(text) { const g = SPEAKER_FILE_GUESS.find(x => x.re.test(text || '')); return g ? g.key : ''; }
+function speakerFileIsImage(nameOrUrl, type) { return /^image\//.test(type || '') || /\.(jpe?g|png|webp|gif|heic)(\?|$)/i.test(nameOrUrl || ''); }
+let speakerFileFilter = 'all';
+function setSpeakerFileFilter(f) { speakerFileFilter = f; renderSpeakerRows(openSpeakerId); }
+function speakerAllFiles(sp) {
+  const seeInternal = canView('speakers.internal_docs'), out = [];
+  Object.keys(SPEAKER_FILE_VIS).forEach(kind => (sp.data[kind] || []).forEach(m => {
+    if (kind === 'internalDocuments' && !seeInternal && !m.isProduction) return; // roles without internal access still see production files
+    out.push({ kind, m });
+  }));
+  return out.sort((a, b) => String(b.m.uploadedAt || '').localeCompare(String(a.m.uploadedAt || '')) || String(a.m.label || a.m.fileName || '').localeCompare(String(b.m.label || b.m.fileName || '')));
+}
+function speakerFileRowHtml(sp, kind, m) {
+  const vis = SPEAKER_FILE_VIS[kind], name = m.label || m.fileName || 'Untitled', isPhoto = kind === 'photoCandidates';
+  const img = isPhoto || speakerFileIsImage(m.fileName || m.url);
+  const thumb = `<a class="sk-fthumb" href="${escapeHtml(m.url)}" target="_blank" rel="noopener" title="Open">${img ? `<img src="${escapeHtml(m.url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span>${m.isExternalLink ? '&#128279;' : '&#128196;'}</span></a>`;
+  const forItem = m.materialKey ? `<span class="sk-ftag" title="Counts toward this item on the Materials We Need list">${escapeHtml(MATERIAL_ITEM_LABELS[m.materialKey] || m.materialKey)}</span>` : '';
+  const onSignup = isPhoto ? (m.url === breakoutSpeakerPhotoSource(sp) ? '<span class="sp-badge" style="background:#D8EEDD; color:#166534;" title="This is the photo attendees see on the breakout sign-up page">&#10003; On sign-up page</span>' : ((sp.data.photoCandidates || []).length > 1 ? `<button class="sp-mini-btn" onclick="setSignupPhoto('${sp.id}','${m.id}')" title="Show this photo on the attendee breakout sign-up page">Use on sign-up page</button>` : '')) : '';
+  return `<div class="sk-frow">
+    ${thumb}
+    <div class="sk-fmain">
+      <input class="sk-fname" type="text" value="${escapeHtml(name)}" title="Click to rename" aria-label="File name" onchange="renameSpeakerFile('${sp.id}','${kind}','${m.id}',this.value)">
+      <div class="sp-sub">${escapeHtml(m.fileName || '')}${m.fileSize ? ' &middot; ' + fmtFileSize(m.fileSize) : ''}${m.uploadedAt ? ' &middot; ' + escapeHtml(m.uploadedAt) : ''} ${forItem}</div>
+    </div>
+    <div class="sk-fctl">
+      <select class="sk-fvis" aria-label="Who can see it" title="Who can see it" onchange="setSpeakerFileVisibility('${sp.id}','${kind}','${m.id}',this.value)">
+        ${['team', 'attendees', 'photo'].map(v => `<option value="${v}" ${v === vis ? 'selected' : ''}>${SPEAKER_FILE_VIS_LABEL[v]}</option>`).join('')}
+      </select>
+      <label class="sk-fprod" title="Shows on the Production tab"><input type="checkbox" ${m.isProduction ? 'checked' : ''} ${isPhoto ? 'disabled' : ''} onchange="toggleSpeakerFileProduction('${sp.id}','${kind}','${m.id}')"> Production</label>
+      ${onSignup}
+      <a class="sp-mini-btn" href="${escapeHtml(m.url)}" target="_blank" rel="noopener">Open</a>
+      <button class="sp-mini-btn" title="Remove" onclick="removeSpeakerFileConfirm('${sp.id}','${kind}','${m.id}')">&times;</button>
+    </div>
+  </div>`;
+}
+function speakerFileAddFormHtml(sp, preset) {
+  const p = preset, keyOptions = Object.keys(MATERIAL_FILE_HOME).filter(k => MATERIAL_ITEM_LABELS[k]).map(k => `<option value="${k}">${escapeHtml(MATERIAL_ITEM_LABELS[k])}</option>`).join('');
+  return `<div class="sk-addbox">
+    <div class="sk-addbox-title">Add a file or link</div>
+    <div class="sk-addrow"><input type="text" id="sk-add-${p}-name-${sp.id}" placeholder="Name, e.g. Stage plot" oninput="speakerAddHint('${sp.id}','${p}')"></div>
+    <div class="sk-addrow">
+      <input type="file" id="sk-add-${p}-file-${sp.id}" onchange="speakerAddHint('${sp.id}','${p}')">
+      <span class="sp-sub">or</span>
+      <input type="url" id="sk-add-${p}-link-${sp.id}" placeholder="Paste a link (Dropbox, Google Drive, etc.)" oninput="speakerAddHint('${sp.id}','${p}')" style="flex:1; min-width:180px;">
+    </div>
+    <div class="sk-addrow sk-addopts">
+      <label>Who can see it
+        <select id="sk-add-${p}-vis-${sp.id}" onchange="this.dataset.touched='1'">
+          <option value="team" selected>Team only</option><option value="attendees">Attendees</option><option value="photo">Speaker photo</option>
+        </select></label>
+      <label class="sk-addprod"><input type="checkbox" id="sk-add-${p}-prod-${sp.id}" ${p === 'prod' ? 'checked' : ''} onchange="this.dataset.touched='1'"> Production file</label>
+      <label>Counts as
+        <select id="sk-add-${p}-key-${sp.id}" onchange="this.dataset.touched='1'; speakerAddKeyChanged('${sp.id}','${p}')">
+          <option value="">Nothing on the checklist</option>${keyOptions}
+        </select></label>
+      <button class="sp-add-btn" onclick="speakerAddSubmit('${sp.id}','${p}')">Add</button>
+    </div>
+    <div class="sp-sub">Starts as team-only. A name like "Stage plot" or "Slide deck" fills in the rest. Change anything before you add.</div>
+  </div>`;
+}
+function speakerAddEl(id, p, n) { return document.getElementById('sk-add-' + p + '-' + n + '-' + id); }
+function speakerAddApplyKey(id, p, key) {
+  const vis = speakerAddEl(id, p, 'vis'), prod = speakerAddEl(id, p, 'prod'), home = key ? MATERIAL_FILE_HOME[key] : null;
+  if (vis && !vis.dataset.touched) vis.value = home ? SPEAKER_FILE_VIS[home.list] : 'team';
+  if (prod && !prod.dataset.touched) prod.checked = p === 'prod' ? true : !!(home && home.production);
+}
+function speakerAddKeyChanged(id, p) { const k = speakerAddEl(id, p, 'key'); speakerAddApplyKey(id, p, k ? k.value : ''); }
+function speakerAddHint(id, p) {
+  const name = speakerAddEl(id, p, 'name'), file = speakerAddEl(id, p, 'file'), link = speakerAddEl(id, p, 'link'), key = speakerAddEl(id, p, 'key');
+  if (!name) return;
+  const text = [name.value, file && file.files && file.files[0] ? file.files[0].name : '', link ? link.value : ''].join(' ');
+  if (key && !key.dataset.touched) key.value = speakerFileGuess(text);
+  speakerAddApplyKey(id, p, key ? key.value : '');
+}
+// The checklist's "Add" button: opens the add form already pointed at that item
+function speakerAddFor(id, key) {
+  const p = speakerActiveTab === 'production' ? 'prod' : 'files';
+  if (p === 'files') { speakerActiveTab = 'files'; renderSpeakerRows(id); }
+  setTimeout(() => {
+    const name = speakerAddEl(id, p, 'name'), k = speakerAddEl(id, p, 'key'); if (!k) return;
+    k.value = key; k.dataset.touched = '1'; speakerAddApplyKey(id, p, key);
+    if (name) { if (!name.value) name.value = MATERIAL_ITEM_LABELS[key] || ''; name.focus(); const box = name.closest('.sk-addbox'); if (box && box.scrollIntoView) box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  }, 30);
+}
+// Drops whatever is currently filed against a checklist item (all lists), and its stored file
+function speakerClearItemEntries(sp, key) {
+  Object.keys(SPEAKER_FILE_VIS).forEach(kind => {
+    (sp.data[kind] || []).filter(m => m.materialKey === key).forEach(old => {
+      if (sbClient && old.filePath) sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).remove([old.filePath]).then(() => {});
+    });
+    sp.data[kind] = (sp.data[kind] || []).filter(m => m.materialKey !== key);
+  });
+}
+async function speakerAddSubmit(id, p) {
   if (!canEditOrWarn('speakers.roster', 'speakers')) return;
   const sp = getSpeaker(id); if (!sp) return;
-  const toKind = fromKind === 'materialsToShare' ? 'internalDocuments' : 'materialsToShare';
+  const nameEl = speakerAddEl(id, p, 'name'), fileEl = speakerAddEl(id, p, 'file'), linkEl = speakerAddEl(id, p, 'link');
+  const visEl = speakerAddEl(id, p, 'vis'), prodEl = speakerAddEl(id, p, 'prod'), keyEl = speakerAddEl(id, p, 'key');
+  const file = fileEl && fileEl.files && fileEl.files[0], url = linkEl ? linkEl.value.trim() : '';
+  if (!file && !url) { toast('Choose a file or paste a link first.'); return; }
+  if (file && url) { toast('Add either a file or a link, not both.'); return; }
+  const vis = (visEl && visEl.value) || 'team', key = keyEl ? keyEl.value : '', toKind = SPEAKER_FILE_LISTS[vis] || 'internalDocuments';
+  let production = !!(prodEl && prodEl.checked), host = '';
+  if (url) {
+    if (!/^https?:\/\//i.test(url)) { toast('That doesn’t look like a valid link — make sure it starts with http:// or https://'); return; }
+    try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { toast('That link doesn’t look right. Please check it.'); return; }
+  }
+  if (vis === 'photo') {
+    if (!(file ? speakerFileIsImage(file.name, file.type) : speakerFileIsImage(url))) { toast('A speaker photo has to be an image file, or a link straight to one.'); return; }
+    production = false;
+  }
+  let info;
+  if (file) {
+    if (!sbClient) { toast('Not connected to shared storage — can’t upload right now.'); return; }
+    const path = id + '/' + (vis === 'photo' ? 'photos/' : vis === 'team' ? 'internal/' : '') + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    toast('Uploading ' + file.name + '...');
+    const up = await sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).upload(path, file);
+    if (up.error) { toast('Upload failed — ' + (up.error.message || 'see console') + '.'); return; }
+    info = { fileName: file.name, filePath: path, fileSize: file.size, url: sbClient.storage.from(SPEAKER_MATERIALS_BUCKET).getPublicUrl(path).data.publicUrl, isExternalLink: false };
+  } else {
+    info = { fileName: 'Link (' + host + ')', filePath: '', fileSize: 0, url, isExternalLink: true };
+  }
+  const today = new Date().toISOString().slice(0, 10), label = (nameEl && nameEl.value.trim()) || (file ? file.name : host);
+  const entry = Object.assign({ id: makeId(), label, uploadedAt: today }, info, vis === 'photo' ? {} : { isProduction: production });
+  if (key) {
+    // Counts toward a checklist item: replaces what was filed for it, and the item shows as received
+    speakerClearItemEntries(sp, key);
+    entry.id = 'mat_' + key; entry.materialKey = key;
+    if (!sp.data.materials) sp.data.materials = {};
+    sp.data.materials[key] = { fileName: info.isExternalLink ? 'Linked file' : info.fileName, filePath: info.filePath, fileSize: info.fileSize, url: info.url, uploadedAt: today, isExternalLink: info.isExternalLink };
+  }
+  if (!sp.data[toKind]) sp.data[toKind] = [];
+  sp.data[toKind].push(entry);
+  pushSpeaker(sp);
+  renderSpeakerRows(id);
+  toast('Added "' + label + '" (' + SPEAKER_FILE_VIS_LABEL[vis].toLowerCase() + (production ? ', production' : '') + ').');
+}
+// "Who can see it" on a row: moves the entry whole (same file, name, Production tag, checklist link)
+function setSpeakerFileVisibility(id, fromKind, materialId, vis) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const toKind = SPEAKER_FILE_LISTS[vis];
+  if (!toKind || toKind === fromKind) return;
+  if (!canEditOrWarn('speakers.roster', 'speakers')) { renderSpeakerRows(id); return; }
   const idx = (sp.data[fromKind] || []).findIndex(m => m.id === materialId); if (idx < 0) return;
   const m = sp.data[fromKind][idx], name = m.label || m.fileName || 'this file';
-  if (toKind === 'materialsToShare' && !confirm('Move "' + name + '" to the list shared with attendees? Internal documents are team-only; this list is not.')) return;
+  if (toKind === 'photoCandidates' && !speakerFileIsImage(m.fileName || m.url)) { toast('Only an image can be a speaker photo.'); renderSpeakerRows(id); return; }
+  if (toKind === 'materialsToShare' && !confirm('Share "' + name + '" with attendees? Team-only files are private; files shared with attendees are not.')) { renderSpeakerRows(id); return; }
   sp.data[fromKind].splice(idx, 1);
+  if (toKind === 'photoCandidates') delete m.isProduction; else if (m.isProduction == null) m.isProduction = false;
   if (!sp.data[toKind]) sp.data[toKind] = [];
   sp.data[toKind].push(m);
   pushSpeaker(sp); renderSpeakerRows(id);
-  toast('Moved "' + name + '" to ' + (toKind === 'internalDocuments' ? 'Internal Documents.' : 'the list shared with attendees.'));
+  toast('"' + name + '" is now ' + SPEAKER_FILE_VIS_LABEL[vis].toLowerCase() + '.');
 }
-function renameSpeakerFile(id, kind, materialId) {
+function renameSpeakerFile(id, kind, materialId, value) {
   const sp = getSpeaker(id); if (!sp) return;
   const m = (sp.data[kind] || []).find(x => x.id === materialId); if (!m) return;
-  const next = prompt('Rename this file. This is the name shown on the Files and Production tabs.', m.label || m.fileName || '');
-  if (next == null || !next.trim()) return;
-  m.label = next.trim();
+  const next = value === undefined ? prompt('Rename this file. This is the name shown on the Files and Production tabs.', m.label || m.fileName || '') : value;
+  if (next == null || !String(next).trim()) { renderSpeakerRows(id); return; }
+  m.label = String(next).trim();
   pushSpeaker(sp); renderSpeakerRows(id);
+}
+function removeSpeakerFileConfirm(id, kind, materialId) {
+  const sp = getSpeaker(id); if (!sp) return;
+  const m = (sp.data[kind] || []).find(x => x.id === materialId); if (!m) return;
+  if (!confirm('Remove "' + (m.label || m.fileName || 'this file') + '"?' + (m.filePath ? ' The uploaded file is deleted too.' : ''))) return;
+  removeSpeakerFile(id, kind, materialId);
 }
 function approveSpeakerPendingChange(id, key) {
   const sp = getSpeaker(id); if (!sp) return;
@@ -17505,6 +17691,9 @@ function approveSpeakerPendingChange(id, key) {
     if (!sp.data.materials) sp.data.materials = {};
     sp.data.materials[itemKey] = pending.new;
     syncMaterialToFiles(sp, itemKey);
+    // The bio lives in one place (Overview); an approved session description fills the sessions that don't have one yet
+    if (itemKey === 'bio' && typeof pending.new === 'string') sp.data.bio = pending.new;
+    if (itemKey === 'sessionDescription' && typeof pending.new === 'string' && pending.new.trim()) (sp.data.sessions || []).forEach(x => { if (!x.isTrackLead && !(x.description || '').trim()) x.description = pending.new; });
   } else {
     const map = SPEAKER_PENDING_FIELD_MAP[key];
     if (!map) return;
@@ -17674,30 +17863,10 @@ function updateSpeakerSimple(id, field, value) {
   pushSpeaker(sp);
   renderSpeakerRows(id);
 }
-// Staff side of "upload or link": show what's on file, or let staff paste a link the artist emailed over
-function materialLinkAdminHtml(sp, key, file) {
-  const shown = file ? ` — <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'Linked file' : escapeHtml(file.fileName)}</a>` : '';
-  if (file && file.isExternalLink) return shown + ` <button class="sp-mini-btn" title="Remove this link" onclick="adminRemoveMaterialLink('${sp.id}','${key}')">&times;</button>`;
-  if (file) return shown;
-  return ` <span class="sk-matlink"><input type="url" id="sk-matlink-${sp.id}-${key}" placeholder="Paste a link…"> <button class="sp-mini-btn" onclick="adminSetMaterialLink('${sp.id}','${key}')">Add link</button></span>`;
-}
-function adminSetMaterialLink(id, itemKey) {
-  const input = document.getElementById('sk-matlink-' + id + '-' + itemKey); if (!input) return;
-  const url = input.value.trim();
-  if (!url) { toast('Paste a link first.'); return; }
-  if (!/^https?:\/\//i.test(url)) { toast('That doesn’t look like a valid link — make sure it starts with http:// or https://'); return; }
-  const sp = getSpeaker(id); if (!sp) return;
-  if (!sp.data.materials) sp.data.materials = {};
-  sp.data.materials[itemKey] = { fileName: 'Linked file', filePath: '', fileSize: 0, url, uploadedAt: new Date().toISOString().slice(0, 10), isExternalLink: true };
-  syncMaterialToFiles(sp, itemKey);
-  pushSpeaker(sp); renderSpeakerRows(id); toast('Link saved.');
-}
-function adminRemoveMaterialLink(id, itemKey) {
-  const sp = getSpeaker(id); if (!sp || !sp.data.materials) return;
-  if (!confirm('Remove this link?')) return;
-  delete sp.data.materials[itemKey];
-  syncMaterialToFiles(sp, itemKey);
-  pushSpeaker(sp); renderSpeakerRows(id);
+// One line on the Materials We Need list: received (with a link to it) or an Add button that opens the add form for that item
+function materialStatusAdminHtml(sp, key, file) {
+  if (file && file.url) return ` — <span class="sk-ok">received</span> <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'open link' : escapeHtml(file.fileName)}</a>`;
+  return ` — <span class="sp-sub">not received</span> <button class="sp-mini-btn" onclick="speakerAddFor('${sp.id}','${key}')">Add</button>`;
 }
 function updateSpeakerNested(id, group, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
@@ -17779,6 +17948,7 @@ function roomLabelWithCapacity(roomName) {
 function updateSpeakerData(id, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
   sp.data[field] = value;
+  if (field === 'bio') { if (!sp.data.materials) sp.data.materials = {}; sp.data.materials.bio = String(value || '').trim(); } // one bio: the artist page shows this same text
   // "Local" is only shown/editable under the Standard arrangement -- clear it when switching
   // away so it can't linger hidden and misleading on a Fee+Travel or Sponsor-provided record.
   if (field === 'arrangement' && value !== '') sp.data.logistics.local = false;
@@ -20962,66 +21132,33 @@ function speakerDetailHTML(sp) {
     const value = spMaterials[key];
     // Text-type items (bio, session description) are editable right here as plain text --
     // staff can type/correct it directly, same as anything else on this tab, no file involved.
+    if (key === 'bio' || key === 'sessionDescription') {
+      const text = ((key === 'bio' ? sp.data.bio : '') || value || '').trim();
+      return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]} — ${text ? '<span class="sk-ok">received</span>' : '<span class="sp-sub">not received</span>'} <button class="sp-mini-btn" onclick="setSpeakerTab('overview')">${text ? 'Edit' : 'Add'} on Overview</button>${text ? `<div class="sp-sub sk-preview">${escapeHtml(text.length > 140 ? text.slice(0, 140) + '…' : text)}</div>` : ''}</div></div>`;
+    }
     if (materialItemType(key) === 'text') {
       return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Not provided yet." onchange="updateSpeakerNested('${sp.id}','materials','${key}',this.value)">${escapeHtml(value || '')}</textarea></div></div>`;
     }
     const file = value;
     if (MATERIAL_TEXT_COMPANION[key]) {
-      return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}${materialLinkAdminHtml(sp, key, file)}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Typed notes (optional)" onchange="updateSpeakerNested('${sp.id}','materials','${MATERIAL_TEXT_COMPANION[key]}',this.value)">${escapeHtml(spMaterials[MATERIAL_TEXT_COMPANION[key]] || '')}</textarea></div></div>`;
+      return `<div class="sp-check" style="align-items:flex-start;"><input type="checkbox" style="margin-top:3px;" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> <div style="flex:1;">${MATERIAL_ITEM_LABELS[key]}${materialStatusAdminHtml(sp, key, file)}<textarea rows="3" style="width:100%; margin-top:4px;" placeholder="Typed notes (optional)" onchange="updateSpeakerNested('${sp.id}','materials','${MATERIAL_TEXT_COMPANION[key]}',this.value)">${escapeHtml(spMaterials[MATERIAL_TEXT_COMPANION[key]] || '')}</textarea></div></div>`;
     }
-    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${materialLinkAdminHtml(sp, key, file)}</div>`;
+    return `<div class="sp-check"><input type="checkbox" ${mn[key] ? 'checked' : ''} onchange="updateSpeakerNested('${sp.id}','materialsNeeded','${key}',this.checked)"> ${MATERIAL_ITEM_LABELS[key]}${materialStatusAdminHtml(sp, key, file)}</div>`;
   }).join('') + ((sp.types || []).length === 0 ? '<div class="sp-sub" style="margin-top:6px;">No role selected yet \u2014 showing the common baseline. Check a type above to see the full list for that role.</div>' : '');
 
   ensureMaterialFiles(sp);
-  const filesHtml = (sp.data.materialsToShare || []).map(m => `
-    <div class="sk-file-row">
-      <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F4CE} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
-      <button class="sp-mini-btn" title="Move to Internal Documents (team-only, not shown to attendees)" onclick="moveSpeakerFile('${sp.id}','materialsToShare','${m.id}')">\u2192 Internal</button>
-      <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','materialsToShare','${m.id}')">\u270e</button>
-      <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','materialsToShare','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
-      <button class="sp-mini-btn" onclick="removeSpeakerMaterial('${sp.id}','${m.id}')">&times;</button>
-    </div>
-  `).join('') || '<div class="sp-sub">No materials uploaded yet.</div>';
-
-  const internalFilesHtml = (sp.data.internalDocuments || []).map(m => `
-    <div class="sk-file-row">
-      <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F512} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}${m.isProduction ? ' \u00b7 \u{1F3A4} Production' : ''}</span>
-      <button class="sp-mini-btn" title="Move to the list shared with attendees" onclick="moveSpeakerFile('${sp.id}','internalDocuments','${m.id}')">\u2192 Shared</button>
-      <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','internalDocuments','${m.id}')">\u270e</button>
-      <button class="sp-mini-btn" title="${m.isProduction ? 'Remove from Production' : 'Mark as Production'}" onclick="toggleSpeakerFileProduction('${sp.id}','internalDocuments','${m.id}')">${m.isProduction ? '\u2715 Production' : '\u2192 Production'}</button>
-      <button class="sp-mini-btn" onclick="removeSpeakerInternalDoc('${sp.id}','${m.id}')">&times;</button>
-    </div>
-  `).join('') || '<div class="sp-sub">No documents uploaded yet.</div>';
-
-  // A filtered view, not a separate list -- every entry here still lives in (and stays visible
-  // on) the Files tab's materialsToShare/internalDocuments; _kind just remembers which one, so
-  // "Remove from Production" can un-tag it in the right place.
-  const productionFileEntries = [
-    ...(sp.data.materialsToShare || []).filter(m => m.isProduction).map(m => Object.assign({ _kind: 'materialsToShare' }, m)),
-    ...(sp.data.internalDocuments || []).filter(m => m.isProduction).map(m => Object.assign({ _kind: 'internalDocuments' }, m))
-  ];
-  const productionFilesHtml = productionFileEntries.map(m => `
-    <div class="sk-file-row">
-      <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">\u{1F3A4} ${escapeHtml(m.label)}</a>
-      <span class="sp-sub">${escapeHtml(m.fileName)} \u00b7 ${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}${m.materialKey ? ' \u00b7 from artist page' : ''}</span>
-      <button class="sp-mini-btn" title="Rename" onclick="renameSpeakerFile('${sp.id}','${m._kind}','${m.id}')">\u270e</button>
-      <button class="sp-mini-btn" title="Keeps the file on the Files tab, just un-tags it as production" onclick="toggleSpeakerFileProduction('${sp.id}','${m._kind}','${m.id}')">Remove from Production</button>
-    </div>
-  `).join('') || '<div class="sp-sub">No files marked as production-related yet.</div>';
-
-  const photoCandidatesHtml = (sp.data.photoCandidates || []).map(m => `
-    <div class="sk-file-row">
-      <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">
-        <img src="${escapeHtml(m.url)}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:6px; vertical-align:middle; margin-right:8px;">${escapeHtml(m.fileName)}
-      </a>
-      <span class="sp-sub">${fmtFileSize(m.fileSize)} \u00b7 ${escapeHtml(m.uploadedAt)}</span>
-      ${m.url === breakoutSpeakerPhotoSource(sp) ? '<span class="sp-badge" style="background:#D8EEDD; color:#166534;" title="This is the photo attendees see on the breakout sign-up page">✓ On sign-up page</span>' : ((sp.data.photoCandidates || []).length > 1 ? `<button class="sp-mini-btn" onclick="setSignupPhoto('${sp.id}','${m.id}')" title="Show this photo on the attendee breakout sign-up page">Use on sign-up page</button>` : '')}
-      <button class="sp-mini-btn" onclick="removeSpeakerPhotoCandidate('${sp.id}','${m.id}')">&times;</button>
-    </div>
-  `).join('') || '<div class="sp-sub">No photos uploaded yet.</div>';
-  const photoHint = (sp.data.photoCandidates || []).length > 1 && !breakoutSpeakerPhotoSource(sp) ? '<div class="sp-sub" style="color:#a52620; margin-bottom:6px;">Several photos: pick one with “Use on sign-up page” so attendees see the right one (until then they see initials).</div>' : '';
+  const allFiles = speakerAllFiles(sp);
+  const fileFilters = {
+    all: () => true, team: f => f.kind === 'internalDocuments', attendees: f => f.kind === 'materialsToShare',
+    production: f => f.kind !== 'photoCandidates' && !!f.m.isProduction, photo: f => f.kind === 'photoCandidates'
+  };
+  const fileChipsHtml = [['all', 'All'], ['team', 'Team only'], ['attendees', 'Attendees'], ['production', 'Production'], ['photo', 'Photos']]
+    .map(([k, l]) => `<button class="sk-fchip ${speakerFileFilter === k ? 'on' : ''}" onclick="setSpeakerFileFilter('${k}')">${l} <span>${allFiles.filter(fileFilters[k]).length}</span></button>`).join('');
+  const fileRowsHtml = allFiles.filter(fileFilters[speakerFileFilter] || fileFilters.all).map(f => speakerFileRowHtml(sp, f.kind, f.m)).join('')
+    || `<div class="sp-sub" style="padding:10px 0;">${allFiles.length ? 'Nothing in this view.' : 'No files yet. Add one above, or send them their page link and they can upload their own.'}</div>`;
+  const productionRowsHtml = allFiles.filter(fileFilters.production).map(f => speakerFileRowHtml(sp, f.kind, f.m)).join('')
+    || '<div class="sp-sub" style="padding:6px 0;">No production files yet. Add one below, or tag any file on the Files tab as Production.</div>';
+  const photoHint = (sp.data.photoCandidates || []).length > 1 && !breakoutSpeakerPhotoSource(sp) ? '<div class="sp-sub" style="color:#a52620; margin-bottom:8px;">Several photos: pick one with “Use on sign-up page” so attendees see the right one (until then they see initials). The mobile app’s manager picks the live app photo.</div>' : '';
 
   const completeness = speakerCompleteness(sp);
   const completenessColor = completeness >= 80 ? '#2E8B57' : completeness >= 50 ? 'var(--gold)' : '#a52620';
@@ -21085,8 +21222,8 @@ function speakerDetailHTML(sp) {
         </fieldset>
 
         <fieldset class="sp-fieldset">
-          <legend>Bio</legend>
-          <p class="sp-sub sp-sub-wrap">Public-facing — this syncs to the mobile app's speaker profile.</p>
+          <legend>Bio or group description</legend>
+          <p class="sp-sub sp-sub-wrap">The one bio for this speaker. It syncs to the mobile app and the breakout sign-up, and it's the same text on their own page, so what they submit and what you type here stay together.</p>
           <textarea rows="4" placeholder="Public biography for the mobile app…" onchange="updateSpeakerData('${sp.id}','bio',this.value)">${escapeHtml(sp.data.bio || '')}</textarea>
         </fieldset>
 
@@ -21341,20 +21478,9 @@ function speakerDetailHTML(sp) {
           ${materialsNeededHtml}
         </fieldset>
         <fieldset class="sp-fieldset" style="grid-column:1/-1;">
-          <legend>Production Files <span class="sp-sub" style="font-weight:400;">(stage plot, input list, RF sheet, etc.)</span></legend>
-          ${productionFilesHtml}
-          <div class="sp-subhead" style="margin-top:10px;">Upload a File</div>
-          <div class="sp-add-row" style="flex-wrap:wrap;">
-            <input type="text" id="sk-production-label-${sp.id}" placeholder="Label (e.g. 'Stage Plot')" style="flex:1 1 100%; margin-bottom:6px;">
-            <input type="file" id="sk-production-input-${sp.id}" style="flex:1;">
-            <button class="sp-mini-btn" onclick="uploadSpeakerProductionFile('${sp.id}')">Upload</button>
-          </div>
-          <div class="sp-sub" style="margin:8px 0 4px;">— or paste a link instead (Dropbox, Google Drive, etc.) —</div>
-          <div class="sp-add-row">
-            <input type="url" id="sk-production-link-${sp.id}" placeholder="https://…" style="flex:1;">
-            <button class="sp-mini-btn" onclick="addSpeakerFileLink('${sp.id}','productionFiles')">Add link</button>
-          </div>
-          <div class="sp-sub" style="margin-top:6px;">A file already uploaded on the Files tab doesn't need to be re-uploaded — use the "→ Production" button next to it there to tag it instead. It stays visible on both tabs; "Remove from Production" here just un-tags it.</div>
+          <legend>Production Files <span class="sp-sub" style="font-weight:400;">(stage plot, input list, RF sheet, etc. Anything tagged Production on the Files tab shows here too.)</span></legend>
+          <div class="sk-flist">${productionRowsHtml}</div>
+          ${speakerFileAddFormHtml(sp, 'prod')}
         </fieldset>
       </div>
     </div>
@@ -21362,51 +21488,14 @@ function speakerDetailHTML(sp) {
 
     ${activeTab !== 'files' ? '' : `
     <div class="sk-tab-panel">
-      <div class="sp-detail-grid sp-detail-2col">
+      <div class="sp-detail-grid">
         <fieldset class="sp-fieldset">
-          <legend>Materials They Want Shared With Attendees</legend>
-          ${filesHtml}
-          <div class="sp-subhead" style="margin-top:10px;">Upload a File</div>
-          <div class="sp-add-row" style="flex-wrap:wrap;">
-            <select id="sk-file-dest-${sp.id}" onchange="this.dataset.touched='1'" style="flex:1 1 100%; margin-bottom:6px;" title="Who can see this file">
-              <option value="internal" selected>Add to Internal Documents (team only)</option>
-              <option value="attendees">Share with attendees (slide deck, handouts)</option>
-            </select>
-            <input type="text" id="sk-file-label-${sp.id}" placeholder="Label (e.g. 'Slide Deck')" oninput="speakerFileDestHint('${sp.id}')" style="flex:1 1 100%; margin-bottom:6px;">
-            <input type="file" id="sk-file-input-${sp.id}" onchange="speakerFileDestHint('${sp.id}')" style="flex:1;">
-            <button class="sp-mini-btn" onclick="uploadSpeakerMaterial('${sp.id}')">Upload</button>
-          </div>
-          <div class="sp-sub" style="margin:8px 0 4px;">— or paste a link instead (Dropbox, Google Drive, etc.) —</div>
-          <div class="sp-add-row">
-            <input type="url" id="sk-file-link-${sp.id}" placeholder="https://…" oninput="speakerFileDestHint('${sp.id}')" style="flex:1;">
-            <button class="sp-mini-btn" onclick="addSpeakerFileLink('${sp.id}','materialsToShare')">Add link</button>
-          </div>
-        </fieldset>
-
-        <fieldset class="sp-fieldset" data-section="speakers.internal_docs">
-          <legend>Internal Documents <span class="sp-sub" style="font-weight:400;">(rider, contract, W9 \u2014 never shown to attendees)</span></legend>
-          ${internalFilesHtml}
-          <div class="sp-subhead" style="margin-top:10px;">Upload a File</div>
-          <div class="sp-add-row" style="flex-wrap:wrap;">
-            <input type="text" id="sk-internal-label-${sp.id}" placeholder="Label (e.g. 'Hospitality Rider')" style="flex:1 1 100%; margin-bottom:6px;">
-            <input type="file" id="sk-internal-input-${sp.id}" style="flex:1;">
-            <button class="sp-mini-btn" onclick="uploadSpeakerInternalDoc('${sp.id}')">Upload</button>
-          </div>
-          <div class="sp-sub" style="margin:8px 0 4px;">— or paste a link instead (Dropbox, Google Drive, etc.) —</div>
-          <div class="sp-add-row">
-            <input type="url" id="sk-internal-link-${sp.id}" placeholder="https://…" style="flex:1;">
-            <button class="sp-mini-btn" onclick="addSpeakerFileLink('${sp.id}','internalDocuments')">Add link</button>
-          </div>
-        </fieldset>
-
-        <fieldset class="sp-fieldset" style="grid-column:1/-1;">
-          <legend>Photo Candidates <span class="sp-sub" style="font-weight:400;">(pull options from the SharePoint headshot folder \u2014 with more than one, staff picks which one publishes on the mobile app manager's Speakers page)</span></legend>
-          ${photoHint}${photoCandidatesHtml}
-          <div class="sp-subhead" style="margin-top:10px;">Upload a Photo</div>
-          <div class="sp-add-row" style="flex-wrap:wrap;">
-            <input type="file" id="sk-photo-input-${sp.id}" accept="image/*" style="flex:1;">
-            <button class="sp-mini-btn" onclick="uploadSpeakerPhotoCandidate('${sp.id}')">Upload</button>
-          </div>
+          <legend>Files &amp; links <span class="sp-sub" style="font-weight:400;">(everything for this speaker in one place, whether you added it or they did)</span></legend>
+          ${speakerFileAddFormHtml(sp, 'files')}
+          ${photoHint}
+          <div class="sk-fchips">${fileChipsHtml}</div>
+          <div class="sk-flist">${fileRowsHtml}</div>
+          <div class="sp-sub" style="margin-top:8px;">Click a name to rename it. "Who can see it" moves a file between Team only, Attendees and Speaker photo. Production just tags it so it also shows on the Production tab.</div>
         </fieldset>
       </div>
     </div>
