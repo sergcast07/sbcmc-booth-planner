@@ -2120,6 +2120,8 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .sk-fname:focus { outline: none; border-color: var(--teal); background: #fff; box-shadow: 0 0 0 3px var(--teal-pale); }
 .sk-ftag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--gold-pale); color: #6f5314; margin-left: 4px; }
 .sk-fctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sk-fitem { width: 172px; max-width: 100%; font: inherit; font-size: 12.5px; padding: 5px 7px; border: 1px dashed var(--line); border-radius: 6px; background: #fff; color: var(--ink-soft); }
+.sk-fitem.on { border: 1px solid #C9A24B; background: var(--gold-pale); color: #6f5314; font-weight: 600; }
 .sk-fvis { width: 128px; font: inherit; font-size: 12.5px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
 .sk-fprod { font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; }
 .sk-ok { color: #166534; font-weight: 600; font-size: 12px; }
@@ -17522,15 +17524,17 @@ function speakerFileRowHtml(sp, kind, m) {
   const vis = SPEAKER_FILE_VIS[kind], name = m.label || m.fileName || 'Untitled', isPhoto = kind === 'photoCandidates';
   const img = isPhoto || speakerFileIsImage(m.fileName || m.url);
   const thumb = `<a class="sk-fthumb" href="${escapeHtml(m.url)}" target="_blank" rel="noopener" title="Open">${img ? `<img src="${escapeHtml(m.url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span>${m.isExternalLink ? '&#128279;' : '&#128196;'}</span></a>`;
-  const forItem = m.materialKey ? `<span class="sk-ftag" title="Counts toward this item on the Materials We Need list">${escapeHtml(MATERIAL_ITEM_LABELS[m.materialKey] || m.materialKey)}</span>` : '';
+  const itemKeys = Object.keys(MATERIAL_FILE_HOME).filter(k => MATERIAL_ITEM_LABELS[k] && (isPhoto ? k === 'headshot' : true));
+  const forItem = `<select class="sk-fitem ${m.materialKey ? 'on' : ''}" aria-label="Counts as" title="Designate this file as one of the items on Materials We Need" onchange="setSpeakerFileItem('${sp.id}','${kind}','${m.id}',this.value)"><option value="">Counts as…</option>${itemKeys.map(k => `<option value="${k}" ${m.materialKey === k ? 'selected' : ''}>${escapeHtml(MATERIAL_ITEM_LABELS[k])}</option>`).join('')}</select>`;
   const onSignup = isPhoto ? (m.url === breakoutSpeakerPhotoSource(sp) ? '<span class="sp-badge" style="background:#D8EEDD; color:#166534;" title="This is the photo attendees see on the breakout sign-up page">&#10003; On sign-up page</span>' : ((sp.data.photoCandidates || []).length > 1 ? `<button class="sp-mini-btn" onclick="setSignupPhoto('${sp.id}','${m.id}')" title="Show this photo on the attendee breakout sign-up page">Use on sign-up page</button>` : '')) : '';
   return `<div class="sk-frow">
     ${thumb}
     <div class="sk-fmain">
       <input class="sk-fname" type="text" value="${escapeHtml(name)}" title="Click to rename" aria-label="File name" onchange="renameSpeakerFile('${sp.id}','${kind}','${m.id}',this.value)">
-      <div class="sp-sub">${escapeHtml(m.fileName || '')}${m.fileSize ? ' &middot; ' + fmtFileSize(m.fileSize) : ''}${m.uploadedAt ? ' &middot; ' + escapeHtml(m.uploadedAt) : ''} ${forItem}</div>
+      <div class="sp-sub">${escapeHtml(m.fileName || '')}${m.fileSize ? ' &middot; ' + fmtFileSize(m.fileSize) : ''}${m.uploadedAt ? ' &middot; ' + escapeHtml(m.uploadedAt) : ''}</div>
     </div>
     <div class="sk-fctl">
+      ${forItem}
       <select class="sk-fvis" aria-label="Who can see it" title="Who can see it" onchange="setSpeakerFileVisibility('${sp.id}','${kind}','${m.id}',this.value)">
         ${['team', 'attendees', 'photo'].map(v => `<option value="${v}" ${v === vis ? 'selected' : ''}>${SPEAKER_FILE_VIS_LABEL[v]}</option>`).join('')}
       </select>
@@ -17659,6 +17663,43 @@ function setSpeakerFileVisibility(id, fromKind, materialId, vis) {
   sp.data[toKind].push(m);
   pushSpeaker(sp); renderSpeakerRows(id);
   toast('"' + name + '" is now ' + SPEAKER_FILE_VIS_LABEL[vis].toLowerCase() + '.');
+}
+// Designates a file that is already in the list as a checklist item (rider, stage plot, slide deck...), or clears it (key = '').
+// The file is not copied or moved: the entry just gets tagged, and the item on Materials We Need shows as received.
+function speakerUnbindItem(sp, key, exceptEntry) {
+  Object.keys(SPEAKER_FILE_VIS).forEach(kind => (sp.data[kind] || []).forEach(m => { if (m.materialKey === key && m !== exceptEntry) delete m.materialKey; }));
+  if (sp.data.materials) delete sp.data.materials[key];
+}
+function setSpeakerFileItem(id, kind, materialId, key) {
+  if (!canEditOrWarn('speakers.roster', 'speakers')) { renderSpeakerRows(id); return; }
+  const sp = getSpeaker(id); if (!sp) return;
+  const m = (sp.data[kind] || []).find(x => x.id === materialId); if (!m) return;
+  const name = m.label || m.fileName || 'This file';
+  if (!key) {
+    if (m.materialKey) { const old = m.materialKey; speakerUnbindItem(sp, old, null); delete m.materialKey; pushSpeaker(sp); renderSpeakerRows(id); toast('"' + name + '" no longer counts as ' + (MATERIAL_ITEM_LABELS[old] || old) + '.'); }
+    return;
+  }
+  const label = MATERIAL_ITEM_LABELS[key] || key;
+  if (key === 'headshot' && kind !== 'photoCandidates' && !speakerFileIsImage(m.fileName || m.url)) { toast('Only an image can count as the headshot or group photo.'); renderSpeakerRows(id); return; }
+  if (kind === 'photoCandidates' && key !== 'headshot') { toast('A speaker photo can only count as the headshot. Change "Who can see it" first to use it as something else.'); renderSpeakerRows(id); return; }
+  const other = [].concat(...Object.keys(SPEAKER_FILE_VIS).map(k => sp.data[k] || [])).find(x => x.materialKey === key && x !== m);
+  if (other && !confirm('"' + (other.label || other.fileName) + '" is currently the ' + label + '. Use "' + name + '" instead? The other file stays in the list.')) { renderSpeakerRows(id); return; }
+  if (m.materialKey) speakerUnbindItem(sp, m.materialKey, null);
+  speakerUnbindItem(sp, key, m);
+  m.materialKey = key;
+  if (!sp.data.materials) sp.data.materials = {};
+  sp.data.materials[key] = { fileName: m.isExternalLink ? 'Linked file' : m.fileName, filePath: m.filePath || '', fileSize: m.fileSize || 0, url: m.url, uploadedAt: m.uploadedAt || new Date().toISOString().slice(0, 10), isExternalLink: !!m.isExternalLink };
+  pushSpeaker(sp); renderSpeakerRows(id);
+  toast('"' + name + '" now counts as the ' + label + '.');
+}
+// Files already in the list that could be designated for a checklist item (not already used for another one)
+function speakerFileCandidatesFor(sp, key) {
+  return speakerAllFiles(sp).filter(f => !f.m.materialKey && (key === 'headshot' ? (f.kind === 'photoCandidates' || speakerFileIsImage(f.m.fileName || f.m.url)) : f.kind !== 'photoCandidates'));
+}
+function speakerUseFileFor(id, key, value) {
+  if (!value) return;
+  const [kind, materialId] = value.split('|');
+  setSpeakerFileItem(id, kind, materialId, key);
 }
 function renameSpeakerFile(id, kind, materialId, value) {
   const sp = getSpeaker(id); if (!sp) return;
@@ -17866,7 +17907,9 @@ function updateSpeakerSimple(id, field, value) {
 // One line on the Materials We Need list: received (with a link to it) or an Add button that opens the add form for that item
 function materialStatusAdminHtml(sp, key, file) {
   if (file && file.url) return ` — <span class="sk-ok">received</span> <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${file.isExternalLink ? 'open link' : escapeHtml(file.fileName)}</a>`;
-  return ` — <span class="sp-sub">not received</span> <button class="sp-mini-btn" onclick="speakerAddFor('${sp.id}','${key}')">Add</button>`;
+  const have = speakerFileCandidatesFor(sp, key);
+  const pick = have.length ? ` <select class="sk-fitem" aria-label="Use a file already added" title="Use a file that's already in the Files list" onchange="speakerUseFileFor('${sp.id}','${key}',this.value)"><option value="">Use a file already added…</option>${have.map(f => `<option value="${f.kind}|${f.m.id}">${escapeHtml(f.m.label || f.m.fileName || 'Untitled')}</option>`).join('')}</select>` : '';
+  return ` — <span class="sp-sub">not received</span> <button class="sp-mini-btn" onclick="speakerAddFor('${sp.id}','${key}')">Add</button>${pick}`;
 }
 function updateSpeakerNested(id, group, field, value) {
   const sp = getSpeaker(id); if (!sp) return;
