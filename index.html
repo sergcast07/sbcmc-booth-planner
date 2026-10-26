@@ -5373,7 +5373,7 @@ function renderSvPublicGrid() {
       // A room belongs to the session, not to any one co-presenter -- show it once per cell,
       // same as the title collapse above.
       const cellRoom = occs.length ? occs[0].sess.room : '';
-      const roomHtml = cellRoom ? `<div class="sch-card-room">${escapeHtml(roomLabelWithCapacity(cellRoom))}</div>` : '';
+      const roomHtml = cellRoom ? `<div class="sch-card-room">${escapeHtml(cellRoom)}</div>` : '';
       return `<td><div class="sch-cell ${occs.length ? '' : 'sch-cell-empty'}">${cards || '<span class="sp-sub">\u2014</span>'}${roomHtml}</div></td>`;
     }).join('');
     return `<tr><td class="sch-track-label"><span class="sch-track-dot" style="background:${trackColor};"></span>${escapeHtml(track.name)}</td>${cells}</tr>`;
@@ -5415,12 +5415,22 @@ function renderSvPublicGridByRoom(breakoutSlots) {
       }).join('');
       return `<td><div class="sch-cell ${occs.length ? '' : 'sch-cell-empty'}">${cards || (isNone ? '' : '<span class="sp-sub">—</span>')}</div></td>`;
     }).join('');
-    const label = isNone ? 'No room set' : roomLabelWithCapacity(roomKey);
+    const label = isNone ? 'No room set' : roomKey;
     return `<tr><td class="sch-track-label"${isNone ? ' style="font-style:italic; color:var(--ink-soft);"' : ''}>${escapeHtml(label)}</td>${cells}</tr>`;
   }).join('');
   return `<div class="sch-grid-wrap"><table class="sch-grid"><thead><tr><th class="sch-track-col">Room</th>${headerCells}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+// Names of the people on an event, for the public schedule link. Names only: the planning notes on a slot (group sizes,
+// instrumentation, production details) are internal and never shown here.
+function svSlotPeopleNames(slot) {
+  if (slot.kind === 'breakout') return [];
+  const names = [];
+  speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
+    if ((sess.slotId === slot.id || (!sess.slotId && !sess.track && sess.sessionDate === slot.date && sess.timeSlot === slot.start)) && names.indexOf(sp.name) < 0) names.push(sp.name);
+  }));
+  return names;
+}
 function renderSvPublicTimeline() {
   const visibleSlots = scheduleSlots.filter(slot => slotAudiences(slot).some(a => svPublicAudienceFilter.has(a)));
   const days = {};
@@ -5431,21 +5441,14 @@ function renderSvPublicTimeline() {
   const dayBlocks = dateKeys.map(date => {
     const rows = days[date].map(slot => {
       let peopleHtml = '';
-      if (slot.kind === 'keynote' || slot.kind === 'panel') {
-        const names = [];
-        speakers.forEach(sp => (sp.data.sessions || []).forEach(sess => {
-          if (sess.slotId === slot.id || (!sess.slotId && !sess.track && sess.sessionDate === slot.date && sess.timeSlot === slot.start)) names.push(sp.name);
-        }));
-        if (names.length) peopleHtml = `<div class="sp-sub">${escapeHtml(names.join(', '))}</div>`;
-      } else if (slot.kind === 'breakout') {
-        peopleHtml = '<div class="sp-sub">See Breakout Grid tab above</div>';
-      }
+      const names = svSlotPeopleNames(slot);
+      if (names.length) peopleHtml = `<div class="sp-sub">${escapeHtml(names.join(', '))}</div>`;
+      else if (slot.kind === 'breakout') peopleHtml = '<div class="sp-sub">See Breakout Grid tab above</div>';
       const roomHtml = (slot.kind !== 'breakout' && slot.room) ? `<div class="sp-sub">${escapeHtml(slot.room)}</div>` : '';
-      const notesHtml = slot.notes ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div>` : '';
       return `<div class="sch-timeline-row">
         <div class="sch-timeline-time">${friendlyTime(slot.start)}\u2013${friendlyTime(slot.end)}</div>
         <div class="sch-timeline-label" style="flex-direction:column; align-items:flex-start; gap:2px;">
-          <div>${escapeHtml(slot.label)}</div>${roomHtml}${peopleHtml}${notesHtml}
+          <div>${escapeHtml(slot.label)}</div>${roomHtml}${peopleHtml}
         </div>
         <span class="sch-timeline-kind sch-kind-${slot.kind}">${slot.kind.charAt(0).toUpperCase() + slot.kind.slice(1)}</span>
       </div>`;
@@ -5478,7 +5481,7 @@ function renderSvPublicItinerary() {
       const shared = slotAudiences(slot).includes(MAIN_AUDIENCE_ID);
       return `<div class="sch-itin-row ${shared ? 'shared' : ''}">
         <div class="sch-itin-time">${friendlyTime(slot.start)} \u2013 ${friendlyTime(slot.end)}</div>
-        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}${slot.notes ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(slot.notes)}</div>` : ''}</div>
+        <div class="sch-itin-what"><b>${escapeHtml(slot.label)}</b>${slot.room ? ` <span class="sp-sub">${escapeHtml(slot.room)}</span>` : ''}${svSlotPeopleNames(slot).length ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(svSlotPeopleNames(slot).join(', '))}</div>` : ''}</div>
       </div>`;
     }).join('');
     return `<div class="sch-itin-day">${fullWeekday(date)} \u2014 ${friendlyDate(date).replace(/^[A-Za-z]+,\s*/, '')}</div>${rows}`;
