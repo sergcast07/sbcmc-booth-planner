@@ -2042,10 +2042,15 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
 .xw-dot.done { background: var(--gold); border-color: var(--gold); color: #fff; }
 .xw-line { width: 22px; height: 2px; background: var(--line); }
 .xw-steps-label { margin-left: 8px; font-size: 12px; font-weight: 700; color: var(--ink-soft); letter-spacing: 0.03em; text-transform: uppercase; }
-.xw-opt { display: flex; gap: 12px; align-items: flex-start; padding: 13px 14px; border: 1.5px solid var(--line); border-radius: 10px; margin-bottom: 10px; cursor: pointer; background: var(--panel); }
+.xw-opt { display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; border: 1.5px solid var(--line); border-radius: 10px; margin-bottom: 8px; cursor: pointer; background: var(--panel); }
 .xw-opt.on { border-color: var(--teal-deep); background: var(--teal-pale); }
 .xw-opt.off { opacity: 0.5; cursor: not-allowed; }
+.xw-opt input, .qa-modal-field .xw-day input[type=checkbox] { width: auto; flex: none; padding: 0; margin: 0; }
 .xw-opt input { margin-top: 3px; }
+.xw-opts { max-height: 58vh; overflow-y: auto; padding-right: 2px; }
+.xw-sep { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); margin: 12px 0 6px; }
+.xw-day-actions { margin-top: 6px; font-size: 11.5px; }
+.xw-day-actions a { color: var(--teal-deep); cursor: pointer; text-decoration: underline; margin-right: 12px; }
 .xw-opt-name { font-weight: 700; font-size: 13.5px; color: var(--ink); }
 .xw-opt-desc { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
 .xw-opt-count { font-size: 11.5px; font-weight: 700; color: var(--gold); margin-top: 5px; }
@@ -23841,7 +23846,7 @@ function scheduleExportRowValue(row, key) {
 // "This view" exports exactly what the active Schedule view is showing (its group/room filters,
 // its own shape for By Artist and Sound Checks); "The whole schedule" is everything, every day.
 // Both can be limited to certain days and sorted before download.
-const SCHEDULE_EXPORT_HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Label', 'Kind', 'Track', 'Assigned Speaker/Artist', 'Contact Email', 'Session Title', 'Description', 'Room'];
+const SCHEDULE_EXPORT_HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Label', 'Type', 'Groups', 'Track', 'Assigned Speaker/Artist', 'Contact Email', 'Session Title', 'Description', 'Room'];
 const SCHEDULE_VIEW_NAMES = { grid: 'Breakout Grid', timeline: 'Timeline', itinerary: 'Itinerary', rooms: 'By Room', artists: 'By Artist', soundchecks: 'Sound Checks' };
 let scheduleExportWizard = null; // { step, scope: 'view'|'all', days: Set<string>, sort }
 
@@ -23897,7 +23902,9 @@ function scheduleExportDataset(scope, days, sortValue) {
   // Slot-shaped (the standard schedule columns): one row per slot, or per person in that slot.
   // What each view shows decides which slots and which people come along.
   let slotOk = () => true, occupants = 'all', roomMode = false;
-  if (scope === 'view') {
+  const audScopeId = scheduleExportAudId(scope);
+  if (audScopeId) slotOk = sl => slotAudiences(sl).indexOf(audScopeId) >= 0;
+  else if (scope === 'view') {
     if (view === 'grid') slotOk = sl => sl.kind === 'breakout';
     else if (view === 'timeline') { slotOk = sl => slotAudiences(sl).some(a => scheduleAudienceFilter.has(a)); occupants = 'nonbreakout'; }
     else if (view === 'itinerary') { slotOk = sl => slotAudiences(sl).some(a => scheduleAudienceFilter.has(a)); occupants = 'none'; }
@@ -23935,9 +23942,14 @@ function scheduleExportDataset(scope, days, sortValue) {
     const ta = a.slot.date + a.slot.start, tb = b.slot.date + b.slot.start;
     return ta < tb ? -1 : ta > tb ? 1 : 0;
   });
-  const lines = rows.map(({ slot, sp, sess, room }) => [slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, slot.kind,
+  const audNameOf = id => { const a = scheduleAudiences.find(x => x.id === id); return a ? a.name : ''; };
+  const groupsOf = slot => slotAudiences(slot).map(audNameOf).filter(Boolean).join(' | ');
+  const typeOf = slot => { const k = slot.kind || ''; return k.charAt(0).toUpperCase() + k.slice(1); };
+  const lines = rows.map(({ slot, sp, sess, room }) => [slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, typeOf(slot), groupsOf(slot),
     sess ? (sess.track || '') : '', sp ? sp.name : '', sp ? (sp.contactEmail || '') : '', sess ? (sess.title || '') : '', sess ? (sess.description || '') : (slot.notes || ''), room || '']);
-  return { filename: scope === 'view' ? 'schedule-' + view + '.csv' : 'conference-schedule.csv', noun: 'schedule row', headers: SCHEDULE_EXPORT_HEADERS, lines };
+  const audScope = audScopeId ? scheduleAudiences.find(a => a.id === audScopeId) : null;
+  const filename = audScope ? 'schedule-' + audScope.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.csv' : (scope === 'view' ? 'schedule-' + view + '.csv' : 'conference-schedule.csv');
+  return { filename, noun: 'schedule row', headers: SCHEDULE_EXPORT_HEADERS, lines };
 }
 
 function downloadScheduleCsv(ds) {
@@ -23956,6 +23968,12 @@ function exportScheduleCSV(sortValue) {
   toast('Exported ' + ds.lines.length + ' schedule row' + (ds.lines.length === 1 ? '' : 's') + ' to CSV.');
 }
 
+// Scopes are 'view', 'all', or 'aud:<audience id>' (one group's full schedule).
+function scheduleExportAudId(scope) { return typeof scope === 'string' && scope.indexOf('aud:') === 0 ? scope.slice(4) : null; }
+function scheduleExportSetAllDays(on) {
+  scheduleExportWizard.days = on ? new Set(scheduleExportDates()) : new Set();
+  renderScheduleExportWizard();
+}
 function scheduleExportDates() { return Array.from(new Set(scheduleSlots.map(sl => sl.date))).sort(); }
 function openScheduleExportWizard() {
   scheduleExportWizard = { step: 1, scope: 'view', days: new Set(scheduleExportDates()), sort: scheduleExportSortOptions('view').def };
@@ -24001,24 +24019,33 @@ function renderScheduleExportWizard() {
     const viewEmpty = viewDs.lines.length === 0;
     const opt = (scope, name, desc, count, noun, disabled) => `
       <label class="xw-opt ${w.scope === scope ? 'on' : ''} ${disabled ? 'off' : ''}">
-        <input type="radio" name="xw-scope" ${w.scope === scope ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="scheduleExportSetScope('${scope}')">
+        <input type="radio" name="xw-scope" ${w.scope === scope ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="scheduleExportSetScope(this.value)" value="${escapeHtml(scope)}">
         <div class="xw-opt-body"><div class="xw-opt-name">${escapeHtml(name)}</div><div class="xw-opt-desc">${escapeHtml(desc)}</div><div class="xw-opt-count">${count} ${noun}${count === 1 ? '' : 's'}</div></div>
       </label>`;
+    const audOpts = orderedScheduleAudiences().map(a => {
+      const n = scheduleExportDataset('aud:' + a.id, full, 'datetime-asc').lines.length;
+      return opt('aud:' + a.id, a.name + ' schedule', 'Every item tagged for this group, with who is on it and the room', n, 'schedule row', false);
+    }).join('');
     bodyHtml = `
-      <p class="qa-modal-sub">You're on the <b>${escapeHtml(info.name)}</b> view. Export just what it's showing, or the entire schedule?</p>
-      ${opt('view', 'This view — ' + info.name, info.description, viewDs.lines.length, viewDs.noun, false)}
+      <p class="qa-modal-sub">Pick what to export. Every row carries its <b>Type</b> (keynote, meal, breakout…) and the <b>Groups</b> it is for.</p>
+      <div class="xw-opts">
+      <div class="xw-sep">Full schedules by group</div>
+      ${audOpts}
+      <div class="xw-sep">Everything or what's on screen</div>
       ${opt('all', 'The whole schedule', 'Every slot and everyone assigned to it, all groups, all days', allDs.lines.length, allDs.noun, false)}
+      ${opt('view', 'This view — ' + info.name, info.description, viewDs.lines.length, viewDs.noun, false)}
+      </div>
       ${viewEmpty && w.scope === 'view' ? '<div class="xw-warn">This view has nothing to export right now — adjust its filters first, or choose the whole schedule.</div>' : ''}`;
     actions = `<button class="sp-mini-btn" onclick="closeScheduleExportWizard()">Cancel</button><button class="qa-modal-done" onclick="scheduleExportGo(2)" ${viewEmpty && w.scope === 'view' ? 'disabled' : ''}>Next</button>`;
   } else {
     const sortCfg = scheduleExportSortOptions(w.scope);
     const ds = scheduleExportDataset(w.scope, w.days, w.sort);
     const dayChecks = allDates.map(d => `<label class="xw-day"><input type="checkbox" ${w.days.has(d) ? 'checked' : ''} onchange="scheduleExportToggleDay('${d}', this.checked)"> ${escapeHtml(fullWeekday(d))} <span style="color:var(--ink-soft); font-weight:400;">${escapeHtml(friendlyDate(d).replace(/^[A-Za-z]+,\s*/, ''))}</span></label>`).join('');
-    const prevCols = Math.min(6, ds.headers.length);
+    const prevCols = Math.min(7, ds.headers.length);
     const preview = ds.lines.slice(0, 5).map(r => `<tr>${r.slice(0, prevCols).map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
     bodyHtml = `
-      <p class="qa-modal-sub">Exporting <b>${w.scope === 'view' ? escapeHtml('this view — ' + info.name) : 'the whole schedule'}</b>.</p>
-      <div class="qa-modal-field"><label>Days to include</label><div class="xw-days">${dayChecks}</div></div>
+      <p class="qa-modal-sub">Exporting <b>${w.scope === 'view' ? escapeHtml('this view — ' + info.name) : (scheduleExportAudId(w.scope) ? escapeHtml(((scheduleAudiences.find(a => a.id === scheduleExportAudId(w.scope)) || {}).name || 'group') + ' schedule') : 'the whole schedule')}</b>.</p>
+      <div class="qa-modal-field"><label>Days to include</label><div class="xw-days">${dayChecks}</div><div class="xw-day-actions"><a onclick="scheduleExportSetAllDays(true)">All days</a><a onclick="scheduleExportSetAllDays(false)">None</a></div></div>
       <div class="qa-modal-field"><label for="xw-sort">Sort by</label><select id="xw-sort" onchange="scheduleExportSetSort(this.value)">${sortCfg.options.map(o => `<option value="${escapeHtml(o.value)}" ${o.value === w.sort ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select></div>
       <div class="xw-summary"><b>${ds.lines.length}</b> ${ds.noun}${ds.lines.length === 1 ? '' : 's'} → <span class="sp-sub">${escapeHtml(ds.filename)}</span></div>
       ${ds.lines.length ? `<div class="xw-preview"><table><tr>${ds.headers.slice(0, prevCols).map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>${preview}</table>${ds.lines.length > 5 ? `<div class="sp-sub" style="padding:5px 8px;">…and ${ds.lines.length - 5} more. Preview shows the first ${prevCols} columns; the file has all ${ds.headers.length}.</div>` : ''}</div>` : '<div class="xw-warn">Nothing matches — pick at least one day.</div>'}`;
