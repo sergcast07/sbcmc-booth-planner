@@ -4835,14 +4835,18 @@ const YEAR_SHARED = {
   speaker: { cols: ['id', 'name', 'type', 'contact_name', 'contact_email', 'contact_phone', 'sort_order'], data: ['bio', 'photoCandidates', 'internalDocuments', 'secondaryContact', 'linkedSponsorId', 'publicToken', 'comms', 'filesDefaultInternalV1'] }
 };
 const YEAR_COLS = { sponsor: ['tracker_status', 'package', 'linked_booth_id'], speaker: ['tracker_status'] };
-const NEW_RECORD_BASE_COLS = { sponsor: { tracker_status: 'Prospective Sponsor', package: '', linked_booth_id: '' }, speaker: { tracker_status: 'Contact Only' } };
+const NEW_RECORD_BASE_COLS = { sponsor: { tracker_status: 'Inactive', package: '', linked_booth_id: '' }, speaker: { tracker_status: 'Contact Only' } };
 function recordYear() { return activeConferenceYear || RECORD_BASE_YEAR; }
 function pickKeys(obj, keys) { const o = {}; keys.forEach(k => { if (obj && obj[k] !== undefined) o[k] = obj[k]; }); return o; }
 function omitKeys(obj, keys) { const o = Object.assign({}, obj || {}); keys.forEach(k => { delete o[k]; }); return o; }
 
 // The stored row as it reads for `year`: shared columns/data as stored, plus that year's own part,
 // or "not part of this year yet" (inactive) when nothing has been saved for that year.
+// Every year's stored row, kept as loaded so a record can show its own past years (see
+// sponsorYearHistory) even though the rest of the app only sees the active year's view.
+var storedYearRows = { sponsor: {}, speaker: {} };
 function rowForYear(kind, row, year) {
+  if (row && row.id) storedYearRows[kind][row.id] = row;
   if (!row || year === RECORD_BASE_YEAR) return row;
   const data = row.data || {};
   const slice = (data.years || {})[year];
@@ -4859,7 +4863,7 @@ function recordDefaultStatus(kind, row) {
   if (kind === 'speaker') return 'Contact Only';
   // Sponsored (or was a prior sponsor) in any year already -> someone to follow up with again.
   const statuses = [row.tracker_status].concat(Object.values((row.data || {}).years || {}).map(y => y && y.tracker_status));
-  return statuses.some(st => st && /^registered|^committed|in-kind|prior sponsor/i.test(st)) ? 'Not Yet Registered (Prior Sponsor)' : 'Prospective Sponsor';
+  return statuses.some(st => st && /^registered|^committed|in-kind|prior sponsor/i.test(st)) ? 'Not Yet Registered (Prior Sponsor)' : 'Inactive';
 }
 // The part of a stored row's `data` that belongs to `year`.
 function rowYearData(row, year) {
@@ -9638,7 +9642,8 @@ const DASH_STATUS_COLORS = {
   'In-Kind - Not Registered': '#FF8C00',
   'Not Yet Registered (Prior Sponsor)': '#a52620',
   'Prospective Sponsor': '#8a8f98',
-  'Declined': '#4b5563'
+  'Declined': '#4b5563',
+  'Inactive': '#9ca3af'
 };
 function dashStatusColor(status) {
   return DASH_STATUS_COLORS[status] || '#6b7280';
@@ -13529,7 +13534,7 @@ function setSponsorSearch(v) { sponsorSearch = v; renderSponsorRows(); }
 
 function sponsorBadgeClass(status) {
   const s = (status || '').toLowerCase();
-  if (s.includes('declined')) return 'sp-badge-lapsed';
+  if (s.includes('declined') || s === 'inactive') return 'sp-badge-lapsed';
   if (s.includes('not yet registered') || s.includes('prior sponsor')) return 'sp-badge-lapsed';
   if (s.includes('prospective')) return 'sp-badge-recruit';
   if (s.startsWith('committed')) return 'sp-badge-committed';
@@ -13920,7 +13925,7 @@ function buildSponsorRowPair(s, todayStr) {
 // live prospects (awaiting-renewal prior sponsors, declined) move to their own section below
 // instead of cluttering the main "All" list. A specific status filter, including these two
 // themselves, still isolates what it needs in the main table same as any other status.
-const SPONSOR_INACTIVE_STATUSES = ['Not Yet Registered (Prior Sponsor)', 'Declined'];
+const SPONSOR_INACTIVE_STATUSES = ['Not Yet Registered (Prior Sponsor)', 'Declined', 'Inactive'];
 
 function renderInactiveSponsorRows() {
   const wrap = document.getElementById('sp-inactive-wrap');
@@ -14061,13 +14066,56 @@ function toggleSponsorDetail(id) {
   renderSponsorRows();
 }
 
+// What this sponsor did in each other conference year, read straight from the stored row
+// (2027 at its top level, later years under data.years). Read-only; money only with
+// Financials access.
+function sponsorYearHistory(s) {
+  const row = storedYearRows.sponsor[s.id];
+  if (!row) return [];
+  return conferenceYears.filter(y => y.id !== activeConferenceYear).map(y => {
+    const slice = y.id === RECORD_BASE_YEAR ? row : ((row.data || {}).years || {})[y.id];
+    if (!slice) return { year: y, none: true };
+    const d = slice.data || {};
+    return { year: y, status: slice.tracker_status || '', pkg: slice.package || '', d };
+  });
+}
+function sponsorYearHistoryHtml(s) {
+  const hist = sponsorYearHistory(s);
+  if (!hist.length) return '<p class="hint">No other conference years yet.</p>';
+  const money = canView('sponsors.financial');
+  const fmt = v => { const n = parseMoneyNum(v); return n ? '$' + n.toLocaleString() : ''; };
+  const line = (label, value) => value ? `<div class="sp-field"><label>${escapeHtml(label)}</label><div class="bg-input bg-readonly" style="padding:7px 9px;">${escapeHtml(String(value))}</div></div>` : '';
+  return `<div class="sp-detail-grid sp-detail-2col">` + hist.map(h => {
+    if (h.none) return `<fieldset class="sp-fieldset"><legend>${escapeHtml(h.year.label)}</legend><div class="sp-sub">Not part of ${escapeHtml(h.year.label)}.</div></fieldset>`;
+    const d = h.d, m = d.money || {}, prog = d.program || {}, lg = d.logistics || {};
+    const pkg = (packages.find(p => p.key === h.pkg) || {}).label || h.pkg;
+    const committed = money ? fmt(m.committed || d.checkoutTier) : '';
+    const paid = money ? fmt(m.paid) : '';
+    const inKind = (d.inKindContributions || []).filter(c => c.description).map(c => c.description + (c.value ? ' (' + fmt(c.value) + ')' : '')).join('; ');
+    const body = [
+      `<div style="margin-bottom:8px;"><span class="sp-badge ${sponsorBadgeClass(h.status)}">${escapeHtml(h.status || 'No status')}</span>${d.returningOverride ? ' <span class="sp-sub">Returning</span>' : ''}</div>`,
+      line('Package', pkg),
+      line('Registered', d.registeredDate),
+      line('Committed', committed),
+      line('Paid', paid),
+      money ? line('Payment status', m.paymentStatus) : '',
+      line('In-kind', inKind),
+      line('Program', [prog.type, prog.track, prog.timeSlot].filter(Boolean).join(' · ')),
+      line('Booth / exhibit #', lg.exhibitNumber),
+      line('Badges', (lg.badgeNames || []).filter(Boolean).join(', ')),
+      line('Special notes', d.specialNotes)
+    ].join('');
+    return `<fieldset class="sp-fieldset"><legend>${escapeHtml(h.year.label)}</legend><div class="sp-field-grid">${body}</div></fieldset>`;
+  }).join('') + `</div><p class="hint" style="margin-top:6px;">Read-only. Switch to that year in the gear menu to change anything.</p>`;
+}
+
 function sponsorDetailHTML(s) {
   const pkgOptions = packages.map(p => {
     const price = PACKAGE_GUIDE_PRICES[p.key];
     const priceLabel = price ? ` \u2014 $${price.toLocaleString()}` : '';
     return `<option value="${p.key}" ${s.package === p.key ? 'selected' : ''}>${p.label}${priceLabel} (${p.widthFt}\u00d7${p.depthFt} ft)</option>`;
   }).join('');
-  const STATUS_PRESETS = ['Registered, Paid', 'Registered, Not Paid', 'Committed, Not Registered', 'In-Kind - Registered', 'In-Kind - Not Registered', 'Not Yet Registered (Prior Sponsor)', 'Prospective Sponsor', 'Declined'];
+  const STATUS_PRESETS = ['Registered, Paid', 'Registered, Not Paid', 'Committed, Not Registered', 'In-Kind - Registered', 'In-Kind - Not Registered', 'Not Yet Registered (Prior Sponsor)', 'Prospective Sponsor', 'Declined', 'Inactive'];
   // If a sponsor somehow has a status outside the preset list (e.g. from before this was a
   // dropdown), still show it as a selected option instead of silently dropping/changing it.
   const statusChoices = STATUS_PRESETS.includes(s.trackerStatus) ? STATUS_PRESETS : [s.trackerStatus, ...STATUS_PRESETS];
@@ -14144,8 +14192,9 @@ function sponsorDetailHTML(s) {
         if (canView('sponsors.financial')) tabs.push(['money', 'Financials']);
         tabs.push(['program', 'Program & Logistics']);
         if (pendingCount > 0) tabs.push(['pending', '🔔 Pending Updates (' + pendingCount + ')']);
+        if (conferenceYears.length > 1) tabs.push(['years', 'Past Years']);
         const tabBarHtml = tabs.map(([key, label]) => {
-          const alert = key === 'pending' ? false : sponsorTabAlert(s, key);
+          const alert = key === 'pending' || key === 'years' ? false : sponsorTabAlert(s, key);
           return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''} ${key === 'pending' ? 'sk-tab-btn-pending' : ''}" onclick="setSponsorTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
         }).join('');
         return `
@@ -14397,6 +14446,8 @@ function sponsorDetailHTML(s) {
         </div>
       </div>
       `}
+
+      ${sponsorActiveTab !== 'years' ? '' : `<div class="sk-tab-panel">${sponsorYearHistoryHtml(s)}</div>`}
 
       <div class="sk-always-visible">
         <div class="sk-always-visible-label">Ongoing \u2014 always visible, regardless of tab</div>
