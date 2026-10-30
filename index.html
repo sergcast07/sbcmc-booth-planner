@@ -2035,6 +2035,13 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   .sc-pill { font-size: 8.5px; }
 }
 
+/* Conference dates bar (Schedule tab) */
+.sch-dates-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: -6px 0 14px; font-size: 13px; }
+.sch-dates-warn { background: var(--gold-pale); border: 1px solid var(--gold); border-radius: 6px; padding: 3px 9px; font-size: 12px; }
+.sch-dates-warn a { color: var(--teal-deep); text-decoration: underline; cursor: pointer; }
+.cd-move { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink); }
+.qa-modal-card .cd-move input[type=checkbox] { width: auto; flex: none; margin-top: 2px; }
+
 /* Schedule CSV export wizard */
 .xw-steps { display: flex; align-items: center; gap: 6px; margin: 4px 0 14px; }
 .xw-dot { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--ink-soft); }
@@ -2898,6 +2905,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
   </div>
   <p class="hint" style="margin-bottom: 16px;">Plan breakouts by track and slot, see the full Sunday–Wednesday agenda, pull one group's own itinerary, or see everything happening in one or more physical rooms across the whole conference (not just breakouts). This reads and writes the same session data as the Speakers & Artists tab — editing here updates their record, and editing their record updates here.</p>
 
+  <div id="sch-dates-bar"></div>
   <div id="sch-conflicts-body"></div>
   <div id="sch-grid-body" style="display:none;"></div>
   <div id="sch-timeline-body"></div>
@@ -4390,7 +4398,7 @@ const TABLE_TO_SECTION_KEYS = {
   // key/value store (revenue estimator config, cashflow config, AND the Food Planning meal
   // list/location board/cost table), so a food-only role (either half) needs to be let through
   // too, not just revenue/cashflow roles.
-  conference_settings: ['revenue.all', 'cashflow.all', 'food.all', 'food.financial'],
+  conference_settings: ['revenue.all', 'cashflow.all', 'food.all', 'food.financial', 'schedule.all'],
   conference_documents: ['speakers.internal_docs']
 };
 function canView(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey]); }
@@ -4999,6 +5007,7 @@ async function switchActiveYear(year) {
     (typeof loadBreakoutRoomBookings === 'function' ? loadBreakoutRoomBookings() : Promise.resolve()),
     (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
     (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
+    (typeof loadConferenceDates === 'function' ? loadConferenceDates() : Promise.resolve()),
     (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
     (typeof loadHotelInfoUrl === 'function' ? loadHotelInfoUrl() : Promise.resolve()),
     (typeof loadBreakoutScheduleReady === 'function' ? loadBreakoutScheduleReady() : Promise.resolve()),
@@ -6146,6 +6155,7 @@ async function initSupabase() {
       (typeof loadBreakoutRoomBookings === 'function' ? loadBreakoutRoomBookings() : Promise.resolve()),
       (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
       (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
+      (typeof loadConferenceDates === 'function' ? loadConferenceDates() : Promise.resolve()),
       (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
     (typeof loadHotelInfoUrl === 'function' ? loadHotelInfoUrl() : Promise.resolve()),
       (typeof loadBreakoutScheduleReady === 'function' ? loadBreakoutScheduleReady() : Promise.resolve()),
@@ -18895,6 +18905,116 @@ let scheduleSlots = DEFAULT_SCHEDULE_SLOTS.map(([date, label, start, end, kind],
   id: 'slot_default_' + i, date, label, start, end, kind, notes: '', sortOrder: i, audiences: [MAIN_AUDIENCE_ID], subOptions: [], room: ''
 }));
 
+// ---- Conference dates (per year) ----
+// Saved per year in conference_settings ('conference_dates' = {start, end}). A year with nothing
+// saved falls back to the span of its own schedule, so 2027 reads April 11-14 without anyone
+// having to enter it.
+let conferenceDatesSetting = null;
+async function loadConferenceDates() {
+  conferenceDatesSetting = await loadConfSettingJson('conference_dates');
+}
+function conferenceDateRange() {
+  if (conferenceDatesSetting && conferenceDatesSetting.start && conferenceDatesSetting.end) return { start: conferenceDatesSetting.start, end: conferenceDatesSetting.end, saved: true };
+  const dates = scheduleSlots.map(sl => sl.date).filter(Boolean).sort();
+  return dates.length ? { start: dates[0], end: dates[dates.length - 1], saved: false } : null;
+}
+function conferenceDateMinMaxAttrs() {
+  const r = conferenceDateRange();
+  return r ? 'min="' + r.start + '" max="' + r.end + '"' : '';
+}
+// "April 11–14, 2027", "March 30 – April 2, 2028", "December 30, 2028 – January 2, 2029"
+function conferenceDateRangeText(range) {
+  const r = range || conferenceDateRange();
+  if (!r) return '';
+  const d = iso => new Date(iso + 'T12:00:00');
+  const a = d(r.start), b = d(r.end);
+  const month = x => x.toLocaleDateString('en-US', { month: 'long' });
+  if (r.start === r.end) return month(a) + ' ' + a.getDate() + ', ' + a.getFullYear();
+  if (a.getFullYear() !== b.getFullYear()) return month(a) + ' ' + a.getDate() + ', ' + a.getFullYear() + ' \u2013 ' + month(b) + ' ' + b.getDate() + ', ' + b.getFullYear();
+  if (a.getMonth() !== b.getMonth()) return month(a) + ' ' + a.getDate() + ' \u2013 ' + month(b) + ' ' + b.getDate() + ', ' + b.getFullYear();
+  return month(a) + ' ' + a.getDate() + '\u2013' + b.getDate() + ', ' + b.getFullYear();
+}
+function isoAddDays(iso, n) {
+  const x = new Date(iso + 'T12:00:00'); x.setDate(x.getDate() + n);
+  return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+}
+function isoDaysBetween(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
+
+function renderConferenceDatesBar() {
+  const el = document.getElementById('sch-dates-bar'); if (!el) return;
+  const r = conferenceDateRange();
+  const yearLabel = ((conferenceYears.find(y => y.id === activeConferenceYear) || {}).label) || activeConferenceYear;
+  const outside = r && r.saved ? scheduleSlots.filter(sl => sl.date && (sl.date < r.start || sl.date > r.end)).length : 0;
+  const canSet = canEdit('schedule.all');
+  el.innerHTML = `<div class="sch-dates-bar">
+      <span><b>${escapeHtml(yearLabel)} dates:</b> ${r ? escapeHtml(conferenceDateRangeText(r)) + (r.saved ? '' : ' <span class="sp-sub">(from the schedule, not set yet)</span>') : '<span class="sp-sub">not set yet</span>'}</span>
+      ${canSet ? `<button class="sp-mini-btn" onclick="openConferenceDatesModal()">${r && r.saved ? 'Change dates' : 'Set dates'}</button>` : ''}
+      ${outside ? `<span class="sch-dates-warn">${outside} schedule item${outside === 1 ? ' is' : 's are'} outside these dates.${canSet ? ` <a onclick="openConferenceDatesModal()">Move the schedule</a>` : ''}</span>` : ''}
+    </div>`;
+}
+
+function openConferenceDatesModal() {
+  if (!canEditOrWarn('schedule.all', 'the schedule')) return;
+  const r = conferenceDateRange();
+  const root = document.getElementById('exp-sort-modal-root');
+  const yearLabel = ((conferenceYears.find(y => y.id === activeConferenceYear) || {}).label) || activeConferenceYear;
+  root.innerHTML = `
+    <div class="qa-modal-overlay" onclick="if(event.target===this) closeConferenceDatesModal();">
+      <div class="qa-modal-card" style="max-width:460px;">
+        <h3>${escapeHtml(yearLabel)} conference dates</h3>
+        <div class="qa-modal-field"><label for="cd-start">First day</label><input type="date" id="cd-start" value="${r ? r.start : ''}" oninput="conferenceDatesPreview()"></div>
+        <div class="qa-modal-field"><label for="cd-end">Last day</label><input type="date" id="cd-end" value="${r ? r.end : ''}" oninput="conferenceDatesPreview()"></div>
+        <div id="cd-preview"></div>
+        <div class="qa-modal-actions"><button class="sp-mini-btn" onclick="closeConferenceDatesModal()">Cancel</button><button class="qa-modal-done" onclick="saveConferenceDates()">Save</button></div>
+      </div>
+    </div>`;
+  conferenceDatesPreview();
+}
+function closeConferenceDatesModal() { document.getElementById('exp-sort-modal-root').innerHTML = ''; }
+
+// The schedule's current first day, and how far it would move if day 1 lined up with `start`.
+function conferenceScheduleShift(start) {
+  const dates = scheduleSlots.map(sl => sl.date).filter(Boolean).sort();
+  if (!dates.length || !start) return { days: 0, count: 0 };
+  return { days: isoDaysBetween(dates[0], start), count: scheduleSlots.length, from: dates[0] };
+}
+function conferenceDatesPreview() {
+  const start = (document.getElementById('cd-start') || {}).value, end = (document.getElementById('cd-end') || {}).value;
+  const box = document.getElementById('cd-preview'); if (!box) return;
+  if (!start || !end) { box.innerHTML = ''; return; }
+  if (end < start) { box.innerHTML = '<div class="xw-warn">The last day is before the first day.</div>'; return; }
+  const sh = conferenceScheduleShift(start);
+  const span = isoDaysBetween(start, end) + 1;
+  let html = `<div class="sp-sub" style="margin-bottom:8px;">${escapeHtml(conferenceDateRangeText({ start, end }))} · ${span} day${span === 1 ? '' : 's'} (${escapeHtml(fullWeekday(start))} to ${escapeHtml(fullWeekday(end))})</div>`;
+  if (sh.count && sh.days) {
+    html += `<label class="cd-move"><input type="checkbox" id="cd-move" checked> Move all ${sh.count} schedule items so day 1 (${escapeHtml(friendlyDate(sh.from))}) becomes ${escapeHtml(friendlyDate(start))}. Each item keeps its time and its place in the week; speaker sessions move with them.</label>`;
+    if (new Date(sh.from + 'T12:00:00').getDay() !== new Date(start + 'T12:00:00').getDay()) html += '<div class="xw-warn" style="margin-top:6px;">The new first day is a different weekday than the schedule’s first day, so items will land on different weekdays.</div>';
+  }
+  box.innerHTML = html;
+}
+async function saveConferenceDates() {
+  if (!canEditOrWarn('schedule.all', 'the schedule')) return;
+  const start = document.getElementById('cd-start').value, end = document.getElementById('cd-end').value;
+  if (!start || !end) { toast('Pick both a first and a last day.'); return; }
+  if (end < start) { toast('The last day is before the first day.'); return; }
+  const moveBox = document.getElementById('cd-move');
+  const sh = conferenceScheduleShift(start);
+  if (!(await saveConfSettingJson('conference_dates', { start, end }, 'the conference dates'))) return;
+  conferenceDatesSetting = { start, end };
+  let moved = 0;
+  if (moveBox && moveBox.checked && sh.days) {
+    scheduleSlots.forEach(sl => { if (sl.date) { sl.date = isoAddDays(sl.date, sh.days); pushScheduleSlot(sl); moved++; } });
+    speakers.forEach(sp => {
+      let changed = false;
+      (sp.data.sessions || []).forEach(sess => { if (sess.sessionDate) { sess.sessionDate = isoAddDays(sess.sessionDate, sh.days); changed = true; } });
+      if (changed) pushSpeaker(sp);
+    });
+  }
+  closeConferenceDatesModal();
+  renderScheduleView();
+  toast('Dates saved: ' + conferenceDateRangeText() + (moved ? '. Moved ' + moved + ' schedule items.' : '.'));
+}
+
 async function loadScheduleSlots() {
   if (!sbClient) return;
   try {
@@ -19163,6 +19283,7 @@ function toggleSlotAudience(slotId, audId) {
   renderScheduleView();
 }
 function renderScheduleView() {
+  renderConferenceDatesBar();
   renderScheduleConflicts();
   const gridBtn = document.getElementById('sch-toggle-grid'), timelineBtn = document.getElementById('sch-toggle-timeline'), itinBtn = document.getElementById('sch-toggle-itinerary'), roomsBtn = document.getElementById('sch-toggle-rooms');
   const artistsBtn = document.getElementById('sch-toggle-artists'), scBtn = document.getElementById('sch-toggle-soundchecks');
@@ -20419,7 +20540,7 @@ function renderScheduleTimeline() {
     <div class="sch-slot-editor">
       <div class="db-section-title">Add a schedule slot</div>
       <div class="sch-slot-add-row">
-        <input type="date" id="sch-slot-date" min="2027-04-11" max="2027-04-14">
+        <input type="date" id="sch-slot-date" ${conferenceDateMinMaxAttrs()}>
         <input type="text" id="sch-slot-label" placeholder="Label">
         <input type="time" id="sch-slot-start">
         <input type="time" id="sch-slot-end">
@@ -21563,7 +21684,7 @@ function speakerDetailHTML(sp) {
               <div class="sp-field-grid" style="margin-top:10px;">
                 <div class="sp-field"><label for="sk-sesstitle-${sp.id}-${i}">Session title</label><input id="sk-sesstitle-${sp.id}-${i}" type="text" value="${escapeHtml(sess.title)}" onchange="updateSpeakerSessionField('${sp.id}',${i},'title',this.value)"></div>
                 <div class="sp-field"><label for="sk-sesstrack-${sp.id}-${i}">Track</label><select id="sk-sesstrack-${sp.id}-${i}" onchange="updateSpeakerSessionField('${sp.id}',${i},'track',this.value)">${sessionTrackOptionsHtml(sess.track)}</select></div>
-                <div class="sp-field"><label for="sk-sessdate-${sp.id}-${i}">Session date</label><input id="sk-sessdate-${sp.id}-${i}" type="date" min="2027-04-11" max="2027-04-14" value="${escapeHtml(sess.sessionDate)}" onchange="updateSpeakerSessionDate('${sp.id}',${i},this.value)"></div>
+                <div class="sp-field"><label for="sk-sessdate-${sp.id}-${i}">Session date</label><input id="sk-sessdate-${sp.id}-${i}" type="date" ${conferenceDateMinMaxAttrs()} value="${escapeHtml(sess.sessionDate)}" onchange="updateSpeakerSessionDate('${sp.id}',${i},this.value)"></div>
                 <div class="sp-field"><label for="sk-sessday-${sp.id}-${i}">Day</label><input id="sk-sessday-${sp.id}-${i}" type="text" readonly value="${sess.sessionDate ? escapeHtml(sess.day) : 'Pick a date above'}" style="background:var(--paper); color:var(--ink-soft);"></div>
                 <div class="sp-field"><label for="sk-sesstime-${sp.id}-${i}">Time slot</label><input id="sk-sesstime-${sp.id}-${i}" type="time" value="${escapeHtml(sess.timeSlot)}" onchange="updateSpeakerSessionField('${sp.id}',${i},'timeSlot',this.value)"></div>
                 <div class="sp-field"><label for="sk-sessroom-${sp.id}-${i}">Room</label><select id="sk-sessroom-${sp.id}-${i}" onchange="updateSpeakerSessionField('${sp.id}',${i},'room',this.value)">${sessionRoomOptionsHtml(sess.room)}</select></div>
@@ -22310,7 +22431,7 @@ function artistPartyStillNeeded(sp) {
 const AW_FIELDS = [
   { key: 'subject', group: 'Subject and header', label: 'Subject line', rows: 1, value: 'SBCMC: Artist Welcome' },
   { key: 'headerTitle', group: 'Subject and header', label: 'Header title', rows: 1, value: 'SBCMC Artist Welcome' },
-  { key: 'headerSub', group: 'Subject and header', label: 'Header subtitle', rows: 1, value: 'April 11–14, 2027 · Hunter Street Baptist Church' },
+  { key: 'headerSub', group: 'Subject and header', label: 'Header subtitle', rows: 1, get value() { return [conferenceDateRangeText(), activeYearVenue().name].filter(Boolean).join(' · '); } },
   { key: 'greeting', group: 'Opening', label: 'Greeting', rows: 1, value: 'Hi {first},' },
   { key: 'intro', group: 'Opening', label: 'Introduction', rows: 4, value: 'My name is Sergio Castillo, and I’m reaching out on behalf of the SBCMC 2027 planning team. We’re excited to work together with you to equip and encourage church leaders and those involved in worship ministry, in the academic world and across our convention.' },
   { key: 'introPlan', group: 'Opening', label: 'Line before the plan (when we need things)', rows: 2, value: 'Below is our plan and what we need from you. We’d like to get everything in place in a timely way, so we’ve laid it out by date.' },
@@ -22661,7 +22782,7 @@ function renderArtistWelcomeModal() {
 const CWC_ACCEPT_DEFAULT = {
   subject: 'Welcome to the Collegiate Worship Collective at SBCMC 2027',
   headerTitle: 'Welcome to the Collegiate Worship Collective',
-  headerSub: 'April 11–14, 2027 · Hunter Street Baptist Church',
+  get headerSub() { return [conferenceDateRangeText(), activeYearVenue().name].filter(Boolean).join(' · '); },
   body: `Hello {name},
 
 Thank you for submitting an application to join the Collegiate Worship Collective (CWC) at the Southern Baptist Church Music Conference in Birmingham, AL. After reviewing your application, I am pleased to notify you of your acceptance and look forward to welcoming you to Hunter Street Baptist Church from April 11-14, 2027. From leading worship with Travis Cottrell and Dwan Hill, to attending sessions led by some of the most respected worship leaders and scholars in the country, this is going to be an amazing experience!
@@ -22824,7 +22945,7 @@ function cwcBuildSchedulePdf() {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('Tentative CWC Schedule', pageW - M, 44, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
   doc.text('Collegiate Worship Collective', pageW - M, 62, { align: 'right' });
-  doc.text('April 11-14, ' + activeConferenceYear, pageW - M, 77, { align: 'right' });
+  doc.text(conferenceDateRangeText() || activeConferenceYear, pageW - M, 77, { align: 'right' });
   doc.text(venue.name + (venue.location ? ', ' + venue.location : ''), pageW - M, 92, { align: 'right' });
   let y = 136;
   const legend = () => {
