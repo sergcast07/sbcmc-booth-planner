@@ -13288,8 +13288,13 @@ const RETURNING_CHECKBOX_SEED = new Set([
 
 async function normalizeContactFormatting() {
   let patchedAny = false;
+  // The one-time status/money fixes below were written for 2027's records. In any other year
+  // they'd be stamping 2027 decisions onto a year that hasn't started (e.g. marking Samford
+  // and Prism Committed for 2028), so only the shared contact formatting runs there.
+  const baseYear = recordYear() === RECORD_BASE_YEAR;
   sponsors.forEach(s => {
     let changed = false;
+    if (baseYear) {
     // One-time pre-fill for the Returning checkbox, only if nobody's touched it yet.
     if (s.data.returningOverride === null || s.data.returningOverride === undefined) {
       if (RETURNING_CHECKBOX_SEED.has(s.org)) { s.data.returningOverride = true; changed = true; }
@@ -13328,6 +13333,7 @@ async function normalizeContactFormatting() {
       s.data.amountStatus = '';
       changed = true;
     }
+    }
     if (s.contactPhone) {
       const formatted = formatPhoneUS(s.contactPhone);
       if (formatted !== s.contactPhone) { s.contactPhone = formatted; changed = true; }
@@ -13339,7 +13345,7 @@ async function normalizeContactFormatting() {
     // One-off content fix: an earlier note on CBU's record still said "Package D" after the
     // package field itself was corrected to "A" -- clean it up only if that stale text is
     // still there verbatim, so a manual edit since then is never overwritten.
-    if (s.org === 'California Baptist University' && s.data.specialNotes && s.data.specialNotes.startsWith('Package D. Also donating $20k')) {
+    if (baseYear && s.org === 'California Baptist University' && s.data.specialNotes && s.data.specialNotes.startsWith('Package D. Also donating $20k')) {
       s.data.specialNotes = 'Also donating $20k for the Collegiate Collective';
       changed = true;
     }
