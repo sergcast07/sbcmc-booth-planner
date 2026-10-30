@@ -14984,7 +14984,7 @@ function speakerCompleteness(sp) {
   // every flagged item has a real file on record (data.materials[key]), not just checked.
   const mn = sp.data.materialsNeeded || {};
   const mats = sp.data.materials || {};
-  const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k]);
+  const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k] && materialRequired(k));
   checks.push(neededKeys.length === 0 || neededKeys.every(k => materialProvided(mats, k)));
   if (!skipTravel) checks.push(!!lg.travelMethod);
   // "Invited" alone just means the ask went out -- nothing's actually confirmed yet, so it
@@ -15008,7 +15008,7 @@ function speakerTabAlert(sp, tab) {
     const mat = materialsForTypes(sp.types, sp.data.arrangement);
     const mn = sp.data.materialsNeeded || {};
     const mats = sp.data.materials || {};
-    if (mat.some(k => mn[k] && !materialProvided(mats, k))) return true;
+    if (mat.some(k => mn[k] && materialRequired(k) && !materialProvided(mats, k))) return true;
     const prod = sp.data.production || {};
     return !!prod.soundCheckNeeded && !prod.soundCheckScheduled;
   }
@@ -17011,7 +17011,7 @@ const SPEAKER_TYPES = ['Keynote', 'Breakout Leader', 'Musician', 'Panelist', 'Pr
 // non-public way. See sp.data.financial.w9Received.
 const MATERIAL_ITEM_LABELS = {
   bio: 'Bio or group description', headshot: 'Headshot or group photo', promoMaterials: 'Promotional materials',
-  sessionDescription: 'Session description', slideDeck: 'Slide deck', handouts: 'Attendee handouts',
+  sessionDescription: 'Session description', slideDeck: 'Slides or digital handouts (optional)', handouts: 'Attendee handouts',
   rider: 'Rider', stagePlot: 'Stage plot', inputList: 'Input list', rfRequest: 'RF (wireless) request',
   lyricsProPresenter: 'Lyrics / ProPresenter files', playbackDetails: 'Playback details (tracks, click, stems)',
   lightingNotes: 'Lighting notes / special requests', lightingNotesText: 'Lighting notes (typed)', playbackDetailsText: 'Playback details (typed)'
@@ -17024,7 +17024,7 @@ const MATERIAL_ITEM_INSTRUCTIONS = {
   headshot: 'Please upload or point us to your most up to date headshot, or for a group, a group photo, to use for the conference.',
   promoMaterials: 'Please upload or link to any promotional photos, videos, or press materials we can use to help promote your appearance.',
   sessionDescription: 'Please give us a short description of your session for the program and schedule.',
-  slideDeck: 'Please upload or point us to the slide deck you’ll use during your session.',
+  slideDeck: 'Optional. If you have slides or digital handouts for your session, upload them or paste a link here.',
   handouts: 'Please upload or link to any handouts you’d like available for attendees.',
   rider: 'Please upload or link to your hospitality/technical rider, if you have one.',
   stagePlot: 'Please upload or link to your stage plot.',
@@ -17051,22 +17051,27 @@ function materialItemType(key) { return MATERIAL_ITEM_TYPES[key] || 'file'; }
 // counts as "provided".
 const MATERIAL_TEXT_COMPANION = { lightingNotes: 'lightingNotesText', playbackDetails: 'playbackDetailsText' };
 const MATERIAL_TEXT_PLACEHOLDER = { lightingNotes: 'Type any lighting notes or special requests here…', playbackDetails: 'Type your playback details here (tracks, click, stems)…' };
+// Shown on the portal like any other item, but never counted as outstanding: no "still needed",
+// no incomplete badge, and it doesn't hold back the portal's "you're all set".
+const MATERIAL_OPTIONAL_ITEMS = new Set(['slideDeck']);
+function materialRequired(key) { return !MATERIAL_OPTIONAL_ITEMS.has(key); }
+function speakerIsMusician(sp) { return ((sp && sp.types) || []).includes('Musician'); }
 function materialProvided(materials, key) {
   const c = MATERIAL_TEXT_COMPANION[key];
   return !!(materials && (materials[key] || (c && materials[c])));
 }
-// Rider and promo materials are asked of every type, same as bio/headshot -- both are on the
-// standard artist information form regardless of what kind of speaker/artist someone is.
+// Promo materials are asked of every type, same as bio/headshot. A rider is only asked of
+// musicians -- speakers never see it on their portal (nor the conference production rider).
 const MATERIALS_BY_TYPE = {
-  'Keynote': ['bio', 'headshot', 'promoMaterials', 'sessionDescription', 'slideDeck', 'rider'],
-  'Breakout Leader': ['bio', 'headshot', 'promoMaterials', 'sessionDescription', 'slideDeck', 'handouts', 'rider'],
+  'Keynote': ['bio', 'headshot', 'promoMaterials', 'sessionDescription', 'slideDeck'],
+  'Breakout Leader': ['bio', 'headshot', 'promoMaterials', 'sessionDescription', 'slideDeck', 'handouts'],
   'Musician': ['bio', 'headshot', 'promoMaterials', 'rider', 'stagePlot', 'inputList', 'rfRequest', 'lyricsProPresenter', 'playbackDetails', 'lightingNotes'],
-  'Panelist': ['bio', 'headshot', 'promoMaterials', 'sessionDescription', 'rider'],
+  'Panelist': ['bio', 'headshot', 'promoMaterials', 'sessionDescription'],
   // For someone directing/leading a program or ensemble (e.g. Collegiate Worship Collective)
   // rather than delivering a single breakout session -- no session-specific items like Slide
   // Deck/Handouts, since there's no one session to prep those for.
-  'Program Leader': ['bio', 'headshot', 'promoMaterials', 'rider'],
-  'Other': ['bio', 'headshot', 'promoMaterials', 'rider']
+  'Program Leader': ['bio', 'headshot', 'promoMaterials'],
+  'Other': ['bio', 'headshot', 'promoMaterials']
 };
 // arrangement: pass sp.data.arrangement when known -- accepted for callers that still pass it,
 // though nothing here currently varies by it (the one item that used to, the signed contract,
@@ -17402,7 +17407,7 @@ function renderSpeakerPublicView() {
   // have and every flagged item already has a value on file (a text field with real content,
   // or a file/link that isn't itself a pending removal). Either way, a plain grey sentence
   // reads as ambiguous -- a clear checkmark says outright there's nothing to do right now.
-  const neededKeysList = relevantKeys.filter(k => materialsNeeded[k]);
+  const neededKeysList = relevantKeys.filter(k => materialsNeeded[k] && materialRequired(k));
   const allNeededProvided = neededKeysList.length > 0 && neededKeysList.every(k => !!materialCurrentValue(k) || (MATERIAL_TEXT_COMPANION[k] && !!materialCurrentValue(MATERIAL_TEXT_COMPANION[k])));
   const allSetBannerHtml = (neededKeysList.length === 0 || allNeededProvided)
     ? `<div class="spv-allset-banner">✓ ${neededKeysList.length === 0 ? 'We have everything we need from you right now — nothing to upload.' : 'You’re all set — we have everything listed below.'}</div>`
@@ -17415,7 +17420,7 @@ function renderSpeakerPublicView() {
   // production is providing (not a restriction on what artists may ask for), since with this
   // many concerts and stage changes across four days, building from one shared framework is
   // what makes a fast, well-supported changeover possible for everyone.
-  const riderBannerHtml = conferenceProductionRider ? `
+  const riderBannerHtml = conferenceProductionRider && speakerIsMusician(sp) ? `
     <div class="spv-rider-banner">
       <div class="spv-rider-banner-head">
         <span class="spv-rider-badge">HSBC &amp; SBCMC Production</span>
@@ -18350,7 +18355,7 @@ function earliestSpeakerSession(sp) {
 function materialsNeededCount(sp) {
   const mn = sp.data.materialsNeeded || {};
   const mats = sp.data.materials || {};
-  const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k]);
+  const neededKeys = materialsForTypes(sp.types, sp.data.arrangement).filter(k => mn[k] && materialRequired(k));
   const done = neededKeys.filter(k => materialProvided(mats, k)).length;
   return { done, total: neededKeys.length };
 }
@@ -22191,7 +22196,7 @@ function artistWelcomeNeeds(sp) {
   const mn = sp.data.materialsNeeded || {}, mats = sp.data.materials || {}, pending = sp.data.pendingChanges || {};
   const have = k => materialProvided(mats, k) || !!(pending['materials.' + k] && pending['materials.' + k].new) || (MATERIAL_TEXT_COMPANION[k] && !!(pending['materials.' + MATERIAL_TEXT_COMPANION[k]] && pending['materials.' + MATERIAL_TEXT_COMPANION[k]].new));
   const set = new Set();
-  materialsForTypes(sp.types, sp.data.arrangement).forEach(k => { if (mn[k] && !have(k) && k !== 'promoMaterials') set.add(k); });
+  materialsForTypes(sp.types, sp.data.arrangement).forEach(k => { if (mn[k] && !have(k) && k !== 'promoMaterials' && materialRequired(k)) set.add(k); });
   return set;
 }
 
@@ -22333,7 +22338,7 @@ function artistWelcomeEmail(sp, opts) {
   const prod = sp.data.production || {};
   const first = ((sp.contactName || sp.name || '').trim().split(/\s+/)[0]) || 'there';
   const portal = opts.portalUrl || '';
-  const riderUrl = conferenceProductionRider ? conferenceProductionRider.url : '';
+  const riderUrl = conferenceProductionRider && speakerIsMusician(sp) ? conferenceProductionRider.url : '';
   const hotelUrl = hotelInfoUrl || 'https://sbcmc.org/about/recommended-hotels/';
   const nothingNeeded = !asks.asap.length && !asks.asapNote && !asks.feb.length && !asks.mar.length;
   const H = 'font-family:Georgia,\'Times New Roman\',serif; font-size:17px; color:#24404A;';
@@ -23928,7 +23933,7 @@ function emailSpeakerSummary(id) {
   const mn = sp.data.materialsNeeded || {};
   const mats = sp.data.materials || {};
   const neededMaterials = allMaterials.filter(k => mn[k]);
-  const stillNeeded = neededMaterials.filter(k => !materialProvided(mats, k));
+  const stillNeeded = neededMaterials.filter(k => !materialProvided(mats, k) && materialRequired(k));
   const received = neededMaterials.filter(k => materialProvided(mats, k));
   if (stillNeeded.length) {
     lines.push("STILL NEEDED FROM YOU");
