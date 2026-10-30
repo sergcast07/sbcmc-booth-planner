@@ -4802,6 +4802,71 @@ const ACTIVE_YEAR_KEY = 'sbcmcActiveYear';
 // write over to a conference_year column, and the realtime filter below only has to change once.
 function currentSharedRowId() { return 'shared-layout-' + (activeConferenceYear || '2027'); }
 
+// ---- Per-year sponsor & speaker records ----
+// Sponsors and speakers are one shared row each across every conference year, so contact info
+// edits and a newly added vendor show up in every year automatically. What belongs to a single
+// conference (status, package, booth, payments, sessions, logistics, materials...) lives at the
+// row's top level for RECORD_BASE_YEAR -- where it always lived -- and under data.years[<year>]
+// for every later year. rowToSponsor/rowToSpeaker hand the rest of the app the active year's
+// view of a row; pushSponsor/pushSpeaker split it back apart on save (see mergeRowForYear).
+const RECORD_BASE_YEAR = '2027';
+const YEAR_SHARED = {
+  sponsor: { cols: ['id', 'org', 'contact_name', 'contact_email', 'contact_phone', 'sort_order'], data: ['secondaryContact', 'invoiceBillTo', 'publicToken', 'comms'] },
+  speaker: { cols: ['id', 'name', 'type', 'contact_name', 'contact_email', 'contact_phone', 'sort_order'], data: ['bio', 'photoCandidates', 'internalDocuments', 'secondaryContact', 'linkedSponsorId', 'publicToken', 'comms', 'filesDefaultInternalV1'] }
+};
+const YEAR_COLS = { sponsor: ['tracker_status', 'package', 'linked_booth_id'], speaker: ['tracker_status'] };
+const NEW_RECORD_BASE_COLS = { sponsor: { tracker_status: 'Prospective Sponsor', package: '', linked_booth_id: '' }, speaker: { tracker_status: 'Contact Only' } };
+function recordYear() { return activeConferenceYear || RECORD_BASE_YEAR; }
+function pickKeys(obj, keys) { const o = {}; keys.forEach(k => { if (obj && obj[k] !== undefined) o[k] = obj[k]; }); return o; }
+function omitKeys(obj, keys) { const o = Object.assign({}, obj || {}); keys.forEach(k => { delete o[k]; }); return o; }
+
+// The stored row as it reads for `year`: shared columns/data as stored, plus that year's own part,
+// or "not part of this year yet" (inactive) when nothing has been saved for that year.
+function rowForYear(kind, row, year) {
+  if (!row || year === RECORD_BASE_YEAR) return row;
+  const data = row.data || {};
+  const slice = (data.years || {})[year];
+  const out = pickKeys(row, YEAR_SHARED[kind].cols.concat(['updated_at']));
+  out.data = Object.assign(pickKeys(data, YEAR_SHARED[kind].data), slice ? (slice.data || {}) : {});
+  if (slice) Object.assign(out, pickKeys(slice, YEAR_COLS[kind]));
+  else {
+    out.tracker_status = recordDefaultStatus(kind, row);
+    if (kind === 'sponsor' && /prior sponsor/i.test(out.tracker_status)) out.data.returningOverride = true;
+  }
+  return out;
+}
+function recordDefaultStatus(kind, row) {
+  if (kind === 'speaker') return 'Contact Only';
+  // Sponsored (or was a prior sponsor) in any year already -> someone to follow up with again.
+  const statuses = [row.tracker_status].concat(Object.values((row.data || {}).years || {}).map(y => y && y.tracker_status));
+  return statuses.some(st => st && /^registered|^committed|in-kind|prior sponsor/i.test(st)) ? 'Not Yet Registered (Prior Sponsor)' : 'Prospective Sponsor';
+}
+// The part of a stored row's `data` that belongs to `year`.
+function rowYearData(row, year) {
+  if (!row) return {};
+  const data = row.data || {};
+  if (year === RECORD_BASE_YEAR) return data;
+  return ((data.years || {})[year] || {}).data || {};
+}
+// Turns the active year's view of a record back into the full stored row. Starts from what's on
+// the server right now (`current`), so this session's older copy never overwrites another year's
+// part of the row, or the other half of it.
+function mergeRowForYear(kind, row, current, year) {
+  const shared = YEAR_SHARED[kind].data;
+  if (year === RECORD_BASE_YEAR) {
+    const years = (current && current.data && current.data.years) || (row.data && row.data.years);
+    const data = omitKeys(row.data, ['years']);
+    if (years) data.years = years;
+    return Object.assign({}, row, { data });
+  }
+  const curData = (current && current.data) || {};
+  const out = Object.assign({}, current ? omitKeys(current, ['data']) : NEW_RECORD_BASE_COLS[kind], pickKeys(row, YEAR_SHARED[kind].cols), { updated_at: row.updated_at });
+  const years = Object.assign({}, curData.years || {});
+  years[year] = Object.assign(pickKeys(row, YEAR_COLS[kind]), { data: omitKeys(row.data, shared.concat(['years'])) });
+  out.data = Object.assign({}, curData, pickKeys(row.data, shared), { years });
+  return out;
+}
+
 async function loadConferenceYears() {
   if (!sbClient) { activeConferenceYear = activeConferenceYear || '2027'; return; }
   try {
@@ -4823,8 +4888,10 @@ async function loadConferenceYears() {
     if (stored && conferenceYears.some(y => y.id === stored)) {
       activeConferenceYear = stored;
     } else {
-      const nonArchived = conferenceYears.find(y => y.status !== 'archived');
-      activeConferenceYear = (nonArchived || conferenceYears[0]).id;
+      // The oldest year that isn't archived -- starting next year's planning early must not move
+      // everyone (and every sponsor/speaker portal link) off the conference that's still running.
+      const open = conferenceYears.filter(y => y.status !== 'archived');
+      activeConferenceYear = (open[open.length - 1] || conferenceYears[0]).id;
     }
   } catch (err) {
     console.warn('Conference years load failed:', err);
@@ -4901,6 +4968,8 @@ async function switchActiveYear(year) {
   toast('Switched to ' + (yearRow ? yearRow.label : year) + '.');
   await Promise.all([
     loadPackagesFromDb(), loadCustomMapsFromDb(),
+    (typeof loadSponsorsFromDb === 'function' ? loadSponsorsFromDb() : Promise.resolve()),
+    (typeof loadSpeakersFromDb === 'function' ? loadSpeakersFromDb() : Promise.resolve()),
     (typeof loadDriversAndHotels === 'function' ? loadDriversAndHotels() : Promise.resolve()),
     (typeof loadSessionRoomsAndTracks === 'function' ? loadSessionRoomsAndTracks() : Promise.resolve()),
     (typeof loadBreakoutRoomBookings === 'function' ? loadBreakoutRoomBookings() : Promise.resolve()),
@@ -4942,7 +5011,7 @@ async function startNewConferenceYear() {
   if (!id) return;
   if (conferenceYears.some(y => y.id === id)) { toast('That year already exists \u2014 pick it from the selector instead.'); return; }
   const label = (prompt('Label to show in the year selector:', 'SBCMC ' + id) || ('SBCMC ' + id)).trim();
-  if (!confirm('Start ' + label + '? This creates a fresh year with its own rooms, floor plan, applicants, and schedule (tracks and the schedule shape carry forward from ' + activeConferenceYear + ' as an editable starting point). Nothing in ' + activeConferenceYear + ' is touched. A backup will be taken first.')) return;
+  if (!confirm('Start ' + label + '? This creates a fresh year with its own rooms, floor plan, applicants, and schedule (tracks and the schedule shape carry forward from ' + activeConferenceYear + ' as an editable starting point). Every sponsor, vendor, speaker and artist carries over with their contact info, starting as Inactive for ' + id + '. Contact changes and new contacts show up in both years; statuses, payments and sessions are kept separately per year. Nothing in ' + activeConferenceYear + ' is touched, and it stays the default year for everyone until it is archived. A backup will be taken first.')) return;
 
   await backupNow('Before starting ' + id);
 
@@ -13206,6 +13275,7 @@ async function normalizeContactFormatting() {
 }
 
 async function backfillRegisteredDates() {
+  if (recordYear() !== RECORD_BASE_YEAR) return false; // the known dates are 2027 registrations
   const isActive = isActiveThisYear;
   let patchedAny = false;
   sponsors.forEach(s => {
@@ -13248,6 +13318,7 @@ async function loadSponsorsFromDb() {
 }
 
 function rowToSponsor(row) {
+  row = rowForYear('sponsor', row, recordYear());
   return {
     id: row.id, org: row.org, contactName: row.contact_name || '', contactEmail: row.contact_email || '',
     contactPhone: row.contact_phone || '', package: row.package || '', trackerStatus: row.tracker_status || 'Prospective Sponsor',
@@ -13305,7 +13376,11 @@ let sponsorPushTimers = {};
 function pushSponsor(s) {
   if (!sbClient) return;
   clearTimeout(sponsorPushTimers[s.id]);
+  const year = recordYear();
   sponsorPushTimers[s.id] = setTimeout(async () => {
+    const key = 'sponsor:' + s.id;
+    const { data: current, error: readErr } = await sbClient.from(SPONSORS_TABLE).select('*').eq('id', s.id).maybeSingle();
+    if (readErr) { reportWriteError(key, 'Couldn\u2019t save that change to ' + (s.org || 'this sponsor') + ' \u2014 it\u2019ll revert next reload.', readErr); return; }
     let dataToSave = s.data;
     if (!canView('sponsors.financial')) {
       // This session's copy of `money` was blanked on load (see redactSponsorFinancials) --
@@ -13314,22 +13389,20 @@ function pushSponsor(s) {
       // current server-side value and splice it back in before saving anything else this
       // session actually did change. Falls back to the (blank) local value for a brand-new
       // sponsor that has no server row yet, which is correct -- nothing real to preserve there.
-      const { data: current } = await sbClient.from(SPONSORS_TABLE).select('data').eq('id', s.id).maybeSingle();
-      const currentData = (current && current.data) || {};
+      const currentData = rowYearData(current, year);
       dataToSave = Object.assign({}, s.data, {
         money: currentData.money || s.data.money,
         checkoutTier: currentData.checkoutTier !== undefined ? currentData.checkoutTier : s.data.checkoutTier,
         amountStatus: currentData.amountStatus !== undefined ? currentData.amountStatus : s.data.amountStatus
       });
     }
-    const row = {
+    const row = mergeRowForYear('sponsor', {
       id: s.id, org: s.org, contact_name: s.contactName, contact_email: s.contactEmail,
       contact_phone: s.contactPhone, package: s.package, tracker_status: s.trackerStatus,
       linked_booth_id: s.linkedBoothId, data: dataToSave, sort_order: s.sortOrder || 0,
       updated_at: new Date().toISOString()
-    };
+    }, current, year);
     const { error } = await sbClient.from(SPONSORS_TABLE).upsert(row);
-    const key = 'sponsor:' + s.id;
     if (error) {
       reportWriteError(key, 'Couldn\u2019t save that change to ' + (s.org || 'this sponsor') + ' \u2014 it\u2019ll revert next reload.', error);
     } else {
@@ -13369,7 +13442,7 @@ function deleteSponsor(id) {
   if (!canEditOrWarn('sponsors.contact', 'sponsors')) return;
   const s = sponsors.find(x => x.id === id);
   if (!s) return;
-  if (!confirm('Delete "' + s.org + '" from the sponsor tracker? This cannot be undone.')) return;
+  if (!confirm('Delete "' + s.org + '" from the sponsor tracker? This cannot be undone.' + (conferenceYears.length > 1 ? '\n\nThis removes them from every conference year. To drop them from just this year, set their status to Declined or Prospective instead.' : ''))) return;
   sponsors = sponsors.filter(x => x.id !== id);
   if (sbClient) sbClient.from(SPONSORS_TABLE).delete().eq('id', id).then(({ error }) => {
     if (error) reportWriteError('sponsor-delete:' + id, 'Couldn\u2019t delete that sponsor \u2014 it\u2019ll reappear next reload.', error);
@@ -17022,6 +17095,7 @@ function defaultSpeakerData() {
 }
 
 function rowToSpeaker(row) {
+  row = rowForYear('speaker', row, recordYear());
   // Stored as a comma-separated string in the single `type` column (no schema change
   // needed), parsed to an array here -- someone can hold multiple roles at once.
   let types = (row.type || '').split(',').map(t => t.trim()).filter(Boolean);
@@ -17070,22 +17144,24 @@ let speakerPushTimers = {};
 function pushSpeaker(sp) {
   if (!sbClient) return;
   clearTimeout(speakerPushTimers[sp.id]);
+  const year = recordYear();
   speakerPushTimers[sp.id] = setTimeout(async () => {
+    const key = 'speaker:' + sp.id;
+    const { data: current, error: readErr } = await sbClient.from(SPEAKERS_TABLE).select('*').eq('id', sp.id).maybeSingle();
+    if (readErr) { reportWriteError(key, 'Couldn\u2019t save that change to ' + (sp.name || 'this speaker') + ' \u2014 it\u2019ll revert next reload.', readErr); return; }
     let dataToSave = sp.data;
     if (!canView('speakers.financial')) {
       // Same reasoning as pushSponsor's equivalent guard -- this session's copy of `financial`
       // was blanked on load, and the whole `data` column is overwritten wholesale on upsert, so
       // saving it as-is would silently wipe this speaker's real fee/payment info.
-      const { data: current } = await sbClient.from(SPEAKERS_TABLE).select('data').eq('id', sp.id).maybeSingle();
-      dataToSave = Object.assign({}, sp.data, { financial: (current && current.data && current.data.financial) || sp.data.financial });
+      dataToSave = Object.assign({}, sp.data, { financial: rowYearData(current, year).financial || sp.data.financial });
     }
-    const { error } = await sbClient.from(SPEAKERS_TABLE).upsert({
+    const { error } = await sbClient.from(SPEAKERS_TABLE).upsert(mergeRowForYear('speaker', {
       id: sp.id, name: sp.name, type: (sp.types || []).join(','),
       contact_name: sp.contactName, contact_email: sp.contactEmail, contact_phone: sp.contactPhone,
       tracker_status: sp.trackerStatus, data: dataToSave, sort_order: sp.sortOrder,
       updated_at: new Date().toISOString()
-    });
-    const key = 'speaker:' + sp.id;
+    }, current, year));
     if (error) {
       reportWriteError(key, 'Couldn\u2019t save that change to ' + (sp.name || 'this speaker') + ' \u2014 it\u2019ll revert next reload.', error);
     } else {
@@ -17885,7 +17961,7 @@ function moveSpeakerToContactOnly(id) {
 
 function removeSpeaker(id) {
   if (!canEditOrWarn('speakers.roster', 'speakers')) return;
-  if (!confirm('Permanently delete this speaker/artist? This cannot be undone.')) return;
+  if (!confirm('Permanently delete this speaker/artist? This cannot be undone.' + (conferenceYears.length > 1 ? '\n\nThis removes them from every conference year. To drop them from just this year, set their status to Contact Only or Declined instead.' : ''))) return;
   const sp = getSpeaker(id);
   // Clean up any uploaded files in Storage too, not just the database record -- both the
   // attendee-facing materials and the internal-only documents (rider, contract, etc.).
