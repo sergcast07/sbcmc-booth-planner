@@ -14109,6 +14109,35 @@ function sponsorYearHistoryHtml(s) {
   }).join('') + `</div><p class="hint" style="margin-top:6px;">Read-only. Switch to that year in the gear menu to change anything.</p>`;
 }
 
+// Same idea as sponsorYearHistoryHtml, for a speaker/artist: their status, sessions, fee and
+// travel in each other conference year. Read-only; fees only with Financials access.
+function speakerYearHistoryHtml(sp) {
+  const row = storedYearRows.speaker[sp.id];
+  const others = conferenceYears.filter(y => y.id !== activeConferenceYear);
+  if (!row || !others.length) return '<p class="hint">No other conference years yet.</p>';
+  const money = canView('speakers.financial');
+  const fmt = v => { const n = parseMoneyNum(v); return n ? '$' + n.toLocaleString() : ''; };
+  const line = (label, value) => value ? `<div class="sp-field"><label>${escapeHtml(label)}</label><div class="bg-input bg-readonly" style="padding:7px 9px; white-space:pre-line;">${escapeHtml(String(value))}</div></div>` : '';
+  return `<div class="sp-detail-grid sp-detail-2col">` + others.map(y => {
+    const slice = y.id === RECORD_BASE_YEAR ? row : ((row.data || {}).years || {})[y.id];
+    if (!slice) return `<fieldset class="sp-fieldset"><legend>${escapeHtml(y.label)}</legend><div class="sp-sub">Not part of ${escapeHtml(y.label)}.</div></fieldset>`;
+    const d = slice.data || {}, fin = d.financial || {}, lg = d.logistics || {};
+    const sessions = (d.sessions || []).filter(x => x.title || x.track || x.sessionDate).map(x =>
+      [x.title || '(untitled)', x.track, [x.sessionDate ? friendlyDate(x.sessionDate) : '', x.timeSlot ? friendlyTime(x.timeSlot) : ''].filter(Boolean).join(' '), x.room].filter(Boolean).join(' · ')).join('\n');
+    const travel = [lg.arrivalDate ? 'Arrived ' + friendlyDate(lg.arrivalDate) : '', lg.departureDate ? 'Left ' + friendlyDate(lg.departureDate) : '', lg.lodgingNeeded ? 'Lodging' + (lg.nightsNeeded ? ' (' + lg.nightsNeeded + ' nights)' : '') : ''].filter(Boolean).join(' · ');
+    const body = [
+      `<div style="margin-bottom:8px;"><span class="sp-badge ${speakerBadgeClass(slice.tracker_status)}">${escapeHtml(slice.tracker_status || 'No status')}</span></div>`,
+      line('Sessions', sessions),
+      money ? line('Fee', [fmt(fin.fee), fin.feeStatus].filter(Boolean).join(' · ')) : '',
+      money ? line('Travel reimbursement', fmt(fin.travelReimbursement)) : '',
+      line('Travel', travel),
+      line('Badges', (lg.badgeNames || []).filter(Boolean).join(', ')),
+      line('Special notes', d.specialNotes)
+    ].join('');
+    return `<fieldset class="sp-fieldset"><legend>${escapeHtml(y.label)}</legend><div class="sp-field-grid">${body}</div></fieldset>`;
+  }).join('') + `</div><p class="hint" style="margin-top:6px;">Read-only. Switch to that year in the gear menu to change anything.</p>`;
+}
+
 function sponsorDetailHTML(s) {
   const pkgOptions = packages.map(p => {
     const price = PACKAGE_GUIDE_PRICES[p.key];
@@ -21424,8 +21453,9 @@ function speakerDetailHTML(sp) {
   if (canView('speakers.financial')) tabs.push(['financial', 'Financials']);
   tabs.push(['logistics', 'Logistics'], ['production', 'Production'], ['files', 'Files']);
   if (pendingCount > 0) tabs.push(['pending', '🔔 Pending Updates (' + pendingCount + ')']);
+  if (conferenceYears.length > 1) tabs.push(['years', 'Past Years']);
   const tabBarHtml = tabs.map(([key, label]) => {
-    const alert = key === 'pending' ? false : speakerTabAlert(sp, key);
+    const alert = key === 'pending' || key === 'years' ? false : speakerTabAlert(sp, key);
     return `<button class="sk-tab-btn ${activeTab === key ? 'active' : ''} ${key === 'pending' ? 'sk-tab-btn-pending' : ''}" onclick="setSpeakerTab('${key}')">${label}${alert ? ' <span class="sk-tab-dot"></span>' : ''}</button>`;
   }).join('');
   const showTransportForm = openTransportAddForms.has(sp.id);
@@ -21437,6 +21467,8 @@ function speakerDetailHTML(sp) {
       <button class="sp-mini-btn" style="${window.isAdminUser ? '' : 'margin-left:auto;'}" onclick="toggleSpeakerDetail('${sp.id}')">▴ Close</button>
     </div>
     <div class="sk-tabs">${tabBarHtml}</div>
+
+    ${activeTab !== 'years' ? '' : `<div class="sk-tab-panel">${speakerYearHistoryHtml(sp)}</div>`}
 
     ${activeTab !== 'overview' ? '' : `
     <div class="sk-tab-panel">
