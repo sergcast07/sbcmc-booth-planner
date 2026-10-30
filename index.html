@@ -2464,7 +2464,14 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     if (!profile.role_id) { showLoginPanel('Your account has no role assigned yet — contact an admin.'); return; }
     const { data: perms } = await sbClient.from('role_permissions').select('section_key, level').eq('role_id', profile.role_id);
     window.userPermissions = {};
-    (perms || []).forEach(function(p) { window.userPermissions[p.section_key] = p.level; });
+    // "year:<id>" rows aren't sections: level 'view' makes every section read-only while that
+    // conference year is the one being viewed (see canEdit).
+    window.userYearViewOnly = [];
+    (perms || []).forEach(function(p) {
+      var yearMatch = /^year:(.+)$/.exec(p.section_key);
+      if (yearMatch) { if (p.level === 'view') window.userYearViewOnly.push(yearMatch[1]); }
+      else window.userPermissions[p.section_key] = p.level;
+    });
     window.isAdminUser = !!(profile.roles && profile.roles.is_admin);
     window.isLegacySession = false;
     window.currentUserLabel = profile.display_name || profile.email;
@@ -2490,6 +2497,9 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     // those calls never fire with it still null (which trips a NOT NULL constraint on any save).
     if (typeof window.loadConferenceYears === 'function') {
       try { await window.loadConferenceYears(); } catch (e) { /* loadConferenceYears already falls back to '2027' internally */ }
+      // Again, now the year is known -- a role can be view-only for some years (see canEdit).
+      if (typeof window.applyPermissionLock === 'function') window.applyPermissionLock();
+      if (typeof window.renderYearSelector === 'function') window.renderYearSelector();
     }
     // Dashboard is visible by default in the static HTML (no inline display:none, since it's
     // the app's "home" tab) -- without this, someone denied dashboard.all would still see it
@@ -4384,7 +4394,17 @@ const TABLE_TO_SECTION_KEYS = {
   conference_documents: ['speakers.internal_docs']
 };
 function canView(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey]); }
-function canEdit(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey] === 'edit'); }
+function canEdit(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey] === 'edit') && !yearIsViewOnlyForMe(); }
+// A role can be view-only for particular conference years (a "year:<id>" row in role_permissions)
+// and keep its normal edit rights in the others -- e.g. next year's president planning 2028
+// while only looking at 2027. Everything that edits checks canEdit, so this one test covers the
+// field lock, the write guard and every add/remove button.
+function yearIsViewOnlyForMe(year) {
+  if (!window.userYearViewOnly || !window.userYearViewOnly.length) return false;
+  let y = year;
+  try { if (!y) y = activeConferenceYear; } catch (e) { return false; } // still loading
+  return !!y && window.userYearViewOnly.indexOf(y) >= 0;
+}
 function canEditAny(sectionKeys) { return (sectionKeys || []).some(canEdit); }
 function canViewAny(sectionKeys) { return (sectionKeys || []).some(canView); }
 
@@ -4917,7 +4937,7 @@ function renderYearSelector() {
   if (sel) {
     sel.innerHTML = conferenceYears.map(y =>
       '<option value="' + escapeHtml(y.id) + '"' + (y.id === activeConferenceYear ? ' selected' : '') + '>' +
-      escapeHtml(y.label) + (y.status === 'archived' ? ' (archived)' : '') + '</option>'
+      escapeHtml(y.label) + (y.status === 'archived' ? ' (archived)' : '') + (yearIsViewOnlyForMe(y.id) ? ' (view only)' : '') + '</option>'
     ).join('');
   }
   const brandLabel = document.getElementById('brand-year-label');
@@ -4965,7 +4985,7 @@ async function switchActiveYear(year) {
   try { localStorage.setItem(ACTIVE_YEAR_KEY, year); } catch (e) { /* private browsing, etc */ }
   renderYearSelector();
   const yearRow = conferenceYears.find(y => y.id === year);
-  toast('Switched to ' + (yearRow ? yearRow.label : year) + '.');
+  toast('Switched to ' + (yearRow ? yearRow.label : year) + (yearIsViewOnlyForMe(year) ? ' \u2014 view only for you.' : '.'));
   await Promise.all([
     loadPackagesFromDb(), loadCustomMapsFromDb(),
     (typeof loadSponsorsFromDb === 'function' ? loadSponsorsFromDb() : Promise.resolve()),
@@ -5001,6 +5021,7 @@ async function switchActiveYear(year) {
   // pushes for the floor plan won't retarget until the next full reload.
   if (typeof switchTopView === 'function' && currentTopView) switchTopView(currentTopView);
   else if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof window.applyPermissionLock === 'function') window.applyPermissionLock();
 }
 
 // ---- Start New Conference Year ----
@@ -6109,6 +6130,7 @@ async function initSupabase() {
     // (it filters against it), so that one stays sequential after this.
     await loadConferenceYears();
     renderYearSelector();
+    if (typeof window.applyPermissionLock === 'function') window.applyPermissionLock();
     await Promise.all([
       loadPackagesFromDb(),
       loadCustomMapsFromDb(),
@@ -9328,12 +9350,32 @@ function renderRoleCard(role, assignedCount) {
   const isEditing = teamAccessState.editingRoleId === role.id;
   const permsForRole = new Map(teamAccessState.rolePermissions.filter(p => p.role_id === role.id).map(p => [p.section_key, p.level]));
   const labelByKey = new Map(ALL_SECTION_KEYS_LIST);
+  const yearLevel = y => (('year:' + y.id) in teamAccessState.draftPerms ? teamAccessState.draftPerms['year:' + y.id] : permsForRole.get('year:' + y.id)) || 'none';
+  const viewOnlyYears = conferenceYears.filter(y => permsForRole.get('year:' + y.id) === 'view').map(y => y.id);
+  const yearNote = viewOnlyYears.length ? 'View only in ' + viewOnlyYears.join(', ') : '';
+  const yearRows = conferenceYears.length > 1 ? `
+      <table style="width:100%; margin-top:14px; font-size:13px; border-collapse:collapse;">
+        <thead><tr style="text-align:left;"><th>Conference years</th><th style="width:110px;">As set above</th><th style="width:80px;">View only</th></tr></thead>
+        <tbody>
+          ${conferenceYears.slice().reverse().map(y => {
+            const cur = yearLevel(y) === 'view' ? 'view' : 'none';
+            return `<tr class="ta-perm-row">
+              <td style="padding:5px 0 5px 6px;">${escapeHtml(y.label)}${y.status === 'archived' ? ' <span class="sp-sub">(archived)</span>' : ''}</td>
+              <td><input type="radio" name="ta-year-${role.id}-${y.id}" ${cur === 'none' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','year:${y.id}','none')"></td>
+              <td><input type="radio" name="ta-year-${role.id}-${y.id}" ${cur === 'view' ? 'checked' : ''} onchange="setRolePermDraft('${role.id}','year:${y.id}','view')"></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <p class="hint" style="margin:6px 0 0;">View only turns every Edit above into View while that year is selected. Contact info is shared between years, so contact changes made in an editable year still show in the others.</p>` : '';
   return `
     <div class="ta-role-card">
       <div style="display:flex; align-items:center; gap:10px;">
         <b style="flex:1;">${escapeHtml(role.name)}</b>
         ${role.is_admin ? '<span class="sp-badge sp-badge-committed">admin</span>' : ''}
         <span class="sp-sub">${assignedCount} ${assignedCount === 1 ? 'person' : 'people'}</span>
+        ${yearNote ? `<span class="sp-sub">${escapeHtml(yearNote)}</span>` : ''}
+        <button class="sp-mini-btn" onclick="duplicateRole('${role.id}')" title="Make a new role with these same permissions">Duplicate</button>
         <button class="sp-mini-btn" onclick="toggleRoleEdit('${role.id}')">${isEditing ? 'Close' : 'Edit permissions'}</button>
       </div>
       ${isEditing ? `
@@ -9355,6 +9397,7 @@ function renderRoleCard(role, assignedCount) {
           `).join('')}
         </tbody>
       </table>
+      ${yearRows}
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="btn primary" onclick="saveRolePermissions('${role.id}')">Save permissions</button>
         ${!role.is_admin ? `<button class="sp-mini-btn" onclick="deleteRole('${role.id}')">Delete role</button>` : ''}
@@ -9394,16 +9437,42 @@ async function saveRolePermissions(roleId) {
 
   const { error: delErr } = await sbClient.from('role_permissions').delete().eq('role_id', roleId);
   if (delErr) { reportWriteError('role-perms:' + roleId, 'Couldn’t save permissions for that role.', delErr); return; }
-  const rows = [];
-  merged.forEach((level, key) => { if (level === 'view' || level === 'edit') rows.push({ role_id: roleId, section_key: key, level }); });
+  const rows = [], yearRows = [];
+  merged.forEach((level, key) => {
+    if (/^year:/.test(key)) { if (level === 'view') yearRows.push({ role_id: roleId, section_key: key, level }); }
+    else if (level === 'view' || level === 'edit') rows.push({ role_id: roleId, section_key: key, level });
+  });
   if (rows.length) {
     const { error: insErr } = await sbClient.from('role_permissions').insert(rows);
     if (insErr) { reportWriteError('role-perms:' + roleId, 'Couldn’t save permissions for that role.', insErr); return; }
   }
-  toast('Permissions saved.');
+  if (yearRows.length) {
+    const { error: yearErr } = await sbClient.from('role_permissions').insert(yearRows);
+    if (yearErr) { reportWriteError('role-perms-years:' + roleId, 'Section permissions saved, but the view-only year setting couldn’t be saved.', yearErr); await renderTeamAccessView(); return; }
+  }
+  toast('Permissions saved. People with this role see the change the next time they sign in or reload.');
   teamAccessState.editingRoleId = null;
   teamAccessState.draftPerms = {};
   await renderTeamAccessView();
+}
+
+async function duplicateRole(roleId) {
+  const role = teamAccessState.roles.find(r => r.id === roleId); if (!role) return;
+  const name = (prompt('Name for the new role (it starts with the same permissions as “' + role.name + '”):', role.name + ' (copy)') || '').trim();
+  if (!name) return;
+  const { data: created, error } = await sbClient.from('roles').insert({ name, is_admin: false }).select().single();
+  if (error || !created) { reportWriteError('role:new', 'Couldn’t create that role.', error || { message: 'no row returned' }); return; }
+  const rows = teamAccessState.rolePermissions.filter(p => p.role_id === roleId && !/^year:/.test(p.section_key))
+    .map(p => ({ role_id: created.id, section_key: p.section_key, level: p.level }));
+  if (rows.length) {
+    const { error: insErr } = await sbClient.from('role_permissions').insert(rows);
+    if (insErr) { reportWriteError('role-perms:' + created.id, 'Role created, but its permissions couldn’t be copied.', insErr); }
+  }
+  teamAccessState.editingRoleId = created.id;
+  teamAccessState.draftPerms = {};
+  toast('Role “' + name + '” created. Set its view-only years below, then save.');
+  await loadTeamAccessData();
+  renderTeamAccessContent();
 }
 
 async function deleteRole(roleId) {
