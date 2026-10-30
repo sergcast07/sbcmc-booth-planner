@@ -2035,6 +2035,11 @@ table.sch-grid tbody tr:nth-child(even) .sch-cell { background: #F5F9FA; }
   .sc-pill { font-size: 8.5px; }
 }
 
+/* Early-bird deadlines (Revenue tab, actual registrants box) */
+.rev-phase-dates { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 6px 0 2px; font-size: 12px; }
+.rev-phase-field { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink-soft); }
+.rev-phase-field input { font: inherit; font-size: 12px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; }
+
 /* Conference dates bar (Schedule tab) */
 .sch-dates-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: -6px 0 14px; font-size: 13px; }
 .sch-dates-warn { background: var(--gold-pale); border: 1px solid var(--gold); border-radius: 6px; padding: 3px 9px; font-size: 12px; }
@@ -5008,6 +5013,9 @@ async function switchActiveYear(year) {
     (typeof loadScheduleSlots === 'function' ? loadScheduleSlots() : Promise.resolve()),
     (typeof loadScheduleAudiences === 'function' ? loadScheduleAudiences() : Promise.resolve()),
     (typeof loadConferenceDates === 'function' ? loadConferenceDates() : Promise.resolve()),
+    // Registrant counts and early-bird deadlines are per year -- without this the Revenue tab
+    // and Dashboard keep showing the year you switched away from.
+    (typeof loadRegistrationActuals === 'function' ? loadRegistrationActuals().then(() => { registrationActualsLoaded = true; }) : Promise.resolve()),
     (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
     (typeof loadHotelInfoUrl === 'function' ? loadHotelInfoUrl() : Promise.resolve()),
     (typeof loadBreakoutScheduleReady === 'function' ? loadBreakoutScheduleReady() : Promise.resolve()),
@@ -10650,8 +10658,37 @@ async function initRevenueView() {
 // registered so far.
 let registrationActuals = null;
 let registrationActualsLoaded = false;
+// Early-bird deadlines for the active year, as the last day of each phase. The registrant sync
+// (gravity-forms-sync) sorts registrations into Early Bird 1 / 2 / Regular by these. Nothing saved
+// = the 2027 pattern in that year's own season (Oct 1 and Dec 31 of the year before).
+let registrationPhasesSetting = null;
+function registrationPhaseDates() {
+  const y = Number(activeConferenceYear) || 2027;
+  const def = { eb1Last: (y - 1) + '-10-01', eb2Last: (y - 1) + '-12-31' };
+  const v = registrationPhasesSetting || {};
+  return { eb1Last: v.eb1Last || def.eb1Last, eb2Last: v.eb2Last || def.eb2Last, saved: !!(v.eb1Last && v.eb2Last) };
+}
+async function setRegistrationPhaseDate(key, value) {
+  if (!canEditOrWarn('revenue.all', 'registration revenue')) return;
+  const next = Object.assign({}, registrationPhaseDates(), { [key]: value });
+  delete next.saved;
+  if (next.eb2Last < next.eb1Last) { toast('Early Bird 2 has to end after Early Bird 1.'); renderRevenueView(); return; }
+  if (await saveConfSettingJson('registration_phases', next, 'the early-bird deadlines')) {
+    registrationPhasesSetting = next;
+    toast('Saved. Sync Actual Registrants again to re-sort registrations by the new deadlines.');
+  }
+  renderRevenueView();
+}
+function registrationPhaseDatesHtml() {
+  const d = registrationPhaseDates();
+  const can = canEdit('revenue.all');
+  const field = (key, label) => `<label class="rev-phase-field">${label} <input type="date" value="${d[key]}" ${can ? '' : 'disabled'} onclick="event.stopPropagation()" onchange="setRegistrationPhaseDate('${key}', this.value)"></label>`;
+  return `<div class="rev-phase-dates" onclick="event.stopPropagation()">${field('eb1Last', 'Early Bird 1 ends')}${field('eb2Last', 'Early Bird 2 ends')}<span class="rev-actuals-sub">Regular after that${d.saved ? '' : ' (default dates for ' + escapeHtml(String(activeConferenceYear)) + ')'}</span></div>`;
+}
+
 async function loadRegistrationActuals() {
   registrationActuals = null;
+  registrationPhasesSetting = await loadConfSettingJson('registration_phases');
   if (!sbClient) return;
   try {
     const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', 'registration_actuals').eq('conference_year', activeConferenceYear).maybeSingle();
@@ -10769,8 +10806,8 @@ async function exportAttendeesCSV() {
 }
 
 // Reads a scenario's own per-phase tier counts directly -- the registration portal now
-// classifies by the same three phases (Early Bird 1 = before Oct 1, 2026; Early Bird 2 = Oct 1 -
-// Dec 31, 2026; Regular = Jan 1, 2027 on), so "Actual" and "Scenario" line up phase-for-phase
+// classifies by the same three phases (the year's own early-bird deadlines, see
+// registrationPhaseDates), so "Actual" and "Scenario" line up phase-for-phase
 // instead of needing to be collapsed together.
 function revenueScenarioActualComparison(scenarioName) {
   const tiers = revenueState.scenarios[scenarioName].tiers;
@@ -10820,6 +10857,7 @@ function registrationActualsHTML() {
           <div>
             <div class="rev-actuals-label"><span class="sp-chevron">▸</span> Actual registrants</div>
             <div class="rev-actuals-sub">Not synced yet — pull real counts from the registration portal to compare against this scenario.</div>
+            ${registrationPhaseDatesHtml()}
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="sp-mini-btn" id="rev-sync-registrants-btn" onclick="event.stopPropagation(); syncActualRegistrants()">${btnLabel}</button>
@@ -10859,6 +10897,7 @@ function registrationActualsHTML() {
       <div class="rev-actuals-head" data-section-toggle="rev-actuals" onclick="toggleSidebarSection('rev-actuals')" style="cursor:pointer;">
         <div>
           <div class="rev-actuals-label"><span class="sp-chevron">▸</span> Actual registrants <span class="rev-actuals-asof">as of ${escapeHtml(new Date(registrationActuals.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>
+          ${registrationPhaseDatesHtml()}
           <div class="rev-actuals-sub">${registrationActuals.totalRegistrants} main conference registrants, from the registration portal. Collegiate Worship Collective and Student Leadership Summit are tracked separately below — never combined into this number. Each cell reads actual/${escapeHtml(scenarioLabel)}.</div>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
