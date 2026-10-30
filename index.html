@@ -10674,12 +10674,16 @@ async function syncActualRegistrants() {
   const controller = new AbortController();
   const abortTimer = setTimeout(() => controller.abort(), 30000);
   try {
-    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=registrants', {
+    // The year decides the window: only registrations made after the previous conference ended
+    // count, and none at all before it has (see syncWindow in gravity-forms-sync).
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=registrants&year=' + encodeURIComponent(activeConferenceYear), {
       method: 'POST',
       headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey },
       signal: controller.signal,
     });
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+    const summary = await res.json().catch(() => ({}));
+    if (summary && summary.blocked) { toast(summary.message || 'Nothing to sync for this year yet.'); return; }
     await loadRegistrationActuals();
     renderRevenueView();
     if (typeof renderRegistrationsTimelineChart === 'function') renderRegistrationsTimelineChart();
@@ -16510,7 +16514,9 @@ async function syncLatestApplications() {
   const controller = new AbortController();
   const abortTimer = setTimeout(() => controller.abort(), 90000);
   try {
-    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync', {
+    // ?year limits the import to submissions made after the previous conference ended, and to
+    // nothing at all until it has (see syncWindow in gravity-forms-sync).
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?year=' + encodeURIComponent(activeConferenceYear), {
       method: 'POST',
       headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey },
       signal: controller.signal
@@ -16518,6 +16524,7 @@ async function syncLatestApplications() {
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
     const { results } = await res.json();
     const lines = results.map(r => {
+      if (r.blocked) return r.message;
       if (r.error) { console.error('Applicant sync failed for', r.form, ':', r.error); return r.form + ': ' + SYNC_FAILURE_MESSAGE; }
       const parts = [];
       if (r.added) parts.push(r.added + ' new (' + r.addedNames.join(', ') + ')');
