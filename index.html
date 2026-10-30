@@ -3364,11 +3364,23 @@ let MAP_ORDER = [];
 let MAP_IMGS = {};
 let MAP_COLORS = {};
 
+// The five built-in floor plans are Hunter Street's, the 2027 venue. A later year only has the
+// maps saved for it, and until it has any it shows one blank placeholder, since the floor plan
+// view always needs a current map to draw.
+const BLANK_MAP_ID = 'no-map-yet';
 function rebuildMapRegistry() {
-  MAPS = { ...BUILTIN_MAPS };
-  MAP_IMGS = { ...BUILTIN_MAP_IMGS };
-  MAP_COLORS = { ...BUILTIN_MAP_COLORS };
-  const order = [...BUILTIN_MAP_ORDER];
+  let baseYear = true;
+  try { baseYear = recordYear() === RECORD_BASE_YEAR; } catch (e) { /* first build, at page load, before the year exists */ }
+  MAPS = baseYear ? { ...BUILTIN_MAPS } : {};
+  MAP_IMGS = baseYear ? { ...BUILTIN_MAP_IMGS } : {};
+  MAP_COLORS = baseYear ? { ...BUILTIN_MAP_COLORS } : {};
+  const order = baseYear ? [...BUILTIN_MAP_ORDER] : [];
+  if (!baseYear && !customMaps.length) {
+    MAPS[BLANK_MAP_ID] = { label: 'No floor plan yet', w: 1200, h: 800, ftpx: 10, note: 'Add this year\u2019s floor plans from the floor plan admin panel.' };
+    MAP_IMGS[BLANK_MAP_ID] = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#f4f1ea"/><text x="600" y="400" text-anchor="middle" font-family="Arial" font-size="32" fill="#8a8f98">No floor plan uploaded for this year yet</text></svg>');
+    MAP_COLORS[BLANK_MAP_ID] = '#8a8f98';
+    order.push(BLANK_MAP_ID);
+  }
   const sorted = [...customMaps].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   sorted.forEach((m, i) => {
     // Note: custom rows can "adopt" one of the five built-in ids (that's what happens once
@@ -3380,6 +3392,7 @@ function rebuildMapRegistry() {
     if (!order.includes(m.id)) order.push(m.id);
   });
   MAP_ORDER = order;
+  try { if (!MAPS[currentMapId]) currentMapId = MAP_ORDER[0]; } catch (e) { /* first build: currentMapId isn't declared yet */ }
 }
 rebuildMapRegistry(); // initial build from built-ins only; customMaps fills in once Supabase loads
 
@@ -4961,6 +4974,7 @@ function renderYearSelector() {
   if (brandLabel) {
     const activeRow = conferenceYears.find(y => y.id === activeConferenceYear);
     brandLabel.textContent = activeRow ? activeRow.label : ('SBCMC ' + (activeConferenceYear || ''));
+    if (!/[?&]view=/.test(location.search)) document.title = brandLabel.textContent + ' \u2014 Sponsor & Conference Tool';
   }
   ['start-new-year-btn', 'backup-now-btn', 'restore-backup-btn', 'close-books-btn', 'edit-venue-btn'].forEach(id => {
     const btn = document.getElementById(id);
@@ -5016,6 +5030,8 @@ async function switchActiveYear(year) {
     // Registrant counts and early-bird deadlines are per year -- without this the Revenue tab
     // and Dashboard keep showing the year you switched away from.
     (typeof loadRegistrationActuals === 'function' ? loadRegistrationActuals().then(() => { registrationActualsLoaded = true; }) : Promise.resolve()),
+    (typeof loadRevenueEstimator === 'function' ? loadRevenueEstimator().then(() => { revenueLoaded = true; }) : Promise.resolve()),
+    (typeof loadCashflowState === 'function' ? loadCashflowState().then(() => { cashflowLoaded = true; }) : Promise.resolve()),
     (typeof loadFundraisingGoal === 'function' ? loadFundraisingGoal() : Promise.resolve()),
     (typeof loadHotelInfoUrl === 'function' ? loadHotelInfoUrl() : Promise.resolve()),
     (typeof loadBreakoutScheduleReady === 'function' ? loadBreakoutScheduleReady() : Promise.resolve()),
@@ -5040,6 +5056,7 @@ async function switchActiveYear(year) {
   // Note: the live booth-layout realtime subscription stays scoped to whichever year was active
   // when the page loaded -- switching years here re-fetches everything once, but new realtime
   // pushes for the floor plan won't retarget until the next full reload.
+  if (typeof refreshApplicantsAll === 'function' && canView('applicants.all')) refreshApplicantsAll();
   if (typeof switchTopView === 'function' && currentTopView) switchTopView(currentTopView);
   else if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof window.applyPermissionLock === 'function') window.applyPermissionLock();
@@ -6266,7 +6283,7 @@ async function loadPackagesFromDb() {
     // with zero packages, not auto-seeded defaults left over from wherever last year's venue
     // was -- that auto-seed exists for true first-run only (an empty table because the app was
     // just connected to a fresh Supabase project), not for every new year that gets created.
-    if ((!data || data.length === 0) && suppressNewYearAutoSeed) { packages = []; return; }
+    if ((!data || data.length === 0) && (suppressNewYearAutoSeed || recordYear() !== RECORD_BASE_YEAR)) { packages = []; return; }
     if (!data || data.length === 0) {
       const seed = DEFAULT_PACKAGES.map(p => ({
         key: p.key, label: p.label, width_ft: p.widthFt, depth_ft: p.depthFt, color: p.color, sort_order: p.sortOrder, conference_year: activeConferenceYear
@@ -6308,7 +6325,7 @@ async function loadCustomMapsFromDb() {
 
     // Same reasoning as loadPackagesFromDb -- a brand-new conference year starts blank, it
     // doesn't inherit the five built-in floor plans from whichever venue hosted a prior year.
-    if ((!data || data.length === 0) && suppressNewYearAutoSeed) { customMaps = []; return; }
+    if ((!data || data.length === 0) && (suppressNewYearAutoSeed || recordYear() !== RECORD_BASE_YEAR)) { customMaps = []; return; }
 
     if (!data || data.length === 0) {
       await seedBuiltinMapsIfEmpty();
@@ -7335,7 +7352,7 @@ async function uploadNewMap() {
 }
 
 async function deleteCustomMap(id) {
-  if (BUILTIN_MAP_ORDER.includes(id)) { resetBuiltinMap(id); return; } // safety net; the UI shouldn't route here for these
+  if (BUILTIN_MAP_ORDER.includes(id) && recordYear() === RECORD_BASE_YEAR) { resetBuiltinMap(id); return; } // safety net; the UI shouldn't route here for these
   const m = customMaps.find(mm => mm.id === id);
   if (!m) return;
   const affected = booths.filter(b => b.mapId === id).length + labels.filter(l => l.mapId === id).length;
@@ -10594,7 +10611,7 @@ function revenueBuildTiers(scenarioName) {
   return tiers;
 }
 function revenueDefaultState() {
-  return {
+  const state = {
     activeScenario: 'expected',
     globalHotelRate: 150,
     scenarios: {
@@ -10603,6 +10620,12 @@ function revenueDefaultState() {
       optimistic: { tiers: revenueBuildTiers('optimistic') },
     },
   };
+  // The built-in headcounts are 2027's estimates. A later year keeps the rates as a starting
+  // point but starts with no one projected until someone enters its own numbers.
+  if (recordYear() !== RECORD_BASE_YEAR) {
+    Object.values(state.scenarios).forEach(sc => Object.values(sc.tiers).forEach(t => { t.count = 0; }));
+  }
+  return state;
 }
 function revenueActiveTiers() { return revenueState.scenarios[revenueState.activeScenario].tiers; }
 // Shared by the Revenue tab's own scenario buttons and the matching set on Cash Flow (which
@@ -11557,10 +11580,18 @@ function renderRevenueDrillModal() {
 }
 
 // ==== Cash Flow Projection ====
-const CFP_MONTHS = ['Sep 2026', 'Oct 2026', 'Nov 2026', 'Dec 2026', 'Jan 2027', 'Feb 2027', 'Mar 2027', 'Apr 2027'];
-const CFP_MONTH_KEYS = ['2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03', '2027-04'];
+// The projection runs September of the year before through April of the conference year.
+let CFP_MONTHS = [], CFP_MONTH_KEYS = [], CFP_DEFAULT_SPONSOR_DATE = '';
 const CFP_CONFERENCE_MONTH_IDX = 7;
-const CFP_DEFAULT_SPONSOR_DATE = '2027-01-31';
+function cfpSetYear() {
+  const y = Number(recordYear()) || 2027, p = y - 1;
+  CFP_MONTHS = ['Sep ' + p, 'Oct ' + p, 'Nov ' + p, 'Dec ' + p, 'Jan ' + y, 'Feb ' + y, 'Mar ' + y, 'Apr ' + y];
+  CFP_MONTH_KEYS = [p + '-09', p + '-10', p + '-11', p + '-12', y + '-01', y + '-02', y + '-03', y + '-04'];
+  CFP_DEFAULT_SPONSOR_DATE = y + '-01-31';
+}
+cfpSetYear();
+function cfpWindowLabel() { return CFP_MONTHS[0] + '\u2013' + CFP_MONTHS[CFP_MONTHS.length - 1]; }
+function cfpStartLabel() { return 'Sep 1, ' + CFP_MONTHS[0].slice(4); }
 
 let cashflowState = null;
 let cashflowLoaded = false;
@@ -11568,6 +11599,18 @@ let cashflowPushTimer = null;
 let cashflowSaveWarned = false;
 
 function cashflowDefaultState() {
+  // The figures below are the 2027 budget. A later year keeps the same line items, moved to its
+  // own dates, with every amount blank until someone enters that year's numbers.
+  if (recordYear() !== RECORD_BASE_YEAR) {
+    const base = cashflowBaseState(), shift = Number(recordYear()) - Number(RECORD_BASE_YEAR);
+    base.startingBalance = 0;
+    base.otherExpenses.forEach(e => { e.amount = 0; e.date = (Number(e.date.slice(0, 4)) + shift) + e.date.slice(4); });
+    base.recurringOverhead.forEach(o => { o.monthlyAmount = 0; });
+    return base;
+  }
+  return cashflowBaseState();
+}
+function cashflowBaseState() {
   return {
     // Real bank balance as of Aug 31, 2026, per the director's WF Business Checking statement.
     startingBalance: 63164.65,
@@ -11618,6 +11661,7 @@ async function initCashflowView() {
 }
 
 async function loadCashflowState() {
+  cfpSetYear();
   cashflowState = cashflowDefaultState();
   if (!sbClient) return;
   try {
@@ -12416,7 +12460,7 @@ function renderCashflowView() {
     <div class="cfp-stat-row">
       <div class="cfp-stat-card" onclick="openCfpDrillModal('in')" title="Click to see what's included"><span class="cfp-stat-label">Total Cash In</span><span class="cfp-stat-value" id="cfp-stat-total-in">$0</span><span class="cfp-stat-sub">registrations + committed sponsors</span></div>
       <div class="cfp-stat-card" onclick="openCfpDrillModal('out')" title="Click to see what's included"><span class="cfp-stat-label">Total Cash Out</span><span class="cfp-stat-value" id="cfp-stat-total-out">$0</span><span class="cfp-stat-sub">speakers + expenses + overhead + fees</span></div>
-      <div class="cfp-stat-card hero" onclick="openCfpDrillModal('ending')" title="Click to see how this is calculated"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (Apr 2027), including undated fees assumed due by then</span></div>
+      <div class="cfp-stat-card hero" onclick="openCfpDrillModal('ending')" title="Click to see how this is calculated"><span class="cfp-stat-label">Ending Balance</span><span class="cfp-stat-value" id="cfp-stat-ending">$0</span><span class="cfp-stat-sub">at the conference (${escapeHtml(CFP_MONTHS[CFP_CONFERENCE_MONTH_IDX])}), including undated fees assumed due by then</span></div>
       <div class="cfp-stat-card" id="cfp-stat-lowpoint-card" onclick="openCfpDrillModal('lowpoint')" title="Click to see the month-by-month balance"><span class="cfp-stat-label">Lowest Point</span><span class="cfp-stat-value" id="cfp-stat-lowpoint">$0</span><span class="cfp-stat-sub" id="cfp-stat-lowpoint-month">&mdash;</span></div>
     </div>
 
@@ -12433,7 +12477,7 @@ function renderCashflowView() {
 
     <div class="cfp-assumptions">
       <span class="cfp-assump-title">STARTING CASH</span>
-      <div class="cfp-assump-field"><label>Balance on Sep 1, 2026</label><input type="number" id="cfp-starting-balance" value="${cashflowState.startingBalance}"></div>
+      <div class="cfp-assump-field"><label>Balance on ${escapeHtml(cfpStartLabel())}</label><input type="number" id="cfp-starting-balance" value="${cashflowState.startingBalance}"></div>
       <div class="cfp-assump-field"><label>Payment processing fee</label><input type="number" id="cfp-processing-fee" value="${cashflowState.processingFeePct}" min="0" step="0.1" style="width:56px;">%</div>
       <span class="cfp-hint-inline" id="cfp-unscheduled-hint"></span>
     </div>
@@ -12489,7 +12533,7 @@ function renderCashflowView() {
     <div class="cfp-panel">
       <div class="cfp-panel-head" data-section-toggle="cfp-overhead" onclick="toggleSidebarSection('cfp-overhead')">
         <h3><span class="sp-chevron">▸</span>Administration &amp; Personnel <span class="badge out">Cash Out</span></h3>
-        <span class="hint">Steady monthly overhead, applied to every month Sep 2026&ndash;Apr 2027</span>
+        <span class="hint">Steady monthly overhead, applied to every month ${escapeHtml(cfpWindowLabel())}</span>
       </div>
       <div class="cfp-panel-body" data-section-key="cfp-overhead">
         <div class="cfp-table-scroll">
@@ -12743,7 +12787,7 @@ function cfpRecompute() {
   const lowCard = document.getElementById('cfp-stat-lowpoint-card');
   if (lowCard) lowCard.classList.toggle('warn', c.lowVal < 0);
 
-  setText('cfp-unscheduled-hint', `Registration revenue spreads across Early Bird Phase 1 (through Sep 30), Phase 2 (Oct–Dec), and Regular (Jan–Apr). Currently unscheduled: ${cfpMoney(c.unschedSponsorIn)} in sponsor payments, ${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} in speaker fees/expenses — still counted in the totals below, assumed due by the conference (${CFP_MONTHS[CFP_CONFERENCE_MONTH_IDX]}) since there's no date to place it earlier.`);
+  setText('cfp-unscheduled-hint', `Registration revenue spreads across Early Bird Phase 1, Phase 2, and Regular registration. Currently unscheduled: ${cfpMoney(c.unschedSponsorIn)} in sponsor payments, ${cfpMoney(c.unschedSpeakerOut + c.unschedExpOut)} in speaker fees/expenses — still counted in the totals below, assumed due by the conference (${CFP_MONTHS[CFP_CONFERENCE_MONTH_IDX]}) since there's no date to place it earlier.`);
 
   const tbody = document.getElementById('cfp-tbody');
   if (tbody) {
@@ -12804,8 +12848,8 @@ function cfpDrillNote(text) {
 function cfpDrillDateNote(dateStr) {
   if (!dateStr) return '';
   const key = dateStr.slice(0, 7);
-  if (key < CFP_MONTH_KEYS[0]) return `Due ${friendlyDate(dateStr)} — before this Sep 2026–Apr 2027 projection starts`;
-  if (key > CFP_MONTH_KEYS[CFP_MONTH_KEYS.length - 1]) return `Due ${friendlyDate(dateStr)} — after this Sep 2026–Apr 2027 projection ends`;
+  if (key < CFP_MONTH_KEYS[0]) return `Due ${friendlyDate(dateStr)} — before this ${cfpWindowLabel()} projection starts`;
+  if (key > CFP_MONTH_KEYS[CFP_MONTH_KEYS.length - 1]) return `Due ${friendlyDate(dateStr)} — after this ${cfpWindowLabel()} projection ends`;
   return '';
 }
 // Builds one drill-down row for a person/expense with possibly-multiple installments. An
@@ -12870,10 +12914,10 @@ function renderCfpDrillModal() {
   } else if (kind === 'ending') {
     title = 'How the Ending Balance is calculated';
     bodyHtml =
-      cfpDrillRow('Starting balance (Sep 1, 2026)', c.startingBalance, '') +
+      cfpDrillRow('Starting balance (' + cfpStartLabel() + ')', c.startingBalance, '') +
       cfpDrillRow('+ Total Cash In', c.totalIn, "Click Total Cash In to see what's included") +
       cfpDrillRow('− Total Cash Out', -c.totalOut, "Click Total Cash Out to see what's included") +
-      cfpDrillGrandTotal('Ending Balance (Apr 2027)', c.monthlyBalance[CFP_CONFERENCE_MONTH_IDX]) +
+      cfpDrillGrandTotal('Ending Balance (' + CFP_MONTHS[CFP_CONFERENCE_MONTH_IDX] + ')', c.monthlyBalance[CFP_CONFERENCE_MONTH_IDX]) +
       cfpDrillNote('Dated items count toward their real month; anything with no date (or a date outside this projection) still counts, assumed due by the conference — see the Monthly Projection table below for the full path to this number.');
   } else if (kind === 'lowpoint') {
     title = `Lowest Point — ${CFP_MONTHS[c.lowIdx]}`;
