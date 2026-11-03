@@ -1269,6 +1269,8 @@ td.food-row-label-cell, th.food-row-label-cell { width: 200px; min-width: 200px;
 .food-meal-time-row { display: flex; gap: 4px; align-items: center; }
 .food-meal-time-row input { flex: 1; min-width: 0; }
 .food-meal-time-row span { font-size: 11px; color: var(--ink-soft); }
+.food-meal-details select { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 5px; padding: 3px 4px; font-size: 11.5px; font-family: inherit; color: var(--teal-deep); background: var(--paper); text-transform: none; }
+.food-meal-details-note { font-size: 10.5px; color: var(--ink-soft); line-height: 1.3; }
 td.food-row-label-cell { vertical-align: top; }
 td.food-meal-cell { min-width: 158px; vertical-align: top; }
 .food-loc-name-row { display: flex; align-items: center; gap: 4px; }
@@ -8483,9 +8485,12 @@ const FOOD_BOARD_SETTINGS_ID = 'food_board_config';
 //   excluded: { '<date>|<meal>': { '<builtinGroupKey>': true } }, mealCosts: { '<mealName>': dollarsPerPerson },
 //   mealCostSplit: { '<mealName>': true }, mealGroupCosts: { '<mealName>': { '<groupKey>': dollarsPerPerson } },
 //   groupWideOverrides: { '<groupKey>': n }, extraGroups: [{id,label,color,counts:{'<date>|<meal>':n}}],
-//   mealDetails: { '<date>|<meal>': { start: 'HH:MM', end: 'HH:MM', menu: '...', source: '...' } } }
+//   mealDetails: { '<date>|<meal>': { start: 'HH:MM', end: 'HH:MM', menu: '...', source: '...',
+//     groups: { '<groupKey>': { start, end, menu, source } } } } }
 // mealDetails is per meal SLOT (Monday's Lunch, not every Lunch) -- the time, what's being served
-// and who's providing it change from one day to the next.
+// and who's providing it change from one day to the next. The top-level fields apply to every group
+// at that meal; groups[<key>] is one group's own version (CWC eating at 11:30 from a different
+// caterer), and any field it leaves blank falls back to the all-groups value.
 // labels renames a built-in group everywhere at once (not per meal) -- nobody wants "Main
 // Conference" called something different at breakfast than at dinner. excluded is the opposite
 // of that -- per-meal, not global -- for "no [group] after Monday": pulling one of the five live
@@ -8558,18 +8563,86 @@ async function pushFoodBoardConfig() {
   else reportWriteSuccess('food-board-config');
 }
 
+const FOOD_DETAIL_FIELDS = ['start', 'end', 'menu', 'source'];
 function foodMealDetails(mealKey) {
   return foodBoardConfig.mealDetails[mealKey] || {};
 }
+// One group's own fields for a meal (blank when it just follows the all-groups details).
+function foodMealGroupOwnDetails(mealKey, groupKey) {
+  const g = foodMealDetails(mealKey).groups || {};
+  return g[groupKey] || {};
+}
+// What a group actually gets: its own value for each field, else the all-groups value.
+function foodMealDetailsForGroup(mealKey, groupKey) {
+  const base = foodMealDetails(mealKey), own = groupKey ? foodMealGroupOwnDetails(mealKey, groupKey) : {};
+  const out = {};
+  FOOD_DETAIL_FIELDS.forEach(f => { const v = own[f] || base[f]; if (v) out[f] = v; });
+  return out;
+}
+function foodMealHasDetails(d) { return FOOD_DETAIL_FIELDS.some(f => d && d[f]); }
+// Group keys at this meal that have any details of their own.
+function foodMealCustomGroupKeys(mealKey) {
+  const g = foodMealDetails(mealKey).groups || {};
+  return Object.keys(g).filter(k => foodMealHasDetails(g[k]));
+}
 // No re-render -- the field already shows what was typed, and redrawing the board would drop focus
-// on the next field someone tabs into.
-function setFoodMealDetail(mealKey, field, value) {
-  const d = { ...foodMealDetails(mealKey) };
+// on the next field someone tabs into. groupKey blank = the all-groups details.
+function setFoodMealDetail(mealKey, field, value, groupKey) {
+  const d = { ...foodMealDetails(mealKey), groups: { ...(foodMealDetails(mealKey).groups || {}) } };
   const v = String(value || '').trim();
-  if (v) d[field] = v; else delete d[field];
+  if (groupKey) {
+    const g = { ...(d.groups[groupKey] || {}) };
+    if (v) g[field] = v; else delete g[field];
+    if (Object.keys(g).length) d.groups[groupKey] = g; else delete d.groups[groupKey];
+  } else if (v) d[field] = v; else delete d[field];
+  if (!Object.keys(d.groups).length) delete d.groups;
   if (Object.keys(d).length) foodBoardConfig.mealDetails[mealKey] = d;
   else delete foodBoardConfig.mealDetails[mealKey];
   pushFoodBoardConfig();
+}
+// Which group's details each meal row is showing in the editor -- per browser, not saved.
+const foodMealDetailsPick = {};
+function setFoodMealDetailsPick(mealKey, groupKey) {
+  if (groupKey) foodMealDetailsPick[mealKey] = groupKey; else delete foodMealDetailsPick[mealKey];
+  renderFoodView();
+}
+function clearFoodMealGroupDetails(mealKey, groupKey) {
+  FOOD_DETAIL_FIELDS.forEach(f => setFoodMealDetail(mealKey, f, '', groupKey));
+  renderFoodView();
+}
+
+// Every group eating a meal on the board (same rules as the board itself: built-ins with a
+// headcount or an override and not removed from that meal, plus extras added to it), each with
+// its location -- used by the schedule export, which can run without the Food tab ever opening.
+function foodGroupsAtMeal(date, meal) {
+  const key = foodMealKey(date, meal);
+  const builtins = foodBuiltinGroupsForMeal(date, meal).filter(g => {
+    const o = foodGroupCountOverride(key, g.key);
+    return ((o !== null ? o : g.count) > 0 || o !== null) && !foodGroupExcluded(key, g.key);
+  });
+  const extras = foodBoardConfig.extraGroups
+    .filter(g => g.counts && Object.prototype.hasOwnProperty.call(g.counts, key))
+    .map(g => ({ key: g.id, label: g.label }));
+  return builtins.map(g => ({ key: g.key, label: g.label })).concat(extras)
+    .map(g => ({ ...g, locId: foodGroupLocationId(key, g.key) }));
+}
+function foodLocationName(locId) {
+  const loc = foodBoardConfig.locations.find(l => l.id === locId);
+  return loc ? loc.name : '';
+}
+// The food-board group a schedule group (audience) eats as: Main/CWC/SLS by their fixed keys,
+// anything else by a board group with the same name (e.g. an "Executive Council" extra group).
+function foodGroupKeyForAudience(audId) {
+  if (audId === MAIN_AUDIENCE_ID) return 'main';
+  const aud = scheduleAudiences.find(a => a.id === audId);
+  if (!aud) return null;
+  if (aud.name === 'Collegiate Collective') return 'cwc';
+  if (aud.name === 'Student Leadership Summit') return 'sls';
+  const n = aud.name.trim().toLowerCase();
+  const builtin = FOOD_BUILTIN_GROUP_DEFS.find(g => foodGroupLabel(g.key, g.label).trim().toLowerCase() === n);
+  if (builtin) return builtin.key;
+  const extra = foodBoardConfig.extraGroups.find(g => (g.label || '').trim().toLowerCase() === n);
+  return extra ? extra.id : null;
 }
 
 function foodGroupLocationId(mealKey, groupKey) {
@@ -9085,20 +9158,41 @@ async function renderFoodView() {
           </select>
         </div>`
       : '';
-    const det = foodMealDetails(col.key);
+    // "Applies to" picks whose details the fields below edit: every group, or one group's own
+    // version (blank fields there fall back to the all-groups value, shown as the placeholder).
+    const mealGroups = groupsByMeal[col.key];
+    let pick = foodMealDetailsPick[col.key] || '';
+    if (pick && !mealGroups.some(g => g.key === pick)) pick = '';
+    const base = foodMealDetails(col.key);
+    const det = pick ? foodMealGroupOwnDetails(col.key, pick) : base;
+    const customKeys = foodMealCustomGroupKeys(col.key).filter(k => mealGroups.some(g => g.key === k));
     const detDisabled = canEditFood ? '' : 'disabled';
+    const mk = jsAttrString(col.key), gk = jsAttrString(pick);
+    const ph = (f, fallback) => pick ? (base[f] ? 'Same as all: ' + base[f] : 'Same as all groups') : (canEditFood ? fallback : '');
+    const pickOptions = `<option value="">All groups</option>` + mealGroups.map(g =>
+      `<option value="${escapeHtml(g.key)}" ${g.key === pick ? 'selected' : ''}>${escapeHtml(g.label)}${customKeys.includes(g.key) ? ' ●' : ''}</option>`).join('');
+    const customNote = customKeys.length && !pick
+      ? `<div class="food-meal-details-note">Own details: ${customKeys.map(k => escapeHtml((mealGroups.find(g => g.key === k) || {}).label || '')).join(', ')}</div>`
+      : '';
+    const clearGroupBtn = (pick && canEditFood && customKeys.includes(pick))
+      ? `<button class="food-restore-link" onclick="clearFoodMealGroupDetails('${mk}','${gk}')">Use all-groups details</button>`
+      : '';
     const detailsHtml = `
           <div class="food-meal-details">
+            <label>Applies to</label>
+            <select onchange="setFoodMealDetailsPick('${mk}', this.value)">${pickOptions}</select>
+            ${customNote}
             <label>Time</label>
             <div class="food-meal-time-row">
-              <input type="time" value="${escapeHtml(det.start || '')}" ${detDisabled} title="Serving starts" onchange="setFoodMealDetail('${jsAttrString(col.key)}','start', this.value)">
+              <input type="time" value="${escapeHtml(det.start || '')}" ${detDisabled} title="${pick && base.start ? 'All groups: ' + escapeHtml(friendlyTime(base.start)) : 'Serving starts'}" onchange="setFoodMealDetail('${mk}','start', this.value,'${gk}')">
               <span>–</span>
-              <input type="time" value="${escapeHtml(det.end || '')}" ${detDisabled} title="Serving ends" onchange="setFoodMealDetail('${jsAttrString(col.key)}','end', this.value)">
+              <input type="time" value="${escapeHtml(det.end || '')}" ${detDisabled} title="${pick && base.end ? 'All groups: ' + escapeHtml(friendlyTime(base.end)) : 'Serving ends'}" onchange="setFoodMealDetail('${mk}','end', this.value,'${gk}')">
             </div>
             <label>Menu</label>
-            <textarea rows="2" placeholder="${canEditFood ? 'What’s being served' : ''}" ${detDisabled} onchange="setFoodMealDetail('${jsAttrString(col.key)}','menu', this.value)">${escapeHtml(det.menu || '')}</textarea>
+            <textarea rows="2" placeholder="${escapeHtml(ph('menu', 'What’s being served'))}" ${detDisabled} onchange="setFoodMealDetail('${mk}','menu', this.value,'${gk}')">${escapeHtml(det.menu || '')}</textarea>
             <label>From</label>
-            <input type="text" value="${escapeHtml(det.source || '')}" placeholder="${canEditFood ? 'Caterer, restaurant, venue…' : ''}" ${detDisabled} onchange="setFoodMealDetail('${jsAttrString(col.key)}','source', this.value)">
+            <input type="text" value="${escapeHtml(det.source || '')}" placeholder="${escapeHtml(ph('source', 'Caterer, restaurant, venue…'))}" ${detDisabled} onchange="setFoodMealDetail('${mk}','source', this.value,'${gk}')">
+            ${clearGroupBtn}
           </div>`;
     return `
       <tr>
@@ -24339,7 +24433,45 @@ function scheduleExportRowValue(row, key) {
 // "This view" exports exactly what the active Schedule view is showing (its group/room filters,
 // its own shape for By Artist and Sound Checks); "The whole schedule" is everything, every day.
 // Both can be limited to certain days and sorted before download.
-const SCHEDULE_EXPORT_HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Label', 'Type', 'Groups', 'Track', 'Assigned Speaker/Artist', 'Contact Email', 'Session Title', 'Description', 'Room'];
+const SCHEDULE_EXPORT_HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Label', 'Type', 'Groups', 'Track', 'Assigned Speaker/Artist', 'Contact Email', 'Session Title', 'Description', 'Room', 'Serving Time', 'Menu', 'Food From', 'Meal Location'];
+
+// ---- Meal details (from Food Planning) in the schedule export ---------------------------------
+// A schedule meal slot picks up the Food Planning meal on the same day whose name is in its label
+// ("Lunch (rotation A/B)" -> Lunch; the longest name wins, so "Dessert Snack" beats "Snack").
+function foodMealForScheduleSlot(slot) {
+  if (!slot || slot.kind !== 'meal' || !slot.date) return null;
+  const label = (slot.label || '').toLowerCase();
+  const names = (foodMealsConfig[slot.date] || []).filter(m => m && label.indexOf(m.toLowerCase()) >= 0);
+  if (!names.length) return null;
+  return names.sort((a, b) => b.length - a.length)[0];
+}
+// The four meal columns for one Food Planning meal. With a group (one group's export) it's that
+// group's details and where it eats; without one it's the all-groups details, with any group that
+// has its own version listed after it ("Collegiate Collective: ...").
+function foodMealExportCols(date, meal, groupKey) {
+  const key = foodMealKey(date, meal);
+  const groups = foodGroupsAtMeal(date, meal);
+  const timeOf = d => d.start ? friendlyTime(d.start) + (d.end ? ' – ' + friendlyTime(d.end) : '') : '';
+  if (groupKey) {
+    const d = foodMealDetailsForGroup(key, groupKey);
+    const g = groups.find(x => x.key === groupKey);
+    return [timeOf(d), d.menu || '', d.source || '', g ? foodLocationName(g.locId) : ''];
+  }
+  const base = foodMealDetails(key);
+  const custom = foodMealCustomGroupKeys(key).map(k => groups.find(g => g.key === k)).filter(Boolean);
+  const withGroups = (baseVal, valOf) => {
+    const parts = baseVal ? [baseVal] : [];
+    custom.forEach(g => { const v = valOf(foodMealGroupOwnDetails(key, g.key)); if (v && v !== baseVal) parts.push(g.label + ': ' + v); });
+    return parts.join('; ');
+  };
+  const locs = [...new Set(groups.map(g => foodLocationName(g.locId)).filter(Boolean))];
+  return [
+    withGroups(timeOf(base), d => d.start ? timeOf({ start: d.start, end: d.end || base.end }) : ''),
+    withGroups(base.menu || '', d => d.menu || ''),
+    withGroups(base.source || '', d => d.source || ''),
+    locs.length > 1 ? groups.map(g => g.label + ': ' + foodLocationName(g.locId)).join('; ') : (locs[0] || '')
+  ];
+}
 const SCHEDULE_VIEW_NAMES = { grid: 'Breakout Grid', timeline: 'Timeline', itinerary: 'Itinerary', rooms: 'By Room', artists: 'By Artist', soundchecks: 'Sound Checks' };
 let scheduleExportWizard = null; // { step, scope: 'view'|'all', days: Set<string>, sort }
 
@@ -24420,6 +24552,23 @@ function scheduleExportDataset(scope, days, sortValue) {
     if (!people.length) rows.push({ slot, sp: null, sess: null, room: slot.room || '' });
     else people.forEach(({ sp, sess }) => rows.push({ slot, sp, sess, room: roomOf(sess) }));
   });
+  // Food Planning meals with details filled in but no meal slot on the schedule that day get a row
+  // of their own -- only for the whole schedule or one group's (and only meals that group eats).
+  const mealGroupKey = audScopeId ? foodGroupKeyForAudience(audScopeId) : null;
+  if (scope === 'all' || audScopeId) {
+    const audNameOf = id => { const a = scheduleAudiences.find(x => x.id === id); return a ? a.name : ''; };
+    foodAllMealSlots().forEach(({ date, meal }) => {
+      if (!dayOk(date)) return;
+      if (scheduleSlots.some(sl => sl.date === date && foodMealForScheduleSlot(sl) === meal)) return;
+      const groups = foodGroupsAtMeal(date, meal);
+      if (audScopeId && !(mealGroupKey && groups.some(g => g.key === mealGroupKey))) return;
+      const key = foodMealKey(date, meal);
+      const d = mealGroupKey ? foodMealDetailsForGroup(key, mealGroupKey) : foodMealDetails(key);
+      if (!foodMealHasDetails(d) && !foodMealCustomGroupKeys(key).length) return;
+      const groupsText = audScopeId ? audNameOf(audScopeId) : groups.map(g => g.label).join(' | ');
+      rows.push({ slot: { date, start: d.start || '', end: d.end || '', label: meal, kind: 'meal', notes: '' }, sp: null, sess: null, room: '', groupsText, foodMeal: meal });
+    });
+  }
   if (roomMode && byRoomIncludeSoundChecks) {
     soundChecksInRooms(scheduleRoomFilter).forEach(r => {
       if (!dayOk(r.date)) return;
@@ -24438,8 +24587,12 @@ function scheduleExportDataset(scope, days, sortValue) {
   const audNameOf = id => { const a = scheduleAudiences.find(x => x.id === id); return a ? a.name : ''; };
   const groupsOf = slot => slotAudiences(slot).map(audNameOf).filter(Boolean).join(' | ');
   const typeOf = slot => { const k = slot.kind || ''; return k.charAt(0).toUpperCase() + k.slice(1); };
-  const lines = rows.map(({ slot, sp, sess, room }) => [slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, typeOf(slot), groupsOf(slot),
-    sess ? (sess.track || '') : '', sp ? sp.name : '', sp ? (sp.contactEmail || '') : '', sess ? (sess.title || '') : '', sess ? (sess.description || '') : (slot.notes || ''), room || '']);
+  const mealColsOf = (slot, foodMeal) => {
+    const meal = foodMeal || foodMealForScheduleSlot(slot);
+    return meal ? foodMealExportCols(slot.date, meal, mealGroupKey) : ['', '', '', ''];
+  };
+  const lines = rows.map(({ slot, sp, sess, room, groupsText, foodMeal }) => [slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, typeOf(slot), groupsText != null ? groupsText : groupsOf(slot),
+    sess ? (sess.track || '') : '', sp ? sp.name : '', sp ? (sp.contactEmail || '') : '', sess ? (sess.title || '') : '', sess ? (sess.description || '') : (slot.notes || ''), room || ''].concat(mealColsOf(slot, foodMeal)));
   const audScope = audScopeId ? scheduleAudiences.find(a => a.id === audScopeId) : null;
   const filename = audScope ? 'schedule-' + audScope.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.csv' : (scope === 'view' ? 'schedule-' + view + '.csv' : 'conference-schedule.csv');
   return { filename, noun: 'schedule row', headers: SCHEDULE_EXPORT_HEADERS, lines };
@@ -24468,7 +24621,10 @@ function scheduleExportSetAllDays(on) {
   renderScheduleExportWizard();
 }
 function scheduleExportDates() { return Array.from(new Set(scheduleSlots.map(sl => sl.date))).sort(); }
-function openScheduleExportWizard() {
+async function openScheduleExportWizard() {
+  // Meal details come from Food Planning, which may not have loaded yet this session.
+  if (typeof foodMealsConfigLoaded !== 'undefined' && !foodMealsConfigLoaded) await loadFoodMealsConfig();
+  if (typeof foodBoardConfigLoaded !== 'undefined' && !foodBoardConfigLoaded) await loadFoodBoardConfig();
   scheduleExportWizard = { step: 1, scope: 'view', days: new Set(scheduleExportDates()), sort: scheduleExportSortOptions('view').def };
   renderScheduleExportWizard();
 }
@@ -24520,7 +24676,7 @@ function renderScheduleExportWizard() {
       return opt('aud:' + a.id, a.name + ' schedule', 'Every item tagged for this group, with who is on it and the room', n, 'schedule row', false);
     }).join('');
     bodyHtml = `
-      <p class="qa-modal-sub">Pick what to export. Every row carries its <b>Type</b> (keynote, meal, breakout…) and the <b>Groups</b> it is for.</p>
+      <p class="qa-modal-sub">Pick what to export. Every row carries its <b>Type</b> (keynote, meal, breakout…) and the <b>Groups</b> it is for. Meals also carry their serving time, menu, where the food is from and where it's served, from Food Planning — a group's schedule uses that group's own details.</p>
       <div class="xw-opts">
       <div class="xw-sep">Full schedules by group</div>
       ${audOpts}
