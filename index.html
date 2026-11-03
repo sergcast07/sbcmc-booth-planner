@@ -8630,19 +8630,28 @@ function foodLocationName(locId) {
   const loc = foodBoardConfig.locations.find(l => l.id === locId);
   return loc ? loc.name : '';
 }
-// The food-board group a schedule group (audience) eats as: Main/CWC/SLS by their fixed keys,
-// anything else by a board group with the same name (e.g. an "Executive Council" extra group).
-function foodGroupKeyForAudience(audId) {
-  if (audId === MAIN_AUDIENCE_ID) return 'main';
+// The board group a schedule group (audience) eats as at one meal, from the groups at that meal:
+// its built-in group (Main/CWC/SLS), else one with the same name, else the closest name -- the
+// board often carries its own version of a program ("Collegiate Worship Collective" for the
+// Collegiate Collective, "Student Leader Summit (+Parents)" for the Student Leadership Summit).
+function foodGroupKeyForAudience(audId, groups) {
   const aud = scheduleAudiences.find(a => a.id === audId);
   if (!aud) return null;
-  if (aud.name === 'Collegiate Collective') return 'cwc';
-  if (aud.name === 'Student Leadership Summit') return 'sls';
-  const n = aud.name.trim().toLowerCase();
-  const builtin = FOOD_BUILTIN_GROUP_DEFS.find(g => foodGroupLabel(g.key, g.label).trim().toLowerCase() === n);
-  if (builtin) return builtin.key;
-  const extra = foodBoardConfig.extraGroups.find(g => (g.label || '').trim().toLowerCase() === n);
-  return extra ? extra.id : null;
+  const builtinKey = audId === MAIN_AUDIENCE_ID ? 'main'
+    : aud.name === 'Collegiate Collective' ? 'cwc' : aud.name === 'Student Leadership Summit' ? 'sls' : null;
+  if (builtinKey && groups.some(g => g.key === builtinKey)) return builtinKey;
+  const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim();
+  const exact = groups.find(g => norm(g.label) === norm(aud.name));
+  if (exact) return exact.key;
+  const words = t => norm(t).split(/\s+/).filter(w => w.length > 3);
+  const audWords = words(aud.name);
+  let best = null, bestScore = 0;
+  groups.forEach(g => {
+    const gw = words(g.label);
+    const shared = audWords.filter(w => gw.includes(w)).length;
+    if (shared >= Math.min(2, audWords.length) && shared > bestScore) { best = g.key; bestScore = shared; }
+  });
+  return best;
 }
 
 function foodGroupLocationId(mealKey, groupKey) {
@@ -24448,9 +24457,10 @@ function foodMealForScheduleSlot(slot) {
 // The four meal columns for one Food Planning meal. With a group (one group's export) it's that
 // group's details and where it eats; without one it's the all-groups details, with any group that
 // has its own version listed after it ("Collegiate Collective: ...").
-function foodMealExportCols(date, meal, groupKey) {
+function foodMealExportCols(date, meal, audId) {
   const key = foodMealKey(date, meal);
   const groups = foodGroupsAtMeal(date, meal);
+  const groupKey = audId ? foodGroupKeyForAudience(audId, groups) : null;
   const timeOf = d => d.start ? friendlyTime(d.start) + (d.end ? ' – ' + friendlyTime(d.end) : '') : '';
   if (groupKey) {
     const d = foodMealDetailsForGroup(key, groupKey);
@@ -24469,7 +24479,7 @@ function foodMealExportCols(date, meal, groupKey) {
     withGroups(timeOf(base), d => d.start ? timeOf({ start: d.start, end: d.end || base.end }) : ''),
     withGroups(base.menu || '', d => d.menu || ''),
     withGroups(base.source || '', d => d.source || ''),
-    locs.length > 1 ? groups.map(g => g.label + ': ' + foodLocationName(g.locId)).join('; ') : (locs[0] || '')
+    locs.length > 1 ? locs.map(l => l + ' (' + groups.filter(g => foodLocationName(g.locId) === l).map(g => g.label).join(', ') + ')').join('; ') : (locs[0] || '')
   ];
 }
 const SCHEDULE_VIEW_NAMES = { grid: 'Breakout Grid', timeline: 'Timeline', itinerary: 'Itinerary', rooms: 'By Room', artists: 'By Artist', soundchecks: 'Sound Checks' };
@@ -24554,14 +24564,14 @@ function scheduleExportDataset(scope, days, sortValue) {
   });
   // Food Planning meals with details filled in but no meal slot on the schedule that day get a row
   // of their own -- only for the whole schedule or one group's (and only meals that group eats).
-  const mealGroupKey = audScopeId ? foodGroupKeyForAudience(audScopeId) : null;
   if (scope === 'all' || audScopeId) {
     const audNameOf = id => { const a = scheduleAudiences.find(x => x.id === id); return a ? a.name : ''; };
     foodAllMealSlots().forEach(({ date, meal }) => {
       if (!dayOk(date)) return;
       if (scheduleSlots.some(sl => sl.date === date && foodMealForScheduleSlot(sl) === meal)) return;
       const groups = foodGroupsAtMeal(date, meal);
-      if (audScopeId && !(mealGroupKey && groups.some(g => g.key === mealGroupKey))) return;
+      const mealGroupKey = audScopeId ? foodGroupKeyForAudience(audScopeId, groups) : null;
+      if (audScopeId && !mealGroupKey) return;
       const key = foodMealKey(date, meal);
       const d = mealGroupKey ? foodMealDetailsForGroup(key, mealGroupKey) : foodMealDetails(key);
       if (!foodMealHasDetails(d) && !foodMealCustomGroupKeys(key).length) return;
@@ -24589,7 +24599,7 @@ function scheduleExportDataset(scope, days, sortValue) {
   const typeOf = slot => { const k = slot.kind || ''; return k.charAt(0).toUpperCase() + k.slice(1); };
   const mealColsOf = (slot, foodMeal) => {
     const meal = foodMeal || foodMealForScheduleSlot(slot);
-    return meal ? foodMealExportCols(slot.date, meal, mealGroupKey) : ['', '', '', ''];
+    return meal ? foodMealExportCols(slot.date, meal, audScopeId) : ['', '', '', ''];
   };
   const lines = rows.map(({ slot, sp, sess, room, groupsText, foodMeal }) => [slot.date, fullWeekday(slot.date), friendlyTime(slot.start), friendlyTime(slot.end), slot.label, typeOf(slot), groupsText != null ? groupsText : groupsOf(slot),
     sess ? (sess.track || '') : '', sp ? sp.name : '', sp ? (sp.contactEmail || '') : '', sess ? (sess.title || '') : '', sess ? (sess.description || '') : (slot.notes || ''), room || ''].concat(mealColsOf(slot, foodMeal)));
