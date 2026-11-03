@@ -1259,7 +1259,16 @@ th.food-loc-cell { min-width: 168px; }
 /* The Meal (row-label) column used to share a class with the location headers, which meant
    shrinking one always shrank the other -- split so this one column can stay narrow on its own,
    leaving more of the table's width for the location columns before it needs to scroll. */
-td.food-row-label-cell, th.food-row-label-cell { width: 140px; min-width: 140px; max-width: 140px; }
+td.food-row-label-cell, th.food-row-label-cell { width: 200px; min-width: 200px; max-width: 200px; }
+/* Per-meal serving time, menu and where it's coming from, under the meal name in the row label. */
+.food-meal-details { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-family: inherit; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.food-meal-details label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); margin-bottom: -2px; }
+.food-meal-details input, .food-meal-details textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 5px; padding: 3px 5px; font-size: 11.5px; font-family: inherit; color: var(--ink); background: var(--paper); text-transform: none; }
+.food-meal-details textarea { resize: vertical; min-height: 34px; line-height: 1.35; }
+.food-meal-details input:disabled, .food-meal-details textarea:disabled { opacity: 1; background: transparent; }
+.food-meal-time-row { display: flex; gap: 4px; align-items: center; }
+.food-meal-time-row input { flex: 1; min-width: 0; }
+.food-meal-time-row span { font-size: 11px; color: var(--ink-soft); }
 td.food-row-label-cell { vertical-align: top; }
 td.food-meal-cell { min-width: 158px; vertical-align: top; }
 .food-loc-name-row { display: flex; align-items: center; gap: 4px; }
@@ -8473,7 +8482,10 @@ const FOOD_BOARD_SETTINGS_ID = 'food_board_config';
 //   overrides: { '<date>|<meal>': { '<builtinGroupKey>': n } }, labels: { '<builtinGroupKey>': 'Custom Name' },
 //   excluded: { '<date>|<meal>': { '<builtinGroupKey>': true } }, mealCosts: { '<mealName>': dollarsPerPerson },
 //   mealCostSplit: { '<mealName>': true }, mealGroupCosts: { '<mealName>': { '<groupKey>': dollarsPerPerson } },
-//   groupWideOverrides: { '<groupKey>': n }, extraGroups: [{id,label,color,counts:{'<date>|<meal>':n}}] }
+//   groupWideOverrides: { '<groupKey>': n }, extraGroups: [{id,label,color,counts:{'<date>|<meal>':n}}],
+//   mealDetails: { '<date>|<meal>': { start: 'HH:MM', end: 'HH:MM', menu: '...', source: '...' } } }
+// mealDetails is per meal SLOT (Monday's Lunch, not every Lunch) -- the time, what's being served
+// and who's providing it change from one day to the next.
 // labels renames a built-in group everywhere at once (not per meal) -- nobody wants "Main
 // Conference" called something different at breakfast than at dinner. excluded is the opposite
 // of that -- per-meal, not global -- for "no [group] after Monday": pulling one of the five live
@@ -8485,7 +8497,7 @@ const FOOD_BOARD_SETTINGS_ID = 'food_board_config';
 // groupWideOverrides is like labels but for the NUMBER: for groups in FOOD_GROUP_WIDE_SYNC_KEYS,
 // typing a count anywhere sets this one shared value instead of a per-meal override, so every
 // meal that group is on shows (and edits) the same number together.
-let foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, groupWideOverrides: {}, extraGroups: [] };
+let foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, groupWideOverrides: {}, extraGroups: [], mealDetails: {} };
 let foodBoardConfigLoaded = false;
 
 // The five populations foodHeadcounts() computes live -- that's the DEFAULT shown here, but any
@@ -8508,7 +8520,7 @@ const FOOD_NO_RESET_KEYS = [...FOOD_GROUP_WIDE_SYNC_KEYS];
 
 async function loadFoodBoardConfig() {
   foodBoardConfigLoaded = false;
-  foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, groupWideOverrides: {}, extraGroups: [] };
+  foodBoardConfig = { locations: [{ id: 'main', name: 'Main Dining Hall' }], assignments: {}, overrides: {}, labels: {}, excluded: {}, mealCosts: {}, mealCostSplit: {}, mealGroupCosts: {}, groupWideOverrides: {}, extraGroups: [], mealDetails: {} };
   if (!sbClient) { foodBoardConfigLoaded = true; return; }
   try {
     const { data, error } = await sbClient.from(CONFERENCE_SETTINGS_TABLE).select('*').eq('id', FOOD_BOARD_SETTINGS_ID).eq('conference_year', activeConferenceYear).maybeSingle();
@@ -8524,7 +8536,8 @@ async function loadFoodBoardConfig() {
         mealCostSplit: (parsed.mealCostSplit && typeof parsed.mealCostSplit === 'object') ? parsed.mealCostSplit : {},
         mealGroupCosts: (parsed.mealGroupCosts && typeof parsed.mealGroupCosts === 'object') ? parsed.mealGroupCosts : {},
         groupWideOverrides: (parsed.groupWideOverrides && typeof parsed.groupWideOverrides === 'object') ? parsed.groupWideOverrides : {},
-        extraGroups: Array.isArray(parsed.extraGroups) ? parsed.extraGroups : []
+        extraGroups: Array.isArray(parsed.extraGroups) ? parsed.extraGroups : [],
+        mealDetails: (parsed.mealDetails && typeof parsed.mealDetails === 'object') ? parsed.mealDetails : {}
       };
     }
     // No row yet for this year -- the single-default-location seed above already means every
@@ -8543,6 +8556,20 @@ async function pushFoodBoardConfig() {
   );
   if (error) { reportWriteError('food-board-config', 'Couldn’t save the location board — see console.', error); console.error(error); }
   else reportWriteSuccess('food-board-config');
+}
+
+function foodMealDetails(mealKey) {
+  return foodBoardConfig.mealDetails[mealKey] || {};
+}
+// No re-render -- the field already shows what was typed, and redrawing the board would drop focus
+// on the next field someone tabs into.
+function setFoodMealDetail(mealKey, field, value) {
+  const d = { ...foodMealDetails(mealKey) };
+  const v = String(value || '').trim();
+  if (v) d[field] = v; else delete d[field];
+  if (Object.keys(d).length) foodBoardConfig.mealDetails[mealKey] = d;
+  else delete foodBoardConfig.mealDetails[mealKey];
+  pushFoodBoardConfig();
 }
 
 function foodGroupLocationId(mealKey, groupKey) {
@@ -9058,11 +9085,27 @@ async function renderFoodView() {
           </select>
         </div>`
       : '';
+    const det = foodMealDetails(col.key);
+    const detDisabled = canEditFood ? '' : 'disabled';
+    const detailsHtml = `
+          <div class="food-meal-details">
+            <label>Time</label>
+            <div class="food-meal-time-row">
+              <input type="time" value="${escapeHtml(det.start || '')}" ${detDisabled} title="Serving starts" onchange="setFoodMealDetail('${jsAttrString(col.key)}','start', this.value)">
+              <span>–</span>
+              <input type="time" value="${escapeHtml(det.end || '')}" ${detDisabled} title="Serving ends" onchange="setFoodMealDetail('${jsAttrString(col.key)}','end', this.value)">
+            </div>
+            <label>Menu</label>
+            <textarea rows="2" placeholder="${canEditFood ? 'What’s being served' : ''}" ${detDisabled} onchange="setFoodMealDetail('${jsAttrString(col.key)}','menu', this.value)">${escapeHtml(det.menu || '')}</textarea>
+            <label>From</label>
+            <input type="text" value="${escapeHtml(det.source || '')}" placeholder="${canEditFood ? 'Caterer, restaurant, venue…' : ''}" ${detDisabled} onchange="setFoodMealDetail('${jsAttrString(col.key)}','source', this.value)">
+          </div>`;
     return `
       <tr>
         <td class="food-row-label-cell">
           <div>${escapeHtml(friendlyFoodDate(col.date))}</div>
           <div style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(col.meal)}</div>
+          ${detailsHtml}
           ${excludedRowHtml}
         </td>
         ${cellsHtml}
