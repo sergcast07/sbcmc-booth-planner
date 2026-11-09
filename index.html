@@ -585,6 +585,23 @@ if (/[?&]view=checkin(&|$)/.test(location.search)) document.title = 'SBCMC Check
   .ci-label-text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; max-height: 100%; }
   .ci-label-name { font-weight: 800; font-size: 8mm; line-height: 1.08; word-break: break-word; overflow: hidden; }
   .ci-label-line { font-weight: 600; font-size: 3.8mm; line-height: 1.25; margin-top: 1.6mm; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ci-bo { margin-top: 18px; }
+  .ci-bo-block { border: 1.5px solid var(--line); border-radius: 12px; margin-top: 10px; overflow: hidden; background: #fff; }
+  .ci-bo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
+  .ci-bo-head small { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
+  .ci-bo-head span { font-size: 16px; }
+  .ci-bo-head .ci-bo-none { color: #a52620; font-weight: 600; }
+  .ci-bo-head .ci-btn { font-size: 15px; padding: 8px 16px; min-height: 42px; }
+  .ci-bo-opts { border-top: 1px solid var(--line); background: #FAF8F4; padding: 6px 10px 10px; }
+  .ci-bo-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; font: inherit; background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 6px; cursor: pointer; color: var(--ink); }
+  .ci-bo-opt b { display: block; font-size: 15.5px; }
+  .ci-bo-opt span { font-size: 13px; color: var(--ink-soft); }
+  .ci-bo-opt em { font-style: normal; font-size: 13px; font-weight: 700; color: #2F7D5B; white-space: nowrap; }
+  .ci-bo-opt.ci-bo-chosen { border-color: #2F7D5B; background: #E6F2EC; }
+  .ci-bo-opt:disabled { opacity: 0.55; cursor: default; }
+  .ci-bo-opt:disabled em { color: #a52620; }
+  .ci-btn.ci-stop { background: #a52620; }
+  .ci-chip.ci-chip-unpaid { background: #FBE9E7; color: #8A1F12; }
   .ci-label-lunch { font-weight: 800; font-size: 4.6mm; line-height: 1.2; margin-top: 2.5mm; }
   .ci-lunch-pick { display: flex; gap: 10px; }
   .ci-lunch-pick button { flex: 1; font: inherit; font-size: 19px; font-weight: 700; padding: 12px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; color: var(--ink-soft); cursor: pointer; min-height: 52px; }
@@ -24964,6 +24981,7 @@ function ciErrorText(err) {
   if (err === 'offline') return 'Can’t reach the server. Check the Wi-Fi and try again.';
   if (err === 'name_required') return 'Name can’t be blank.';
   if (err === 'not_found') return 'That person was removed from the list. Search again.';
+  if (err === 'unpaid') return 'Their registration isn’t paid yet. Send them to the payment table first.';
   return 'Something went wrong (' + err + '). Try again.';
 }
 
@@ -25004,7 +25022,7 @@ function ciSearchHtml() {
   if (ci.people.length > 1) {
     html += '<div class="ci-card"><h2>Who’s checking in?</h2><p class="ci-sub">' + ci.people.length + ' people share this search.</p>'
       + ci.people.map((p, i) => '<button class="ci-result" onclick="ciOpen(' + i + ')"><div><b>' + escapeHtml(p.name)
-        + (p.checkedInAt ? '<span class="ci-chip ci-chip-in">Checked in</span>' : '') + '</b><span>'
+        + (p.checkedInAt ? '<span class="ci-chip ci-chip-in">Checked in</span>' : '') + (p.paid ? '' : '<span class="ci-chip ci-chip-unpaid">Unpaid</span>') + '</b><span>'
         + escapeHtml([p.church, [p.city, p.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ') || p.email) + '</span></div><span>›</span></button>').join('')
       + '</div>';
   }
@@ -25014,9 +25032,10 @@ function ciSearchHtml() {
 function ciFlagsHtml(p) {
   const flags = [];
   const b = p.breakouts;
-  if (b && b.picked === 0) flags.push('<div class="ci-flag ci-red"><b>No breakouts chosen</b>Send them to the breakout help table to pick their sessions.</div>');
-  else if (b && b.blocks && b.picked < b.blocks) flags.push('<div class="ci-flag ci-amber"><b>Chose ' + b.picked + ' of ' + b.blocks + ' breakouts</b>They can finish picking at the breakout help table.</div>');
-  if (p.paymentStatus && p.paymentStatus !== 'Paid') flags.push('<div class="ci-flag ci-amber"><b>Payment shows “' + escapeHtml(p.paymentStatus) + '”</b>Check with the registration lead before printing.</div>');
+  if (b && b.picked === 0) flags.push('<div class="ci-flag ci-red"><b>No breakouts chosen</b>' + (p.breakoutId ? 'Choose them below with the attendee.' : 'Send them to the breakout help table to pick their sessions.') + '</div>');
+  else if (b && b.blocks && b.picked < b.blocks) flags.push('<div class="ci-flag ci-amber"><b>Chose ' + b.picked + ' of ' + b.blocks + ' breakouts</b>' + (p.breakoutId ? 'Pick the rest below.' : 'They can finish picking at the breakout help table.') + '</div>');
+  if (!p.paid) flags.push('<div class="ci-flag ci-red"><b>Not paid' + (p.paymentStatus ? ' — payment shows “' + escapeHtml(p.paymentStatus) + '”' : '') + '</b>Send them to the payment table. Once they’ve paid, tap “Payment received” below to check them in.</div>');
+  if (p.paymentOverride) flags.push('<div class="ci-flag ci-green"><b>Paid at the payment table</b>Let through by ' + escapeHtml(p.paymentOverride.by || 'staff') + ', ' + escapeHtml(ciTime(p.paymentOverride.at)) + '.</div>');
   if (p.isTest) flags.push('<div class="ci-flag ci-gray"><b>Marked as test data</b>This record is flagged as a test registration.</div>');
   if (p.checkedInAt) flags.push('<div class="ci-flag ci-green"><b>Already checked in</b>' + escapeHtml(ciTime(p.checkedInAt)) + '. Printing again makes a replacement sticker.</div>');
   return flags.length ? '<div class="ci-flags">' + flags.join('') + '</div>' : '';
@@ -25043,12 +25062,16 @@ function ciReviewHtml() {
     + '<div class="ci-field ci-wide"><label>Lunch' + (ci.form.lunch ? '' : ' <span style="color:#a52620;text-transform:none;letter-spacing:0;">— not assigned yet</span>') + '</label><div class="ci-lunch-pick">'
     + ['A', 'B'].map(l => '<button class="' + (ci.form.lunch === l ? 'on' : '') + '" onclick="ciSetLunch(\'' + l + '\')">Lunch ' + l + '</button>').join('') + '</div></div>'
     + '</div>'
+    + ciBreakoutsHtml()
     + '<div class="ci-preview-wrap"><div class="ci-preview-title">Sticker preview</div><div class="ci-preview" id="ci-preview"></div></div>'
     + ciMsgHtml()
     + '<div class="ci-actions">'
-    + '<button class="ci-btn ci-big" onclick="ciConfirm()"' + (ci.busy ? ' disabled' : '') + '>' + (ci.busy ? 'Saving…' : (p.checkedInAt ? 'Save &amp; reprint sticker' : 'Yes, check in &amp; print')) + '</button>'
+    + (p.paid
+      ? '<button class="ci-btn ci-big" onclick="ciConfirm()"' + (ci.busy ? ' disabled' : '') + '>' + (ci.busy ? 'Saving…' : (p.checkedInAt ? 'Save &amp; reprint sticker' : 'Yes, check in &amp; print')) + '</button>'
+      : '<button class="ci-btn ci-big ci-stop" disabled>Unpaid — send to the payment table</button>'
+        + '<button class="ci-btn ci-big ci-ghost" onclick="ciOverridePayment()"' + (ci.busy ? ' disabled' : '') + '>' + (ci.busy ? 'Saving…' : 'Payment received — let them through') + '</button>')
     + '<div class="ci-row"><button class="ci-btn ci-ghost" onclick="ciBack()">Back</button>'
-    + (p.checkedInAt ? '<button class="ci-btn ci-ghost" onclick="ciUndo()">Undo check-in</button>' : '<button class="ci-btn ci-ghost" onclick="ciConfirm(true)">Save, don’t print</button>') + '</div>'
+    + (p.checkedInAt ? '<button class="ci-btn ci-ghost" onclick="ciUndo()">Undo check-in</button>' : (p.paid && p.id ? '<button class="ci-btn ci-ghost" onclick="ciConfirm(true)">Save, don’t print</button>' : '')) + '</div>'
     + '<p class="ci-help" style="text-align:center;">Prints on ' + escapeHtml(where) + '.</p>'
     + '</div></div>';
 }
@@ -25160,12 +25183,95 @@ function ciOpen(i) {
   if (!p) return;
   ci.person = p;
   ci.form = { name: p.name, church: p.church, city: p.city, state: p.state, email: p.email, lunch: p.lunch || '' };
-  ci.screen = 'review'; ci.msg = '';
+  ci.screen = 'review'; ci.msg = ''; ci.bo = null;
   ciRender();
   window.scrollTo(0, 0);
+  if (p.breakoutId) ciLoadBreakouts();
+}
+function ciRerenderKeepScroll() { const y = window.scrollY; ciRender(); window.scrollTo(0, y); }
+
+// ---- payment stop ----
+const CI_BO_ERRORS = { full: 'That session just filled up. Choose another.', not_open: 'That session isn’t open yet (no room size set).', no_such_session: 'That session is no longer on the grid.' };
+async function ciOverridePayment() {
+  const p = ci.person;
+  if (ci.busy || !confirm('Confirm ' + p.name + ' has paid at the payment table?')) return;
+  ci.busy = true; ci.msg = ''; ciRerenderKeepScroll();
+  const out = await ciCall('checkin-override-payment', p.id ? { id: p.id } : { entryId: p.unpaidEntry.entryId, index: p.unpaidEntry.index });
+  ci.busy = false;
+  if (out.error || !out.person) { ci.msg = ciErrorText(out.error || 'empty'); ciRerenderKeepScroll(); return; }
+  ci.person = out.person;
+  if (!ci.form.lunch && out.person.lunch) ci.form.lunch = out.person.lunch;
+  ciRerenderKeepScroll();
+  if (out.person.breakoutId) ciLoadBreakouts();
+}
+
+// ---- breakouts at the desk (breakout_desk_* in the planner project: same seat limits as sign-up,
+// but works while sign-up is closed) ----
+async function ciLoadBreakouts() {
+  const p = ci.person;
+  const { data, error } = await sbClient.rpc('breakout_desk_get', { p_attendee_id: p.breakoutId, p_year: activeConferenceYear || '2027' });
+  if (ci.person !== p) return;
+  ci.bo = Object.assign(ci.bo || { open: null }, { data: error ? null : data, error: error ? (ciNoQueue(error) || error.code === 'PGRST202' ? 'Breakout picks at the desk aren’t set up yet.' : 'Couldn’t load breakouts.') : '' });
+  if (data) {
+    const blocks = Array.from(new Set(data.sessions.map(s => s.slot_id)));
+    p.breakouts = { picked: data.picks.filter(k => blocks.includes(k.slot_id)).length, blocks: blocks.length };
+  }
+  if (ci.screen === 'review') ciRerenderKeepScroll();
+}
+function ciBreakoutsHtml() {
+  const p = ci.person;
+  if (!p.breakoutId) return '';
+  if (!ci.bo) return '<div class="ci-bo"><div class="ci-preview-title">Breakouts</div><p class="ci-sub">Loading…</p></div>';
+  if (!ci.bo.data) return '<div class="ci-bo"><div class="ci-preview-title">Breakouts</div><p class="ci-sub">' + escapeHtml(ci.bo.error) + '</p></div>';
+  const d = ci.bo.data;
+  const blocks = [];
+  d.sessions.forEach((s, i) => {
+    let b = blocks.find(x => x.slot === s.slot_id);
+    if (!b) blocks.push(b = { slot: s.slot_id, label: s.slot_label || [s.slot_date, s.slot_start].filter(Boolean).join(' '), sessions: [] });
+    b.sessions.push(Object.assign({ i }, s));
+  });
+  if (!blocks.length) return '';
+  return '<div class="ci-bo"><div class="ci-preview-title">Breakouts</div>' + blocks.map(b => {
+    const pick = d.picks.find(k => k.slot_id === b.slot);
+    const chosen = pick && b.sessions.find(s => s.track === pick.track);
+    const isOpen = ci.bo.open === b.slot;
+    return '<div class="ci-bo-block"><div class="ci-bo-head"><div><small>' + escapeHtml(b.label) + '</small>'
+      + (chosen ? '<span>' + escapeHtml(chosen.title || chosen.track) + '</span>' : '<span class="ci-bo-none">Not chosen</span>') + '</div>'
+      + '<button class="ci-btn ' + (chosen ? 'ci-ghost' : '') + '" onclick="ciToggleBlock(\'' + ciAttr(b.slot) + '\')">' + (isOpen ? 'Close' : (chosen ? 'Change' : 'Choose')) + '</button></div>'
+      + (isOpen ? '<div class="ci-bo-opts">' + b.sessions.map(s => {
+        const mine = chosen && chosen.track === s.track;
+        const left = s.seats == null ? null : s.seats - s.taken;
+        const status = mine ? 'Chosen ✓' : (s.seats == null ? 'Not open' : (left <= 0 ? 'Full' : left + ' seat' + (left === 1 ? '' : 's') + ' left'));
+        const disabled = !mine && (s.seats == null || left <= 0);
+        return '<button class="ci-bo-opt' + (mine ? ' ci-bo-chosen' : '') + '"' + (disabled || ci.bo.busy ? ' disabled' : '')
+          + ' onclick="' + (mine ? 'ciUnpickBreakout(' : 'ciPickBreakout(') + s.i + ')"><div><b>' + escapeHtml(s.title || s.track) + '</b><span>'
+          + escapeHtml([s.room, s.speakers].filter(Boolean).join(' · ')) + '</span></div><em>' + (mine ? 'Chosen ✓ · tap to remove' : status) + '</em></button>';
+      }).join('') + '</div>' : '')
+      + '</div>';
+  }).join('') + (ci.bo.msg ? '<div class="ci-msg">' + escapeHtml(ci.bo.msg) + '</div>' : '') + '</div>';
+}
+function ciToggleBlock(slot) { ci.bo.open = ci.bo.open === slot ? null : slot; ci.bo.msg = ''; ciRerenderKeepScroll(); }
+async function ciPickBreakout(i) {
+  const s = ci.bo.data.sessions[i], p = ci.person;
+  if (!s || ci.bo.busy) return;
+  ci.bo.busy = true; ci.bo.msg = ''; ciRerenderKeepScroll();
+  const { data, error } = await sbClient.rpc('breakout_desk_pick', { p_attendee_id: p.breakoutId, p_group_id: p.breakoutGroup, p_name: ci.form.name || p.name,
+    p_email: ci.form.email || p.email, p_slot_id: s.slot_id, p_track: s.track, p_year: activeConferenceYear || '2027' });
+  ci.bo.busy = false;
+  if (error || !data || !data.ok) ci.bo.msg = error ? 'Couldn’t save that choice. Try again.' : (CI_BO_ERRORS[data.error] || 'That didn’t work. Try again.');
+  else ci.bo.open = null;
+  await ciLoadBreakouts();
+}
+async function ciUnpickBreakout(i) {
+  const s = ci.bo.data.sessions[i], p = ci.person;
+  if (!s || ci.bo.busy || !confirm('Remove ' + (s.title || s.track) + ' from ' + p.name + '’s breakouts?')) return;
+  ci.bo.busy = true; ciRerenderKeepScroll();
+  await sbClient.rpc('breakout_desk_unpick', { p_attendee_id: p.breakoutId, p_slot_id: s.slot_id, p_year: activeConferenceYear || '2027' });
+  ci.bo.busy = false;
+  await ciLoadBreakouts();
 }
 function ciSetField(key, value) { ci.form[key] = value; ciUpdatePreview(); }
-function ciSetLunch(l) { ci.form.lunch = l; const y = window.scrollY; ciRender(); window.scrollTo(0, y); }
+function ciSetLunch(l) { ci.form.lunch = l; ciRerenderKeepScroll(); }
 function ciUpdatePreview() {
   const el = document.getElementById('ci-preview');
   if (!el || !ci.person) return;
@@ -25281,7 +25387,7 @@ function ciLabelHtml(l) {
   const sz = ciLabelSize();
   const place = [l.city, l.state].map(s => (s || '').trim()).filter(Boolean).join(', ');
   return '<div class="ci-label' + (ci.settings.orient === 'portrait' ? ' ci-portrait' : '') + '" style="--ci-w:' + sz.w + 'mm;--ci-h:' + sz.h + 'mm;">'
-    + '<div class="ci-label-qr">' + (window.qrcode ? ciQrSvg(l.qr) : '') + '</div>'
+    + '<div class="ci-label-qr">' + (window.qrcode && l.qr ? ciQrSvg(l.qr) : '') + '</div>'
     + '<div class="ci-label-text"><div class="ci-label-name">' + escapeHtml((l.name || '').trim()) + '</div>'
     + ((l.church || '').trim() ? '<div class="ci-label-line">' + escapeHtml(l.church.trim()) + '</div>' : '')
     + (place ? '<div class="ci-label-line">' + escapeHtml(place) + '</div>' : '')
