@@ -602,6 +602,54 @@ if (/[?&]view=checkin(&|$)/.test(location.search)) document.title = 'SBCMC Check
   .ci-bo-opt:disabled em { color: #a52620; }
   .ci-btn.ci-stop { background: #a52620; }
   .ci-chip.ci-chip-unpaid { background: #FBE9E7; color: #8A1F12; }
+  .ci-label-role { align-self: center; margin-top: 4mm; padding: 1.2mm 3.5mm; border: 0.9mm solid #000; border-radius: 1.5mm; font-weight: 900; font-size: 6.5mm; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.1; }
+  .ci-label.ci-volunteer:not(.ci-portrait) .ci-label-text { align-items: flex-start; }
+  .ci-label.ci-volunteer:not(.ci-portrait) .ci-label-role { align-self: flex-start; }
+  /* Volunteers tab (Logistics > Volunteers) */
+  #volunteer-view { padding: 22px 26px; }
+  .vol-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 16px; }
+  .vol-stats div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 12px; color: var(--ink-soft); min-width: 92px; }
+  .vol-stats b { display: block; font-size: 20px; color: var(--teal-deep); }
+  .vol-toolbar, .vol-row, .vol-printbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .vol-printbar { justify-content: space-between; background: var(--teal-pale); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+  .vol-input { font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); min-width: 0; flex: 1; max-width: 320px; }
+  .sp-add-btn.vol-ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--line); display: inline-block; }
+  .sp-add-btn:disabled { opacity: 0.5; cursor: default; }
+  .vol-link { background: none; border: none; color: var(--teal); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 2px 6px; text-decoration: underline; }
+  .vol-link.vol-danger { color: #a52620; margin-left: auto; }
+  .vol-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .vol-card h3, h3.vol-day { font-family: var(--font-display); color: var(--teal-deep); margin: 0 0 10px; font-size: 19px; }
+  h3.vol-day { margin: 20px 0 8px; }
+  .vol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; margin-bottom: 12px; }
+  .vol-field span { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); margin-bottom: 4px; }
+  .vol-field .vol-input { width: 100%; max-width: none; box-sizing: border-box; }
+  .vol-chip { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--teal-pale); color: var(--teal-deep); }
+  .vol-actions { text-align: right; white-space: nowrap; }
+  .vol-empty { background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; padding: 22px; color: var(--ink-soft); font-size: 13.5px; text-align: center; }
+  .vol-preview { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; margin: 8px 0 12px; background: #fff; }
+  .vol-preview div { padding: 3px 0; }
+  .vol-preview .vol-dup { color: var(--ink-soft); text-decoration: line-through; }
+  .vol-preview i { text-decoration: none; font-size: 11.5px; }
+  .vol-shift { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+  .vol-shift-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .vol-shift-head b { font-size: 14.5px; display: block; }
+  .vol-shift-head span { display: block; font-size: 12.5px; color: var(--ink-soft); }
+  .vol-fill { display: flex; align-items: center; gap: 8px; flex-shrink: 0; font-size: 13px; font-weight: 700; }
+  .vol-full { color: #2F7D5B; } .vol-short { color: #a52620; }
+  .vol-bar { width: 90px; height: 7px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .vol-bar div { height: 100%; background: var(--teal-deep); }
+  .vol-people { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+  .vol-person { display: inline-flex; align-items: center; gap: 4px; background: var(--teal-pale); color: var(--teal-deep); border-radius: 99px; padding: 3px 4px 3px 10px; font-size: 12.5px; font-weight: 600; }
+  .vol-person button { border: none; background: none; cursor: pointer; color: var(--ink-soft); font-size: 15px; line-height: 1; padding: 0 4px; }
+  .vol-add { max-width: 240px; flex: 0 1 240px; }
+  #vol-label-sheet { position: fixed; left: -10000px; top: 0; }
+  @media print {
+    body.vol-printing > *:not(#vol-label-sheet) { display: none !important; }
+    body.vol-printing { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+    body.vol-printing #vol-label-sheet { position: static !important; left: 0 !important; }
+    body.vol-printing .vol-page { break-after: page; }
+    body.vol-printing .vol-page:last-child { break-after: auto; }
+  }
   .ci-label-lunch { font-weight: 800; font-size: 4.6mm; line-height: 1.2; margin-top: 2.5mm; }
   .ci-lunch-pick { display: flex; gap: 10px; }
   .ci-lunch-pick button { flex: 1; font: inherit; font-size: 19px; font-weight: 700; padding: 12px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; color: var(--ink-soft); cursor: pointer; min-height: 52px; }
@@ -2492,6 +2540,8 @@ body.bov-lock { overflow: hidden; }
   </div>
 </div>
 
+<div id="vol-label-sheet"></div>
+
 <div id="checkin-view" style="display:none;">
   <div class="ci-top">
     <div><p class="dv-eyebrow">SBCMC 2027</p><h1>Check-in</h1></div>
@@ -2549,7 +2599,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
 
   var ALL_SECTION_KEYS = ['dashboard.all', 'sponsors.contact', 'sponsors.financial', 'speakers.roster',
     'speakers.logistics', 'speakers.financial', 'speakers.internal_docs', 'schedule.all', 'applicants.all',
-    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'food.all', 'food.financial', 'team_access.all'];
+    'transportation.all', 'floorplan.all', 'revenue.all', 'cashflow.all', 'food.all', 'food.financial', 'volunteers.all', 'team_access.all'];
 
   // ---- Legacy shared-password fallback -- Phase B/C transition only. Delete this whole
   // block (and the two hash constants) once every real user has an individual Supabase Auth
@@ -2750,6 +2800,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       <button class="nav-dropdown-item" id="nav-transport-btn" onclick="switchTopView('transport')">Transportation</button>
       <button class="nav-dropdown-item" id="nav-floorplan-btn" onclick="switchTopView('floorplan')">Floor Plan</button>
       <button class="nav-dropdown-item" id="nav-food-btn" onclick="switchTopView('food')">Food Planning</button>
+      <button class="nav-dropdown-item" id="nav-volunteers-btn" onclick="switchTopView('volunteers')">Volunteers</button>
     </div>
   </div>
   <div class="nav-dropdown">
@@ -3017,6 +3068,18 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
       </div>
     </div>
   </div>
+</div>
+
+<div id="volunteer-view" style="display:none;" data-section="volunteers.all">
+  <div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <h2 style="font-family: var(--font-display); color: var(--teal-deep); margin: 0 0 6px;">Volunteers &amp; Staff</h2>
+    <div class="sch-view-toggle">
+      <button class="sch-toggle-btn active" data-sub="people" onclick="setVolunteerSubview('people')">People &amp; Badges</button>
+      <button class="sch-toggle-btn" data-sub="shifts" onclick="setVolunteerSubview('shifts')">Shifts</button>
+    </div>
+  </div>
+  <p class="hint" style="margin-bottom: 12px;">Everyone working the conference, whether or not they registered. Add them by hand or upload a CSV, schedule their shifts, and print their name badges on the label printer: their name, church, and a big badge-type marker (Volunteer, Staff…). No QR code; they aren’t scanned at booths.</p>
+  <div id="volunteer-view-body"></div>
 </div>
 
 <div id="transport-view" style="display:none; padding: 22px 26px;" data-section="transportation.all">
@@ -4551,7 +4614,8 @@ const TABLE_TO_SECTION_KEYS = {
   // list/location board/cost table), so a food-only role (either half) needs to be let through
   // too, not just revenue/cashflow roles.
   conference_settings: ['revenue.all', 'cashflow.all', 'food.all', 'food.financial', 'schedule.all'],
-  conference_documents: ['speakers.internal_docs']
+  conference_documents: ['speakers.internal_docs'],
+  volunteers: ['volunteers.all'], volunteer_shifts: ['volunteers.all'], volunteer_assignments: ['volunteers.all']
 };
 function canView(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey]); }
 function canEdit(sectionKey) { return !!(window.userPermissions && window.userPermissions[sectionKey] === 'edit') && !yearIsViewOnlyForMe(); }
@@ -8214,13 +8278,14 @@ const VIEW_SECTION_KEYS = {
   floorplan: ['floorplan.all'],
   revenue: ['revenue.all'],
   cashflow: ['cashflow.all'],
-  food: ['food.all', 'food.financial']
+  food: ['food.all', 'food.financial'],
+  volunteers: ['volunteers.all']
 };
 // Order matters: the first entry here that the signed-in user can actually view is where
 // switchTopView lands them when the tab they asked for is denied -- 'dashboard' can no longer
 // be assumed to always be safe now that it's gated too (see VIEW_SECTION_KEYS above).
 const FALLBACK_VIEW_ORDER = ['dashboard', 'sponsors', 'speakers', 'schedule', 'applicants_sls', 'applicants_cwc',
-  'transport', 'floorplan', 'revenue', 'cashflow', 'food'];
+  'transport', 'floorplan', 'revenue', 'cashflow', 'food', 'volunteers'];
 function firstAccessibleView() {
   return FALLBACK_VIEW_ORDER.find(v => canViewAny(VIEW_SECTION_KEYS[v])) || null;
 }
@@ -8323,7 +8388,7 @@ function switchTopView(view) {
   if (!view) {
     document.querySelectorAll('.top-nav-btn').forEach(b => b.classList.remove('active'));
     ['sponsor-view', 'dashboard-view', 'budget-view', 'speaker-view', 'transport-view',
-      'schedule-view', 'applicants-sls-view', 'applicants-cwc-view', 'revenue-view', 'cashflow-view', 'food-view', 'team-access-view']
+      'schedule-view', 'applicants-sls-view', 'applicants-cwc-view', 'revenue-view', 'cashflow-view', 'food-view', 'volunteer-view', 'team-access-view']
       .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     const appEl = document.querySelector('.app'); if (appEl) appEl.style.display = 'none';
     return; // no section assigned at all -- nothing to show, nowhere safe to redirect to
@@ -8347,6 +8412,10 @@ function switchTopView(view) {
   if (cashflowViewEl) cashflowViewEl.style.display = view === 'cashflow' ? 'block' : 'none';
   const foodViewEl = document.getElementById('food-view');
   if (foodViewEl) foodViewEl.style.display = view === 'food' ? 'block' : 'none';
+  const volunteerViewEl = document.getElementById('volunteer-view');
+  if (volunteerViewEl) volunteerViewEl.style.display = view === 'volunteers' ? 'block' : 'none';
+  const volunteersBtnEl = document.getElementById('nav-volunteers-btn');
+  if (volunteersBtnEl) volunteersBtnEl.classList.toggle('active', view === 'volunteers');
   const teamAccessViewEl = document.getElementById('team-access-view');
   if (teamAccessViewEl) teamAccessViewEl.style.display = view === 'team_access' ? 'block' : 'none';
   document.getElementById('nav-floorplan-btn').classList.toggle('active', view === 'floorplan');
@@ -8359,7 +8428,7 @@ function switchTopView(view) {
   const transportBtnEl = document.getElementById('nav-transport-btn');
   if (transportBtnEl) transportBtnEl.classList.toggle('active', view === 'transport');
   const logisticsBtnEl = document.getElementById('nav-logistics-btn');
-  if (logisticsBtnEl) logisticsBtnEl.classList.toggle('active', view === 'transport' || view === 'floorplan' || view === 'food');
+  if (logisticsBtnEl) logisticsBtnEl.classList.toggle('active', view === 'transport' || view === 'floorplan' || view === 'food' || view === 'volunteers');
   const logisticsMenuEl = document.getElementById('nav-logistics-menu');
   if (logisticsMenuEl) logisticsMenuEl.classList.remove('open');
   const scheduleBtnEl = document.getElementById('nav-schedule-btn');
@@ -8391,6 +8460,7 @@ function switchTopView(view) {
   if (view === 'revenue' && typeof initRevenueView === 'function' && revenueViewEl) initRevenueView();
   if (view === 'cashflow' && typeof initCashflowView === 'function' && cashflowViewEl) initCashflowView();
   if (view === 'food' && typeof renderFoodView === 'function' && foodViewEl) renderFoodView();
+  if (view === 'volunteers' && typeof renderVolunteerView === 'function' && volunteerViewEl) renderVolunteerView();
   if (view === 'floorplan') {
     if (typeof renderSpotDirectory === 'function') renderSpotDirectory();
     if (typeof refreshBoothLabels === 'function') refreshBoothLabels();
@@ -8426,7 +8496,7 @@ function applyNavVisibility() {
   // by the generic per-view loop above, each still gated by its own section key -- this only
   // controls whether the "Logistics" trigger itself shows, same as the Financials trigger does.
   const logisticsBtn = document.getElementById('nav-logistics-btn');
-  if (logisticsBtn) logisticsBtn.style.display = canViewAny(['transportation.all', 'floorplan.all', 'food.all', 'food.financial']) ? '' : 'none';
+  if (logisticsBtn) logisticsBtn.style.display = canViewAny(['transportation.all', 'floorplan.all', 'food.all', 'food.financial', 'volunteers.all']) ? '' : 'none';
   // The generic per-view loop above looks up nav-${view}-btn, which doesn't resolve for
   // applicants_sls/applicants_cwc (the trigger and its two dropdown items use their own ids,
   // same as the Financials dropdown's revenue/cashflow items need their own handling too --
@@ -9505,6 +9575,7 @@ const ALL_SECTION_KEYS_LIST = [
   ['cashflow.all', 'Cash Flow'],
   ['food.all', 'Food Planning'],
   ['food.financial', 'Food Planning — Estimated Cost'],
+  ['volunteers.all', 'Volunteers & Staff'],
   ['team_access.all', 'Team Access (admin)']
 ];
 // Groups the same keys/labels above under headers, purely for scanability in the permission
@@ -9514,7 +9585,7 @@ const PERMISSION_CATEGORIES = [
   ['Sponsors', ['sponsors.contact', 'sponsors.financial']],
   ['Speakers & Artists', ['speakers.roster', 'speakers.logistics', 'speakers.financial', 'speakers.internal_docs']],
   ['Schedule & Applicants', ['schedule.all', 'applicants.all']],
-  ['Logistics', ['transportation.all', 'floorplan.all', 'food.all', 'food.financial']],
+  ['Logistics', ['transportation.all', 'floorplan.all', 'food.all', 'food.financial', 'volunteers.all']],
   ['Money', ['revenue.all', 'cashflow.all']],
   ['Admin', ['team_access.all']]
 ];
@@ -24904,6 +24975,350 @@ function exportSpeakersCSV(sortValue) {
   toast('Exported ' + rows.length + ' speaker' + (rows.length === 1 ? '' : 's') + ' to CSV.');
 }
 
+// VOLUNTEER COORDINATION (Logistics > Volunteers, section "volunteers.all"). Staff and
+// volunteers -- most of whom never register -- with the shifts they work, and a name badge for
+// each: a clear sticker (the same QL-800 setup as check-in) with their name and a big badge-type
+// marker (VOLUNTEER, STAFF...) and no QR, since they aren't scanned at booths. Tables come from
+// sbcmc-volunteers.sql, all scoped by conference_year.
+const VOL_BADGE_TYPES = ['Volunteer', 'Staff', 'Security', 'Media', 'Medical', 'Hospitality'];
+const VOL_PRINT_KEY = 'sbcmc-volunteer-print-to';
+let volState = { year: null, loading: false, missing: false, people: [], shifts: [], assigns: [], sub: 'people',
+  q: '', type: '', editing: null, editingShift: null, importRows: null, busy: false };
+
+function volCanEdit() { return canEdit('volunteers.all'); }
+function volAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+function volPrintTo() { try { return localStorage.getItem(VOL_PRINT_KEY) || 'here'; } catch (e) { return 'here'; } }
+
+async function loadVolunteers() {
+  if (!sbClient) return;
+  volState.loading = true;
+  const y = activeConferenceYear;
+  const [p, s, a] = await Promise.all([
+    sbClient.from('volunteers').select('*').eq('conference_year', y).order('name'),
+    sbClient.from('volunteer_shifts').select('*').eq('conference_year', y).order('shift_date').order('start_time'),
+    sbClient.from('volunteer_assignments').select('shift_id, volunteer_id').eq('conference_year', y)
+  ]);
+  volState.loading = false;
+  volState.missing = !!(p.error && (p.error.code === 'PGRST205' || p.error.code === '42P01'));
+  if (p.error || s.error || a.error) { if (!volState.missing) console.warn('Volunteer load failed:', errDetail(p.error || s.error || a.error)); }
+  volState.people = p.data || [];
+  volState.shifts = s.data || [];
+  volState.assigns = a.data || [];
+  volState.year = y;
+}
+
+async function renderVolunteerView() {
+  const body = document.getElementById('volunteer-view-body');
+  if (!body) return;
+  if (volState.year !== activeConferenceYear) {
+    body.innerHTML = '<div class="hint">Loading volunteers…</div>';
+    await loadVolunteers();
+  }
+  if (volState.missing) { body.innerHTML = '<div class="vol-empty">Volunteer coordination isn’t set up in the database yet. Run <b>sbcmc-volunteers.sql</b> in the Supabase SQL editor.</div>'; return; }
+  document.querySelectorAll('#volunteer-view .sch-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.sub === volState.sub));
+  body.innerHTML = volState.sub === 'shifts' ? volShiftsHtml() : volPeopleHtml();
+}
+function setVolunteerSubview(sub) { volState.sub = sub; volState.editing = null; volState.editingShift = null; volState.importRows = null; renderVolunteerView(); }
+
+// ---- people ----
+function volShiftCount(id) { return volState.assigns.filter(a => a.volunteer_id === id).length; }
+function volFiltered() {
+  const q = volState.q.trim().toLowerCase();
+  return volState.people.filter(p => (!volState.type || p.badge_type === volState.type)
+    && (!q || [p.name, p.email, p.phone, p.church].some(v => (v || '').toLowerCase().includes(q))));
+}
+function volPeopleHtml() {
+  const edit = volCanEdit();
+  const types = Array.from(new Set(VOL_BADGE_TYPES.concat(volState.people.map(p => p.badge_type)))).filter(Boolean);
+  const list = volFiltered();
+  const unprinted = list.filter(p => !p.badge_printed_at);
+  const counts = types.map(t => [t, volState.people.filter(p => p.badge_type === t).length]).filter(c => c[1]);
+  let html = '<div class="vol-stats">' + '<div><b>' + volState.people.length + '</b>people</div>'
+    + counts.map(c => '<div><b>' + c[1] + '</b>' + escapeHtml(c[0]) + '</div>').join('')
+    + '<div><b>' + volState.people.filter(p => !p.badge_printed_at).length + '</b>badges to print</div></div>';
+  html += '<div class="vol-toolbar"><input class="vol-input" type="search" placeholder="Search name, email, phone, church" value="' + volAttr(volState.q) + '" oninput="volState.q = this.value; volRefreshList()">'
+    + '<select class="vol-input" style="max-width:170px;" onchange="volState.type = this.value; volRefreshList()"><option value="">All badge types</option>'
+    + types.map(t => '<option' + (volState.type === t ? ' selected' : '') + '>' + escapeHtml(t) + '</option>').join('') + '</select>'
+    + (edit ? '<button class="sp-add-btn" onclick="volEdit(\'new\')">+ Add person</button><label class="sp-add-btn vol-ghost">Upload CSV<input type="file" accept=".csv,text/csv" style="display:none" onchange="volReadCsv(this)"></label>' : '')
+    + '<button class="sp-add-btn vol-ghost" onclick="volExportPeople()">Export CSV</button></div>';
+  if (volState.importRows) html += volImportHtml();
+  if (volState.editing) html += volFormHtml();
+  html += '<div class="vol-printbar"><span>Badges print on <b>' + escapeHtml(volPrintTo() === 'here' ? 'this computer' : volPrintTo()) + '</b> <button class="vol-link" onclick="volChoosePrinter()">change</button></span>'
+    + (unprinted.length ? '<button class="sp-add-btn" onclick="volPrintBadges(volFiltered().filter(p => !p.badge_printed_at).map(p => p.id))">Print ' + unprinted.length + ' new badge' + (unprinted.length === 1 ? '' : 's') + '</button>' : '<span class="hint">Every badge in this list has been printed.</span>') + '</div>';
+  html += '<div id="vol-list">' + volListHtml(list) + '</div>';
+  return html;
+}
+function volRefreshList() { const el = document.getElementById('vol-list'); if (el) el.innerHTML = volListHtml(volFiltered()); }
+function volListHtml(list) {
+  if (!volState.people.length) return '<div class="vol-empty">No volunteers yet. Add people one at a time, or upload a CSV with columns like Name, Email, Phone, Badge Type, Church.</div>';
+  if (!list.length) return '<div class="vol-empty">No one matches that search.</div>';
+  const edit = volCanEdit();
+  return '<div class="sp-table-wrap"><table class="sp-table vol-table"><thead><tr><th style="width:24%">Name</th><th style="width:13%">Badge</th><th style="width:24%">Contact</th><th style="width:9%">Shifts</th><th style="width:14%">Badge printed</th><th style="width:16%"></th></tr></thead><tbody>'
+    + list.map(p => '<tr class="sp-row"><td class="sp-org">' + escapeHtml(p.name) + (p.church ? '<div class="sp-sub">' + escapeHtml(p.church) + '</div>' : '') + '</td>'
+      + '<td data-label="Badge"><span class="vol-chip">' + escapeHtml(p.badge_type) + '</span></td>'
+      + '<td data-label="Contact">' + escapeHtml(p.email || '') + (p.phone ? '<div class="sp-sub">' + escapeHtml(p.phone) + '</div>' : '') + '</td>'
+      + '<td data-label="Shifts">' + volShiftCount(p.id) + '</td>'
+      + '<td data-label="Badge printed">' + (p.badge_printed_at ? escapeHtml(new Date(p.badge_printed_at).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '<span class="hint">Not yet</span>') + '</td>'
+      + '<td class="vol-actions"><button class="vol-link" onclick="volPrintBadges([\'' + p.id + '\'])">' + (p.badge_printed_at ? 'Reprint' : 'Print') + '</button>'
+      + (edit ? '<button class="vol-link" onclick="volEdit(\'' + p.id + '\')">Edit</button>' : '') + '</td></tr>').join('')
+    + '</tbody></table></div>';
+}
+function volEdit(id) {
+  volState.importRows = null;
+  volState.editing = id === 'new' ? { id: null, name: '', badge_type: 'Volunteer', email: '', phone: '', church: '', notes: '' } : Object.assign({}, volState.people.find(p => p.id === id));
+  renderVolunteerView();
+  const n = document.getElementById('vol-f-name'); if (n) { n.focus(); n.scrollIntoView({ block: 'center' }); }
+}
+function volFormHtml() {
+  const e = volState.editing;
+  const f = (key, label, extra) => '<label class="vol-field"><span>' + label + '</span><input class="vol-input" id="vol-f-' + key + '" value="' + volAttr(e[key] || '') + '" ' + (extra || '') + '></label>';
+  return '<div class="vol-card"><h3>' + (e.id ? 'Edit ' + escapeHtml(e.name) : 'Add a person') + '</h3><div class="vol-grid">'
+    + f('name', 'Name on badge *') + f('badge_type', 'Badge type', 'list="vol-types"') + f('email', 'Email', 'type="email"') + f('phone', 'Phone', 'type="tel"')
+    + f('church', 'Church / organization') + f('notes', 'Notes')
+    + '</div><datalist id="vol-types">' + VOL_BADGE_TYPES.map(t => '<option value="' + t + '">').join('') + '</datalist>'
+    + '<div class="vol-row"><button class="sp-add-btn" onclick="volSave()"' + (volState.busy ? ' disabled' : '') + '>Save</button><button class="sp-add-btn vol-ghost" onclick="volState.editing = null; renderVolunteerView()">Cancel</button>'
+    + (e.id ? '<button class="vol-link vol-danger" onclick="volDelete(\'' + e.id + '\')">Remove from list</button>' : '') + '</div></div>';
+}
+async function volSave() {
+  const v = k => (document.getElementById('vol-f-' + k).value || '').trim();
+  const row = { name: v('name'), badge_type: v('badge_type') || 'Volunteer', email: v('email').toLowerCase() || null, phone: v('phone') || null, church: v('church') || null, notes: v('notes') || null };
+  if (!row.name) { toast('Name is required.'); return; }
+  volState.busy = true;
+  const id = volState.editing.id;
+  const { error } = id
+    ? await sbClient.from('volunteers').update(row).eq('id', id)
+    : await sbClient.from('volunteers').insert(Object.assign({ conference_year: activeConferenceYear }, row));
+  volState.busy = false;
+  if (error) { toast('Couldn’t save — ' + errDetail(error), 'error'); return; }
+  volState.editing = null;
+  await loadVolunteers();
+  renderVolunteerView();
+  toast(id ? 'Saved.' : 'Added ' + row.name + '.');
+}
+async function volDelete(id) {
+  const p = volState.people.find(x => x.id === id);
+  if (!p || !confirm('Remove ' + p.name + ' from the volunteer list? Their shift assignments are removed too.')) return;
+  const { error } = await sbClient.from('volunteers').delete().eq('id', id);
+  if (error) { toast('Couldn’t remove — ' + errDetail(error), 'error'); return; }
+  volState.editing = null;
+  await loadVolunteers();
+  renderVolunteerView();
+}
+
+// CSV upload: matches columns by name, previews, skips anyone already on the list (same email, or same name).
+function volReadCsv(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const rows = parseCSV(String(reader.result || ''));
+    if (rows.length < 2) { toast('That file has no rows under the header.'); return; }
+    const head = rows[0].map(h => h.trim().toLowerCase());
+    const col = (...names) => head.findIndex(h => names.some(n => h === n || h.includes(n)));
+    const c = { name: head.findIndex(h => h.includes('name') && !h.includes('first') && !h.includes('last')), first: col('first'), last: col('last'),
+      email: col('email'), phone: col('phone', 'cell', 'mobile'), type: col('badge', 'type', 'role', 'position'), church: col('church', 'organization', 'org'), notes: col('notes', 'note') };
+    if (c.name < 0 && c.first < 0) { toast('Couldn’t find a Name (or First/Last Name) column.'); return; }
+    const cell = (r, i) => (i >= 0 && r[i] != null ? String(r[i]).trim() : '');
+    const haveEmail = new Set(volState.people.map(p => (p.email || '').toLowerCase()).filter(Boolean));
+    const haveName = new Set(volState.people.map(p => p.name.trim().toLowerCase()));
+    volState.importRows = rows.slice(1).map(r => {
+      const name = cell(r, c.name) || [cell(r, c.first), cell(r, c.last)].filter(Boolean).join(' ');
+      const email = cell(r, c.email).toLowerCase();
+      const type = cell(r, c.type);
+      const known = VOL_BADGE_TYPES.find(t => t.toLowerCase() === type.toLowerCase());
+      return { name, email: email || null, phone: cell(r, c.phone) || null, badge_type: known || type || 'Volunteer', church: cell(r, c.church) || null, notes: cell(r, c.notes) || null,
+        dup: (email && haveEmail.has(email)) || haveName.has(name.toLowerCase()) };
+    }).filter(r => r.name);
+    volState.editing = null;
+    renderVolunteerView();
+  };
+  reader.readAsText(file);
+}
+function volImportHtml() {
+  const rows = volState.importRows, fresh = rows.filter(r => !r.dup);
+  return '<div class="vol-card"><h3>Upload preview</h3><p class="hint">' + rows.length + ' people in the file'
+    + (rows.length - fresh.length ? ', ' + (rows.length - fresh.length) + ' already on the list (same email or name) and will be skipped' : '') + '.</p>'
+    + '<div class="vol-preview">' + rows.slice(0, 50).map(r => '<div class="' + (r.dup ? 'vol-dup' : '') + '"><b>' + escapeHtml(r.name) + '</b> · ' + escapeHtml(r.badge_type)
+      + (r.email ? ' · ' + escapeHtml(r.email) : '') + (r.dup ? ' <i>already listed</i>' : '') + '</div>').join('') + (rows.length > 50 ? '<div class="hint">…and ' + (rows.length - 50) + ' more</div>' : '') + '</div>'
+    + '<div class="vol-row"><button class="sp-add-btn" onclick="volImport()"' + (fresh.length && !volState.busy ? '' : ' disabled') + '>Add ' + fresh.length + ' ' + (fresh.length === 1 ? 'person' : 'people') + '</button>'
+    + '<button class="sp-add-btn vol-ghost" onclick="volState.importRows = null; renderVolunteerView()">Cancel</button></div></div>';
+}
+async function volImport() {
+  const fresh = volState.importRows.filter(r => !r.dup).map(({ dup, ...r }) => Object.assign({ conference_year: activeConferenceYear }, r));
+  volState.busy = true;
+  const { error } = await sbClient.from('volunteers').insert(fresh);
+  volState.busy = false;
+  if (error) { toast('Upload failed — ' + errDetail(error), 'error'); return; }
+  volState.importRows = null;
+  await loadVolunteers();
+  renderVolunteerView();
+  toast('Added ' + fresh.length + ' ' + (fresh.length === 1 ? 'person' : 'people') + '.');
+}
+function volExportPeople() {
+  const head = ['Name', 'Badge Type', 'Email', 'Phone', 'Church', 'Notes', 'Shifts', 'Badge Printed'];
+  const lines = [head.join(',')].concat(volFiltered().map(p => [p.name, p.badge_type, p.email, p.phone, p.church, p.notes,
+    volState.assigns.filter(a => a.volunteer_id === p.id).map(a => volShiftLabel(volState.shifts.find(s => s.id === a.shift_id))).filter(Boolean).join('; '),
+    p.badge_printed_at ? p.badge_printed_at.slice(0, 10) : ''].map(csvEscape).join(',')));
+  volDownload('SBCMC-Volunteers-' + activeConferenceYear + '.csv', lines.join('\r\n'));
+}
+function volDownload(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8;' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---- shifts ----
+function volTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return ((h + 11) % 12 + 1) + (m ? ':' + String(m).padStart(2, '0') : '') + (h < 12 ? ' AM' : ' PM');
+}
+function volDateLabel(d) {
+  try { return new Date(d + 'T12:00:00').toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); } catch (e) { return d; }
+}
+function volShiftLabel(s) { return s ? s.title + ' (' + volDateLabel(s.shift_date).split(',')[0] + ' ' + volTime(s.start_time) + ')' : ''; }
+function volOverlaps(a, b) { return a.shift_date === b.shift_date && a.start_time < b.end_time && b.start_time < a.end_time; }
+function volShiftsHtml() {
+  const edit = volCanEdit();
+  const filled = volState.shifts.reduce((n, s) => n + Math.min(s.needed, volState.assigns.filter(a => a.shift_id === s.id).length), 0);
+  const needed = volState.shifts.reduce((n, s) => n + s.needed, 0);
+  let html = '<div class="vol-stats"><div><b>' + volState.shifts.length + '</b>shifts</div><div><b>' + filled + ' / ' + needed + '</b>spots filled</div>'
+    + '<div><b>' + volState.shifts.filter(s => volState.assigns.filter(a => a.shift_id === s.id).length < s.needed).length + '</b>still need people</div></div>'
+    + '<div class="vol-toolbar">' + (edit ? '<button class="sp-add-btn" onclick="volEditShift(\'new\')">+ Add shift</button>' : '')
+    + '<button class="sp-add-btn vol-ghost" onclick="volExportShifts()">Export shift roster CSV</button></div>';
+  if (volState.editingShift) html += volShiftFormHtml();
+  if (!volState.shifts.length) return html + '<div class="vol-empty">No shifts yet. Add one for each job and time slot, like “Registration desk, Sunday 2–5 PM, 4 people”.</div>';
+  const days = Array.from(new Set(volState.shifts.map(s => s.shift_date)));
+  return html + days.map(d => '<h3 class="vol-day">' + escapeHtml(volDateLabel(d)) + '</h3>' + volState.shifts.filter(s => s.shift_date === d).map(volShiftCardHtml).join('')).join('');
+}
+function volShiftCardHtml(s) {
+  const edit = volCanEdit();
+  const people = volState.assigns.filter(a => a.shift_id === s.id).map(a => volState.people.find(p => p.id === a.volunteer_id)).filter(Boolean);
+  const pct = Math.min(100, Math.round(people.length / Math.max(1, s.needed) * 100));
+  const busyIds = new Set(volState.assigns.filter(a => { const o = volState.shifts.find(x => x.id === a.shift_id); return o && o.id !== s.id && volOverlaps(o, s); }).map(a => a.volunteer_id));
+  const options = volState.people.filter(p => !people.includes(p));
+  return '<div class="vol-shift"><div class="vol-shift-head"><div><b>' + escapeHtml(s.title) + '</b><span>' + volTime(s.start_time) + '–' + volTime(s.end_time)
+    + (s.location ? ' · ' + escapeHtml(s.location) : '') + '</span>' + (s.notes ? '<span class="hint">' + escapeHtml(s.notes) + '</span>' : '') + '</div>'
+    + '<div class="vol-fill"><span class="' + (people.length >= s.needed ? 'vol-full' : 'vol-short') + '">' + people.length + ' / ' + s.needed + '</span><div class="vol-bar"><div style="width:' + pct + '%"></div></div>'
+    + (edit ? '<button class="vol-link" onclick="volEditShift(\'' + s.id + '\')">Edit</button>' : '') + '</div></div>'
+    + '<div class="vol-people">' + people.map(p => '<span class="vol-person">' + escapeHtml(p.name)
+      + (edit ? '<button onclick="volUnassign(\'' + s.id + '\', \'' + p.id + '\')" aria-label="Remove">×</button>' : '') + '</span>').join('')
+    + (edit && options.length ? '<select class="vol-input vol-add" onchange="if (this.value) volAssign(\'' + s.id + '\', this.value)"><option value="">+ Add someone…</option>'
+      + options.map(p => '<option value="' + p.id + '">' + escapeHtml(p.name) + ' (' + escapeHtml(p.badge_type) + ')' + (busyIds.has(p.id) ? ' — busy then' : '') + '</option>').join('') + '</select>' : '')
+    + '</div></div>';
+}
+function volEditShift(id) {
+  const last = volState.shifts[volState.shifts.length - 1];
+  volState.editingShift = id === 'new'
+    ? { id: null, title: '', shift_date: last ? last.shift_date : '', start_time: '', end_time: '', location: '', needed: 1, notes: '' }
+    : Object.assign({}, volState.shifts.find(s => s.id === id));
+  renderVolunteerView();
+  const n = document.getElementById('vol-s-title'); if (n) { n.focus(); n.scrollIntoView({ block: 'center' }); }
+}
+function volShiftFormHtml() {
+  const e = volState.editingShift;
+  const f = (key, label, type, extra) => '<label class="vol-field"><span>' + label + '</span><input class="vol-input" id="vol-s-' + key + '" type="' + (type || 'text') + '" value="' + volAttr(key.endsWith('_time') ? (e[key] || '').slice(0, 5) : (e[key] == null ? '' : e[key])) + '" ' + (extra || '') + '></label>';
+  return '<div class="vol-card"><h3>' + (e.id ? 'Edit shift' : 'Add a shift') + '</h3><div class="vol-grid">'
+    + f('title', 'Job *', 'text', 'placeholder="Registration desk"') + f('location', 'Where', 'text', 'placeholder="Atrium"')
+    + f('shift_date', 'Day *', 'date') + f('needed', 'People needed', 'number', 'min="1"')
+    + f('start_time', 'Starts *', 'time') + f('end_time', 'Ends *', 'time') + f('notes', 'Notes')
+    + '</div><div class="vol-row"><button class="sp-add-btn" onclick="volSaveShift()"' + (volState.busy ? ' disabled' : '') + '>Save shift</button><button class="sp-add-btn vol-ghost" onclick="volState.editingShift = null; renderVolunteerView()">Cancel</button>'
+    + (e.id ? '<button class="vol-link vol-danger" onclick="volDeleteShift(\'' + e.id + '\')">Delete shift</button>' : '') + '</div></div>';
+}
+async function volSaveShift() {
+  const v = k => (document.getElementById('vol-s-' + k).value || '').trim();
+  const row = { title: v('title'), location: v('location') || null, shift_date: v('shift_date'), start_time: v('start_time'), end_time: v('end_time'),
+    needed: Math.max(1, parseInt(v('needed'), 10) || 1), notes: v('notes') || null };
+  if (!row.title || !row.shift_date || !row.start_time || !row.end_time) { toast('Job, day, start and end are required.'); return; }
+  if (row.end_time <= row.start_time) { toast('The shift has to end after it starts.'); return; }
+  volState.busy = true;
+  const id = volState.editingShift.id;
+  const { error } = id
+    ? await sbClient.from('volunteer_shifts').update(row).eq('id', id)
+    : await sbClient.from('volunteer_shifts').insert(Object.assign({ conference_year: activeConferenceYear }, row));
+  volState.busy = false;
+  if (error) { toast('Couldn’t save the shift — ' + errDetail(error), 'error'); return; }
+  volState.editingShift = null;
+  await loadVolunteers();
+  renderVolunteerView();
+}
+async function volDeleteShift(id) {
+  const s = volState.shifts.find(x => x.id === id);
+  if (!s || !confirm('Delete the ' + s.title + ' shift? Everyone on it is taken off.')) return;
+  const { error } = await sbClient.from('volunteer_shifts').delete().eq('id', id);
+  if (error) { toast('Couldn’t delete — ' + errDetail(error), 'error'); return; }
+  volState.editingShift = null;
+  await loadVolunteers();
+  renderVolunteerView();
+}
+async function volAssign(shiftId, volunteerId) {
+  const { error } = await sbClient.from('volunteer_assignments').insert({ shift_id: shiftId, volunteer_id: volunteerId, conference_year: activeConferenceYear });
+  if (error) { toast('Couldn’t add them — ' + errDetail(error), 'error'); return; }
+  volState.assigns.push({ shift_id: shiftId, volunteer_id: volunteerId });
+  renderVolunteerView();
+}
+async function volUnassign(shiftId, volunteerId) {
+  const { error } = await sbClient.from('volunteer_assignments').delete().eq('shift_id', shiftId).eq('volunteer_id', volunteerId);
+  if (error) { toast('Couldn’t remove them — ' + errDetail(error), 'error'); return; }
+  volState.assigns = volState.assigns.filter(a => !(a.shift_id === shiftId && a.volunteer_id === volunteerId));
+  renderVolunteerView();
+}
+function volExportShifts() {
+  const head = ['Day', 'Start', 'End', 'Job', 'Where', 'Needed', 'Volunteer', 'Badge Type', 'Phone', 'Email'];
+  const lines = [head.join(',')];
+  volState.shifts.forEach(s => {
+    const people = volState.assigns.filter(a => a.shift_id === s.id).map(a => volState.people.find(p => p.id === a.volunteer_id)).filter(Boolean);
+    const base = [s.shift_date, volTime(s.start_time), volTime(s.end_time), s.title, s.location, s.needed];
+    (people.length ? people : [null]).forEach(p => lines.push(base.concat(p ? [p.name, p.badge_type, p.phone, p.email] : ['(open)', '', '', '']).map(csvEscape).join(',')));
+  });
+  volDownload('SBCMC-Volunteer-Shifts-' + activeConferenceYear + '.csv', lines.join('\r\n'));
+}
+
+// ---- badges ----
+// Same sticker size and layout settings as the check-in page on this computer (its ⚙), so one
+// printer setup serves both. "This computer" prints all selected badges in one job, one sticker
+// per page; a print station name sends them to that check-in print station instead.
+function volChoosePrinter() {
+  const cur = volPrintTo();
+  const v = prompt('Print badges on which check-in print station? Leave blank to print on this computer (it must be the one with the label printer).', cur === 'here' ? '' : cur);
+  if (v === null) return;
+  try { localStorage.setItem(VOL_PRINT_KEY, v.trim() || 'here'); } catch (e) { /* private mode */ }
+  renderVolunteerView();
+}
+async function volPrintBadges(ids) {
+  const people = ids.map(id => volState.people.find(p => p.id === id)).filter(Boolean);
+  if (!people.length) return;
+  const labels = people.map(p => ({ kind: 'volunteer', name: p.name, badge: p.badge_type || 'Volunteer', church: p.church || '' }));
+  const to = volPrintTo();
+  if (to === 'here') {
+    const settings = ciLoadSettings();
+    const sz = ciLabelSize(settings);
+    let pageStyle = document.getElementById('ci-page-style');
+    if (!pageStyle) { pageStyle = document.createElement('style'); pageStyle.id = 'ci-page-style'; document.head.appendChild(pageStyle); }
+    pageStyle.textContent = '@page { size: ' + sz.w + 'mm ' + sz.h + 'mm; margin: 0; }';
+    const sheet = document.getElementById('vol-label-sheet');
+    sheet.innerHTML = labels.map(l => '<div class="vol-page">' + ciLabelHtml(l, settings) + '</div>').join('');
+    sheet.querySelectorAll('.ci-label').forEach(ciFitLabel);
+    document.body.classList.add('vol-printing');
+    const done = () => { document.body.classList.remove('vol-printing'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+    setTimeout(done, 1500);
+    if (!confirm('Did ' + (people.length === 1 ? 'the badge' : 'all ' + people.length + ' badges') + ' print? OK marks ' + (people.length === 1 ? 'it' : 'them') + ' as printed.')) return;
+  } else {
+    const { error } = await sbClient.from('checkin_print_jobs').insert(people.map((p, i) => ({ station: to, attendee_id: 'volunteer:' + p.id, label: labels[i] })));
+    if (error) { toast('Couldn’t send to ' + to + ' — ' + errDetail(error), 'error'); return; }
+    toast('Sent ' + people.length + ' badge' + (people.length === 1 ? '' : 's') + ' to ' + to + '.');
+  }
+  const now = new Date().toISOString();
+  const { error } = await sbClient.from('volunteers').update({ badge_printed_at: now }).in('id', people.map(p => p.id));
+  if (!error) people.forEach(p => { p.badge_printed_at = now; });
+  renderVolunteerView();
+}
+
 // CONFERENCE CHECK-IN (?view=checkin, or planner.sbcmc.org/checkin/): a signed-in team member looks
 // someone up by email, checks their details with them, and prints a clear sticker (badge QR, name,
 // church, city/state) for the white space on their printed badge. Attendee records live in the
@@ -25371,14 +25786,25 @@ function ciQrSvg(text) {
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += 'M' + c + ' ' + r + 'h1v1h-1z';
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 ' + (n + 2) + ' ' + (n + 2) + '" shape-rendering="crispEdges"><path d="' + d + '" fill="#000"/></svg>';
 }
-function ciLabelSize() {
-  const len = ci.settings.length || 80;
-  return ci.settings.orient === 'portrait' ? { w: CI_TAPE_MM, h: len } : { w: len, h: CI_TAPE_MM };
+// `s` is a device's sticker settings; the check-in page passes nothing (its own), the Volunteers
+// tab passes this computer's saved ones.
+function ciLabelSize(s) {
+  s = s || ci.settings;
+  const len = s.length || 80;
+  return s.orient === 'portrait' ? { w: CI_TAPE_MM, h: len } : { w: len, h: CI_TAPE_MM };
 }
-function ciLabelHtml(l) {
-  const sz = ciLabelSize();
-  const place = [l.city, l.state].map(s => (s || '').trim()).filter(Boolean).join(', ');
-  return '<div class="ci-label' + (ci.settings.orient === 'portrait' ? ' ci-portrait' : '') + '" style="--ci-w:' + sz.w + 'mm;--ci-h:' + sz.h + 'mm;">'
+function ciLabelHtml(l, s) {
+  s = s || ci.settings;
+  const sz = ciLabelSize(s);
+  const place = [l.city, l.state].map(v => (v || '').trim()).filter(Boolean).join(', ');
+  // Volunteer/staff badges: name, church and a big badge-type marker; no QR (they aren't scanned).
+  if (l.kind === 'volunteer') {
+    return '<div class="ci-label ci-volunteer' + (s.orient === 'portrait' ? ' ci-portrait' : '') + '" style="--ci-w:' + sz.w + 'mm;--ci-h:' + sz.h + 'mm;">'
+      + '<div class="ci-label-text"><div class="ci-label-name">' + escapeHtml((l.name || '').trim()) + '</div>'
+      + ((l.church || '').trim() ? '<div class="ci-label-line">' + escapeHtml(l.church.trim()) + '</div>' : '')
+      + '<div class="ci-label-role">' + escapeHtml((l.badge || 'Volunteer').trim()) + '</div></div></div>';
+  }
+  return '<div class="ci-label' + (s.orient === 'portrait' ? ' ci-portrait' : '') + '" style="--ci-w:' + sz.w + 'mm;--ci-h:' + sz.h + 'mm;">'
     + '<div class="ci-label-qr">' + (window.qrcode && l.qr ? ciQrSvg(l.qr) : '') + '</div>'
     + '<div class="ci-label-text"><div class="ci-label-name">' + escapeHtml((l.name || '').trim()) + '</div>'
     + ((l.church || '').trim() ? '<div class="ci-label-line">' + escapeHtml(l.church.trim()) + '</div>' : '')
@@ -25392,7 +25818,7 @@ function ciFitLabel(label) {
   const name = label.querySelector('.ci-label-name');
   const text = label.querySelector('.ci-label-text');
   if (!name || !text) return;
-  let size = label.classList.contains('ci-portrait') ? 9.5 : 8;
+  let size = label.classList.contains('ci-portrait') || label.classList.contains('ci-volunteer') ? 9.5 : 8;
   name.style.fontSize = size + 'mm';
   const lineH = () => parseFloat(getComputedStyle(name).fontSize) * 1.08;
   while (size > 3.5 && (name.scrollHeight > lineH() * 2 + 1 || name.scrollWidth > name.clientWidth + 1 || text.scrollHeight > label.clientHeight - 2 || label.scrollHeight > label.clientHeight + 1)) {
