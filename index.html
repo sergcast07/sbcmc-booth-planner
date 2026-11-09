@@ -7,6 +7,7 @@
 <script>
 // Attendee breakout sign-up links should never say "Conference Tool", even for a moment, and are kept out of search results.
 if (/[?&]view=breakouts(&|$)/.test(location.search)) { document.title = 'SBCMC Breakout Signups'; document.write('<meta name="robots" content="noindex">'); }
+if (/[?&]view=checkin(&|$)/.test(location.search)) document.title = 'SBCMC Check-in';
 </script>
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -510,6 +511,90 @@ if (/[?&]view=breakouts(&|$)/.test(location.search)) { document.title = 'SBCMC B
   body.sponsor-view-mode > *:not(#sponsor-public-view):not(#kb-toast) { display: none !important; }
   body.speaker-view-mode > *:not(#speaker-public-view):not(#kb-toast) { display: none !important; }
   body.breakouts-view-mode > *:not(#breakout-public-view):not(#kb-toast) { display: none !important; }
+  /* CONFERENCE CHECK-IN (?view=checkin): iPad-sized touch targets, and the label sheet the QL-800 prints. */
+  body.checkin-view-mode > *:not(#checkin-view):not(#kb-toast):not(#kb-toast-error) { display: none !important; }
+  body.checkin-view-mode { background: #F4F1EA; min-height: 100vh; }
+  #checkin-view { max-width: 760px; margin: 0 auto; padding: 22px 20px 80px; font-family: 'Inter', sans-serif; color: var(--ink); }
+  .ci-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--gold); padding-bottom: 12px; margin-bottom: 22px; }
+  .ci-top h1 { font-family: var(--font-display); font-size: 30px; font-weight: 600; color: var(--teal-deep); margin: 0; line-height: 1.1; }
+  .ci-top .dv-eyebrow { margin-bottom: 2px; }
+  .ci-top-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .ci-stat { font-size: 13px; color: var(--ink-soft); text-align: right; line-height: 1.3; }
+  .ci-stat b { display: block; font-size: 20px; color: var(--teal-deep); }
+  .ci-gear { width: 44px; height: 44px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); font-size: 20px; cursor: pointer; color: var(--teal-deep); }
+  .ci-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(23,38,43,0.04); }
+  .ci-card h2 { font-family: var(--font-display); font-size: 24px; font-weight: 600; color: var(--teal-deep); margin: 0 0 4px; }
+  .ci-sub { font-size: 15px; color: var(--ink-soft); margin: 0 0 16px; }
+  .ci-search { display: flex; gap: 10px; }
+  .ci-input { width: 100%; box-sizing: border-box; font: inherit; font-size: 20px; padding: 14px 16px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); -webkit-appearance: none; }
+  .ci-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-pale); }
+  .ci-btn { font: inherit; font-size: 18px; font-weight: 600; padding: 14px 22px; border-radius: 12px; border: none; cursor: pointer; background: var(--teal-deep); color: #fff; min-height: 54px; white-space: nowrap; }
+  .ci-btn:disabled { opacity: 0.55; cursor: default; }
+  .ci-btn.ci-big { width: 100%; font-size: 20px; min-height: 64px; }
+  .ci-btn.ci-ghost { background: transparent; color: var(--teal-deep); border: 1.5px solid var(--line); }
+  .ci-link { background: none; border: none; font: inherit; font-size: 15px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; padding: 10px 4px; }
+  .ci-msg { margin-top: 14px; font-size: 16px; color: #a52620; }
+  .ci-msg.ci-ok { color: #2F7D5B; }
+  .ci-result { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; font: inherit; background: #fff; border: 1.5px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 10px; cursor: pointer; color: var(--ink); }
+  .ci-result b { font-size: 19px; display: block; }
+  .ci-result span { font-size: 14px; color: var(--ink-soft); }
+  .ci-flags { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .ci-flag { border-radius: 12px; padding: 12px 14px; font-size: 16px; line-height: 1.35; }
+  .ci-flag b { display: block; font-size: 17px; }
+  .ci-flag.ci-red { background: #FBE9E7; color: #8A1F12; border: 1.5px solid #E8A598; }
+  .ci-flag.ci-amber { background: #FDF3DC; color: #7A5410; border: 1.5px solid #E8CF8E; }
+  .ci-flag.ci-green { background: #E6F2EC; color: #1F5A3F; border: 1.5px solid #A9D1BC; }
+  .ci-flag.ci-gray { background: #EFEFEC; color: #4A4A45; border: 1.5px solid #D8D7D0; }
+  .ci-chip { display: inline-block; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 99px; background: var(--teal-pale); color: var(--teal-deep); margin-left: 6px; vertical-align: middle; }
+  .ci-chip.ci-chip-in { background: #E6F2EC; color: #1F5A3F; }
+  .ci-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ci-fields .ci-wide { grid-column: 1 / -1; }
+  .ci-field label { display: block; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin-bottom: 6px; }
+  .ci-field .ci-input { font-size: 19px; padding: 12px 14px; }
+  .ci-preview-wrap { margin: 20px 0 6px; }
+  .ci-preview-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin-bottom: 8px; }
+  .ci-preview { display: inline-block; padding: 10px; border-radius: 10px; background-color: #fff;
+    background-image: linear-gradient(45deg, #f1efe9 25%, transparent 25%), linear-gradient(-45deg, #f1efe9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f1efe9 75%), linear-gradient(-45deg, transparent 75%, #f1efe9 75%);
+    background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; border: 1px dashed #c9c6bb; max-width: 100%; overflow: hidden; }
+  .ci-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .ci-row { display: flex; gap: 10px; }
+  .ci-row > * { flex: 1; }
+  .ci-done { text-align: center; padding: 34px 22px; }
+  .ci-done .ci-check { width: 76px; height: 76px; border-radius: 38px; background: #2F7D5B; color: #fff; font-size: 42px; line-height: 76px; margin: 0 auto 14px; }
+  .ci-done h2 { font-size: 30px; }
+  .ci-station-status { display: flex; align-items: center; gap: 14px; }
+  .ci-dot { width: 16px; height: 16px; border-radius: 8px; background: #2F7D5B; box-shadow: 0 0 0 6px #E6F2EC; flex-shrink: 0; }
+  .ci-dot.ci-dot-off { background: #a52620; box-shadow: 0 0 0 6px #FBE9E7; }
+  .ci-list-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; }
+  .ci-list-row:first-child { border-top: none; }
+  .ci-list-row small { color: var(--ink-soft); }
+  .ci-list-row .ci-btn { font-size: 14px; padding: 8px 14px; min-height: 40px; }
+  .ci-seg { display: flex; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .ci-seg button { flex: 1; font: inherit; font-size: 16px; font-weight: 600; padding: 12px; border: none; background: #fff; color: var(--ink-soft); cursor: pointer; }
+  .ci-seg button.on { background: var(--teal-deep); color: #fff; }
+  .ci-help { font-size: 14px; color: var(--ink-soft); line-height: 1.5; margin: 6px 0 0; }
+  .ci-help code { background: #EFEFEC; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  @media (max-width: 560px) { .ci-fields { grid-template-columns: 1fr; } .ci-top h1 { font-size: 24px; } .ci-search { flex-direction: column; } }
+
+  /* The sticker itself, sized in real millimetres. Off-screen (but laid out, so the name can be
+     fitted) until printing; the preview on the review screen uses the same markup. */
+  #ci-label-sheet { position: fixed; left: -10000px; top: 0; background: transparent; }
+  .ci-label { width: var(--ci-w, 100mm); height: var(--ci-h, 62mm); box-sizing: border-box; padding: 4mm; display: flex; align-items: center; gap: 4mm; color: #000; font-family: 'Inter', Arial, sans-serif; overflow: hidden; }
+  .ci-label-qr { width: 34mm; height: 34mm; flex-shrink: 0; }
+  .ci-label-qr svg { width: 100%; height: 100%; display: block; }
+  .ci-label-text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; max-height: 100%; }
+  .ci-label-name { font-weight: 800; font-size: 8mm; line-height: 1.08; word-break: break-word; overflow: hidden; }
+  .ci-label-line { font-weight: 600; font-size: 3.8mm; line-height: 1.25; margin-top: 1.6mm; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ci-label.ci-portrait { flex-direction: column; justify-content: center; text-align: center; }
+  .ci-label.ci-portrait .ci-label-text { flex: 0 1 auto; width: 100%; }
+  @media print {
+    html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+    body.checkin-view-mode #checkin-view { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    body.checkin-view-mode #checkin-view > *:not(#ci-label-sheet) { display: none !important; }
+    body.checkin-view-mode #kb-toast, body.checkin-view-mode #kb-toast-error { display: none !important; }
+    #ci-label-sheet { position: static !important; left: 0 !important; }
+    .ci-label { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
   #breakout-public-view { max-width: 720px; margin: 0 auto; padding: 28px 20px 100px; font-family: 'Inter', sans-serif; }
   #sponsor-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
   #speaker-public-view { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; font-family: 'Inter', sans-serif; }
@@ -2380,6 +2465,15 @@ body.bov-lock { overflow: hidden; }
   </div>
 </div>
 
+<div id="checkin-view" style="display:none;">
+  <div class="ci-top">
+    <div><p class="dv-eyebrow">SBCMC 2027</p><h1>Check-in</h1></div>
+    <div class="ci-top-right" id="ci-top-right"></div>
+  </div>
+  <div id="ci-main"><div class="dv-loading">Loading&hellip;</div></div>
+  <div id="ci-label-sheet"></div>
+</div>
+
 <div id="speaker-public-view" style="display:none;">
   <div class="dv-header">
     <p class="dv-eyebrow">SBCMC 2027 &middot; Speaker/Artist Portal</p>
@@ -2530,7 +2624,9 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
     // whichever tab this session can actually see, same fallback order switchTopView itself uses.
     // If the URL was opened with a #hash naming a tab this session can view (a deep link),
     // land there instead of the default -- switchTopView itself falls back safely if not.
-    if (typeof window.firstAccessibleView === 'function' && typeof window.switchTopView === 'function') {
+    // The check-in page shows none of the planner's tabs, so it skips this (and the data they load).
+    const isCheckinPage = /[?&]view=checkin(&|$)/.test(window.location.search);
+    if (!isCheckinPage && typeof window.firstAccessibleView === 'function' && typeof window.switchTopView === 'function') {
       const hashView = (window.location.hash || '').slice(1);
       window.switchTopView(hashView || window.firstAccessibleView());
     }
@@ -10913,6 +11009,12 @@ async function syncActualRegistrants() {
 // action instead, which already holds the one secret (ATTENDEE_APP_SERVICE_ROLE_KEY) needed to
 // read it, and simply hands the rows back in the response rather than storing or syncing
 // anything.
+// The attendee export returns every registrant's contact details, so the function only answers a
+// signed-in team member's token (not the public anon key, which the legacy shared login is left with).
+async function signedInToken() {
+  try { const { data } = await sbClient.auth.getSession(); if (data && data.session) return data.session.access_token; } catch (e) { /* not signed in */ }
+  return SUPABASE_CONFIG.anonKey;
+}
 async function exportAttendeesCSV() {
   if (!canView('revenue.all')) return;
   if (!SUPABASE_CONFIG.url) { toast('Not connected to shared data.'); return; }
@@ -10925,7 +11027,7 @@ async function exportAttendeesCSV() {
   try {
     const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=export-attendees&program=general', {
       method: 'POST',
-      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey },
+      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + (await signedInToken()) },
       signal: controller.signal,
     });
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
@@ -24219,7 +24321,7 @@ async function bsuPublishSeats() {
 async function bsuSyncRegistrants() {
   bsu.busy = true; renderBreakoutSignupAdmin();
   try {
-    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=export-attendees&program=general', { method: 'POST', headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + SUPABASE_CONFIG.anonKey } });
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=export-attendees&program=general', { method: 'POST', headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + (await signedInToken()) } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const { rows } = await res.json();
     const paid = (rows || []).filter(r => !r.is_test_data && r.payment_status === 'Paid' && r.raw && r.raw.gravityFormsEntryId != null && (r.name || '').trim());
@@ -24775,6 +24877,400 @@ function exportSpeakersCSV(sortValue) {
   toast('Exported ' + rows.length + ' speaker' + (rows.length === 1 ? '' : 's') + ' to CSV.');
 }
 
+// CONFERENCE CHECK-IN (?view=checkin, or planner.sbcmc.org/checkin/): a signed-in team member looks
+// someone up by email, checks their details with them, and prints a clear sticker (badge QR, name,
+// church, city/state) for the white space on their printed badge. Attendee records live in the
+// mobile app's project, so lookups and saves go through the gravity-forms-sync function's
+// checkin-* actions, which check the caller's sign-in. The QR is the attendee_profiles id, the
+// same value the app's badge screen and exhibitor scanner read.
+//
+// Two kinds of device: a check-in DESK (usually an iPad) and a PRINT STATION (the laptop the
+// USB Brother QL-800 is plugged into). An iPad can't reach a USB printer, so the desk drops each
+// label into checkin_print_jobs and the station picks it up and prints it. A laptop can also be
+// both at once ("Print on: This device"). Each device remembers its own setup in localStorage.
+function isCheckinViewMode() {
+  try { return new URLSearchParams(window.location.search).get('view') === 'checkin'; } catch (e) { return false; }
+}
+const CI_SETTINGS_KEY = 'sbcmc-checkin-settings';
+const CI_QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+const CI_TAPE_MM = 62; // DK-2113 clear film is 62mm wide; the label's other side is its length
+let ci = null;
+
+function ciNoQueue(error) { return error && (error.code === '42P01' || error.code === 'PGRST205'); }
+function ciAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+function ciIsIpad() { return /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function ciLoadSettings() {
+  const d = { role: 'desk', station: 'Station 1', printTo: ciIsIpad() ? 'Station 1' : 'here', length: 100, orient: 'landscape' };
+  try { return Object.assign(d, JSON.parse(localStorage.getItem(CI_SETTINGS_KEY) || '{}')); } catch (e) { return d; }
+}
+function ciSaveSettings() { try { localStorage.setItem(CI_SETTINGS_KEY, JSON.stringify(ci.settings)); } catch (e) { /* private mode: settings last this visit only */ } }
+
+async function initCheckinView() {
+  document.body.classList.add('checkin-view-mode');
+  document.title = 'SBCMC Check-in';
+  document.getElementById('checkin-view').style.display = 'block';
+  const main = document.getElementById('ci-main');
+  if (window.isLegacySession || !sbClient) {
+    main.innerHTML = '<div class="ci-card"><h2>Sign in with your own account</h2><p class="ci-sub">Check-in shows attendee contact details, so it needs a personal Planner login, not the shared password.</p><button class="ci-btn" onclick="gateLogout()">Sign out</button></div>';
+    return;
+  }
+  ci = { settings: ciLoadSettings(), screen: 'search', q: '', people: [], person: null, form: null, busy: false, msg: '', msgOk: false,
+    stats: null, recent: [], stationTimer: null, printing: false, stationError: '', lastPoll: null, doneTimer: null, showSettings: false };
+  try { await loadConferenceYears(); } catch (e) { /* falls back to the default year */ }
+  try { await ciLoadQrLib(); } catch (e) { ci.msg = 'Couldn’t load the QR code maker. Check the internet connection and reload.'; }
+  ciRender();
+  if (ci.settings.role === 'station') ciStartStation(); else ciRefreshStats();
+}
+
+function ciLoadQrLib() {
+  if (window.qrcode) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = CI_QR_LIB; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function ciCall(action, body) {
+  const { data } = await sbClient.auth.getSession();
+  const token = data && data.session && data.session.access_token;
+  if (!token) return { error: 'sign_in_required' };
+  try {
+    const res = await fetch(SUPABASE_CONFIG.url + '/functions/v1/gravity-forms-sync?action=' + action, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ year: activeConferenceYear || '2027' }, body || {}))
+    });
+    let out = null;
+    try { out = await res.json(); } catch (e) { /* non-JSON error page */ }
+    if (!res.ok) return { error: (out && out.error) || ('HTTP ' + res.status) };
+    return out || { error: 'empty' };
+  } catch (e) {
+    return { error: 'offline' };
+  }
+}
+function ciErrorText(err) {
+  if (err === 'sign_in_required') return 'Your sign-in has expired. Reload the page and sign in again.';
+  if (err === 'offline') return 'Can’t reach the server. Check the Wi-Fi and try again.';
+  if (err === 'name_required') return 'Name can’t be blank.';
+  if (err === 'not_found') return 'That person was removed from the list. Search again.';
+  return 'Something went wrong (' + err + '). Try again.';
+}
+
+async function ciRefreshStats() {
+  const out = await ciCall('checkin-stats');
+  if (out && out.stats) { ci.stats = out.stats; ciRenderTop(); }
+}
+
+// ---- rendering ----
+function ciRender() {
+  ciRenderTop();
+  const main = document.getElementById('ci-main');
+  if (ci.showSettings) { main.innerHTML = ciSettingsHtml(); return; }
+  if (ci.settings.role === 'station') { main.innerHTML = ciStationHtml(); return; }
+  if (ci.screen === 'review') { main.innerHTML = ciReviewHtml(); ciUpdatePreview(); return; }
+  if (ci.screen === 'done') { main.innerHTML = ciDoneHtml(); return; }
+  main.innerHTML = ciSearchHtml();
+  const input = document.getElementById('ci-q');
+  if (input && !ciIsIpad()) input.focus();
+}
+function ciRenderTop() {
+  const el = document.getElementById('ci-top-right');
+  if (!el || !ci) return;
+  const s = ci.stats;
+  const stat = ci.settings.role === 'station'
+    ? '<div class="ci-stat"><b>' + escapeHtml(ci.settings.station) + '</b>print station</div>'
+    : (s ? '<div class="ci-stat"><b>' + s.checkedIn + ' / ' + s.total + '</b>checked in</div>' : '');
+  el.innerHTML = stat + '<button class="ci-gear" onclick="ciToggleSettings()" aria-label="Settings">' + (ci.showSettings ? '✕' : '⚙') + '</button>';
+}
+function ciMsgHtml() { return ci.msg ? '<div class="ci-msg' + (ci.msgOk ? ' ci-ok' : '') + '">' + escapeHtml(ci.msg) + '</div>' : ''; }
+
+function ciSearchHtml() {
+  let html = '<div class="ci-card"><h2>Find your registration</h2><p class="ci-sub">Type the email address you registered with.</p>'
+    + '<form class="ci-search" onsubmit="event.preventDefault(); ciSearch();">'
+    + '<input id="ci-q" class="ci-input" type="search" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="name@church.org" value="' + ciAttr(ci.q) + '" oninput="ci.q = this.value">'
+    + '<button class="ci-btn" type="submit"' + (ci.busy ? ' disabled' : '') + '>' + (ci.busy ? 'Searching…' : 'Search') + '</button></form>'
+    + '<p class="ci-help">No luck? Try their last name instead.</p>' + ciMsgHtml() + '</div>';
+  if (ci.people.length > 1) {
+    html += '<div class="ci-card"><h2>Who’s checking in?</h2><p class="ci-sub">' + ci.people.length + ' people share this search.</p>'
+      + ci.people.map((p, i) => '<button class="ci-result" onclick="ciOpen(' + i + ')"><div><b>' + escapeHtml(p.name)
+        + (p.checkedInAt ? '<span class="ci-chip ci-chip-in">Checked in</span>' : '') + '</b><span>'
+        + escapeHtml([p.church, [p.city, p.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ') || p.email) + '</span></div><span>›</span></button>').join('')
+      + '</div>';
+  }
+  return html;
+}
+
+function ciFlagsHtml(p) {
+  const flags = [];
+  const b = p.breakouts;
+  if (b && b.picked === 0) flags.push('<div class="ci-flag ci-red"><b>No breakouts chosen</b>Send them to the breakout help table to pick their sessions.</div>');
+  else if (b && b.blocks && b.picked < b.blocks) flags.push('<div class="ci-flag ci-amber"><b>Chose ' + b.picked + ' of ' + b.blocks + ' breakouts</b>They can finish picking at the breakout help table.</div>');
+  if (p.paymentStatus && p.paymentStatus !== 'Paid') flags.push('<div class="ci-flag ci-amber"><b>Payment shows “' + escapeHtml(p.paymentStatus) + '”</b>Check with the registration lead before printing.</div>');
+  if (p.isTest) flags.push('<div class="ci-flag ci-gray"><b>Marked as test data</b>This record is flagged as a test registration.</div>');
+  if (p.checkedInAt) flags.push('<div class="ci-flag ci-green"><b>Already checked in</b>' + escapeHtml(ciTime(p.checkedInAt)) + '. Printing again makes a replacement sticker.</div>');
+  return flags.length ? '<div class="ci-flags">' + flags.join('') + '</div>' : '';
+}
+function ciTime(iso) {
+  try { return new Date(iso).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) { return iso; }
+}
+function ciField(key, label, extra, wide) {
+  return '<div class="ci-field' + (wide ? ' ci-wide' : '') + '"><label for="ci-f-' + key + '">' + label + '</label>'
+    + '<input id="ci-f-' + key + '" class="ci-input" value="' + ciAttr(ci.form[key]) + '" oninput="ciSetField(\'' + key + '\', this.value)" ' + (extra || '') + '></div>';
+}
+function ciReviewHtml() {
+  const p = ci.person;
+  const where = ci.settings.printTo === 'here' ? 'this device' : ci.settings.printTo;
+  return '<div class="ci-card"><h2>Does this look right?</h2><p class="ci-sub">Fix anything that’s misspelled or out of date'
+    + (p.badgeLabel ? '<span class="ci-chip">' + escapeHtml(p.badgeLabel) + '</span>' : '') + '</p>'
+    + ciFlagsHtml(p)
+    + '<div class="ci-fields">'
+    + ciField('name', 'Name on badge', 'autocomplete="off" autocapitalize="words"', true)
+    + ciField('church', 'Church / organization', 'autocomplete="off" autocapitalize="words"', true)
+    + ciField('city', 'City', 'autocomplete="off" autocapitalize="words"')
+    + ciField('state', 'State', 'autocomplete="off" autocapitalize="characters"')
+    + ciField('email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false"', true)
+    + '</div>'
+    + '<div class="ci-preview-wrap"><div class="ci-preview-title">Sticker preview</div><div class="ci-preview" id="ci-preview"></div></div>'
+    + ciMsgHtml()
+    + '<div class="ci-actions">'
+    + '<button class="ci-btn ci-big" onclick="ciConfirm()"' + (ci.busy ? ' disabled' : '') + '>' + (ci.busy ? 'Saving…' : (p.checkedInAt ? 'Save &amp; reprint sticker' : 'Yes, check in &amp; print')) + '</button>'
+    + '<div class="ci-row"><button class="ci-btn ci-ghost" onclick="ciBack()">Back</button>'
+    + (p.checkedInAt ? '<button class="ci-btn ci-ghost" onclick="ciUndo()">Undo check-in</button>' : '<button class="ci-btn ci-ghost" onclick="ciConfirm(true)">Save, don’t print</button>') + '</div>'
+    + '<p class="ci-help" style="text-align:center;">Prints on ' + escapeHtml(where) + '.</p>'
+    + '</div></div>';
+}
+function ciDoneHtml() {
+  const p = ci.person;
+  const b = p.breakouts;
+  const where = ci.lastPrintedTo === 'none' ? '' : (ci.lastPrintedTo === 'here' ? 'Your sticker is printing.' : 'Your sticker is printing at ' + escapeHtml(ci.lastPrintedTo) + '.');
+  return '<div class="ci-card ci-done"><div class="ci-check">✓</div><h2>You’re checked in, ' + escapeHtml(p.name.split(' ')[0]) + '!</h2>'
+    + '<p class="ci-sub">' + where + ' Stick it in the white space on your badge.</p>'
+    + (b && b.picked === 0 ? '<div class="ci-flags"><div class="ci-flag ci-red"><b>No breakouts chosen yet</b>Please stop by the breakout help table.</div></div>' : '')
+    + ciMsgHtml()
+    + '<button class="ci-btn ci-big" onclick="ciReset()">Next person</button></div>';
+}
+
+function ciStationHtml() {
+  const ok = !ci.stationError;
+  return '<div class="ci-card"><div class="ci-station-status"><span class="ci-dot' + (ok ? '' : ' ci-dot-off') + '"></span><div><h2>'
+    + (ok ? 'Ready to print' : 'Not printing') + '</h2><p class="ci-sub" style="margin:0;">'
+    + (ok ? 'Waiting for stickers sent to <b>' + escapeHtml(ci.settings.station) + '</b>. Keep this page open.' : escapeHtml(ci.stationError)) + '</p></div></div>'
+    + '<p class="ci-help">Tip: start Chrome with <code>--kiosk-printing</code> and set the Brother QL-800 as the default printer, and stickers print without a dialog. Without it, press Print each time.</p>'
+    + '<div class="ci-row" style="margin-top:14px;"><button class="ci-btn ci-ghost" onclick="ciTestPrint()">Test print</button></div></div>'
+    + '<div class="ci-card"><h2>Recently printed</h2>'
+    + (ci.recent.length ? ci.recent.map((j, i) => '<div class="ci-list-row"><div>' + escapeHtml(j.label.name) + '<br><small>' + escapeHtml(ciTime(j.printed_at || j.created_at)) + '</small></div><button class="ci-btn ci-ghost" onclick="ciReprint(' + i + ')">Reprint</button></div>').join('')
+      : '<p class="ci-sub" style="margin:0;">Nothing yet.</p>')
+    + '</div>';
+}
+
+function ciSettingsHtml() {
+  const s = ci.settings;
+  const seg = (key, opts) => '<div class="ci-seg">' + opts.map(o => '<button class="' + (s[key] === o[0] ? 'on' : '') + '" onclick="ciSet(\'' + key + '\', \'' + o[0] + '\')">' + o[1] + '</button>').join('') + '</div>';
+  return '<div class="ci-card"><h2>This device</h2><p class="ci-sub">Each iPad or laptop remembers its own setup.</p>'
+    + seg('role', [['desk', 'Check-in desk'], ['station', 'Print station']])
+    + (s.role === 'station'
+      ? '<div class="ci-field" style="margin-top:16px;"><label>Station name</label><input class="ci-input" value="' + ciAttr(s.station) + '" onchange="ciSet(\'station\', this.value)"></div>'
+        + '<p class="ci-help">Use this on the laptop plugged into the label printer. Desks send stickers here by this name.</p>'
+      : '<div class="ci-field" style="margin-top:16px;"><label>Print stickers on</label><div class="ci-row">'
+        + '<button class="ci-btn' + (s.printTo === 'here' ? '' : ' ci-ghost') + '" onclick="ciSet(\'printTo\', \'here\')">This device</button>'
+        + '<input class="ci-input" placeholder="Station 1" value="' + ciAttr(s.printTo === 'here' ? '' : s.printTo) + '" onchange="ciSet(\'printTo\', this.value || \'here\')"></div></div>'
+        + '<p class="ci-help">An iPad can’t print to the USB label printer, so type the print station’s name here (for example <b>Station 1</b>). Choose “This device” only on the laptop plugged into the printer.</p>')
+    + '</div><div class="ci-card"><h2>Sticker size</h2><p class="ci-sub">The clear tape is 62mm wide. Set the length to fit the white space on the badge.</p>'
+    + '<div class="ci-fields"><div class="ci-field"><label>Length (mm)</label><input class="ci-input" type="number" inputmode="numeric" min="50" max="150" value="' + ciAttr(s.length) + '" onchange="ciSet(\'length\', this.value)"></div>'
+    + '<div class="ci-field"><label>Layout</label>' + seg('orient', [['landscape', 'QR left'], ['portrait', 'QR on top']]) + '</div></div>'
+    + '<p class="ci-help">In the print dialog the paper size must match: <b>62mm × ' + escapeHtml(s.length) + 'mm</b>, margins none, scale 100%.</p>'
+    + '<div class="ci-row" style="margin-top:14px;"><button class="ci-btn ci-ghost" onclick="ciTestPrint()">Test print</button><button class="ci-btn" onclick="ciToggleSettings()">Done</button></div></div>'
+    + '<div class="ci-card"><p class="ci-sub" style="margin:0;">Signed in as ' + escapeHtml(window.currentUserLabel || '') + '. <button class="ci-link" onclick="gateLogout()">Sign out</button></p></div>';
+}
+
+// ---- desk actions ----
+function ciToggleSettings() { ci.showSettings = !ci.showSettings; ci.msg = ''; ciRender(); }
+function ciSet(key, value) {
+  if (key === 'length') value = Math.min(150, Math.max(50, parseInt(value, 10) || 100));
+  if (typeof value === 'string') value = value.trim();
+  if ((key === 'station' || key === 'printTo') && !value) value = key === 'station' ? 'Station 1' : 'here';
+  ci.settings[key] = value;
+  ciSaveSettings();
+  clearInterval(ci.stationTimer);
+  if (ci.settings.role === 'station') ciStartStation();
+  ciRender();
+}
+async function ciSearch() {
+  const q = (ci.q || '').trim();
+  if (q.length < 2 || ci.busy) return;
+  ci.busy = true; ci.msg = ''; ci.people = []; ciRender();
+  const out = await ciCall('checkin-search', { q });
+  ci.busy = false;
+  if (out.error) { ci.msg = ciErrorText(out.error); ciRender(); return; }
+  if (!Array.isArray(out.people)) { ci.msg = 'Check-in isn’t switched on yet on the server.'; ciRender(); return; }
+  if (out.stats) ci.stats = out.stats;
+  ci.people = out.people;
+  if (!ci.people.length) { ci.msg = q.includes('@') ? 'No registration found for that email. Check the spelling, or try their last name.' : 'No one found by that name. Try their email.'; ciRender(); return; }
+  if (ci.people.length === 1) { ciOpen(0); return; }
+  ciRender();
+}
+function ciOpen(i) {
+  const p = ci.people[i];
+  if (!p) return;
+  ci.person = p;
+  ci.form = { name: p.name, church: p.church, city: p.city, state: p.state, email: p.email };
+  ci.screen = 'review'; ci.msg = '';
+  ciRender();
+  window.scrollTo(0, 0);
+}
+function ciSetField(key, value) { ci.form[key] = value; ciUpdatePreview(); }
+function ciUpdatePreview() {
+  const el = document.getElementById('ci-preview');
+  if (!el || !ci.person) return;
+  el.innerHTML = ciLabelHtml(Object.assign({ qr: ci.person.id }, ci.form));
+  ciFitLabel(el.querySelector('.ci-label'));
+}
+function ciBack() { ci.screen = 'search'; ci.msg = ''; ciRender(); }
+function ciReset() {
+  clearTimeout(ci.doneTimer);
+  ci.screen = 'search'; ci.q = ''; ci.people = []; ci.person = null; ci.form = null; ci.msg = '';
+  ciRender();
+  window.scrollTo(0, 0);
+}
+async function ciConfirm(noPrint) {
+  if (ci.busy) return;
+  if (!(ci.form.name || '').trim()) { ci.msg = 'Name can’t be blank.'; ciRender(); return; }
+  ci.busy = true; ci.msg = ''; ciRender();
+  const out = await ciCall('checkin-save', Object.assign({ id: ci.person.id, checkIn: true }, ci.form));
+  ci.busy = false;
+  if (out.error || !out.person) { ci.msg = ciErrorText(out.error || 'empty'); ciRender(); return; }
+  ci.person = out.person;
+  if (out.stats) ci.stats = out.stats;
+  const label = { name: out.person.name, church: out.person.church, city: out.person.city, state: out.person.state, qr: out.person.id };
+  ci.lastPrintedTo = noPrint ? 'none' : ci.settings.printTo;
+  if (!noPrint) {
+    const err = await ciSendLabel(out.person.id, label);
+    if (err) { ci.msg = 'Checked in, but the sticker didn’t print: ' + err; ci.msgOk = false; }
+  }
+  ci.screen = 'done';
+  ciRender();
+  clearTimeout(ci.doneTimer);
+  if (!ci.msg) ci.doneTimer = setTimeout(() => { if (ci.screen === 'done') ciReset(); }, 12000);
+}
+async function ciUndo() {
+  if (ci.busy || !confirm('Undo check-in for ' + ci.person.name + '?')) return;
+  ci.busy = true; ciRender();
+  const out = await ciCall('checkin-undo', { id: ci.person.id });
+  ci.busy = false;
+  if (out.error) { ci.msg = ciErrorText(out.error); ciRender(); return; }
+  if (out.stats) ci.stats = out.stats;
+  ci.person.checkedInAt = null;
+  ci.msg = 'Check-in undone.'; ci.msgOk = true;
+  ciRender();
+  ci.msgOk = false;
+}
+// Prints here, or queues for a print station. Returns an error message, or '' when it worked.
+async function ciSendLabel(attendeeId, label) {
+  if (ci.settings.printTo === 'here') { await ciPrint(label); return ''; }
+  const { error } = await sbClient.from('checkin_print_jobs').insert({ station: ci.settings.printTo, attendee_id: attendeeId, label });
+  return error ? (ciNoQueue(error) ? 'the print queue isn’t set up yet.' : error.message) : '';
+}
+function ciTestPrint() {
+  const label = { name: 'Test Sticker', church: 'Hunter Street Baptist Church', city: 'Hoover', state: 'AL', qr: '00000000-0000-0000-0000-000000000000' };
+  if (ci.settings.role === 'station' || ci.settings.printTo === 'here') ciPrint(label);
+  else ciSendLabel('test', label).then(err => { ci.msg = err ? 'Test didn’t send: ' + err : 'Test sticker sent to ' + ci.settings.printTo + '.'; ci.msgOk = !err; ciRender(); ci.msgOk = false; });
+}
+
+// ---- print station ----
+function ciStartStation() {
+  clearInterval(ci.stationTimer);
+  ci.stationTimer = setInterval(ciPollStation, 2500);
+  ciLoadRecent();
+  ciPollStation();
+}
+async function ciLoadRecent() {
+  const { data } = await sbClient.from('checkin_print_jobs').select('*').eq('station', ci.settings.station).not('printed_at', 'is', null).order('printed_at', { ascending: false }).limit(15);
+  ci.recent = data || [];
+  if (!ci.showSettings && ci.settings.role === 'station') ciRender();
+}
+async function ciPollStation() {
+  if (ci.printing || ci.settings.role !== 'station' || document.hidden) return;
+  ci.printing = true;
+  try {
+    // Older than 30 minutes = the station was off; don't surprise anyone with a pile of stale stickers.
+    const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: waiting, error } = await sbClient.from('checkin_print_jobs').select('id').eq('station', ci.settings.station)
+      .is('claimed_at', null).gte('created_at', since).order('created_at').limit(1);
+    const wasError = ci.stationError;
+    ci.stationError = error ? (ciNoQueue(error) ? 'The print queue isn’t set up yet (run sbcmc-checkin-print-queue.sql).' : 'Can’t reach the server. Retrying…') : '';
+    if (wasError !== ci.stationError && !ci.showSettings) ciRender();
+    if (error || !waiting || !waiting.length) return;
+    // Claim it first, so a second laptop with the same station name can't print it too.
+    const { data: claimed } = await sbClient.from('checkin_print_jobs').update({ claimed_at: new Date().toISOString() })
+      .eq('id', waiting[0].id).is('claimed_at', null).select();
+    if (!claimed || !claimed.length) return;
+    const job = claimed[0];
+    await ciPrint(job.label);
+    job.printed_at = new Date().toISOString();
+    await sbClient.from('checkin_print_jobs').update({ printed_at: job.printed_at }).eq('id', job.id);
+    ci.recent.unshift(job); ci.recent = ci.recent.slice(0, 15);
+    if (!ci.showSettings) ciRender();
+  } finally {
+    ci.printing = false;
+  }
+}
+function ciReprint(i) { const j = ci.recent[i]; if (j) ciPrint(j.label); }
+
+// ---- the sticker ----
+function ciQrSvg(text) {
+  const qr = qrcode(0, 'M');
+  qr.addData(String(text || ''));
+  qr.make();
+  const n = qr.getModuleCount();
+  let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += 'M' + c + ' ' + r + 'h1v1h-1z';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 ' + (n + 2) + ' ' + (n + 2) + '" shape-rendering="crispEdges"><path d="' + d + '" fill="#000"/></svg>';
+}
+function ciLabelSize() {
+  const len = ci.settings.length || 100;
+  return ci.settings.orient === 'portrait' ? { w: CI_TAPE_MM, h: len } : { w: len, h: CI_TAPE_MM };
+}
+function ciLabelHtml(l) {
+  const sz = ciLabelSize();
+  const place = [l.city, l.state].map(s => (s || '').trim()).filter(Boolean).join(', ');
+  return '<div class="ci-label' + (ci.settings.orient === 'portrait' ? ' ci-portrait' : '') + '" style="--ci-w:' + sz.w + 'mm;--ci-h:' + sz.h + 'mm;">'
+    + '<div class="ci-label-qr">' + (window.qrcode ? ciQrSvg(l.qr) : '') + '</div>'
+    + '<div class="ci-label-text"><div class="ci-label-name">' + escapeHtml((l.name || '').trim()) + '</div>'
+    + ((l.church || '').trim() ? '<div class="ci-label-line">' + escapeHtml(l.church.trim()) + '</div>' : '')
+    + (place ? '<div class="ci-label-line">' + escapeHtml(place) + '</div>' : '')
+    + '</div></div>';
+}
+// Shrinks the name until it fits in two lines and the whole text block fits the sticker.
+function ciFitLabel(label) {
+  if (!label) return;
+  const name = label.querySelector('.ci-label-name');
+  const text = label.querySelector('.ci-label-text');
+  if (!name || !text) return;
+  let size = 8;
+  name.style.fontSize = size + 'mm';
+  const lineH = () => parseFloat(getComputedStyle(name).fontSize) * 1.08;
+  while (size > 3.5 && (name.scrollHeight > lineH() * 2 + 1 || name.scrollWidth > name.clientWidth + 1 || text.scrollHeight > label.clientHeight - 2)) {
+    size -= 0.25;
+    name.style.fontSize = size + 'mm';
+  }
+}
+function ciPrint(label) {
+  return new Promise(resolve => {
+    const sz = ciLabelSize();
+    let pageStyle = document.getElementById('ci-page-style');
+    if (!pageStyle) { pageStyle = document.createElement('style'); pageStyle.id = 'ci-page-style'; document.head.appendChild(pageStyle); }
+    pageStyle.textContent = '@page { size: ' + sz.w + 'mm ' + sz.h + 'mm; margin: 0; }';
+    const sheet = document.getElementById('ci-label-sheet');
+    sheet.innerHTML = ciLabelHtml(label);
+    ciFitLabel(sheet.querySelector('.ci-label'));
+    let done = false;
+    const finish = () => { if (done) return; done = true; window.removeEventListener('afterprint', finish); resolve(); };
+    window.addEventListener('afterprint', finish);
+    setTimeout(() => { window.print(); setTimeout(finish, 1000); }, 60);
+  });
+}
+
 
 // init
 if (isDriverViewMode()) {
@@ -24799,6 +25295,11 @@ if (isDriverViewMode()) {
   // exactly one speaker's own record via a token in the URL. No fee/financial data, no other
   // speakers' data, ever loaded here.
   initSpeakerPublicView();
+} else if (isCheckinViewMode()) {
+  // Conference check-in: the sign-in gate runs as usual (it needs a real team account), then only
+  // the check-in screens show -- none of the planner's own data is loaded on this device.
+  window.onAppUnlocked = initCheckinView;
+  if (!document.body.classList.contains('gate-locked')) initCheckinView();
 } else {
   renderPackageSidebar();
   buildTabs();
