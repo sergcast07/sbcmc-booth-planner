@@ -25191,7 +25191,7 @@ function ciOpen(i) {
 function ciRerenderKeepScroll() { const y = window.scrollY; ciRender(); window.scrollTo(0, y); }
 
 // ---- payment stop ----
-const CI_BO_ERRORS = { full: 'That session just filled up. Choose another.', not_open: 'That session isn’t open yet (no room size set).', no_such_session: 'That session is no longer on the grid.' };
+const CI_BO_ERRORS = { already_chosen: 'They already have a session in that block.', full: 'That session just filled up. Choose another.', not_open: 'That session isn’t open yet (no room size set).', no_such_session: 'That session is no longer on the grid.' };
 async function ciOverridePayment() {
   const p = ci.person;
   if (ci.busy || !confirm('Confirm ' + p.name + ' has paid at the payment table?')) return;
@@ -25235,18 +25235,17 @@ function ciBreakoutsHtml() {
     const pick = d.picks.find(k => k.slot_id === b.slot);
     const chosen = pick && b.sessions.find(s => s.track === pick.track);
     const isOpen = ci.bo.open === b.slot;
+    // Fill-in only: a block that already has a choice can't be changed here, and only sessions
+    // with seats left are offered (breakout_desk_pick enforces both).
+    const available = b.sessions.filter(s => s.seats != null && s.seats - s.taken > 0);
     return '<div class="ci-bo-block"><div class="ci-bo-head"><div><small>' + escapeHtml(b.label) + '</small>'
-      + (chosen ? '<span>' + escapeHtml(chosen.title || chosen.track) + '</span>' : '<span class="ci-bo-none">Not chosen</span>') + '</div>'
-      + '<button class="ci-btn ' + (chosen ? 'ci-ghost' : '') + '" onclick="ciToggleBlock(\'' + ciAttr(b.slot) + '\')">' + (isOpen ? 'Close' : (chosen ? 'Change' : 'Choose')) + '</button></div>'
-      + (isOpen ? '<div class="ci-bo-opts">' + b.sessions.map(s => {
-        const mine = chosen && chosen.track === s.track;
-        const left = s.seats == null ? null : s.seats - s.taken;
-        const status = mine ? 'Chosen ✓' : (s.seats == null ? 'Not open' : (left <= 0 ? 'Full' : left + ' seat' + (left === 1 ? '' : 's') + ' left'));
-        const disabled = !mine && (s.seats == null || left <= 0);
-        return '<button class="ci-bo-opt' + (mine ? ' ci-bo-chosen' : '') + '"' + (disabled || ci.bo.busy ? ' disabled' : '')
-          + ' onclick="' + (mine ? 'ciUnpickBreakout(' : 'ciPickBreakout(') + s.i + ')"><div><b>' + escapeHtml(s.title || s.track) + '</b><span>'
-          + escapeHtml([s.room, s.speakers].filter(Boolean).join(' · ')) + '</span></div><em>' + (mine ? 'Chosen ✓ · tap to remove' : status) + '</em></button>';
-      }).join('') + '</div>' : '')
+      + (chosen ? '<span>' + escapeHtml(chosen.title || chosen.track) + ' ✓</span>' : '<span class="ci-bo-none">Not chosen</span>') + '</div>'
+      + (chosen ? '' : '<button class="ci-btn" onclick="ciToggleBlock(\'' + ciAttr(b.slot) + '\')">' + (isOpen ? 'Close' : 'Choose') + '</button>') + '</div>'
+      + (isOpen && !chosen ? '<div class="ci-bo-opts">' + (available.length ? available.map(s => {
+        const left = s.seats - s.taken;
+        return '<button class="ci-bo-opt"' + (ci.bo.busy ? ' disabled' : '') + ' onclick="ciPickBreakout(' + s.i + ')"><div><b>' + escapeHtml(s.title || s.track) + '</b><span>'
+          + escapeHtml([s.room, s.speakers].filter(Boolean).join(' · ')) + '</span></div><em>' + left + ' seat' + (left === 1 ? '' : 's') + ' left</em></button>';
+      }).join('') : '<p class="ci-sub" style="margin:8px 2px 2px;">Every session in this block is full.</p>') + '</div>' : '')
       + '</div>';
   }).join('') + (ci.bo.msg ? '<div class="ci-msg">' + escapeHtml(ci.bo.msg) + '</div>' : '') + '</div>';
 }
@@ -25260,14 +25259,6 @@ async function ciPickBreakout(i) {
   ci.bo.busy = false;
   if (error || !data || !data.ok) ci.bo.msg = error ? 'Couldn’t save that choice. Try again.' : (CI_BO_ERRORS[data.error] || 'That didn’t work. Try again.');
   else ci.bo.open = null;
-  await ciLoadBreakouts();
-}
-async function ciUnpickBreakout(i) {
-  const s = ci.bo.data.sessions[i], p = ci.person;
-  if (!s || ci.bo.busy || !confirm('Remove ' + (s.title || s.track) + ' from ' + p.name + '’s breakouts?')) return;
-  ci.bo.busy = true; ciRerenderKeepScroll();
-  await sbClient.rpc('breakout_desk_unpick', { p_attendee_id: p.breakoutId, p_slot_id: s.slot_id, p_year: activeConferenceYear || '2027' });
-  ci.bo.busy = false;
   await ciLoadBreakouts();
 }
 function ciSetField(key, value) { ci.form[key] = value; ciUpdatePreview(); }
