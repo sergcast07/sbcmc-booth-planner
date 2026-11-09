@@ -25036,6 +25036,7 @@ function ciFlagsHtml(p) {
   else if (b && b.blocks && b.picked < b.blocks) flags.push('<div class="ci-flag ci-amber"><b>Chose ' + b.picked + ' of ' + b.blocks + ' breakouts</b>' + (p.breakoutId ? 'Pick the rest below.' : 'They can finish picking at the breakout help table.') + '</div>');
   if (!p.paid) flags.push('<div class="ci-flag ci-red"><b>Not paid' + (p.paymentStatus ? ' — payment shows “' + escapeHtml(p.paymentStatus) + '”' : '') + '</b>Send them to the payment table. Once they’ve paid, tap “Payment received” below to check them in.</div>');
   if (p.paymentOverride) flags.push('<div class="ci-flag ci-green"><b>Paid at the payment table</b>Let through by ' + escapeHtml(p.paymentOverride.by || 'staff') + ', ' + escapeHtml(ciTime(p.paymentOverride.at)) + '.</div>');
+  if (p.applicationStatus && p.applicationStatus !== 'Approved') flags.push('<div class="ci-flag ci-amber"><b>Application still ' + escapeHtml(p.applicationStatus.toLowerCase()) + '</b>Their ' + (p.program === 'sls' ? 'Student Leadership Summit' : 'Collegiate Worship Collective') + ' application hasn’t been approved yet. Check with the program lead.</div>');
   if (p.isTest) flags.push('<div class="ci-flag ci-gray"><b>Marked as test data</b>This record is flagged as a test registration.</div>');
   if (p.checkedInAt) flags.push('<div class="ci-flag ci-green"><b>Already checked in</b>' + escapeHtml(ciTime(p.checkedInAt)) + '. Printing again makes a replacement sticker.</div>');
   return flags.length ? '<div class="ci-flags">' + flags.join('') + '</div>' : '';
