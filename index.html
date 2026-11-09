@@ -585,9 +585,16 @@ if (/[?&]view=checkin(&|$)/.test(location.search)) document.title = 'SBCMC Check
   .ci-label-text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; max-height: 100%; }
   .ci-label-name { font-weight: 800; font-size: 8mm; line-height: 1.08; word-break: break-word; overflow: hidden; }
   .ci-label-line { font-weight: 600; font-size: 3.8mm; line-height: 1.25; margin-top: 1.6mm; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ci-label-lunch { font-weight: 800; font-size: 4.6mm; line-height: 1.2; margin-top: 2.5mm; }
+  .ci-lunch-pick { display: flex; gap: 10px; }
+  .ci-lunch-pick button { flex: 1; font: inherit; font-size: 19px; font-weight: 700; padding: 12px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; color: var(--ink-soft); cursor: pointer; min-height: 52px; }
+  .ci-lunch-pick button.on { background: var(--gold); border-color: var(--gold); color: #fff; }
+  .ci-lunch-stats { display: flex; gap: 10px; margin-bottom: 14px; }
+  .ci-lunch-stats div { flex: 1; background: var(--teal-pale); border-radius: 12px; padding: 12px; text-align: center; font-size: 13px; color: var(--ink-soft); }
+  .ci-lunch-stats b { display: block; font-size: 24px; color: var(--teal-deep); }
   .ci-label.ci-portrait { flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 4mm; padding: 5mm 4mm; }
   .ci-label.ci-portrait .ci-label-text { order: 1; flex: 0 0 auto; width: 100%; }
-  .ci-label.ci-portrait .ci-label-qr { order: 2; width: 28mm; height: 28mm; }
+  .ci-label.ci-portrait .ci-label-qr { order: 2; width: 26mm; height: 26mm; }
   .ci-label.ci-portrait .ci-label-line { font-weight: 500; font-size: 4.2mm; margin-top: 1.2mm; }
   .ci-label.ci-portrait .ci-label-name + .ci-label-line { margin-top: 2.5mm; }
   @media print {
@@ -24918,7 +24925,7 @@ async function initCheckinView() {
     return;
   }
   ci = { settings: ciLoadSettings(), screen: 'search', q: '', people: [], person: null, form: null, busy: false, msg: '', msgOk: false,
-    stats: null, recent: [], stationTimer: null, printing: false, stationError: '', lastPoll: null, doneTimer: null, showSettings: false };
+    stats: null, recent: [], stationTimer: null, printing: false, stationError: '', lastPoll: null, doneTimer: null, showSettings: false, lunch: null };
   try { await loadConferenceYears(); } catch (e) { /* falls back to the default year */ }
   try { await ciLoadQrLib(); } catch (e) { ci.msg = 'Couldn’t load the QR code maker. Check the internet connection and reload.'; }
   ciRender();
@@ -25033,6 +25040,8 @@ function ciReviewHtml() {
     + ciField('city', 'City', 'autocomplete="off" autocapitalize="words"')
     + ciField('state', 'State', 'autocomplete="off" autocapitalize="characters"')
     + ciField('email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false"', true)
+    + '<div class="ci-field ci-wide"><label>Lunch' + (ci.form.lunch ? '' : ' <span style="color:#a52620;text-transform:none;letter-spacing:0;">— not assigned yet</span>') + '</label><div class="ci-lunch-pick">'
+    + ['A', 'B'].map(l => '<button class="' + (ci.form.lunch === l ? 'on' : '') + '" onclick="ciSetLunch(\'' + l + '\')">Lunch ' + l + '</button>').join('') + '</div></div>'
     + '</div>'
     + '<div class="ci-preview-wrap"><div class="ci-preview-title">Sticker preview</div><div class="ci-preview" id="ci-preview"></div></div>'
     + ciMsgHtml()
@@ -25049,6 +25058,7 @@ function ciDoneHtml() {
   const where = ci.lastPrintedTo === 'none' ? '' : (ci.lastPrintedTo === 'here' ? 'Your sticker is printing.' : 'Your sticker is printing at ' + escapeHtml(ci.lastPrintedTo) + '.');
   return '<div class="ci-card ci-done"><div class="ci-check">✓</div><h2>You’re checked in, ' + escapeHtml(p.name.split(' ')[0]) + '!</h2>'
     + '<p class="ci-sub">' + where + ' Stick it in the white space on your badge.</p>'
+    + (p.lunch ? '<p class="ci-sub" style="font-size:20px;color:var(--teal-deep);"><b>Your lunch: Lunch ' + escapeHtml(p.lunch) + '</b></p>' : '')
     + (b && b.picked === 0 ? '<div class="ci-flags"><div class="ci-flag ci-red"><b>No breakouts chosen yet</b>Please stop by the breakout help table.</div></div>' : '')
     + ciMsgHtml()
     + '<button class="ci-btn ci-big" onclick="ciReset()">Next person</button></div>';
@@ -25084,11 +25094,43 @@ function ciSettingsHtml() {
     + '<div class="ci-field"><label>Layout</label>' + seg('orient', [['portrait', 'Vertical'], ['landscape', 'Horizontal']]) + '</div></div>'
     + '<p class="ci-help">In the print dialog the paper size must match: <b>62mm × ' + escapeHtml(s.length) + 'mm</b>, margins none, scale 100%.</p>'
     + '<div class="ci-row" style="margin-top:14px;"><button class="ci-btn ci-ghost" onclick="ciTestPrint()">Test print</button><button class="ci-btn" onclick="ciToggleSettings()">Done</button></div></div>'
+    + (s.role === 'desk' ? ciLunchCardHtml() : '')
     + '<div class="ci-card"><p class="ci-sub" style="margin:0;">Signed in as ' + escapeHtml(window.currentUserLabel || '') + '. <button class="ci-link" onclick="gateLogout()">Sign out</button></p></div>';
 }
 
 // ---- desk actions ----
-function ciToggleSettings() { ci.showSettings = !ci.showSettings; ci.msg = ''; ciRender(); }
+function ciToggleSettings() {
+  ci.showSettings = !ci.showSettings; ci.msg = '';
+  ciRender();
+  if (ci.showSettings && ci.settings.role === 'desk') ciLoadLunch();
+}
+function ciLunchCardHtml() {
+  const l = ci.lunch;
+  return '<div class="ci-card"><h2>Lunch A / B</h2><p class="ci-sub">Everyone on one registration order gets the same lunch, and the two halves are kept as even as the groups allow.</p>'
+    + (l ? '<div class="ci-lunch-stats"><div><b>' + l.A + '</b>Lunch A</div><div><b>' + l.B + '</b>Lunch B</div><div><b>' + l.unassigned + '</b>Not assigned</div></div>' : '<p class="ci-sub">Loading…</p>')
+    + (l && l.unassigned ? '<button class="ci-btn ci-big" onclick="ciAssignLunch(false)"' + (ci.busy ? ' disabled' : '') + '>Assign lunch to the ' + l.unassigned + ' without one</button>' : '')
+    + '<p class="ci-help">New registrations join their group’s lunch, or the smaller half. Changing one person’s lunch is done on their check-in screen.</p>'
+    + (l && (l.A || l.B) ? '<button class="ci-link" onclick="ciAssignLunch(true)">Start over and re-split everyone</button>' : '')
+    + (ci.lunchMsg ? '<div class="ci-msg' + (ci.lunchOk ? ' ci-ok' : '') + '">' + escapeHtml(ci.lunchMsg) + '</div>' : '')
+    + '</div>';
+}
+async function ciLoadLunch() {
+  const out = await ciCall('checkin-lunch-summary');
+  ci.lunch = out && out.lunch ? out.lunch : null;
+  ci.lunchMsg = out && out.error ? ciErrorText(out.error) : '';
+  if (ci.showSettings) ciRender();
+}
+async function ciAssignLunch(reset) {
+  if (ci.busy) return;
+  if (reset && !confirm('Re-split everyone into Lunch A and B? Stickers already printed would show the old lunch.')) return;
+  ci.busy = true; ci.lunchMsg = ''; ciRender();
+  const out = await ciCall('checkin-assign-lunch', { reset: !!reset });
+  ci.busy = false;
+  ci.lunchOk = !out.error;
+  if (out.error) ci.lunchMsg = ciErrorText(out.error);
+  else { ci.lunch = out.lunch; ci.lunchMsg = 'Assigned ' + out.assigned + (out.assigned === 1 ? ' person.' : ' people.'); }
+  ciRender();
+}
 function ciSet(key, value) {
   if (key === 'length') value = Math.min(150, Math.max(50, parseInt(value, 10) || 80));
   if (typeof value === 'string') value = value.trim();
@@ -25117,12 +25159,13 @@ function ciOpen(i) {
   const p = ci.people[i];
   if (!p) return;
   ci.person = p;
-  ci.form = { name: p.name, church: p.church, city: p.city, state: p.state, email: p.email };
+  ci.form = { name: p.name, church: p.church, city: p.city, state: p.state, email: p.email, lunch: p.lunch || '' };
   ci.screen = 'review'; ci.msg = '';
   ciRender();
   window.scrollTo(0, 0);
 }
 function ciSetField(key, value) { ci.form[key] = value; ciUpdatePreview(); }
+function ciSetLunch(l) { ci.form.lunch = l; const y = window.scrollY; ciRender(); window.scrollTo(0, y); }
 function ciUpdatePreview() {
   const el = document.getElementById('ci-preview');
   if (!el || !ci.person) return;
@@ -25145,7 +25188,7 @@ async function ciConfirm(noPrint) {
   if (out.error || !out.person) { ci.msg = ciErrorText(out.error || 'empty'); ciRender(); return; }
   ci.person = out.person;
   if (out.stats) ci.stats = out.stats;
-  const label = { name: out.person.name, church: out.person.church, city: out.person.city, state: out.person.state, qr: out.person.id };
+  const label = { name: out.person.name, church: out.person.church, city: out.person.city, state: out.person.state, lunch: out.person.lunch, qr: out.person.id };
   ci.lastPrintedTo = noPrint ? 'none' : ci.settings.printTo;
   if (!noPrint) {
     const err = await ciSendLabel(out.person.id, label);
@@ -25175,7 +25218,7 @@ async function ciSendLabel(attendeeId, label) {
   return error ? (ciNoQueue(error) ? 'the print queue isn’t set up yet.' : error.message) : '';
 }
 function ciTestPrint() {
-  const label = { name: 'Test Sticker', church: 'Hunter Street Baptist Church', city: 'Hoover', state: 'AL', qr: '00000000-0000-0000-0000-000000000000' };
+  const label = { name: 'Test Sticker', church: 'Hunter Street Baptist Church', city: 'Hoover', state: 'AL', lunch: 'A', qr: '00000000-0000-0000-0000-000000000000' };
   if (ci.settings.role === 'station' || ci.settings.printTo === 'here') ciPrint(label);
   else ciSendLabel('test', label).then(err => { ci.msg = err ? 'Test didn’t send: ' + err : 'Test sticker sent to ' + ci.settings.printTo + '.'; ci.msgOk = !err; ciRender(); ci.msgOk = false; });
 }
@@ -25242,6 +25285,7 @@ function ciLabelHtml(l) {
     + '<div class="ci-label-text"><div class="ci-label-name">' + escapeHtml((l.name || '').trim()) + '</div>'
     + ((l.church || '').trim() ? '<div class="ci-label-line">' + escapeHtml(l.church.trim()) + '</div>' : '')
     + (place ? '<div class="ci-label-line">' + escapeHtml(place) + '</div>' : '')
+    + (l.lunch ? '<div class="ci-label-lunch">Lunch ' + escapeHtml(l.lunch) + '</div>' : '')
     + '</div></div>';
 }
 // Shrinks the name until it fits in two lines and the whole text block fits the sticker.
@@ -25253,7 +25297,7 @@ function ciFitLabel(label) {
   let size = label.classList.contains('ci-portrait') ? 9.5 : 8;
   name.style.fontSize = size + 'mm';
   const lineH = () => parseFloat(getComputedStyle(name).fontSize) * 1.08;
-  while (size > 3.5 && (name.scrollHeight > lineH() * 2 + 1 || name.scrollWidth > name.clientWidth + 1 || text.scrollHeight > label.clientHeight - 2)) {
+  while (size > 3.5 && (name.scrollHeight > lineH() * 2 + 1 || name.scrollWidth > name.clientWidth + 1 || text.scrollHeight > label.clientHeight - 2 || label.scrollHeight > label.clientHeight + 1)) {
     size -= 0.25;
     name.style.fontSize = size + 'mm';
   }
