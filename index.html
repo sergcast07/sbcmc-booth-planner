@@ -966,7 +966,10 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sn-card-org { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
 .sn-card-meta { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .sn-empty { padding: 40px 20px; text-align: center; color: var(--ink-soft); background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; }
-.sp-row-needs-flag { font-size: 11px; color: #8B5E13; white-space: nowrap; }
+.sp-row-needs-flag { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; color: #8B5E13; background: var(--gold-pale); padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
+.sp-row-needs-flag .sn-icon { width: 11px; height: 11px; }
+#sp-needs-toggle { display: inline-flex; align-items: center; gap: 6px; }
+#sp-needs-toggle .sn-icon { width: 15px; height: 15px; }
 .sk-always-visible { padding: 4px 22px 4px; border-top: 2px solid var(--gold); margin-top: 4px; }
 .sk-always-visible-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 10px 0 8px; }
 .sp-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; align-items: start; }
@@ -2909,7 +2912,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <option value="status-asc">Tracker Status (A–Z)</option>
           <option value="status-desc">Tracker Status (Z–A)</option>
         </select>
-        <button class="sp-add-btn" id="sp-needs-toggle" style="background:var(--gold-pale); color:var(--ink); border:1px solid var(--line);" onclick="setSponsorNeedsMode(!sponsorNeedsMode)" title="Everything you still need from each sponsor, from their package and add-ons">📥 What We Need</button>
+        <button class="sp-add-btn" id="sp-needs-toggle" style="background:var(--gold-pale); color:var(--ink); border:1px solid var(--line);" onclick="setSponsorNeedsMode(!sponsorNeedsMode)" title="Everything you still need from each sponsor, from their package and add-ons"><svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="M3.5 6l1.5 1.5L7.5 5"></path><path d="M3.5 12l1.5 1.5L7.5 11"></path><path d="M3.5 18l1.5 1.5L7.5 17"></path></svg>What We Need</button>
         <button class="sp-add-btn" onclick="addSponsor()">+ Add sponsor</button>
         <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('sponsors')">Export CSV</button>
       </div>
@@ -14381,7 +14384,7 @@ function buildSponsorRowPair(s, todayStr) {
     })()}${(() => {
       if (!isActiveThisYear(s)) return '';
       const n = sponsorNeedsOutstanding(s).length;
-      return n ? ` <span class="sp-row-needs-flag" title="${n} thing${n === 1 ? '' : 's'} still needed from this sponsor (package + add-ons)">📥${n}</span>` : '';
+      return n ? ` <span class="sp-row-needs-flag" title="${n} thing${n === 1 ? '' : 's'} still needed from this sponsor (package + add-ons)">${ICON_NEEDS}${n}</span>` : '';
     })()}${sponsorHasUnscheduledMoney(s) ? ` <span class="sp-task-badge sp-task-badge-overdue" title="${revenueMoney(sponsorOutstanding(s))} owed with no confirmed due date — Cash Flow is currently assuming ${friendlyDate(CFP_DEFAULT_SPONSOR_DATE)} as a placeholder">💰 No date</span>` : ''}</td>
     <td class="sp-org" data-label="Organization">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
     <td data-label="Contact">${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
@@ -15852,6 +15855,7 @@ function sponsorNeedsFieldsetHTML(s) {
 }
 
 // ---- Board: every active sponsor's outstanding items on one screen ----
+const ICON_NEEDS = '<svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="M3.5 6l1.5 1.5L7.5 5"></path><path d="M3.5 12l1.5 1.5L7.5 11"></path><path d="M3.5 18l1.5 1.5L7.5 17"></path></svg>';
 let sponsorNeedsMode = false;
 let sponsorNeedsShowDone = false;
 let sponsorNeedsItemFilter = '';
@@ -15860,7 +15864,7 @@ function setSponsorNeedsMode(on) {
   document.getElementById('sp-needs-board').style.display = sponsorNeedsMode ? '' : 'none';
   document.getElementById('sp-list-sections').style.display = sponsorNeedsMode ? 'none' : '';
   const btn = document.getElementById('sp-needs-toggle');
-  if (btn) btn.textContent = sponsorNeedsMode ? '← Back to list' : '📥 What We Need';
+  if (btn) btn.innerHTML = sponsorNeedsMode ? '← Back to list' : ICON_NEEDS + 'What We Need';
   if (sponsorNeedsMode) renderSponsorNeedsBoard();
 }
 function setSponsorNeedsShowDone(on) { sponsorNeedsShowDone = !!on; renderSponsorNeedsBoard(); }
