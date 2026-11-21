@@ -946,6 +946,27 @@ table.sp-table tbody tr.sp-row:hover { background: var(--teal-pale); }
 .sk-tab-panel .sp-detail-grid { margin-bottom: 0; }
 .sk-logistics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 900px) { .sk-logistics-grid { grid-template-columns: 1fr; } }
+.sn-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.sn-item:last-child { border-bottom: none; }
+.sn-item input[type=checkbox] { margin-top: 2px; flex-shrink: 0; }
+.sn-item-text { flex: 1; min-width: 0; }
+.sn-item.done .sn-item-text > div:first-child { text-decoration: line-through; color: var(--ink-soft); }
+.sn-auto { width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; border: 1.5px dashed var(--ink-soft); border-radius: 3px; font-size: 10px; line-height: 11px; text-align: center; color: #fff; }
+.sn-auto.done { background: #2E8B57; border: 1.5px solid #2E8B57; }
+.sn-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+.sn-tag-pkg { background: var(--teal-pale); color: var(--teal-deep); }
+.sn-tag-addon { background: var(--gold-pale); color: #8B5E13; }
+.sn-tag-booth { background: #EEEDE8; color: var(--ink-soft); }
+.sn-board-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+.sn-board-head > div:first-child { margin-right: auto; }
+.sn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.sn-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.sn-card-head { cursor: pointer; margin-bottom: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.sn-card-head:hover .sn-card-org { color: var(--teal); }
+.sn-card-org { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.sn-card-meta { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sn-empty { padding: 40px 20px; text-align: center; color: var(--ink-soft); background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; }
+.sp-row-needs-flag { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; color: #8B5E13; background: var(--gold-pale); padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
 .sk-always-visible { padding: 4px 22px 4px; border-top: 2px solid var(--gold); margin-top: 4px; }
 .sk-always-visible-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 10px 0 8px; }
 .sp-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; align-items: start; }
@@ -2888,9 +2909,12 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           <option value="status-asc">Tracker Status (A–Z)</option>
           <option value="status-desc">Tracker Status (Z–A)</option>
         </select>
+        <button class="sp-add-btn" id="sp-needs-toggle" style="background:var(--gold-pale); color:var(--ink); border:1px solid var(--line);" onclick="setSponsorNeedsMode(!sponsorNeedsMode)" title="Everything you still need from each sponsor, from their package and add-ons">What We Need</button>
         <button class="sp-add-btn" onclick="addSponsor()">+ Add sponsor</button>
         <button class="sp-add-btn" style="background:var(--panel); color:var(--ink); border:1px solid var(--line);" onclick="openExportSortModal('sponsors')">Export CSV</button>
       </div>
+      <div id="sp-needs-board" style="display:none;"></div>
+      <div id="sp-list-sections">
       <div class="sk-section-title clickable" data-section-toggle="sp-active" onclick="toggleSidebarSection('sp-active')">
         Active <span class="sk-section-count" id="sp-active-count"></span><span class="sp-chevron">▸</span>
       </div>
@@ -2932,6 +2956,7 @@ var sbClient = (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabas
           </table>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -6155,14 +6180,15 @@ If you have any questions about your exhibit space or sponsorship opportunities,
 
 function sponsorEmailActionRequired(s) {
   const url = sponsorPortalUrl(s);
-  const missing = [];
-  const mats = s.data.materials || {};
-  const badgeNames = (s.data.logistics.badgeNames || []).filter(n => n && n.trim());
+  // Same list as the "What We Need From Them" checklist, so the email only asks for what this
+  // sponsor's package and add-ons actually include (e.g. no booklet ad for Exhibit Space Only).
   const badgeLimit = sponsorBadgeLimit(s);
-  if (!mats.boothAdFile) missing.push('Sponsorship advertisement for the program booklet');
-  if (!mats.displayGraphicFile) missing.push('Sponsorship graphic for on-site display');
-  if (badgeLimit > 0 && badgeNames.length < badgeLimit) missing.push('First and last names of your booth representatives (up to ' + badgeLimit + ', for badges)');
-  if (!s.data.logistics.loadInTime) missing.push('Preferred arrival day and time for load-in');
+  const missing = sponsorNeedsOutstanding(s).filter(i => !i.key.startsWith('custom-')).map(i => {
+    if (i.key === 'boothAd') return i.label + ' for the program booklet';
+    if (i.key === 'badges') return 'First and last names of your booth representatives (up to ' + badgeLimit + ', for badges)';
+    if (i.key === 'loadIn') return 'Preferred arrival day and time for load-in';
+    return i.label;
+  });
 
   const missingList = missing.length
     ? 'Please update what you can directly on your sponsor portal \u2014 ' + url + ' \u2014 and reply to this email for anything you can\u2019t update there (like your load-in time):\n' + missing.map((m, i) => (i + 1) + '. ' + m).join('\n')
@@ -14352,6 +14378,10 @@ function buildSponsorRowPair(s, todayStr) {
       if (openItems.length === 0) return '';
       const hasOverdue = openItems.some(a => a.dueDate && a.dueDate < todayStr);
       return ` <span class="sp-task-badge ${hasOverdue ? 'sp-task-badge-overdue' : ''}" title="${openItems.length} open action item${openItems.length === 1 ? '' : 's'}${hasOverdue ? ', at least one overdue' : ''}">📋${openItems.length}</span>`;
+    })()}${(() => {
+      if (!isActiveThisYear(s)) return '';
+      const n = sponsorNeedsOutstanding(s).length;
+      return n ? ` <span class="sp-row-needs-flag" title="${n} thing${n === 1 ? '' : 's'} still needed from this sponsor (package + add-ons)">${n}</span>` : '';
     })()}${sponsorHasUnscheduledMoney(s) ? ` <span class="sp-task-badge sp-task-badge-overdue" title="${revenueMoney(sponsorOutstanding(s))} owed with no confirmed due date — Cash Flow is currently assuming ${friendlyDate(CFP_DEFAULT_SPONSOR_DATE)} as a placeholder">💰 No date</span>` : ''}</td>
     <td class="sp-org" data-label="Organization">${escapeHtml(s.org)}<div class="sp-sub" style="max-width:220px;">${escapeHtml(s.data.specialNotes || '')}</div></td>
     <td data-label="Contact">${escapeHtml(s.contactName) || '—'}<div class="sp-sub">${escapeHtml(s.contactEmail)}</div></td>
@@ -14405,6 +14435,7 @@ function renderInactiveSponsorRows() {
 }
 
 function renderSponsorRows(dirtyId) {
+  if (sponsorNeedsMode) renderSponsorNeedsBoard();
   const tbody = document.getElementById('sp-rows');
   const todayStr = new Date().toISOString().slice(0, 10);
   renderInactiveSponsorRows();
@@ -14930,6 +14961,7 @@ function sponsorDetailHTML(s) {
       <div class="sk-always-visible">
         <div class="sk-always-visible-label">Ongoing \u2014 always visible, regardless of tab</div>
         <div class="sp-detail-grid">
+        ${sponsorNeedsFieldsetHTML(s)}
         <fieldset class="sp-fieldset">
           <legend>Communication Log</legend>
           ${commsHtml}
@@ -15651,6 +15683,255 @@ function removeQuestion(id, i) {
   s.data.questions.splice(i, 1);
   pushSponsor(s);
   renderSponsorRows(id);
+}
+
+// ==================== What We Need From Each Sponsor ====================
+// One checklist per sponsor of everything we still have to collect from them, built from two
+// places: what their package includes (from the 2027 Sponsorship & Exhibit Guide, see
+// GUIDE_EXHIBIT_PACKAGES) and any add-ons checked on their Financials tab or set as a Program &
+// Stage commitment after the fact. Items that already have a real field elsewhere in the record
+// (booklet ad / display graphic uploads, handout received, badge names, load-in time, program
+// materials) read their status straight from that field, so nothing is tracked twice. Items with
+// no existing field (logo + URL, video file, signage logo...) are checked off here and saved in
+// s.data.needsReceived -- outside data.money, so staff without Financials access can still check
+// them off.
+//
+// Note: add-on checkboxes live in data.money, which is blanked for users without Financials
+// access (redactSponsorFinancials), so those users only see package and Program & Stage items.
+const PACKAGE_DELIVERABLES = {
+  AA:    { ad: 'full', handout: true, website: true, graphic: 'Sponsorship graphic (shown before/after all events)' },
+  A:     { ad: 'full', handout: true, website: true, graphic: 'Sponsorship graphic (shown before/after all events)' },
+  B:     { ad: 'full', handout: true, website: true, graphic: 'Lobby & TV advertisement graphic' },
+  C:     { ad: 'full', handout: true, website: true, graphic: 'Lobby & TV advertisement graphic' },
+  D:     { ad: 'half', handout: true, website: true, graphic: null },
+  SPACE: { ad: null,   handout: false, website: false, graphic: null }
+};
+// What each standard add-on (STANDARD_ADHOC_LABELS) needs from the sponsor. null = nothing to
+// collect (cash gift). 'ad'/'handout'/'website' fold into the package item of the same kind when
+// the package doesn't already include one, otherwise they become a separate "additional" item.
+const ADDON_DELIVERABLES = {
+  'Additional Gift (unrestricted cash donation)': null,
+  'Snack Area Sponsorship': { label: 'Logo for snack area signage' },
+  'Breakfast Area Sponsorship': { label: 'Logo for breakfast area signage' },
+  'Lunch Sponsorship, Monday': { label: 'Logo for Monday lunch signage' },
+  'Lunch Sponsorship, Tuesday': { label: 'Logo for Tuesday lunch signage' },
+  'Dessert Fellowship Sponsorship': { label: 'Logo for dessert fellowship signage' },
+  'Welcome Mix & Mingle Sponsorship': { label: 'Logo for Welcome Mix & Mingle signage' },
+  '3-Minute Video Spot': { label: '3-minute video file', hint: 'Needs SBCMC approval before it runs' },
+  'Website Link – 1-Year Placement': { kind: 'website' },
+  'Social Media Advertisement': { label: 'Social media graphic + caption' },
+  'Insert for Registration Bag': { kind: 'handout' },
+  'Giveaway During Main Session': { label: 'Giveaway item details (what it is, how many)' },
+  'Full-Page Ad in Conference Booklet': { kind: 'ad', size: 'full' },
+  'Half-Page Ad in Conference Booklet': { kind: 'ad', size: 'half' }
+};
+
+function sponsorNeedsKey(str) { return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+// Returns [{ key, label, hint, source: 'package'|'addon'|'booth', sourceLabel, done, mode, field }]
+// mode: 'manual' (toggled here, data.needsReceived), 'toggle' (toggles an existing record field),
+// 'auto' (read-only, satisfied by an upload/entry elsewhere in the record).
+function sponsorNeeds(s) {
+  const items = [];
+  const d = s.data || {};
+  const mats = d.materials || {};
+  const logi = d.logistics || {};
+  const manual = d.needsReceived || {};
+  const pkgKey = s.package || '';
+  const pkgLabel = pkgKey ? getPkg(pkgKey).label : '';
+  const inc = PACKAGE_DELIVERABLES[pkgKey] || null;
+  const addManual = (key, label, source, sourceLabel, hint) =>
+    items.push({ key, label, hint: hint || '', source, sourceLabel, mode: 'manual', done: !!manual[key] });
+
+  const addons = ((d.money || {}).adhocItems || []).filter(i => i.checked);
+  const addonsOfKind = kind => addons.filter(i => (ADDON_DELIVERABLES[i.label] || {}).kind === kind);
+
+  // Program booklet ad -- package, or an ad add-on when the package has none.
+  const adAddons = addonsOfKind('ad');
+  const adFile = mats.boothAdFile;
+  const adItem = (label, source, sourceLabel) => items.push({
+    key: 'boothAd', label, hint: adFile ? adFile.fileName : 'Upload under Program & Logistics', source, sourceLabel, mode: 'auto', done: !!adFile
+  });
+  if (inc && inc.ad) {
+    adItem((inc.ad === 'full' ? 'Full-page' : 'Half-page') + ' booklet ad', 'package', pkgLabel);
+    adAddons.forEach(a => addManual('addon-' + sponsorNeedsKey(a.label), 'Additional ' + (ADDON_DELIVERABLES[a.label].size === 'full' ? 'full-page' : 'half-page') + ' booklet ad', 'addon', a.label));
+  } else if (adAddons.length) {
+    adItem((ADDON_DELIVERABLES[adAddons[0].label].size === 'full' ? 'Full-page' : 'Half-page') + ' booklet ad', 'addon', adAddons[0].label);
+    adAddons.slice(1).forEach(a => addManual('addon-' + sponsorNeedsKey(a.label), 'Additional ' + (ADDON_DELIVERABLES[a.label].size === 'full' ? 'full-page' : 'half-page') + ' booklet ad', 'addon', a.label));
+  }
+
+  // On-site display graphic (Packages A/AA/B/C only).
+  if (inc && inc.graphic) {
+    const f = mats.displayGraphicFile;
+    items.push({ key: 'displayGraphic', label: inc.graphic, hint: f ? f.fileName : 'Upload under Program & Logistics', source: 'package', sourceLabel: pkgLabel, mode: 'auto', done: !!f });
+  }
+
+  // Welcome bag handout -- package, or the registration-bag insert add-on.
+  const handoutAddon = addonsOfKind('handout')[0];
+  const handoutItem = (label, source, sourceLabel) => items.push({
+    key: 'handout', label, hint: 'Mailed to the church', source, sourceLabel, mode: 'toggle', field: ['materials', 'welcomeBagHandoutReceived'], done: !!mats.welcomeBagHandoutReceived
+  });
+  if (inc && inc.handout) {
+    handoutItem('Welcome bag promo handout', 'package', pkgLabel);
+    if (handoutAddon) addManual('addon-' + sponsorNeedsKey(handoutAddon.label), 'Additional registration bag insert', 'addon', handoutAddon.label, 'Mailed to the church');
+  } else if (handoutAddon) {
+    handoutItem('Registration bag insert', 'addon', handoutAddon.label);
+  }
+
+  // Website sponsor link -- package, or the 1-year placement add-on (same thing to collect).
+  const webAddon = addonsOfKind('website')[0];
+  if ((inc && inc.website) || webAddon) {
+    addManual('website', 'Logo + website URL for the SBCMC site', inc && inc.website ? 'package' : 'addon', inc && inc.website ? pkgLabel : webAddon.label);
+  }
+
+  // Every other add-on with something to collect.
+  addons.forEach(a => {
+    const spec = ADDON_DELIVERABLES[a.label];
+    if (!spec || spec.kind) return;
+    addManual('addon-' + sponsorNeedsKey(a.label), spec.label, 'addon', a.label, spec.hint);
+  });
+  // Custom one-off add-on: we can't know what it needs, so make sure someone confirms it.
+  if ((d.money || {}).adhocDescription && parseMoneyNum((d.money || {}).adhocAmount) > 0) {
+    addManual('custom-' + sponsorNeedsKey(d.money.adhocDescription), 'Anything needed for: ' + d.money.adhocDescription, 'addon', 'Custom add-on');
+  }
+  // Program & Stage commitment (picked from the add-on suggestions or typed in).
+  if ((d.program || {}).type) {
+    items.push({ key: 'program', label: 'Materials for ' + d.program.type, hint: [d.program.track, d.program.timeSlot].filter(Boolean).join(' · '), source: 'addon', sourceLabel: 'Program & Stage', mode: 'toggle', field: ['program', 'fulfilled'], done: !!d.program.fulfilled });
+  }
+
+  // Booth basics -- every sponsor with a booth.
+  if (!d.noBoothNeeded && (pkgKey || s.linkedBoothId)) {
+    const limit = sponsorBadgeLimit(s);
+    const names = (logi.badgeNames || []).filter(n => n && n.trim());
+    if (limit > 0) items.push({ key: 'badges', label: 'Badge names (' + names.length + ' of ' + limit + ')', hint: 'Catered lunches are covered for badged staff', source: 'booth', sourceLabel: 'Booth', mode: 'auto', done: names.length >= limit });
+    items.push({ key: 'loadIn', label: 'Load-in day & time', hint: logi.loadInTime || 'Enter under Program & Logistics', source: 'booth', sourceLabel: 'Booth', mode: 'auto', done: !!logi.loadInTime });
+  }
+  return items;
+}
+function sponsorNeedsOutstanding(s) { return sponsorNeeds(s).filter(i => !i.done); }
+
+function toggleSponsorNeed(id, key, checked) {
+  const s = getSponsor(id); if (!s) return;
+  const item = sponsorNeeds(s).find(i => i.key === key);
+  if (!item || item.mode === 'auto') return;
+  if (item.mode === 'toggle') {
+    const [group, field] = item.field;
+    if (!s.data[group]) s.data[group] = {};
+    s.data[group][field] = checked;
+  } else {
+    if (!s.data.needsReceived) s.data.needsReceived = {};
+    if (checked) s.data.needsReceived[key] = true; else delete s.data.needsReceived[key];
+  }
+  pushSponsor(s);
+  renderSponsorRows(id);
+}
+
+function sponsorNeedSourceTag(i) {
+  if (i.source === 'addon') return `<span class="sn-tag sn-tag-addon" title="${escapeHtml(i.sourceLabel)}">Add-on</span>`;
+  if (i.source === 'booth') return `<span class="sn-tag sn-tag-booth">Booth</span>`;
+  return `<span class="sn-tag sn-tag-pkg">${escapeHtml(i.sourceLabel)}</span>`;
+}
+function sponsorNeedRowHTML(s, i) {
+  const box = i.mode === 'auto'
+    ? `<span class="sn-auto ${i.done ? 'done' : ''}" title="${i.done ? 'On file' : 'Fills in automatically once it’s added to their record'}">${i.done ? '✓' : ''}</span>`
+    : `<input type="checkbox" ${i.done ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleSponsorNeed('${s.id}','${jsAttrString(i.key)}',this.checked)" title="Mark received">`;
+  const sub = [i.source === 'addon' && i.sourceLabel !== 'Program & Stage' ? i.sourceLabel : '', i.hint].filter(Boolean).join(' · ');
+  return `<div class="sn-item ${i.done ? 'done' : ''}">${box}<div class="sn-item-text"><div>${escapeHtml(i.label)}</div>${sub ? `<div class="sp-sub sp-sub-wrap">${escapeHtml(sub)}</div>` : ''}</div>${sponsorNeedSourceTag(i)}</div>`;
+}
+function sponsorNeedsFieldsetHTML(s) {
+  const items = sponsorNeeds(s);
+  const open = items.filter(i => !i.done), done = items.filter(i => i.done);
+  const body = items.length
+    ? open.concat(done).map(i => sponsorNeedRowHTML(s, i)).join('')
+    : `<div class="sp-sub sp-sub-wrap">${s.package ? 'Nothing to collect for this package and no add-ons with deliverables.' : 'Pick a package on the Overview tab (and check any add-ons under Financials) to see what we need from them.'}</div>`;
+  return `<fieldset class="sp-fieldset">
+    <legend>What We Need From Them</legend>
+    ${items.length ? `<div class="sp-sub" style="margin-bottom:4px;">${open.length ? open.length + ' of ' + items.length + ' still outstanding' : 'All ' + items.length + ' received'}</div>` : ''}
+    ${body}
+  </fieldset>`;
+}
+
+// ---- Board: every active sponsor's outstanding items on one screen ----
+let sponsorNeedsMode = false;
+let sponsorNeedsShowDone = false;
+let sponsorNeedsItemFilter = '';
+function setSponsorNeedsMode(on) {
+  sponsorNeedsMode = !!on;
+  document.getElementById('sp-needs-board').style.display = sponsorNeedsMode ? '' : 'none';
+  document.getElementById('sp-list-sections').style.display = sponsorNeedsMode ? 'none' : '';
+  const btn = document.getElementById('sp-needs-toggle');
+  if (btn) btn.innerHTML = sponsorNeedsMode ? '← Back to list' : 'What We Need';
+  if (sponsorNeedsMode) renderSponsorNeedsBoard();
+}
+function setSponsorNeedsShowDone(on) { sponsorNeedsShowDone = !!on; renderSponsorNeedsBoard(); }
+function setSponsorNeedsItemFilter(v) { sponsorNeedsItemFilter = v; renderSponsorNeedsBoard(); }
+function openSponsorFromNeeds(id) {
+  setSponsorNeedsMode(false);
+  openSponsorId = id;
+  sponsorActiveTab = 'program';
+  renderSponsorRows();
+  const row = document.querySelector(`tr.sp-row[data-id="${id}"]`);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// Group label used for the "who still owes me X" dropdown.
+function sponsorNeedGroup(i) {
+  if (i.key === 'boothAd') return 'Booklet ad';
+  if (i.key === 'badges') return 'Badge names';
+  if (i.key === 'program') return 'Program & Stage materials';
+  if (/^Additional .*booklet ad$/.test(i.label)) return 'Booklet ad';
+  if (/^Logo for .*signage$/.test(i.label)) return 'Food sponsorship signage logo';
+  if (i.key.startsWith('custom-')) return 'Custom add-on';
+  if (i.key === 'handout' || /registration bag insert/i.test(i.label)) return 'Welcome bag handout / insert';
+  if (i.key === 'displayGraphic') return 'Display graphic';
+  return i.label;
+}
+function renderSponsorNeedsBoard() {
+  const root = document.getElementById('sp-needs-board');
+  if (!root || !sponsorNeedsMode) return;
+  const search = (sponsorSearch || '').toLowerCase();
+  const list = sponsors.filter(isActiveThisYear)
+    .filter(s => !search || sponsorSearchHaystack(s).includes(search))
+    .map(s => ({ s, items: sponsorNeeds(s) }));
+  // Outstanding counts per item type, for the summary chips + filter dropdown.
+  const groupCounts = {};
+  list.forEach(({ items }) => items.filter(i => !i.done).forEach(i => { const g = sponsorNeedGroup(i); groupCounts[g] = (groupCounts[g] || 0) + 1; }));
+  const groups = Object.keys(groupCounts).sort((a, b) => groupCounts[b] - groupCounts[a] || a.localeCompare(b));
+  if (sponsorNeedsItemFilter && !groupCounts[sponsorNeedsItemFilter] && !sponsorNeedsShowDone) sponsorNeedsItemFilter = '';
+
+  const cards = list.map(({ s, items }) => {
+    let shown = sponsorNeedsItemFilter ? items.filter(i => sponsorNeedGroup(i) === sponsorNeedsItemFilter) : items;
+    const open = shown.filter(i => !i.done);
+    if (!sponsorNeedsShowDone) shown = open;
+    else shown = open.concat(shown.filter(i => i.done));
+    return { s, items, shown, open };
+  }).filter(c => sponsorNeedsShowDone ? (sponsorNeedsItemFilter ? c.shown.length : true) : c.open.length)
+    .sort((a, b) => b.open.length - a.open.length || a.s.org.localeCompare(b.s.org));
+
+  const totalOpen = list.reduce((n, c) => n + c.items.filter(i => !i.done).length, 0);
+  const sponsorsWithOpen = list.filter(c => c.items.some(i => !i.done)).length;
+  const pkgChip = s => { const p = s.package ? getPkg(s.package) : null; return p ? `<span class="sp-pkg-chip"><span class="sp-swatch" style="background:${p.color}"></span>${escapeHtml(p.label)}</span>` : '<span class="sp-sub">No package</span>'; };
+
+  root.innerHTML = `
+    <div class="sn-board-head">
+      <div><b>${totalOpen}</b> item${totalOpen === 1 ? '' : 's'} outstanding across <b>${sponsorsWithOpen}</b> of ${list.length} active sponsor${list.length === 1 ? '' : 's'}</div>
+      <select class="sp-sort-select" onchange="setSponsorNeedsItemFilter(this.value)" title="Show only sponsors who still owe a particular item">
+        <option value="">All items</option>
+        ${groups.map(g => `<option value="${escapeHtml(g)}" ${g === sponsorNeedsItemFilter ? 'selected' : ''}>${escapeHtml(g)} (${groupCounts[g]})</option>`).join('')}
+      </select>
+      <label class="sp-check" style="margin:0;"><input type="checkbox" ${sponsorNeedsShowDone ? 'checked' : ''} onchange="setSponsorNeedsShowDone(this.checked)"> Show received items too</label>
+    </div>
+    <div class="sp-sub sp-sub-wrap" style="margin-bottom:12px;">Built from each sponsor’s package plus any add-ons (Financials tab) and Program &amp; Stage commitments. Uploads, badge names and load-in times check off automatically; tick the rest as they come in. Gold <span class="sn-tag sn-tag-addon">Add-on</span> tags mark things added on top of their package.</div>
+    ${cards.length ? `<div class="sn-grid">${cards.map(({ s, items, shown, open }) => `
+      <div class="sn-card">
+        <div class="sn-card-head" onclick="openSponsorFromNeeds('${s.id}')" title="Open ${escapeHtml(s.org)}'s record">
+          <div class="sn-card-org">${escapeHtml(s.org)}</div>
+          <div class="sn-card-meta">${pkgChip(s)}<span class="sp-sub">${items.length ? (open.length ? open.length + ' of ' + items.length + ' outstanding' : 'All received') : 'Nothing to collect'}</span></div>
+          ${items.length ? `<div class="sk-completeness-bar-outer"><div class="sk-completeness-bar-fill" style="width:${Math.round(100 * (items.length - open.length) / items.length)}%; background:${open.length ? 'var(--gold)' : '#2E8B57'};"></div></div>` : ''}
+        </div>
+        ${shown.map(i => sponsorNeedRowHTML(s, i)).join('') || '<div class="sp-sub">Nothing outstanding.</div>'}
+      </div>`).join('')}</div>`
+      : `<div class="sn-empty">${list.length ? (sponsorNeedsItemFilter ? 'Nobody still owes that item.' : 'Nothing outstanding — every active sponsor has sent everything their package and add-ons call for.') : 'No active sponsors this year yet (Registered, Committed or In-Kind).'}</div>`}
+  `;
 }
 
 // ==================== Sponsorship Guide Reference ====================
