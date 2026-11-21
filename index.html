@@ -15845,7 +15845,8 @@ function sponsorNeedsFieldsetHTML(s) {
     ? open.concat(done).map(i => sponsorNeedRowHTML(s, i)).join('')
     : `<div class="sp-sub sp-sub-wrap">${s.package ? 'Nothing to collect for this package and no add-ons with deliverables.' : 'Pick a package on the Overview tab (and check any add-ons under Financials) to see what we need from them.'}</div>`;
   return `<fieldset class="sp-fieldset">
-    <legend>What We Need From Them <span class="sp-sub" style="font-weight:400;">— ${items.length ? (open.length ? open.length + ' of ' + items.length + ' still outstanding' : 'all ' + items.length + ' received') : 'nothing yet'}</span></legend>
+    <legend>What We Need From Them</legend>
+    ${items.length ? `<div class="sp-sub" style="margin-bottom:4px;">${open.length ? open.length + ' of ' + items.length + ' still outstanding' : 'All ' + items.length + ' received'}</div>` : ''}
     ${body}
   </fieldset>`;
 }
